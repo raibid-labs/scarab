@@ -8,6 +8,7 @@ scarab-protocol = { path = "../scarab-protocol" }
 fusabi-vm = { path = "../fusabi-vm" }
 tokio = { workspace = true }
 portable-pty = { workspace = true }
-alacritty_terminal = { workspace = true }
+# TODO: Re-enable alacritty_terminal once dependency conflicts are resolved
+# alacritty_terminal = { workspace = true }
 anyhow = { workspace = true }
 shared_memory = { workspace = true }
