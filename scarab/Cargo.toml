@@ -14,6 +14,7 @@ bevy = { version = "0.15", default-features = false, features = ["bevy_winit", "
 tokio = { version = "1.36", features = ["full"] }
 portable-pty = "0.8"
 alacritty_terminal = "0.24"
+vte = "0.13"
 rkyv = { version = "0.7", features = ["validation"] }
 bytemuck = { version = "1.14", features = ["derive"] }
 anyhow = "1.0"

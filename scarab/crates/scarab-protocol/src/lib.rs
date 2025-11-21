@@ -12,16 +12,28 @@ pub const BUFFER_SIZE: usize = GRID_WIDTH * GRID_HEIGHT;
 #[repr(C)]
 #[derive(Copy, Clone, Pod, Zeroable)]
 pub struct Cell {
-    pub char_codepoint: u32, 
+    pub char_codepoint: u32,
     pub fg: u32,   // RGBA
     pub bg: u32,   // RGBA
     pub flags: u8, // Bold, Italic, etc.
     pub _padding: [u8; 3], // Align to 16 bytes
 }
 
+impl Default for Cell {
+    fn default() -> Self {
+        Self {
+            char_codepoint: b' ' as u32,
+            fg: 0xFFFFFFFF, // White
+            bg: 0x000000FF, // Black
+            flags: 0,
+            _padding: [0; 3],
+        }
+    }
+}
+
 // A double-buffered grid state living in shared memory
 #[repr(C)]
-#[derive(Copy, Clone, Pod, Zeroable)]
+#[derive(Copy, Clone)]
 pub struct SharedState {
     pub sequence_number: u64, // Atomic sequence for synchronization
     pub dirty_flag: u8,
@@ -34,12 +46,27 @@ pub struct SharedState {
     pub cells: [Cell; BUFFER_SIZE],
 }
 
+// Manual implementations needed for large arrays
+unsafe impl Pod for SharedState {}
+unsafe impl Zeroable for SharedState {}
+
 // Control messages (Sent via Socket/Pipe, not ShMem)
-#[derive(Debug, Clone)]
+// Using rkyv for zero-copy serialization
+#[derive(Debug, Clone, rkyv::Archive, rkyv::Serialize, rkyv::Deserialize)]
+#[archive(check_bytes)]
 pub enum ControlMessage {
     Resize { cols: u16, rows: u16 },
     Input { data: alloc::vec::Vec<u8> },
     LoadPlugin { path: alloc::string::String },
+    Ping { timestamp: u64 },
+    Disconnect { client_id: u64 },
 }
+
+// IPC configuration constants
+pub const SOCKET_PATH: &str = "/tmp/scarab-daemon.sock";
+pub const MAX_MESSAGE_SIZE: usize = 8192;
+pub const MAX_CLIENTS: usize = 16;
+pub const RECONNECT_DELAY_MS: u64 = 100;
+pub const MAX_RECONNECT_ATTEMPTS: u32 = 10;
 
 extern crate alloc;

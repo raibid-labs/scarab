@@ -5,5 +5,5 @@ edition = "2021"
 
 [dependencies]
 bytemuck = { workspace = true }
-serde = { workspace = true }
 rkyv = { workspace = true }
+serde = { workspace = true }
