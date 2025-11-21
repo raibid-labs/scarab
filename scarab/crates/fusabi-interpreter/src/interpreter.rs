@@ -348,14 +348,14 @@ mod tests {
     fn test_function() {
         let code = r#"
             let add x y = x + y
-            add 10 20
+            add(10, 20)
         "#;
         assert_eq!(eval(code).unwrap(), Value::Int(30));
     }
 
     #[test]
     fn test_lambda() {
-        let code = "(fun x -> x + 1) 41";
+        let code = "(fun x -> x + 1)(41)";
         assert_eq!(eval(code).unwrap(), Value::Int(42));
     }
 

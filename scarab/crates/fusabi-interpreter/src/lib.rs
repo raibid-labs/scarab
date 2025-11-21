@@ -65,14 +65,14 @@ mod tests {
     fn test_eval_function() {
         let code = r#"
             let add x y = x + y
-            add 10 20
+            add(10, 20)
         "#;
         assert_eq!(eval(code).unwrap(), Value::Int(30));
     }
 
     #[test]
     fn test_eval_stdlib() {
-        assert_eq!(eval("abs -42").unwrap(), Value::Int(42));
-        assert_eq!(eval(r#"strlen "hello""#).unwrap(), Value::Int(5));
+        assert_eq!(eval("abs(-42)").unwrap(), Value::Int(42));
+        assert_eq!(eval(r#"strlen("hello")"#).unwrap(), Value::Int(5));
     }
 }

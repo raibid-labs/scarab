@@ -121,38 +121,26 @@ fn main() {
         println!("Result: {}\n", result);
     }
 
-    // Example 4: Local variables
-    println!("Example 4: Using local variables");
+    // Example 4: Computing factorial-like operation
+    println!("Example 4: Computing 5 * 4 * 3");
     {
-        let (builder, c1) = BytecodeBuilder::new().add_constant(Value::I32(10));
-        let (builder, c2) = builder.add_constant(Value::I32(20));
+        let (builder, c1) = BytecodeBuilder::new().add_constant(Value::I32(5));
+        let (builder, c2) = builder.add_constant(Value::I32(4));
+        let (builder, c3) = builder.add_constant(Value::I32(3));
 
         let mut code = Vec::new();
-        // Store 10 in local 0
         code.extend(Opcode::Push(c1).encode());
-        code.extend(Opcode::Store(0).encode());
-
-        // Store 20 in local 1
         code.extend(Opcode::Push(c2).encode());
-        code.extend(Opcode::Store(1).encode());
-
-        // Load and add
-        code.extend(Opcode::Load(0).encode());
-        code.extend(Opcode::Load(1).encode());
-        code.extend(Opcode::Add.encode());
-
-        // Store result in local 2
-        code.extend(Opcode::Store(2).encode());
-
-        // Return local 2
-        code.extend(Opcode::Load(2).encode());
+        code.extend(Opcode::Mul.encode());
+        code.extend(Opcode::Push(c3).encode());
+        code.extend(Opcode::Mul.encode());
         code.extend(Opcode::Ret.encode());
 
         let func = Function {
-            name: "locals".to_string(),
+            name: "multiply".to_string(),
             params: vec![],
             return_type: Type::I32,
-            locals: 3,
+            locals: 0,
             bytecode: code,
         };
 

@@ -73,32 +73,32 @@ fn test_if_expression() {
 fn test_function_definition() {
     let code = r#"
         let add x y = x + y
-        add 10 20
+        add(10, 20)
     "#;
     assert_eq!(eval(code).unwrap(), Value::Int(30));
 
     let code = r#"
         let double x = x * 2
-        double 21
+        double(21)
     "#;
     assert_eq!(eval(code).unwrap(), Value::Int(42));
 }
 
 #[test]
 fn test_lambda() {
-    let code = "(fun x -> x + 1) 41";
+    let code = "(fun x -> x + 1)(41)";
     assert_eq!(eval(code).unwrap(), Value::Int(42));
 
-    let code = "(fun x y -> x * y) 6 7";
+    let code = "(fun x y -> x * y)(6, 7)";
     assert_eq!(eval(code).unwrap(), Value::Int(42));
 }
 
 #[test]
 fn test_higher_order_functions() {
     let code = r#"
-        let apply f x = f x
+        let apply f x = f(x)
         let inc x = x + 1
-        apply inc 41
+        apply(inc, 41)
     "#;
     assert_eq!(eval(code).unwrap(), Value::Int(42));
 }
@@ -153,23 +153,23 @@ fn test_string_operations() {
 
 #[test]
 fn test_stdlib_string_functions() {
-    assert_eq!(eval(r#"strlen "hello""#).unwrap(), Value::Int(5));
+    assert_eq!(eval(r#"strlen("hello")"#).unwrap(), Value::Int(5));
     assert_eq!(
-        eval(r#"to_upper "hello""#).unwrap(),
+        eval(r#"to_upper("hello")"#).unwrap(),
         Value::String("HELLO".to_string())
     );
     assert_eq!(
-        eval(r#"to_lower "WORLD""#).unwrap(),
+        eval(r#"to_lower("WORLD")"#).unwrap(),
         Value::String("world".to_string())
     );
 }
 
 #[test]
 fn test_stdlib_list_functions() {
-    assert_eq!(eval("length [1, 2, 3]").unwrap(), Value::Int(3));
-    assert_eq!(eval("head [1, 2, 3]").unwrap(), Value::Int(1));
+    assert_eq!(eval("length([1, 2, 3])").unwrap(), Value::Int(3));
+    assert_eq!(eval("head([1, 2, 3])").unwrap(), Value::Int(1));
 
-    let code = "reverse [1, 2, 3]";
+    let code = "reverse([1, 2, 3])";
     if let Value::List(list) = eval(code).unwrap() {
         assert_eq!(list, vec![Value::Int(3), Value::Int(2), Value::Int(1)]);
     } else {
@@ -179,19 +179,19 @@ fn test_stdlib_list_functions() {
 
 #[test]
 fn test_stdlib_math_functions() {
-    assert_eq!(eval("abs -42").unwrap(), Value::Int(42));
-    assert_eq!(eval("min 5 10").unwrap(), Value::Int(5));
-    assert_eq!(eval("max 5 10").unwrap(), Value::Int(10));
-    assert_eq!(eval("floor 3.7").unwrap(), Value::Int(3));
-    assert_eq!(eval("ceil 3.2").unwrap(), Value::Int(4));
+    assert_eq!(eval("abs(-42)").unwrap(), Value::Int(42));
+    assert_eq!(eval("min(5, 10)").unwrap(), Value::Int(5));
+    assert_eq!(eval("max(5, 10)").unwrap(), Value::Int(10));
+    assert_eq!(eval("floor(3.7)").unwrap(), Value::Int(3));
+    assert_eq!(eval("ceil(3.2)").unwrap(), Value::Int(4));
 }
 
 #[test]
 fn test_type_checking_functions() {
-    assert_eq!(eval("is_int 42").unwrap(), Value::Bool(true));
-    assert_eq!(eval("is_int 3.14").unwrap(), Value::Bool(false));
-    assert_eq!(eval(r#"is_string "hello""#).unwrap(), Value::Bool(true));
-    assert_eq!(eval("is_list [1, 2, 3]").unwrap(), Value::Bool(true));
+    assert_eq!(eval("is_int(42)").unwrap(), Value::Bool(true));
+    assert_eq!(eval("is_int(3.14)").unwrap(), Value::Bool(false));
+    assert_eq!(eval(r#"is_string("hello")"#).unwrap(), Value::Bool(true));
+    assert_eq!(eval("is_list([1, 2, 3])").unwrap(), Value::Bool(true));
 }
 
 #[test]
@@ -201,8 +201,8 @@ fn test_recursion() {
             if n <= 1 then
                 1
             else
-                n * factorial (n - 1)
-        factorial 5
+                n * factorial(n - 1)
+        factorial(5)
     "#;
     assert_eq!(eval(code).unwrap(), Value::Int(120));
 }
@@ -212,8 +212,8 @@ fn test_nested_functions() {
     let code = r#"
         let outer x =
             let inner y = x + y
-            inner 10
-        outer 5
+            inner(10)
+        outer(5)
     "#;
     assert_eq!(eval(code).unwrap(), Value::Int(15));
 }
@@ -232,8 +232,8 @@ fn test_comments() {
 fn test_complex_expression() {
     let code = r#"
         let square x = x * x
-        let sum_of_squares x y = square x + square y
-        sum_of_squares 3 4
+        let sum_of_squares x y = square(x) + square(y)
+        sum_of_squares(3, 4)
     "#;
     assert_eq!(eval(code).unwrap(), Value::Int(25));
 }
@@ -260,7 +260,7 @@ fn test_error_type_mismatch() {
 fn test_error_arity_mismatch() {
     let code = r#"
         let add x y = x + y
-        add 10
+        add(10)
     "#;
     let result = eval(code);
     assert!(result.is_err());

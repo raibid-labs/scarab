@@ -54,15 +54,26 @@ fn ws_or_comment(input: Span) -> IResult<Span, ()> {
     )(input)
 }
 
-// Identifiers
+// Identifiers (excluding keywords)
 fn identifier(input: Span) -> IResult<Span, String> {
-    map(
+    let (input, ident) = map(
         recognize(pair(
             alt((alpha1, tag("_"))),
             many0(alt((alphanumeric1, tag("_")))),
         )),
         |s: Span| s.fragment().to_string(),
-    )(input)
+    )(input)?;
+
+    // Reject keywords
+    match ident.as_str() {
+        "let" | "in" | "if" | "then" | "else" | "fun" | "true" | "false" | "nil" => {
+            Err(nom::Err::Error(nom::error::Error::new(
+                input,
+                nom::error::ErrorKind::Tag,
+            )))
+        }
+        _ => Ok((input, ident)),
+    }
 }
 
 // Literals
