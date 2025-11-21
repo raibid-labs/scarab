@@ -2,4 +2,16 @@
 name = "scarab-plugin-api"
 version = "0.1.0"
 edition = "2021"
+
 [dependencies]
+anyhow = { workspace = true }
+serde = { workspace = true }
+toml = "0.8"
+log = "0.4"
+semver = "1.0"
+thiserror = "1.0"
+async-trait = "0.1"
+parking_lot = "0.12"
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
