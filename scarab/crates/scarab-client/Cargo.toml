@@ -10,3 +10,5 @@ bevy = { workspace = true }
 cosmic-text = { workspace = true }
 anyhow = { workspace = true }
 shared_memory = { workspace = true }
+tokio = { workspace = true }
+rkyv = { workspace = true }

@@ -3,6 +3,9 @@ use scarab_protocol::{SharedState, SHMEM_PATH};
 use shared_memory::ShmemConf;
 use std::sync::Arc;
 
+mod ipc;
+use ipc::IpcPlugin;
+
 // Marker for the grid entity
 #[derive(Component)]
 struct TerminalGrid;
@@ -51,9 +54,10 @@ fn main() {
             }),
            ..default()
         }))
+       .add_plugins(IpcPlugin) // Add IPC support
        .insert_resource(reader)
        .add_systems(Startup, setup)
-       .add_systems(Update, (sync_grid, handle_input))
+       .add_systems(Update, sync_grid)
        .run();
 }
 
@@ -66,7 +70,7 @@ fn setup(mut commands: Commands) {
             ..default()
         },
     ));
-    println!("Scarab Client Initialized with shared memory reader.");
+    println!("Scarab Client Initialized with shared memory reader and IPC.");
 }
 
 fn sync_grid(mut reader: ResMut<SharedMemoryReader>) {
@@ -93,12 +97,5 @@ fn sync_grid(mut reader: ResMut<SharedMemoryReader>) {
             // Reset dirty flag (optional, depending on your protocol)
             // Note: This is a read-only client, so we don't modify shared memory
         }
-    }
-}
-
-fn handle_input(keys: Res<ButtonInput<KeyCode>>) {
-    // TODO: Send input to Daemon via socket
-    if keys.just_pressed(KeyCode::Space) {
-        println!("Space pressed - checking for Leader Key...");
     }
 }
