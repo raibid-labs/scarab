@@ -1,0 +1,12 @@
+[package]
+name = "scarab-client"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+scarab-protocol = { path = "../scarab-protocol" }
+fusabi-interpreter = { path = "../fusabi-interpreter" }
+bevy = { workspace = true }
+cosmic-text = { workspace = true }
+anyhow = { workspace = true }
+shared_memory = { workspace = true }

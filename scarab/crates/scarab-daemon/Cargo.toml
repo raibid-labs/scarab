@@ -1,0 +1,13 @@
+[package]
+name = "scarab-daemon"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+scarab-protocol = { path = "../scarab-protocol" }
+fusabi-vm = { path = "../fusabi-vm" }
+tokio = { workspace = true }
+portable-pty = { workspace = true }
+alacritty_terminal = { workspace = true }
+anyhow = { workspace = true }
+shared_memory = { workspace = true }
