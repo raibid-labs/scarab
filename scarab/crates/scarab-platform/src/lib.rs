@@ -105,56 +105,56 @@ impl Platform for PlatformInstance {
 
 #[cfg(target_os = "linux")]
 impl Platform for PlatformInstance {
-    fn socket_path() -> Result<PathBuf> {
+    fn socket_path(&self) -> Result<PathBuf> {
         linux::LinuxPlatform::socket_path()
     }
-    fn config_dir() -> Result<PathBuf> {
+    fn config_dir(&self) -> Result<PathBuf> {
         linux::LinuxPlatform::config_dir()
     }
-    fn data_dir() -> Result<PathBuf> {
+    fn data_dir(&self) -> Result<PathBuf> {
         linux::LinuxPlatform::data_dir()
     }
-    fn cache_dir() -> Result<PathBuf> {
+    fn cache_dir(&self) -> Result<PathBuf> {
         linux::LinuxPlatform::cache_dir()
     }
-    fn runtime_dir() -> Result<PathBuf> {
+    fn runtime_dir(&self) -> Result<PathBuf> {
         linux::LinuxPlatform::runtime_dir()
     }
-    fn platform_name() -> &'static str {
+    fn platform_name(&self) -> &'static str {
         linux::LinuxPlatform::platform_name()
     }
-    fn graphics_backend() -> GraphicsBackend {
+    fn graphics_backend(&self) -> GraphicsBackend {
         linux::LinuxPlatform::graphics_backend()
     }
-    fn init() -> Result<()> {
+    fn init(&self) -> Result<()> {
         linux::LinuxPlatform::init()
     }
 }
 
 #[cfg(target_os = "windows")]
 impl Platform for PlatformInstance {
-    fn socket_path() -> Result<PathBuf> {
+    fn socket_path(&self) -> Result<PathBuf> {
         windows::WindowsPlatform::socket_path()
     }
-    fn config_dir() -> Result<PathBuf> {
+    fn config_dir(&self) -> Result<PathBuf> {
         windows::WindowsPlatform::config_dir()
     }
-    fn data_dir() -> Result<PathBuf> {
+    fn data_dir(&self) -> Result<PathBuf> {
         windows::WindowsPlatform::data_dir()
     }
-    fn cache_dir() -> Result<PathBuf> {
+    fn cache_dir(&self) -> Result<PathBuf> {
         windows::WindowsPlatform::cache_dir()
     }
-    fn runtime_dir() -> Result<PathBuf> {
+    fn runtime_dir(&self) -> Result<PathBuf> {
         windows::WindowsPlatform::runtime_dir()
     }
-    fn platform_name() -> &'static str {
+    fn platform_name(&self) -> &'static str {
         windows::WindowsPlatform::platform_name()
     }
-    fn graphics_backend() -> GraphicsBackend {
+    fn graphics_backend(&self) -> GraphicsBackend {
         windows::WindowsPlatform::graphics_backend()
     }
-    fn init() -> Result<()> {
+    fn init(&self) -> Result<()> {
         windows::WindowsPlatform::init()
     }
 }
