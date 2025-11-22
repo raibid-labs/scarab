@@ -2,6 +2,7 @@ use bevy::prelude::*;
 use scarab_protocol::{SharedState, SHMEM_PATH};
 use shared_memory::ShmemConf;
 use std::sync::Arc;
+use scarab_client::ui::AdvancedUIPlugin;
 
 mod ipc;
 use ipc::IpcPlugin;
@@ -55,6 +56,7 @@ fn main() {
            ..default()
         }))
        .add_plugins(IpcPlugin) // Add IPC support
+       .add_plugins(AdvancedUIPlugin) // Add advanced UI features
        .insert_resource(reader)
        .add_systems(Startup, setup)
        .add_systems(Update, sync_grid)

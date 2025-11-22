@@ -2,6 +2,9 @@
 // Provides hierarchical command menus triggered by a leader key
 
 use bevy::prelude::*;
+use bevy::input::keyboard::KeyCode;
+use bevy::ui::{Style, UiRect, Val, PositionType, FlexDirection};
+use bevy::text::{Text, TextStyle, TextSection};
 use std::time::{Duration, Instant};
 
 /// Plugin for leader key functionality

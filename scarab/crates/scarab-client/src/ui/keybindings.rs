@@ -2,6 +2,7 @@
 // Allows users to customize keyboard shortcuts
 
 use bevy::prelude::*;
+use bevy::input::keyboard::KeyCode;
 use std::collections::HashMap;
 
 /// Plugin for key bindings functionality
@@ -89,7 +90,8 @@ impl KeyBinding {
             parts.push("Super");
         }
 
-        parts.push(&format!("{:?}", self.key));
+        let key_str = format!("{:?}", self.key);
+        parts.push(&key_str);
 
         parts.join("+")
     }

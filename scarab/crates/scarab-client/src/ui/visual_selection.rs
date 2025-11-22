@@ -2,7 +2,7 @@
 // Allows users to select text using keyboard
 
 use bevy::prelude::*;
-use scarab_protocol::SharedState;
+use bevy::input::keyboard::KeyCode;
 
 /// Plugin for visual selection
 pub struct VisualSelectionPlugin;

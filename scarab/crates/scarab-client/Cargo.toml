@@ -3,6 +3,14 @@ name = "scarab-client"
 version = "0.1.0"
 edition = "2021"
 
+[lib]
+name = "scarab_client"
+path = "src/lib.rs"
+
+[[bin]]
+name = "scarab-client"
+path = "src/main.rs"
+
 [dependencies]
 scarab-protocol = { path = "../scarab-protocol" }
 fusabi-interpreter = { path = "../fusabi-interpreter" }

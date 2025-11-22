@@ -2,6 +2,8 @@
 // Detects links in terminal output and provides keyboard shortcuts
 
 use bevy::prelude::*;
+use bevy::input::keyboard::KeyCode;
+use bevy::text::{Text, TextStyle, TextSection};
 use regex::Regex;
 use std::sync::Arc;
 
