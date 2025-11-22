@@ -258,13 +258,24 @@ mod tests {
         let id = session.id.clone();
         store.save_session(&session).unwrap();
 
-        // Wait a moment
-        std::thread::sleep(std::time::Duration::from_millis(10));
+        // Get initial timestamp from DB (which has second precision)
+        let initial_loaded = store.get_session(&id).unwrap().unwrap();
+        let initial_attached = *initial_loaded.last_attached.read();
+
+        // Wait for at least 1 second (SQLite stores timestamps with second precision)
+        std::thread::sleep(std::time::Duration::from_secs(1));
 
         store.update_last_attached(&id).unwrap();
 
-        // Verify timestamp was updated
+        // Verify timestamp was updated in DB
         let loaded = store.get_session(&id).unwrap().unwrap();
-        assert!(loaded.last_attached.read().duration_since(session.created_at).unwrap().as_millis() > 0);
+        let loaded_attached = *loaded.last_attached.read();
+
+        // The loaded timestamp should be at least 1 second later
+        assert!(
+            loaded_attached > initial_attached,
+            "Expected loaded timestamp ({:?}) to be later than initial ({:?})",
+            loaded_attached, initial_attached
+        );
     }
 }

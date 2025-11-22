@@ -37,7 +37,8 @@ impl Session {
         let _child = pair.slave.spawn_command(cmd)?;
 
         // Extract master and slave separately to avoid partial move
-        let master = pair.master;
+        let master: Box<dyn portable_pty::MasterPty + Send + Sync> =
+            unsafe { std::mem::transmute(pair.master) };
         let _slave = pair.slave;
         // Slave is dropped here, released in parent process
 
