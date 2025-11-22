@@ -4,7 +4,8 @@
 // Temporarily use UI stub during Bevy 0.15 migration
 // pub mod ui;
 pub mod ui_stub;
-pub use ui_stub as ui;
+// Re-export ui_stub contents
+pub use ui_stub::*;
 
 pub mod rendering;
 pub mod ipc;

@@ -47,7 +47,7 @@ pub trait Platform {
     fn graphics_backend(&self) -> GraphicsBackend;
 
     /// Platform-specific initialization
-    fn init(&self) -> Result<()> {
+    fn init(&self) -> Result<()> where Self: Sized {
         Ok(())
     }
 }
