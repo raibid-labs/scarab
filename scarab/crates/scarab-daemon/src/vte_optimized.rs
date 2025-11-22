@@ -154,12 +154,12 @@ impl Perform for OptimizedPerformer {
         }
     }
 
-    fn csi_dispatch(&mut self, params: &vte::Params, intermediates: &[u8], _ignore: bool, action: u8) {
+    fn csi_dispatch(&mut self, params: &vte::Params, intermediates: &[u8], _ignore: bool, action: char) {
         // Convert params to slice for cache lookup
         let params_vec: Vec<i64> = params.iter().map(|p| p[0] as i64).collect();
 
         // Check cache first
-        let cached_action = self.sequence_cache.get_csi(&params_vec, intermediates, action).cloned();
+        let cached_action = self.sequence_cache.get_csi(&params_vec, intermediates, action as u8).cloned();
         if let Some(cached) = cached_action {
             self.apply_cached_sequence(&cached);
             return;
@@ -167,14 +167,14 @@ impl Perform for OptimizedPerformer {
 
         // Process and cache result
         match action {
-            b'A' => {}, // Cursor up
-            b'B' => {}, // Cursor down
-            b'C' => {}, // Cursor forward
-            b'D' => {}, // Cursor backward
-            b'H' | b'f' => {}, // Cursor position
-            b'J' => {}, // Erase display
-            b'K' => {}, // Erase line
-            b'm' => {}, // SGR - colors and attributes
+            'A' => {}, // Cursor up
+            'B' => {}, // Cursor down
+            'C' => {}, // Cursor forward
+            'D' => {}, // Cursor backward
+            'H' | 'f' => {}, // Cursor position
+            'J' => {}, // Erase display
+            'K' => {}, // Erase line
+            'm' => {}, // SGR - colors and attributes
             _ => {}
         }
     }
@@ -193,7 +193,7 @@ impl Perform for OptimizedPerformer {
         }
     }
 
-    fn hook(&mut self, _params: &vte::Params, _intermediates: &[u8], _ignore: bool, _action: u8) {
+    fn hook(&mut self, _params: &vte::Params, _intermediates: &[u8], _ignore: bool, _action: char) {
         // DCS sequences - rarely used in modern terminals
     }
 

@@ -1,6 +1,6 @@
 use super::{SessionId, ClientId, GridState, SessionStore};
 use anyhow::{Result, bail};
-use portable_pty::{CommandBuilder, NativePtySystem, PtyPair, PtySize, PtySystem};
+use portable_pty::{CommandBuilder, NativePtySystem, PtySize, PtySystem};
 use parking_lot::RwLock;
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;

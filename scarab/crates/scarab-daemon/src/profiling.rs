@@ -181,7 +181,7 @@ impl MetricsCollector {
 
         let shmem_count = self.shmem_sync_count.load(Ordering::Relaxed);
         let shmem_time_total = self.shmem_sync_time_ns.load(Ordering::Relaxed);
-        let avg_shmem_time_us = if shmem_count > 0 {
+        let avg_shmem_sync_time_us = if shmem_count > 0 {
             (shmem_time_total / shmem_count) as f64 / 1_000.0
         } else {
             0.0
@@ -189,7 +189,7 @@ impl MetricsCollector {
 
         PerformanceReport {
             avg_frame_time_ms,
-            avg_vte_parse_time_us,
+            avg_vte_parse_time_us: avg_vte_time_us,
             vte_bytes_per_sec: self.vte_bytes_processed.load(Ordering::Relaxed) as f64,
             avg_render_time_ms,
             draw_calls_per_frame: if render_count > 0 {
