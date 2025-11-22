@@ -7,39 +7,39 @@ use std::path::PathBuf;
 pub struct MacPlatform;
 
 impl Platform for MacPlatform {
-    fn socket_path() -> Result<PathBuf> {
-        let runtime_dir = Self::runtime_dir()?;
+    fn socket_path(&self) -> Result<PathBuf> {
+        let runtime_dir = self.runtime_dir()?;
         Ok(runtime_dir.join("scarab.sock"))
     }
 
-    fn config_dir() -> Result<PathBuf> {
+    fn config_dir(&self) -> Result<PathBuf> {
         dirs::config_dir()
             .map(|p| p.join("scarab"))
             .context("Failed to get config directory")
     }
 
-    fn data_dir() -> Result<PathBuf> {
+    fn data_dir(&self) -> Result<PathBuf> {
         dirs::data_dir()
             .map(|p| p.join("scarab"))
             .context("Failed to get data directory")
     }
 
-    fn cache_dir() -> Result<PathBuf> {
+    fn cache_dir(&self) -> Result<PathBuf> {
         dirs::cache_dir()
             .map(|p| p.join("scarab"))
             .context("Failed to get cache directory")
     }
 
-    fn runtime_dir() -> Result<PathBuf> {
-        std::env::var("TMPDIR")
+    fn runtime_dir(&self) -> Result<PathBuf> {
+        let dir = std::env::var("TMPDIR")
             .map(PathBuf::from)
             .or_else(|_| std::env::var("XDG_RUNTIME_DIR").map(PathBuf::from))
             .unwrap_or_else(|_| PathBuf::from("/tmp"))
-            .join("scarab")
-            .into()
+            .join("scarab");
+        Ok(dir)
     }
 
-    fn platform_name() -> &'static str {
+    fn platform_name(&self) -> &'static str {
         if cfg!(target_arch = "aarch64") {
             "macOS (Apple Silicon)"
         } else {
@@ -47,18 +47,18 @@ impl Platform for MacPlatform {
         }
     }
 
-    fn graphics_backend() -> GraphicsBackend {
+    fn graphics_backend(&self) -> GraphicsBackend {
         // Always use Metal on macOS for best performance
         GraphicsBackend::Metal
     }
 
-    fn init() -> Result<()> {
+    fn init(&self) -> Result<()> {
         // Create necessary directories
         let dirs = vec![
-            Self::config_dir()?,
-            Self::data_dir()?,
-            Self::cache_dir()?,
-            Self::runtime_dir()?,
+            self.config_dir()?,
+            self.data_dir()?,
+            self.cache_dir()?,
+            self.runtime_dir()?,
         ];
 
         for dir in dirs {

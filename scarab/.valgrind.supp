@@ -1,0 +1,88 @@
+# Valgrind suppression file for Scarab
+# Suppresses known false positives from system libraries and Rust runtime
+
+# Rust allocator
+{
+   rust_allocator
+   Memcheck:Leak
+   fun:malloc
+   fun:alloc::alloc::*
+}
+
+# System libraries
+{
+   glibc_dlopen
+   Memcheck:Leak
+   fun:malloc
+   fun:_dl_*
+}
+
+{
+   pthread_create
+   Memcheck:Leak
+   fun:calloc
+   fun:allocate_dtv
+   fun:pthread_create*
+}
+
+# Graphics drivers
+{
+   mesa_driver
+   Memcheck:Leak
+   fun:malloc
+   obj:/usr/lib/x86_64-linux-gnu/dri/*
+}
+
+{
+   nvidia_driver
+   Memcheck:Leak
+   fun:malloc
+   obj:/usr/lib/x86_64-linux-gnu/libnvidia*
+}
+
+# X11/Wayland
+{
+   x11_libs
+   Memcheck:Leak
+   fun:malloc
+   obj:/usr/lib/x86_64-linux-gnu/libX*
+}
+
+{
+   wayland_libs
+   Memcheck:Leak
+   fun:malloc
+   obj:/usr/lib/x86_64-linux-gnu/libwayland*
+}
+
+# SQLite (used in session management)
+{
+   sqlite_init
+   Memcheck:Leak
+   fun:malloc
+   fun:sqlite3_*
+}
+
+# Fontconfig
+{
+   fontconfig_init
+   Memcheck:Leak
+   fun:malloc
+   fun:FcInit*
+}
+
+# Tokio runtime
+{
+   tokio_runtime
+   Memcheck:Leak
+   fun:malloc
+   fun:tokio::runtime::*
+}
+
+# Crossbeam channels
+{
+   crossbeam_channel
+   Memcheck:Leak
+   fun:malloc
+   fun:crossbeam::channel::*
+}

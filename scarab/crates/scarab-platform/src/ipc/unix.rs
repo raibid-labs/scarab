@@ -66,7 +66,7 @@ impl IpcListener {
         let path = if name.starts_with('/') {
             PathBuf::from(name)
         } else {
-            crate::CurrentPlatform::runtime_dir()?.join(format!("{}.sock", name))
+            crate::current_platform().runtime_dir()?.join(format!("{}.sock", name))
         };
 
         // Remove existing socket file if it exists
@@ -136,17 +136,13 @@ impl IpcClient {
         let path = if name.starts_with('/') {
             PathBuf::from(name)
         } else {
-            crate::CurrentPlatform::runtime_dir()?.join(format!("{}.sock", name))
+            crate::current_platform().runtime_dir()?.join(format!("{}.sock", name))
         };
 
-        let stream = if let Some(timeout) = config.read_timeout {
-            let stream = StdUnixStream::connect_timeout(&path, Duration::from_millis(timeout))
-                .with_context(|| format!("Failed to connect to Unix socket: {:?}", path))?;
-            stream
-        } else {
-            StdUnixStream::connect(&path)
-                .with_context(|| format!("Failed to connect to Unix socket: {:?}", path))?
-        };
+        // Note: UnixStream doesn't have connect_timeout in std, we'll use regular connect
+        // and set timeouts after connection
+        let stream = StdUnixStream::connect(&path)
+            .with_context(|| format!("Failed to connect to Unix socket: {:?}", path))?;
 
         // Set timeouts if configured
         if let Some(timeout) = config.read_timeout {

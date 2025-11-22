@@ -78,28 +78,36 @@ pub struct PlatformInstance;
 #[cfg(target_os = "macos")]
 impl Platform for PlatformInstance {
     fn socket_path(&self) -> Result<PathBuf> {
-        macos::MacPlatform::socket_path()
+        let platform = macos::MacPlatform;
+        platform.socket_path()
     }
     fn config_dir(&self) -> Result<PathBuf> {
-        macos::MacPlatform::config_dir()
+        let platform = macos::MacPlatform;
+        platform.config_dir()
     }
     fn data_dir(&self) -> Result<PathBuf> {
-        macos::MacPlatform::data_dir()
+        let platform = macos::MacPlatform;
+        platform.data_dir()
     }
     fn cache_dir(&self) -> Result<PathBuf> {
-        macos::MacPlatform::cache_dir()
+        let platform = macos::MacPlatform;
+        platform.cache_dir()
     }
     fn runtime_dir(&self) -> Result<PathBuf> {
-        macos::MacPlatform::runtime_dir()
+        let platform = macos::MacPlatform;
+        platform.runtime_dir()
     }
     fn platform_name(&self) -> &'static str {
-        macos::MacPlatform::platform_name()
+        let platform = macos::MacPlatform;
+        platform.platform_name()
     }
     fn graphics_backend(&self) -> GraphicsBackend {
-        macos::MacPlatform::graphics_backend()
+        let platform = macos::MacPlatform;
+        platform.graphics_backend()
     }
     fn init(&self) -> Result<()> {
-        macos::MacPlatform::init()
+        let platform = macos::MacPlatform;
+        platform.init()
     }
 }
 

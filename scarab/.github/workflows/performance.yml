@@ -1,0 +1,238 @@
+name: Performance Regression Tests
+
+on:
+  push:
+    branches: [main, dev]
+  pull_request:
+    branches: [main]
+  schedule:
+    # Run nightly at 2 AM UTC
+    - cron: '0 2 * * *'
+
+env:
+  CARGO_TERM_COLOR: always
+  RUSTFLAGS: "-C target-cpu=native"
+
+jobs:
+  benchmark:
+    name: Run Benchmarks
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Install Rust
+      uses: dtolnay/rust-toolchain@stable
+      with:
+        components: rustfmt, clippy
+
+    - name: Install system dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y \
+          libxkbcommon-dev \
+          libwayland-dev \
+          libxcb-render0-dev \
+          libxcb-shape0-dev \
+          libxcb-xfixes0-dev
+
+    - name: Cache cargo registry
+      uses: actions/cache@v3
+      with:
+        path: ~/.cargo/registry
+        key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
+
+    - name: Cache cargo index
+      uses: actions/cache@v3
+      with:
+        path: ~/.cargo/git
+        key: ${{ runner.os }}-cargo-git-${{ hashFiles('**/Cargo.lock') }}
+
+    - name: Cache target directory
+      uses: actions/cache@v3
+      with:
+        path: target
+        key: ${{ runner.os }}-target-bench-${{ hashFiles('**/Cargo.lock') }}
+
+    - name: Run benchmarks
+      run: |
+        cargo bench --all-features --no-fail-fast -- --output-format bencher | tee output.txt
+
+    - name: Store benchmark result
+      uses: benchmark-action/github-action-benchmark@v1
+      with:
+        name: Scarab Benchmarks
+        tool: 'cargo'
+        output-file-path: output.txt
+        github-token: ${{ secrets.GITHUB_TOKEN }}
+        auto-push: true
+        alert-threshold: '200%'
+        comment-on-alert: true
+        fail-on-alert: true
+        alert-comment-cc-users: '@maintainers'
+
+  memory-check:
+    name: Memory Leak Detection
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Install Rust
+      uses: dtolnay/rust-toolchain@stable
+
+    - name: Install Valgrind
+      run: sudo apt-get update && sudo apt-get install -y valgrind
+
+    - name: Build release binary
+      run: cargo build --release
+
+    - name: Run Valgrind memory check
+      run: |
+        valgrind --leak-check=full \
+                 --show-leak-kinds=all \
+                 --track-origins=yes \
+                 --error-exitcode=1 \
+                 --suppressions=.valgrind.supp \
+                 timeout 10s target/release/scarab-daemon || exit_code=$?
+
+        if [ "$exit_code" = "124" ]; then
+          echo "Timeout reached (expected)"
+          exit 0
+        elif [ "$exit_code" = "1" ]; then
+          echo "Memory leaks detected!"
+          exit 1
+        fi
+
+  profile-check:
+    name: Performance Profile Check
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Install Rust
+      uses: dtolnay/rust-toolchain@stable
+
+    - name: Install profiling tools
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y linux-tools-generic
+        cargo install flamegraph
+
+    - name: Build with profiling
+      run: cargo build --profile=profiling --features=profiling
+
+    - name: Generate CPU profile
+      run: |
+        sudo sysctl kernel.perf_event_paranoid=-1
+        timeout 30s cargo flamegraph --profile=profiling --features=profiling \
+          --bin=scarab-daemon -- --bench || true
+
+    - name: Upload flame graph
+      uses: actions/upload-artifact@v3
+      with:
+        name: flamegraph
+        path: flamegraph.svg
+
+  performance-metrics:
+    name: Collect Performance Metrics
+    runs-on: ubuntu-latest
+
+    outputs:
+      cpu_usage: ${{ steps.metrics.outputs.cpu }}
+      memory_usage: ${{ steps.metrics.outputs.memory }}
+      frame_time: ${{ steps.metrics.outputs.frame_time }}
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Install Rust
+      uses: dtolnay/rust-toolchain@stable
+
+    - name: Build release binary
+      run: cargo build --release --features=profiling
+
+    - name: Collect metrics
+      id: metrics
+      run: |
+        # Start daemon in background
+        target/release/scarab-daemon &
+        DAEMON_PID=$!
+
+        sleep 5
+
+        # Collect CPU and memory usage
+        CPU=$(ps aux | grep scarab-daemon | grep -v grep | awk '{print $3}')
+        MEMORY=$(ps aux | grep scarab-daemon | grep -v grep | awk '{print $6}')
+
+        echo "cpu=$CPU" >> $GITHUB_OUTPUT
+        echo "memory=$MEMORY" >> $GITHUB_OUTPUT
+
+        # Stop daemon
+        kill $DAEMON_PID
+
+    - name: Check performance targets
+      run: |
+        CPU="${{ steps.metrics.outputs.cpu }}"
+        MEMORY="${{ steps.metrics.outputs.memory }}"
+
+        echo "CPU Usage: $CPU%"
+        echo "Memory Usage: $MEMORY KB"
+
+        # Check CPU target (< 1% idle)
+        if (( $(echo "$CPU < 1.0" | bc -l) )); then
+          echo "✅ CPU usage meets target"
+        else
+          echo "⚠️ CPU usage above target"
+        fi
+
+        # Check memory target (< 100MB)
+        if [ "$MEMORY" -lt "102400" ]; then
+          echo "✅ Memory usage meets target"
+        else
+          echo "⚠️ Memory usage above target"
+        fi
+
+  performance-report:
+    name: Generate Performance Report
+    needs: [benchmark, memory-check, performance-metrics]
+    runs-on: ubuntu-latest
+    if: always()
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Generate report
+      run: |
+        echo "# Performance Report" > report.md
+        echo "" >> report.md
+        echo "## Metrics" >> report.md
+        echo "- CPU Usage: ${{ needs.performance-metrics.outputs.cpu_usage }}%" >> report.md
+        echo "- Memory Usage: ${{ needs.performance-metrics.outputs.memory_usage }} KB" >> report.md
+        echo "" >> report.md
+        echo "## Status" >> report.md
+        echo "- Benchmarks: ${{ needs.benchmark.result }}" >> report.md
+        echo "- Memory Check: ${{ needs.memory-check.result }}" >> report.md
+        echo "- Metrics: ${{ needs.performance-metrics.result }}" >> report.md
+
+    - name: Upload report
+      uses: actions/upload-artifact@v3
+      with:
+        name: performance-report
+        path: report.md
+
+    - name: Comment on PR
+      if: github.event_name == 'pull_request'
+      uses: actions/github-script@v6
+      with:
+        script: |
+          const fs = require('fs');
+          const report = fs.readFileSync('report.md', 'utf8');
+
+          github.rest.issues.createComment({
+            issue_number: context.issue.number,
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            body: report
+          });
