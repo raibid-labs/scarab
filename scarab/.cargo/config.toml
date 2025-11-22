@@ -1,0 +1,78 @@
+# Cargo configuration for Scarab
+
+[build]
+# Use maximum optimization and stripping for release builds
+rustflags = ["-C", "link-arg=-s"]
+
+[target.x86_64-unknown-linux-gnu]
+rustflags = [
+    "-C", "link-arg=-s",
+    "-C", "target-cpu=x86-64",
+    "-C", "target-feature=+sse2",
+]
+
+[target.x86_64-unknown-linux-musl]
+rustflags = [
+    "-C", "link-arg=-s",
+    "-C", "target-cpu=x86-64",
+    "-C", "target-feature=+crt-static",
+]
+
+[target.aarch64-unknown-linux-gnu]
+linker = "aarch64-linux-gnu-gcc"
+rustflags = [
+    "-C", "link-arg=-s",
+]
+
+[target.x86_64-apple-darwin]
+rustflags = [
+    "-C", "link-arg=-Wl,-dead_strip",
+]
+
+[target.aarch64-apple-darwin]
+rustflags = [
+    "-C", "link-arg=-Wl,-dead_strip",
+]
+
+[target.x86_64-pc-windows-msvc]
+rustflags = [
+    "-C", "link-arg=/OPT:REF",
+    "-C", "link-arg=/OPT:ICF",
+]
+
+[target.x86_64-pc-windows-gnu]
+linker = "x86_64-w64-mingw32-gcc"
+ar = "x86_64-w64-mingw32-ar"
+rustflags = [
+    "-C", "link-arg=-s",
+]
+
+# Profile-specific optimizations
+[profile.release-minimal]
+inherits = "release"
+opt-level = "z"     # Optimize for size
+lto = "fat"         # Enable full LTO
+codegen-units = 1
+panic = "abort"
+strip = true
+
+[profile.release-balanced]
+inherits = "release"
+opt-level = "s"     # Balance size and speed
+lto = "thin"
+codegen-units = 1
+strip = true
+
+# Network configuration for crates.io
+[net]
+retry = 3
+git-fetch-with-cli = true
+
+# Alias for common commands
+[alias]
+b = "build --release"
+br = "build --release --target"
+t = "test"
+c = "check"
+d = "doc --open"
+size = "build --profile release-minimal"

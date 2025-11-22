@@ -12,14 +12,21 @@ pub const ATLAS_SIZE: u32 = 4096;
 const GLYPH_PADDING: u32 = 2;
 
 /// Key for identifying unique glyphs in the atlas
+/// Matches cosmic-text's glyph identification
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct GlyphKey {
-    pub cache_key: CacheKey,
+    pub font_id: cosmic_text::fontdb::ID,
+    pub glyph_id: u16,
+    pub font_size_bits: u32,
 }
 
 impl From<CacheKey> for GlyphKey {
     fn from(cache_key: CacheKey) -> Self {
-        Self { cache_key }
+        Self {
+            font_id: cache_key.font_id,
+            glyph_id: cache_key.glyph_id,
+            font_size_bits: cache_key.font_size_bits,
+        }
     }
 }
 
@@ -110,7 +117,16 @@ impl GlyphAtlas {
         }
 
         // Rasterize the glyph using cosmic-text
-        let image = swash_cache.get_image(glyph_key.cache_key)?;
+        // Convert GlyphKey back to CacheKey for swash
+        let cache_key = CacheKey {
+            font_id: glyph_key.font_id,
+            glyph_id: glyph_key.glyph_id,
+            font_size_bits: glyph_key.font_size_bits,
+            x_bin: 0,  // Subpixel positioning bins
+            y_bin: 0,
+            flags: 0,  // Rendering flags
+        };
+        let image = swash_cache.get_image(cache_key)?;
 
         // Check if we have space in the atlas
         let glyph_width = image.placement.width as u32;
@@ -183,31 +199,31 @@ impl GlyphAtlas {
                 let src_idx = (y * rect.width + x) as usize;
                 let dst_idx = ((rect.y + y) * ATLAS_SIZE + (rect.x + x)) as usize * 4;
 
-                // Convert alpha mask to RGBA
-                let alpha = match image.content {
-                    cosmic_text::SwashContent::Mask => {
-                        if src_idx < image.data.len() {
-                            image.data[src_idx]
+                // Convert alpha mask to RGBA - cosmic-text 0.11 uses enum variants
+                let alpha = match image {
+                    SwashContent::Mask(data) => {
+                        if src_idx < data.len() {
+                            data[src_idx]
                         } else {
                             0
                         }
                     }
-                    cosmic_text::SwashContent::Color => {
+                    SwashContent::Color(data) => {
                         // For colored emoji, copy RGBA directly
-                        if src_idx * 4 + 3 < image.data.len() {
+                        if src_idx * 4 + 3 < data.len() {
                             let offset = src_idx * 4;
-                            self.texture_data[dst_idx] = image.data[offset];
-                            self.texture_data[dst_idx + 1] = image.data[offset + 1];
-                            self.texture_data[dst_idx + 2] = image.data[offset + 2];
-                            image.data[offset + 3]
+                            self.texture_data[dst_idx] = data[offset];
+                            self.texture_data[dst_idx + 1] = data[offset + 1];
+                            self.texture_data[dst_idx + 2] = data[offset + 2];
+                            data[offset + 3]
                         } else {
                             0
                         }
                     }
-                    cosmic_text::SwashContent::SubpixelMask => {
+                    SwashContent::SubpixelMask(data) => {
                         // Use red channel for subpixel rendering
-                        if src_idx * 3 < image.data.len() {
-                            image.data[src_idx * 3]
+                        if src_idx * 3 < data.len() {
+                            data[src_idx * 3]
                         } else {
                             0
                         }
@@ -215,7 +231,7 @@ impl GlyphAtlas {
                 };
 
                 // Set white color with alpha (for monochrome glyphs)
-                if matches!(image.content, cosmic_text::SwashContent::Mask) {
+                if matches!(image, SwashContent::Mask(_)) {
                     self.texture_data[dst_idx] = 255;
                     self.texture_data[dst_idx + 1] = 255;
                     self.texture_data[dst_idx + 2] = 255;

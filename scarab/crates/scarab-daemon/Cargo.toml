@@ -30,5 +30,30 @@ serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 uuid = { version = "1.6", features = ["v4", "serde"] }
 
+# Profiling dependencies
+tracy-client = { workspace = true, optional = true }
+puffin = { workspace = true, optional = true }
+profiling = { workspace = true, optional = true }
+
 [dev-dependencies]
 tempfile = "3.8"
+criterion = { workspace = true }
+proptest = "1.4"
+
+[features]
+default = []
+profiling = ["dep:profiling", "dep:tracy-client", "dep:puffin"]
+tracy = ["profiling", "tracy-client/default"]
+puffin-profiling = ["profiling", "puffin/default"]
+
+[[bench]]
+name = "vte_parsing"
+harness = false
+
+[[bench]]
+name = "ipc_throughput"
+harness = false
+
+[[bench]]
+name = "shared_memory"
+harness = false

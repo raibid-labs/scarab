@@ -24,7 +24,7 @@ pub struct TextRenderer {
 impl TextRenderer {
     /// Create a new text renderer
     pub fn new(config: FontConfig, images: &mut ResMut<Assets<Image>>) -> Self {
-        let mut font_system = FontSystem::new();
+        let font_system = FontSystem::new();
         let swash_cache = SwashCache::new();
         let atlas = GlyphAtlas::new(images);
 
@@ -52,7 +52,7 @@ impl TextRenderer {
     pub fn update_metrics(&mut self) {
         let mut buffer = Buffer::new(&mut self.font_system, Metrics::new(self.config.size, self.config.size * self.config.line_height));
 
-        buffer.set_size(&mut self.font_system, Some(100.0), Some(100.0));
+        buffer.set_size(&mut self.font_system, 100.0, 100.0);
         buffer.set_text(&mut self.font_system, "M", Attrs::new(), Shaping::Advanced);
 
         // Get actual glyph dimensions
@@ -111,6 +111,17 @@ impl DirtyRegion {
 pub struct TerminalMesh {
     pub dirty_region: DirtyRegion,
     pub last_sequence: u64,
+    pub mesh_handle: Handle<Mesh>, // Store handle in component
+}
+
+impl TerminalMesh {
+    pub fn new(mesh_handle: Handle<Mesh>) -> Self {
+        Self {
+            dirty_region: DirtyRegion::new(),
+            last_sequence: 0,
+            mesh_handle,
+        }
+    }
 }
 
 impl Default for TerminalMesh {
@@ -118,6 +129,7 @@ impl Default for TerminalMesh {
         Self {
             dirty_region: DirtyRegion::new(),
             last_sequence: 0,
+            mesh_handle: Handle::default(),
         }
     }
 }
@@ -184,7 +196,7 @@ pub fn generate_terminal_mesh(
         // Foreground glyph
         if cell.char_codepoint != 0 && cell.char_codepoint != 32 {
             // Space character, skip rendering
-            if let Some(rect) = render_glyph(
+            let _ = render_glyph(
                 cell,
                 renderer,
                 &mut positions,
@@ -194,9 +206,7 @@ pub fn generate_terminal_mesh(
                 &mut vertex_index,
                 x,
                 y,
-            ) {
-                // Glyph rendered successfully
-            }
+            );
         }
     }
 
@@ -231,7 +241,7 @@ fn add_background_quad(
     bg_color: u32,
 ) {
     let bg = color::from_rgba(bg_color);
-    let color_array = bg.as_rgba_f32();
+    let color_array = bg.to_srgba().to_f32_array();
 
     // Add four vertices (quad)
     positions.extend_from_slice(&[
@@ -305,7 +315,12 @@ fn render_glyph(
     let mut glyph_key = None;
     for run in buffer.layout_runs() {
         for glyph in run.glyphs {
-            glyph_key = Some(GlyphKey::from(glyph.cache_key));
+            // Create GlyphKey from glyph info (cosmic-text API changed)
+            glyph_key = Some(GlyphKey {
+                font_id: glyph.font_id,
+                glyph_id: glyph.glyph_id,
+                font_size_bits: glyph.font_size.to_bits(),
+            });
             break;
         }
     }
@@ -321,8 +336,8 @@ fn render_glyph(
     // Get foreground color (with dim attribute)
     let mut fg = color::from_rgba(cell.fg);
     if attrs.dim {
-        let [r, g, b, a] = fg.as_rgba_f32();
-        fg = Color::rgba(r * 0.5, g * 0.5, b * 0.5, a);
+        let [r, g, b, a] = fg.to_srgba().to_f32_array();
+        fg = Color::srgba(r * 0.5, g * 0.5, b * 0.5, a);
     }
 
     // Handle reverse video
@@ -330,7 +345,7 @@ fn render_glyph(
         fg = color::from_rgba(cell.bg);
     }
 
-    let fg_array = fg.as_rgba_f32();
+    let fg_array = fg.to_srgba().to_f32_array();
 
     // Add glyph quad
     let glyph_width = atlas_rect.width as f32;
@@ -414,7 +429,7 @@ fn add_underline_quad(
     color_u32: u32,
 ) {
     let color = color::from_rgba(color_u32);
-    let color_array = color.as_rgba_f32();
+    let color_array = color.to_srgba().to_f32_array();
 
     positions.extend_from_slice(&[
         [x, y, 0.15], // Above glyph
@@ -451,12 +466,12 @@ pub fn update_terminal_mesh_system(
     mut renderer: ResMut<TextRenderer>,
     mut meshes: ResMut<Assets<Mesh>>,
     mut images: ResMut<Assets<Image>>,
-    mut query: Query<(&mut TerminalMesh, &Handle<Mesh>)>,
+    mut query: Query<&mut TerminalMesh>,
     state_reader: Res<crate::SharedMemoryReader>,
 ) {
     let state = unsafe { &*(state_reader.shmem.0.as_ptr() as *const SharedState) };
 
-    for (mut terminal_mesh, mesh_handle) in query.iter_mut() {
+    for mut terminal_mesh in query.iter_mut() {
         // Check if state changed
         let current_seq = state.sequence_number;
         if current_seq != terminal_mesh.last_sequence {
@@ -477,8 +492,8 @@ pub fn update_terminal_mesh_system(
             &mut images,
         );
 
-        // Update mesh asset
-        if let Some(mesh) = meshes.get_mut(mesh_handle) {
+        // Update mesh asset using the handle stored in the component
+        if let Some(mesh) = meshes.get_mut(&terminal_mesh.mesh_handle) {
             *mesh = new_mesh;
         }
 

@@ -122,7 +122,7 @@ impl Default for TextAttributes {
 
 /// Color helper functions for converting between formats
 pub mod color {
-    use bevy::prelude::Color;
+    use bevy::prelude::{Color, ColorToComponents};
 
     /// Convert u32 RGBA to Bevy Color
     pub fn from_rgba(rgba: u32) -> Color {
@@ -130,12 +130,12 @@ pub mod color {
         let g = ((rgba >> 16) & 0xFF) as f32 / 255.0;
         let b = ((rgba >> 8) & 0xFF) as f32 / 255.0;
         let a = (rgba & 0xFF) as f32 / 255.0;
-        Color::rgba(r, g, b, a)
+        Color::srgba(r, g, b, a)
     }
 
     /// Convert Bevy Color to u32 RGBA
     pub fn to_rgba(color: Color) -> u32 {
-        let [r, g, b, a] = color.as_rgba_f32();
+        let [r, g, b, a] = color.to_srgba().to_f32_array();
         let r = (r * 255.0) as u32;
         let g = (g * 255.0) as u32;
         let b = (b * 255.0) as u32;

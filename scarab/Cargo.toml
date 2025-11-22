@@ -6,12 +6,25 @@ members = [
     "crates/scarab-protocol",
     "crates/scarab-plugin-api",
     "crates/scarab-config",
+    "crates/scarab-platform",
     "crates/fusabi-vm",
     "crates/fusabi-interpreter",
 ]
 
 [workspace.dependencies]
-bevy = { version = "0.15", default-features = false, features = ["bevy_winit", "bevy_core_pipeline", "bevy_pbr", "bevy_ui", "bevy_render", "x11", "wayland"] }
+# Base Bevy configuration
+bevy = { version = "0.15", default-features = false, features = [
+    "bevy_winit",
+    "bevy_core_pipeline",
+    "bevy_pbr",
+    "bevy_ui",
+    "bevy_render",
+    "bevy_text",
+    "bevy_sprite",
+    "multi_threaded",
+    "png",
+    "jpeg",
+]}
 tokio = { version = "1.36", features = ["full"] }
 portable-pty = "0.8"
 alacritty_terminal = "0.24"
@@ -25,7 +38,34 @@ shared_memory = "0.12"
 crossbeam = "0.8"
 toml = "0.8"
 
+# Profiling and benchmarking dependencies
+tracy-client = "0.17"
+puffin = "0.19"
+puffin_egui = "0.28"
+criterion = { version = "0.5", features = ["html_reports"] }
+profiling = "1.0"
+
 [profile.release]
 lto = "thin"
 codegen-units = 1
 opt-level = 3
+debug = false
+strip = true
+
+[profile.release-with-debug]
+inherits = "release"
+debug = true
+strip = false
+
+[profile.bench]
+inherits = "release"
+debug = true
+
+[profile.profiling]
+inherits = "release"
+debug = true
+strip = false
+lto = false
+
+# Note: Platform-specific Bevy features should be configured in individual crate Cargo.toml files
+# Virtual workspaces cannot have target-specific dependencies

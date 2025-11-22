@@ -1,0 +1,282 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Tag to release'
+        required: true
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: 1
+
+jobs:
+  create-release:
+    name: Create Release
+    runs-on: ubuntu-latest
+    outputs:
+      upload_url: ${{ steps.create_release.outputs.upload_url }}
+      version: ${{ steps.get_version.outputs.version }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Get version
+        id: get_version
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            VERSION="${{ github.event.inputs.tag }}"
+          else
+            VERSION="${GITHUB_REF#refs/tags/}"
+          fi
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+      - name: Create Release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ steps.get_version.outputs.version }}
+          release_name: Scarab Terminal ${{ steps.get_version.outputs.version }}
+          body: |
+            # Scarab Terminal ${{ steps.get_version.outputs.version }}
+
+            GPU-accelerated terminal emulator with plugin system.
+
+            ## Installation
+
+            ### macOS (Homebrew)
+            ```bash
+            brew tap raibid-labs/scarab
+            brew install scarab
+            ```
+
+            ### Arch Linux (AUR)
+            ```bash
+            yay -S scarab-terminal
+            # or
+            paru -S scarab-terminal
+            ```
+
+            ### Other Platforms
+            Download the appropriate binary for your platform below.
+
+            ## Changes
+            See [CHANGELOG.md](https://github.com/raibid-labs/scarab/blob/main/CHANGELOG.md) for details.
+
+          draft: true
+          prerelease: false
+
+  build-release:
+    name: Build Release
+    needs: create-release
+    strategy:
+      matrix:
+        include:
+          # macOS builds
+          - os: macos-latest
+            target: aarch64-apple-darwin
+            name: macOS (Apple Silicon)
+            rustflags: ""
+
+          - os: macos-latest
+            target: x86_64-apple-darwin
+            name: macOS (Intel)
+            rustflags: ""
+
+          # Linux builds
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            name: Linux (x86_64 glibc)
+            rustflags: "-C target-feature=+crt-static"
+
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-musl
+            name: Linux (x86_64 musl)
+            rustflags: ""
+
+          - os: ubuntu-latest
+            target: aarch64-unknown-linux-gnu
+            name: Linux (ARM64)
+            rustflags: ""
+
+          # Windows builds
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+            name: Windows (x86_64 MSVC)
+            rustflags: ""
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Install dependencies (Ubuntu)
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            pkg-config \
+            libx11-dev \
+            libxi-dev \
+            libxcursor-dev \
+            libxrandr-dev \
+            libxinerama-dev \
+            libxxf86vm-dev \
+            libasound2-dev \
+            libpulse-dev \
+            libdbus-1-dev \
+            libudev-dev \
+            libfontconfig1-dev
+
+          # Install cross-compilation tools if needed
+          if [[ "${{ matrix.target }}" == "x86_64-unknown-linux-musl" ]]; then
+            sudo apt-get install -y musl-tools
+          elif [[ "${{ matrix.target }}" == "aarch64-unknown-linux-gnu" ]]; then
+            sudo apt-get install -y gcc-aarch64-linux-gnu
+            echo "CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=aarch64-linux-gnu-gcc" >> $GITHUB_ENV
+          fi
+
+      - name: Cache cargo registry
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cargo/registry/index
+            ~/.cargo/registry/cache
+            ~/.cargo/git/db
+          key: ${{ matrix.os }}-${{ matrix.target }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ matrix.os }}-${{ matrix.target }}-cargo-
+
+      - name: Build
+        env:
+          RUSTFLAGS: ${{ matrix.rustflags }}
+        run: |
+          cargo build --release --target ${{ matrix.target }} --locked
+
+      - name: Strip binaries (Unix)
+        if: matrix.os != 'windows-latest'
+        run: |
+          if [[ "${{ matrix.target }}" == *"darwin"* ]]; then
+            strip -x target/${{ matrix.target }}/release/scarab-daemon
+            strip -x target/${{ matrix.target }}/release/scarab-client
+          else
+            strip --strip-all target/${{ matrix.target }}/release/scarab-daemon || true
+            strip --strip-all target/${{ matrix.target }}/release/scarab-client || true
+          fi
+
+      - name: Create archive (Unix)
+        if: matrix.os != 'windows-latest'
+        run: |
+          cd target/${{ matrix.target }}/release
+          tar czf ../../../scarab-${{ needs.create-release.outputs.version }}-${{ matrix.target }}.tar.gz \
+            scarab-daemon scarab-client
+          cd ../../../
+          ls -lh *.tar.gz
+
+      - name: Create archive (Windows)
+        if: matrix.os == 'windows-latest'
+        shell: pwsh
+        run: |
+          cd target\${{ matrix.target }}\release
+          Compress-Archive -Path scarab-daemon.exe, scarab-client.exe `
+            -DestinationPath ..\..\..\scarab-${{ needs.create-release.outputs.version }}-${{ matrix.target }}.zip
+          cd ..\..\..
+          Get-ChildItem *.zip | Select-Object Name, Length
+
+      - name: Upload Release Asset (Unix)
+        if: matrix.os != 'windows-latest'
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ needs.create-release.outputs.upload_url }}
+          asset_path: ./scarab-${{ needs.create-release.outputs.version }}-${{ matrix.target }}.tar.gz
+          asset_name: scarab-${{ needs.create-release.outputs.version }}-${{ matrix.target }}.tar.gz
+          asset_content_type: application/gzip
+
+      - name: Upload Release Asset (Windows)
+        if: matrix.os == 'windows-latest'
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ needs.create-release.outputs.upload_url }}
+          asset_path: ./scarab-${{ needs.create-release.outputs.version }}-${{ matrix.target }}.zip
+          asset_name: scarab-${{ needs.create-release.outputs.version }}-${{ matrix.target }}.zip
+          asset_content_type: application/zip
+
+  update-homebrew:
+    name: Update Homebrew Formula
+    needs: [create-release, build-release]
+    runs-on: macos-latest
+    if: startsWith(github.ref, 'refs/tags/')
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Update Homebrew formula
+        run: |
+          VERSION="${{ needs.create-release.outputs.version }}"
+          VERSION_NUM="${VERSION#v}"
+
+          # Download and calculate SHA256 for both architectures
+          ARM64_URL="https://github.com/raibid-labs/scarab/releases/download/$VERSION/scarab-$VERSION-aarch64-apple-darwin.tar.gz"
+          X64_URL="https://github.com/raibid-labs/scarab/releases/download/$VERSION/scarab-$VERSION-x86_64-apple-darwin.tar.gz"
+
+          # Wait for assets to be available
+          sleep 60
+
+          ARM64_SHA=$(curl -sL "$ARM64_URL" | shasum -a 256 | cut -d' ' -f1)
+          X64_SHA=$(curl -sL "$X64_URL" | shasum -a 256 | cut -d' ' -f1)
+
+          # Update formula
+          sed -i '' "s/version \".*\"/version \"$VERSION_NUM\"/" packaging/homebrew/scarab.rb
+          sed -i '' "s/PLACEHOLDER_SHA256_ARM64/$ARM64_SHA/" packaging/homebrew/scarab.rb
+          sed -i '' "s/PLACEHOLDER_SHA256_X64/$X64_SHA/" packaging/homebrew/scarab.rb
+
+          echo "Updated Homebrew formula for version $VERSION"
+
+  publish-crates:
+    name: Publish to crates.io
+    needs: [create-release, build-release]
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/')
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Publish crates
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+        run: |
+          # Publish in dependency order
+          cargo publish -p scarab-protocol || true
+          sleep 10
+          cargo publish -p scarab-plugin-api || true
+          sleep 10
+          cargo publish -p scarab-config || true
+          sleep 10
+          cargo publish -p scarab-platform || true
+          sleep 10
+          cargo publish -p fusabi-interpreter || true
+          sleep 10
+          cargo publish -p fusabi-vm || true
+          sleep 10
+          cargo publish -p scarab-daemon || true
+          sleep 10
+          cargo publish -p scarab-client || true
