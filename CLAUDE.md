@@ -12,7 +12,7 @@ Scarab is a high-performance, split-process terminal emulator built in Rust. It 
 
 ## Workspace Structure
 
-This is a Cargo workspace with 6 crates:
+This is a Cargo workspace with 5 crates:
 
 ```
 scarab/
@@ -21,9 +21,12 @@ scarab/
 │   ├── scarab-client/      # Bevy GUI, renders via shared memory
 │   ├── scarab-protocol/    # IPC definitions, shared memory layout (#[repr(C)])
 │   ├── scarab-plugin-api/  # Shared plugin traits
-│   ├── fusabi-vm/          # AOT runtime for .fzb (daemon plugins)
-│   └── fusabi-interpreter/ # Script runtime for .fsx (client UI scripts)
+│   └── scarab-config/      # Configuration management
 ```
+
+**External Dependencies:**
+- `fusabi-vm` - Official Fusabi VM runtime for .fzb bytecode (from https://github.com/fusabi-lang/fusabi)
+- `fusabi-frontend` - Official Fusabi compiler/parser for .fsx scripts (from https://github.com/fusabi-lang/fusabi)
 
 ## Build Commands
 
@@ -95,24 +98,28 @@ cargo test --workspace
 
 ## Plugin System (Fusabi)
 
+Scarab uses the official **Fusabi** scripting language (https://github.com/fusabi-lang/fusabi) - a high-performance F# dialect for Rust.
+
 Two runtimes for different use cases:
 
-| Runtime | File Type | Location | Purpose |
-|---------|-----------|----------|---------|
-| Fusabi VM | `.fzb` | Daemon | High-perf hooks, output scanning, mux logic |
-| Interpreter | `.fsx` | Client | UI layout, animations, hot-reloadable overlays |
+| Runtime | File Type | Location | Crate | Purpose |
+|---------|-----------|----------|-------|---------|
+| Fusabi VM | `.fzb` | Daemon | `fusabi-vm` | Compiled bytecode for high-perf hooks, output scanning, mux logic |
+| Fusabi Frontend | `.fsx` | Client | `fusabi-frontend` | F# source parser/compiler for hot-reloadable UI scripts |
 
-**Hot Reloading**: `.fsx` files are watched and re-parsed without Rust recompilation
+**Hot Reloading**: `.fsx` files can be recompiled on-the-fly without Rust recompilation
 
 ## Key Dependencies
 
+- **Fusabi** - Official F# scripting language for Rust
+  - `fusabi-vm` - Bytecode VM runtime
+  - `fusabi-frontend` - Parser, type checker, compiler
 - `bevy` 0.15 - Game engine (minimal features: winit, ui, render, x11, wayland)
 - `portable-pty` 0.8 - Cross-platform PTY handling
 - `alacritty_terminal` 0.24 - VTE parser
 - `cosmic-text` 0.11 - Text rendering
 - `shared_memory` 0.12 - IPC shared memory
 - `bytemuck` 1.14 - Safe zero-copy casting
-- `rkyv` 0.7 - Zero-copy deserialization for bytecode
 - `tokio` 1.36 - Async runtime
 
 ## Development Roadmap
@@ -122,8 +129,8 @@ Current phase: **Scaffolding** (IPC and PTY bridging)
 Next phases:
 1. Implement Shared Memory IPC Bridge
 2. Integrate `cosmic-text` rendering in Bevy
-3. Implement Fusabi VM bytecode serialization (rkyv)
-4. Implement Fusabi Interpreter AST walker
+3. Integrate Fusabi VM for daemon plugins
+4. Integrate Fusabi Frontend for client UI scripts
 
 ## Critical TODOs in Code
 

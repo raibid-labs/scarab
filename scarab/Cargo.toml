@@ -7,11 +7,13 @@ members = [
     "crates/scarab-plugin-api",
     "crates/scarab-config",
     "crates/scarab-platform",
-    "crates/fusabi-vm",
-    "crates/fusabi-interpreter",
 ]
 
 [workspace.dependencies]
+# Official Fusabi dependencies (from local path)
+fusabi-vm = { path = "../../../fusabi-lang/fusabi/rust/crates/fusabi-vm" }
+fusabi-frontend = { path = "../../../fusabi-lang/fusabi/rust/crates/fusabi-frontend" }
+
 # Base Bevy configuration
 bevy = { version = "0.15", default-features = false, features = [
     "bevy_winit",
