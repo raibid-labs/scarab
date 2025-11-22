@@ -60,6 +60,37 @@ pub enum ControlMessage {
     LoadPlugin { path: alloc::string::String },
     Ping { timestamp: u64 },
     Disconnect { client_id: u64 },
+
+    // Session management commands
+    SessionCreate { name: alloc::string::String },
+    SessionDelete { id: alloc::string::String },
+    SessionList,
+    SessionAttach { id: alloc::string::String },
+    SessionDetach { id: alloc::string::String },
+    SessionRename { id: alloc::string::String, new_name: alloc::string::String },
+}
+
+// Session response messages
+#[derive(Debug, Clone, rkyv::Archive, rkyv::Serialize, rkyv::Deserialize)]
+#[archive(check_bytes)]
+pub enum SessionResponse {
+    Created { id: alloc::string::String, name: alloc::string::String },
+    Deleted { id: alloc::string::String },
+    List { sessions: alloc::vec::Vec<SessionInfo> },
+    Attached { id: alloc::string::String },
+    Detached { id: alloc::string::String },
+    Renamed { id: alloc::string::String, new_name: alloc::string::String },
+    Error { message: alloc::string::String },
+}
+
+#[derive(Debug, Clone, rkyv::Archive, rkyv::Serialize, rkyv::Deserialize)]
+#[archive(check_bytes)]
+pub struct SessionInfo {
+    pub id: alloc::string::String,
+    pub name: alloc::string::String,
+    pub created_at: u64,
+    pub last_attached: u64,
+    pub attached_clients: u32,
 }
 
 // IPC configuration constants

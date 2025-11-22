@@ -1,5 +1,6 @@
 use anyhow::{Context, Result};
 use scarab_protocol::{ControlMessage, SOCKET_PATH, MAX_MESSAGE_SIZE, MAX_CLIENTS};
+use crate::session::{SessionManager, handle_session_command};
 use std::path::Path;
 use std::sync::Arc;
 use tokio::io::AsyncReadExt;
@@ -51,12 +52,13 @@ impl PtyHandle {
 pub struct IpcServer {
     listener: UnixListener,
     pty_handle: PtyHandle,
+    session_manager: Arc<SessionManager>,
     client_counter: Arc<RwLock<u64>>,
 }
 
 impl IpcServer {
     /// Create new IPC server, removing stale socket if exists
-    pub async fn new(pty_handle: PtyHandle) -> Result<Self> {
+    pub async fn new(pty_handle: PtyHandle, session_manager: Arc<SessionManager>) -> Result<Self> {
         // Remove existing socket if present
         if Path::new(SOCKET_PATH).exists() {
             std::fs::remove_file(SOCKET_PATH)
@@ -82,6 +84,7 @@ impl IpcServer {
         Ok(Self {
             listener,
             pty_handle,
+            session_manager,
             client_counter: Arc::new(RwLock::new(0)),
         })
     }
@@ -115,10 +118,11 @@ impl IpcServer {
                     println!("Client {} connected (active: {})", client_id, client_count);
 
                     let pty_handle = self.pty_handle.clone();
+                    let session_manager = self.session_manager.clone();
                     let active_clients = active_clients.clone();
 
                     tokio::spawn(async move {
-                        if let Err(e) = handle_client(stream, client_id, pty_handle).await {
+                        if let Err(e) = handle_client(stream, client_id, pty_handle, session_manager).await {
                             eprintln!("Client {} error: {}", client_id, e);
                         }
 
@@ -140,6 +144,7 @@ async fn handle_client(
     mut stream: UnixStream,
     client_id: u64,
     pty_handle: PtyHandle,
+    session_manager: Arc<SessionManager>,
 ) -> Result<()> {
     let mut buffer = vec![0u8; MAX_MESSAGE_SIZE];
 
@@ -174,7 +179,7 @@ async fn handle_client(
         };
 
         // Handle message
-        if let Err(e) = handle_message(msg, &pty_handle, client_id).await {
+        if let Err(e) = handle_message(msg, &pty_handle, &session_manager, client_id).await {
             eprintln!("Client {} message handling error: {}", client_id, e);
             // Don't disconnect on individual message errors
         }
@@ -187,8 +192,17 @@ async fn handle_client(
 async fn handle_message(
     msg: ControlMessage,
     pty_handle: &PtyHandle,
+    session_manager: &Arc<SessionManager>,
     client_id: u64,
 ) -> Result<()> {
+    // Try to handle as session command first
+    if let Ok(Some(response)) = handle_session_command(msg.clone(), session_manager, client_id).await {
+        log::info!("Session command response: {:?}", response);
+        // TODO: Send response back to client (requires bidirectional communication)
+        return Ok(());
+    }
+
+    // Handle non-session commands
     match msg {
         ControlMessage::Resize { cols, rows } => {
             println!("Client {} resize: {}x{}", client_id, cols, rows);
@@ -213,6 +227,15 @@ async fn handle_message(
         ControlMessage::Disconnect { client_id: id } => {
             println!("Client {} requesting disconnect", id);
             // Client will disconnect when this function returns
+        }
+        // Session commands are already handled above, but add catch-all for completeness
+        ControlMessage::SessionCreate { .. }
+        | ControlMessage::SessionDelete { .. }
+        | ControlMessage::SessionList
+        | ControlMessage::SessionAttach { .. }
+        | ControlMessage::SessionDetach { .. }
+        | ControlMessage::SessionRename { .. } => {
+            // Already handled by handle_session_command
         }
     }
 

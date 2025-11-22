@@ -1,0 +1,21 @@
+[package]
+name = "scarab-config"
+version = "0.1.0"
+edition = "2021"
+license = "MIT OR Apache-2.0"
+description = "Configuration system for Scarab terminal emulator"
+repository = "https://github.com/raibid-labs/scarab"
+
+[dependencies]
+serde = { workspace = true }
+anyhow = { workspace = true }
+toml = "0.8"
+serde_json = "1.0"
+notify = { version = "6.1", default-features = false, features = ["macos_kqueue"] }
+dirs = "5.0"
+thiserror = "1.0"
+tracing = "0.1"
+
+[dev-dependencies]
+tokio = { workspace = true }
+tempfile = "3.8"

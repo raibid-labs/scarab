@@ -9,16 +9,37 @@ use scarab_protocol::{SharedState, SHMEM_PATH};
 
 mod ipc;
 mod vte;
+mod session;
+
 use ipc::{IpcServer, PtyHandle};
+use session::SessionManager;
 
 #[cfg(test)]
 mod tests;
 
 #[tokio::main]
 async fn main() -> Result<()> {
+    env_logger::init();
     println!("Starting Scarab Daemon...");
 
-    // 1. Setup PTY System
+    // 1. Initialize Session Manager
+    let home_dir = std::env::var("HOME").unwrap_or_else(|_| ".".to_string());
+    let db_path = std::path::PathBuf::from(home_dir)
+        .join(".local/share/scarab/sessions.db");
+
+    let session_manager = std::sync::Arc::new(SessionManager::new(db_path)?);
+
+    // Restore sessions from previous daemon runs
+    session_manager.restore_sessions()?;
+    println!("Session Manager: Active ({} sessions)", session_manager.session_count());
+
+    // Create default session if none exist
+    if session_manager.session_count() == 0 {
+        let session_id = session_manager.create_session("default".to_string(), 80, 24)?;
+        println!("Created default session: {}", session_id);
+    }
+
+    // 2. Setup PTY System (legacy - will be per-session)
     let pty_system = NativePtySystem::default();
     let pair = pty_system.openpty(PtySize {
         rows: 24,
@@ -63,7 +84,7 @@ async fn main() -> Result<()> {
     let (input_tx, mut input_rx) = mpsc::unbounded_channel::<Vec<u8>>();
     let pty_handle = PtyHandle::new(input_tx, resize_tx);
 
-    let ipc_server = IpcServer::new(pty_handle.clone()).await?;
+    let ipc_server = IpcServer::new(pty_handle.clone(), session_manager.clone()).await?;
 
     // Spawn IPC server task
     tokio::spawn(async move {

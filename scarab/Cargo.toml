@@ -5,6 +5,7 @@ members = [
     "crates/scarab-daemon",
     "crates/scarab-protocol",
     "crates/scarab-plugin-api",
+    "crates/scarab-config",
     "crates/fusabi-vm",
     "crates/fusabi-interpreter",
 ]
@@ -22,6 +23,7 @@ serde = { version = "1.0", features = ["derive"] }
 cosmic-text = "0.11"
 shared_memory = "0.12"
 crossbeam = "0.8"
+toml = "0.8"
 
 [profile.release]
 lto = "thin"
