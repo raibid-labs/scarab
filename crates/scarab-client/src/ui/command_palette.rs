@@ -3,8 +3,6 @@
 
 use bevy::prelude::*;
 use bevy::input::keyboard::KeyCode;
-use bevy::ui::{Style, UiRect, Val, PositionType, FlexDirection};
-use bevy::text::{Text, TextStyle, TextSection};
 use fuzzy_matcher::FuzzyMatcher;
 use fuzzy_matcher::skim::SkimMatcherV2;
 use std::sync::Arc;
@@ -217,38 +215,32 @@ fn render_palette_system(
     // Create palette container
     commands.spawn((
         PaletteUI,
-        NodeBundle {
-            style: Style {
-                width: Val::Px(600.0),
-                height: Val::Px(400.0),
-                position_type: PositionType::Absolute,
-                left: Val::Px(200.0),
-                top: Val::Px(100.0),
-                flex_direction: FlexDirection::Column,
-                padding: UiRect::all(Val::Px(10.0)),
-                ..default()
-            },
-            background_color: Color::srgba(0.1, 0.1, 0.1, 0.95).into(),
+        Node {
+            width: Val::Px(600.0),
+            height: Val::Px(400.0),
+            position_type: PositionType::Absolute,
+            left: Val::Px(200.0),
+            top: Val::Px(100.0),
+            flex_direction: FlexDirection::Column,
+            padding: UiRect::all(Val::Px(10.0)),
             ..default()
         },
+        BackgroundColor(Color::srgba(0.1, 0.1, 0.1, 0.95)),
     ))
     .with_children(|parent| {
         // Search input display
-        parent.spawn(TextBundle {
-            text: Text::from_section(
-                format!("> {}", state.query),
-                TextStyle {
-                    font_size: 20.0,
-                    color: Color::WHITE,
-                    ..default()
-                },
-            ),
-            style: Style {
+        parent.spawn((
+            Text::new(format!("> {}", state.query)),
+            TextFont {
+                font_size: 20.0,
+                ..default()
+            },
+            TextColor(Color::WHITE),
+            Node {
                 margin: UiRect::bottom(Val::Px(10.0)),
                 ..default()
             },
-            ..default()
-        });
+        ));
 
         // Command list (show first 10 results)
         for (index, (command, score)) in state.filtered_commands.iter().take(10).enumerate() {
@@ -261,16 +253,13 @@ fn render_palette_system(
 
             parent.spawn((
                 CommandItem { index },
-                NodeBundle {
-                    style: Style {
-                        width: Val::Percent(100.0),
-                        padding: UiRect::all(Val::Px(8.0)),
-                        margin: UiRect::bottom(Val::Px(2.0)),
-                        ..default()
-                    },
-                    background_color: bg_color.into(),
+                Node {
+                    width: Val::Percent(100.0),
+                    padding: UiRect::all(Val::Px(8.0)),
+                    margin: UiRect::bottom(Val::Px(2.0)),
                     ..default()
                 },
+                BackgroundColor(bg_color),
             ))
             .with_children(|item| {
                 // Command name and keybind
@@ -279,34 +268,28 @@ fn render_palette_system(
                     .map(|k| format!(" [{}]", k))
                     .unwrap_or_default();
 
-                item.spawn(TextBundle {
-                    text: Text::from_section(
-                        format!("{}{}", command.name, keybind_text),
-                        TextStyle {
-                            font_size: 16.0,
-                            color: Color::WHITE,
-                            ..default()
-                        },
-                    ),
-                    ..default()
-                });
+                item.spawn((
+                    Text::new(format!("{}{}", command.name, keybind_text)),
+                    TextFont {
+                        font_size: 16.0,
+                        ..default()
+                    },
+                    TextColor(Color::WHITE),
+                ));
 
                 // Command description
-                item.spawn(TextBundle {
-                    text: Text::from_section(
-                        format!("{} (score: {})", command.description, score),
-                        TextStyle {
-                            font_size: 12.0,
-                            color: Color::srgba(0.7, 0.7, 0.7, 1.0),
-                            ..default()
-                        },
-                    ),
-                    style: Style {
+                item.spawn((
+                    Text::new(format!("{} (score: {})", command.description, score)),
+                    TextFont {
+                        font_size: 12.0,
+                        ..default()
+                    },
+                    TextColor(Color::srgba(0.7, 0.7, 0.7, 1.0)),
+                    Node {
                         margin: UiRect::top(Val::Px(4.0)),
                         ..default()
                     },
-                    ..default()
-                });
+                ));
             });
         }
     });

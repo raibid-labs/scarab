@@ -3,8 +3,6 @@
 
 use bevy::prelude::*;
 use bevy::input::keyboard::KeyCode;
-use bevy::ui::{Style, UiRect, Val, PositionType, FlexDirection};
-use bevy::text::{Text, TextStyle, TextSection};
 use std::time::{Duration, Instant};
 
 /// Plugin for leader key functionality
@@ -188,116 +186,95 @@ fn render_menu_system(
     // Create menu container
     commands.spawn((
         LeaderMenuUI,
-        NodeBundle {
-            style: Style {
-                width: Val::Px(400.0),
-                position_type: PositionType::Absolute,
-                left: Val::Px(50.0),
-                top: Val::Px(50.0),
-                flex_direction: FlexDirection::Column,
-                padding: UiRect::all(Val::Px(15.0)),
-                row_gap: Val::Px(5.0),
-                ..default()
-            },
-            background_color: Color::srgba(0.1, 0.1, 0.1, 0.95).into(),
+        Node {
+            width: Val::Px(400.0),
+            position_type: PositionType::Absolute,
+            left: Val::Px(50.0),
+            top: Val::Px(50.0),
+            flex_direction: FlexDirection::Column,
+            padding: UiRect::all(Val::Px(15.0)),
+            row_gap: Val::Px(5.0),
             ..default()
         },
+        BackgroundColor(Color::srgba(0.1, 0.1, 0.1, 0.95)),
     ))
     .with_children(|parent| {
         // Menu title
-        parent.spawn(TextBundle {
-            text: Text::from_section(
-                &current_menu.title,
-                TextStyle {
-                    font_size: 20.0,
-                    color: Color::WHITE,
-                    ..default()
-                },
-            ),
-            style: Style {
+        parent.spawn((
+            Text::new(&current_menu.title),
+            TextFont {
+                font_size: 20.0,
+                ..default()
+            },
+            TextColor(Color::WHITE),
+            Node {
                 margin: UiRect::bottom(Val::Px(10.0)),
                 ..default()
             },
-            ..default()
-        });
+        ));
 
         // Key sequence display
         if !state.key_sequence.is_empty() {
             let sequence: String = state.key_sequence.iter().collect();
-            parent.spawn(TextBundle {
-                text: Text::from_section(
-                    format!("Keys: {}", sequence),
-                    TextStyle {
-                        font_size: 14.0,
-                        color: Color::srgb(0.5, 0.8, 0.5),
-                        ..default()
-                    },
-                ),
-                style: Style {
+            parent.spawn((
+                Text::new(format!("Keys: {}", sequence)),
+                TextFont {
+                    font_size: 14.0,
+                    ..default()
+                },
+                TextColor(Color::srgb(0.5, 0.8, 0.5)),
+                Node {
                     margin: UiRect::bottom(Val::Px(10.0)),
                     ..default()
                 },
-                ..default()
-            });
+            ));
         }
 
         // Menu items
         for item in &current_menu.items {
-            parent.spawn(NodeBundle {
-                style: Style {
-                    flex_direction: FlexDirection::Row,
-                    padding: UiRect::all(Val::Px(5.0)),
-                    ..default()
-                },
+            parent.spawn(Node {
+                flex_direction: FlexDirection::Row,
+                padding: UiRect::all(Val::Px(5.0)),
                 ..default()
             })
             .with_children(|item_parent| {
                 // Key
-                item_parent.spawn(TextBundle {
-                    text: Text::from_section(
-                        format!("[{}]", item.key),
-                        TextStyle {
-                            font_size: 16.0,
-                            color: Color::srgb(1.0, 0.8, 0.0),
-                            ..default()
-                        },
-                    ),
-                    style: Style {
+                item_parent.spawn((
+                    Text::new(format!("[{}]", item.key)),
+                    TextFont {
+                        font_size: 16.0,
+                        ..default()
+                    },
+                    TextColor(Color::srgb(1.0, 0.8, 0.0)),
+                    Node {
                         margin: UiRect::right(Val::Px(10.0)),
                         ..default()
                     },
-                    ..default()
-                });
+                ));
 
                 // Label
-                item_parent.spawn(TextBundle {
-                    text: Text::from_section(
-                        &item.label,
-                        TextStyle {
-                            font_size: 16.0,
-                            color: Color::WHITE,
-                            ..default()
-                        },
-                    ),
-                    style: Style {
+                item_parent.spawn((
+                    Text::new(&item.label),
+                    TextFont {
+                        font_size: 16.0,
+                        ..default()
+                    },
+                    TextColor(Color::WHITE),
+                    Node {
                         margin: UiRect::right(Val::Px(10.0)),
                         ..default()
                     },
-                    ..default()
-                });
+                ));
 
                 // Description
-                item_parent.spawn(TextBundle {
-                    text: Text::from_section(
-                        &item.description,
-                        TextStyle {
-                            font_size: 12.0,
-                            color: Color::srgba(0.7, 0.7, 0.7, 1.0),
-                            ..default()
-                        },
-                    ),
-                    ..default()
-                });
+                item_parent.spawn((
+                    Text::new(&item.description),
+                    TextFont {
+                        font_size: 12.0,
+                        ..default()
+                    },
+                    TextColor(Color::srgba(0.7, 0.7, 0.7, 1.0)),
+                ));
             });
         }
 
@@ -307,26 +284,24 @@ fn render_menu_system(
             let remaining = state.timeout.saturating_sub(elapsed);
             let progress = (remaining.as_millis() as f32) / (state.timeout.as_millis() as f32);
 
-            parent.spawn(NodeBundle {
-                style: Style {
+            parent.spawn((
+                Node {
                     width: Val::Percent(100.0),
                     height: Val::Px(4.0),
                     margin: UiRect::top(Val::Px(10.0)),
                     ..default()
                 },
-                background_color: Color::srgba(0.3, 0.3, 0.3, 0.5).into(),
-                ..default()
-            })
+                BackgroundColor(Color::srgba(0.3, 0.3, 0.3, 0.5)),
+            ))
             .with_children(|bar| {
-                bar.spawn(NodeBundle {
-                    style: Style {
+                bar.spawn((
+                    Node {
                         width: Val::Percent(progress * 100.0),
                         height: Val::Percent(100.0),
                         ..default()
                     },
-                    background_color: Color::srgb(0.0, 0.8, 0.0).into(),
-                    ..default()
-                });
+                    BackgroundColor(Color::srgb(0.0, 0.8, 0.0)),
+                ));
             });
         }
     });

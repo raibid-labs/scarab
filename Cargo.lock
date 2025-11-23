@@ -4265,6 +4265,7 @@ dependencies = [
  "scarab-protocol",
  "serde",
  "shared_memory",
+ "tempfile",
  "tokio",
  "tracy-client",
 ]

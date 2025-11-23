@@ -357,22 +357,19 @@ fn render_selection_system(
 
                 commands.spawn((
                     SelectionOverlay,
-                    SpriteBundle {
-                        sprite: Sprite {
-                            color: Color::srgba(0.3, 0.5, 1.0, 0.3),
-                            custom_size: Some(Vec2::new(
-                                (end_x - start_x + 1) as f32 * cell_width,
-                                cell_height,
-                            )),
-                            ..default()
-                        },
-                        transform: Transform::from_xyz(
-                            start_x as f32 * cell_width,
-                            -(y as f32 * cell_height),
-                            10.0,
-                        ),
+                    Sprite {
+                        color: Color::srgba(0.3, 0.5, 1.0, 0.3),
+                        custom_size: Some(Vec2::new(
+                            (end_x - start_x + 1) as f32 * cell_width,
+                            cell_height,
+                        )),
                         ..default()
                     },
+                    Transform::from_xyz(
+                        start_x as f32 * cell_width,
+                        -(y as f32 * cell_height),
+                        10.0,
+                    ),
                 ));
             }
         }
@@ -382,22 +379,19 @@ fn render_selection_system(
             for y in region.start_y..=region.end_y {
                 commands.spawn((
                     SelectionOverlay,
-                    SpriteBundle {
-                        sprite: Sprite {
-                            color: Color::srgba(0.3, 0.5, 1.0, 0.3),
-                            custom_size: Some(Vec2::new(
-                                GRID_WIDTH as f32 * cell_width,
-                                cell_height,
-                            )),
-                            ..default()
-                        },
-                        transform: Transform::from_xyz(
-                            0.0,
-                            -(y as f32 * cell_height),
-                            10.0,
-                        ),
+                    Sprite {
+                        color: Color::srgba(0.3, 0.5, 1.0, 0.3),
+                        custom_size: Some(Vec2::new(
+                            GRID_WIDTH as f32 * cell_width,
+                            cell_height,
+                        )),
                         ..default()
                     },
+                    Transform::from_xyz(
+                        0.0,
+                        -(y as f32 * cell_height),
+                        10.0,
+                    ),
                 ));
             }
         }
@@ -406,22 +400,19 @@ fn render_selection_system(
             // Render block-wise selection (rectangular)
             commands.spawn((
                 SelectionOverlay,
-                SpriteBundle {
-                    sprite: Sprite {
-                        color: Color::srgba(0.3, 0.5, 1.0, 0.3),
-                        custom_size: Some(Vec2::new(
-                            (region.end_x - region.start_x + 1) as f32 * cell_width,
-                            (region.end_y - region.start_y + 1) as f32 * cell_height,
-                        )),
-                        ..default()
-                    },
-                    transform: Transform::from_xyz(
-                        region.start_x as f32 * cell_width,
-                        -(region.start_y as f32 * cell_height),
-                        10.0,
-                    ),
+                Sprite {
+                    color: Color::srgba(0.3, 0.5, 1.0, 0.3),
+                    custom_size: Some(Vec2::new(
+                        (region.end_x - region.start_x + 1) as f32 * cell_width,
+                        (region.end_y - region.start_y + 1) as f32 * cell_height,
+                    )),
                     ..default()
                 },
+                Transform::from_xyz(
+                    region.start_x as f32 * cell_width,
+                    -(region.start_y as f32 * cell_height),
+                    10.0,
+                ),
             ));
         }
     }

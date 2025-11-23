@@ -32,6 +32,7 @@ profiling = { workspace = true, optional = true }
 
 [dev-dependencies]
 criterion = { workspace = true }
+tempfile = "3.8"
 
 [features]
 default = []
