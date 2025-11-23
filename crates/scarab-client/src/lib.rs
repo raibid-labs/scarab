@@ -1,10 +1,10 @@
 // Scarab terminal emulator client library
 // Re-exports UI and rendering modules for use in binary and tests
 
-// Temporarily use UI stub during Bevy 0.15 migration
+// UI features updated for SharedMemoryReader integration but temporarily disabled
+// due to Bevy 0.15 API changes (Text, Style, etc.) needing separate migration task
 // pub mod ui;
 pub mod ui_stub;
-// Re-export ui_stub contents
 pub use ui_stub::*;
 
 pub mod rendering;
@@ -14,4 +14,4 @@ pub mod integration;
 pub use rendering::*;
 
 // Re-export commonly used integration types
-pub use integration::{IntegrationPlugin, extract_grid_text, get_cell_at};
+pub use integration::{IntegrationPlugin, extract_grid_text, get_cell_at, SharedMemoryReader};

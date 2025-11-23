@@ -3,6 +3,9 @@
 
 use bevy::prelude::*;
 use bevy::input::keyboard::KeyCode;
+use crate::integration::SharedMemoryReader;
+use scarab_protocol::{SharedState, GRID_WIDTH, GRID_HEIGHT};
+use arboard::Clipboard;
 
 /// Plugin for visual selection
 pub struct VisualSelectionPlugin;
@@ -144,28 +147,128 @@ pub struct SelectionCopiedEvent {
 #[derive(Component)]
 struct SelectionOverlay;
 
+/// Extract text from selection region using SharedMemoryReader
+fn extract_selection_text(state_reader: &SharedMemoryReader, region: &SelectionRegion, mode: SelectionMode) -> String {
+    let shared_ptr = state_reader.shmem.0.as_ptr() as *const SharedState;
+
+    unsafe {
+        let state = &*shared_ptr;
+        let mut region = region.clone();
+        region.normalize();
+
+        let mut text = String::new();
+
+        match mode {
+            SelectionMode::Character => {
+                // Extract character-wise selection
+                for y in region.start_y..=region.end_y {
+                    let start_x = if y == region.start_y {
+                        region.start_x
+                    } else {
+                        0
+                    };
+
+                    let end_x = if y == region.end_y {
+                        region.end_x
+                    } else {
+                        (GRID_WIDTH - 1) as u16
+                    };
+
+                    for x in start_x..=end_x {
+                        if let Some(cell) = crate::integration::get_cell_at(state, x as usize, y as usize) {
+                            if cell.char_codepoint == 0 || cell.char_codepoint == 32 {
+                                text.push(' ');
+                            } else if let Some(ch) = char::from_u32(cell.char_codepoint) {
+                                text.push(ch);
+                            }
+                        }
+                    }
+
+                    // Add newline except for last line
+                    if y < region.end_y {
+                        text.push('\n');
+                    }
+                }
+            }
+
+            SelectionMode::Line => {
+                // Extract full lines
+                for y in region.start_y..=region.end_y {
+                    for x in 0..GRID_WIDTH {
+                        if let Some(cell) = crate::integration::get_cell_at(state, x, y as usize) {
+                            if cell.char_codepoint == 0 || cell.char_codepoint == 32 {
+                                text.push(' ');
+                            } else if let Some(ch) = char::from_u32(cell.char_codepoint) {
+                                text.push(ch);
+                            }
+                        }
+                    }
+
+                    // Add newline except for last line
+                    if y < region.end_y {
+                        text.push('\n');
+                    }
+                }
+            }
+
+            SelectionMode::Block => {
+                // Extract rectangular block
+                for y in region.start_y..=region.end_y {
+                    for x in region.start_x..=region.end_x {
+                        if let Some(cell) = crate::integration::get_cell_at(state, x as usize, y as usize) {
+                            if cell.char_codepoint == 0 || cell.char_codepoint == 32 {
+                                text.push(' ');
+                            } else if let Some(ch) = char::from_u32(cell.char_codepoint) {
+                                text.push(ch);
+                            }
+                        }
+                    }
+
+                    // Add newline except for last line
+                    if y < region.end_y {
+                        text.push('\n');
+                    }
+                }
+            }
+        }
+
+        // Trim trailing whitespace from each line
+        text.lines()
+            .map(|line| line.trim_end())
+            .collect::<Vec<_>>()
+            .join("\n")
+    }
+}
+
 /// Handle keyboard input for visual selection
 fn handle_selection_input_system(
     keyboard: Res<ButtonInput<KeyCode>>,
     mut state: ResMut<SelectionState>,
     mut event_writer: EventWriter<SelectionChangedEvent>,
+    state_reader: Res<SharedMemoryReader>,
 ) {
+    // Get current cursor position from terminal state
+    let shared_ptr = state_reader.shmem.0.as_ptr() as *const SharedState;
+    let (cursor_x, cursor_y) = unsafe {
+        let s = &*shared_ptr;
+        (s.cursor_x, s.cursor_y)
+    };
+
     // Enter visual mode with 'v'
     if keyboard.just_pressed(KeyCode::KeyV) && !state.active {
-        // TODO: Get actual cursor position from terminal state
-        state.start_selection(0, 0, SelectionMode::Character);
+        state.start_selection(cursor_x, cursor_y, SelectionMode::Character);
         info!("Visual selection mode activated");
     }
 
     // Enter visual line mode with 'V'
     if keyboard.just_pressed(KeyCode::KeyV) && keyboard.pressed(KeyCode::ShiftLeft) && !state.active {
-        state.start_selection(0, 0, SelectionMode::Line);
+        state.start_selection(cursor_x, cursor_y, SelectionMode::Line);
         info!("Visual line selection mode activated");
     }
 
     // Enter visual block mode with Ctrl+V
     if keyboard.just_pressed(KeyCode::KeyV) && keyboard.pressed(KeyCode::ControlLeft) && !state.active {
-        state.start_selection(0, 0, SelectionMode::Block);
+        state.start_selection(cursor_x, cursor_y, SelectionMode::Block);
         info!("Visual block selection mode activated");
     }
 
@@ -191,7 +294,7 @@ fn handle_selection_input_system(
     }
 
     if keyboard.just_pressed(KeyCode::ArrowRight) {
-        new_x = new_x.saturating_add(1);
+        new_x = (new_x + 1).min((GRID_WIDTH - 1) as u16);
         cursor_moved = true;
     }
 
@@ -201,7 +304,7 @@ fn handle_selection_input_system(
     }
 
     if keyboard.just_pressed(KeyCode::ArrowDown) {
-        new_y = new_y.saturating_add(1);
+        new_y = (new_y + 1).min((GRID_HEIGHT - 1) as u16);
         cursor_moved = true;
     }
 
@@ -229,6 +332,7 @@ fn render_selection_system(
     }
 
     // TODO: Calculate actual pixel positions from grid coordinates
+    // This requires access to font metrics from TextRenderer
     let cell_width = 8.0;
     let cell_height = 16.0;
 
@@ -248,7 +352,7 @@ fn render_selection_system(
                 let end_x = if y == region.end_y {
                     region.end_x
                 } else {
-                    79 // TODO: Get actual grid width
+                    (GRID_WIDTH - 1) as u16
                 };
 
                 commands.spawn((
@@ -282,7 +386,7 @@ fn render_selection_system(
                         sprite: Sprite {
                             color: Color::srgba(0.3, 0.5, 1.0, 0.3),
                             custom_size: Some(Vec2::new(
-                                80.0 * cell_width, // TODO: Get actual grid width
+                                GRID_WIDTH as f32 * cell_width,
                                 cell_height,
                             )),
                             ..default()
@@ -327,6 +431,7 @@ fn render_selection_system(
 fn copy_selection_system(
     keyboard: Res<ButtonInput<KeyCode>>,
     state: Res<SelectionState>,
+    state_reader: Res<SharedMemoryReader>,
     mut event_writer: EventWriter<SelectionCopiedEvent>,
 ) {
     if !state.active {
@@ -335,15 +440,25 @@ fn copy_selection_system(
 
     // Copy with 'y' (yank in vim terminology)
     if keyboard.just_pressed(KeyCode::KeyY) {
-        // TODO: Extract actual text from SharedState based on selection region
-        let text = format!(
-            "Selected text from ({}, {}) to ({}, {})",
-            state.region.start_x, state.region.start_y,
-            state.region.end_x, state.region.end_y
-        );
+        // Extract actual text from SharedState based on selection region
+        let text = extract_selection_text(&state_reader, &state.region, state.mode);
 
-        info!("Copied selection: {}", text);
-        event_writer.send(SelectionCopiedEvent { text });
+        info!("Yanking {} characters to clipboard", text.len());
+
+        // Copy to system clipboard
+        match Clipboard::new() {
+            Ok(mut clipboard) => {
+                if let Err(e) = clipboard.set_text(&text) {
+                    error!("Failed to copy to clipboard: {}", e);
+                } else {
+                    info!("Copied selection to clipboard");
+                    event_writer.send(SelectionCopiedEvent { text });
+                }
+            }
+            Err(e) => {
+                error!("Failed to initialize clipboard: {}", e);
+            }
+        }
     }
 }
 

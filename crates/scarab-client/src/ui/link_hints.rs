@@ -6,6 +6,8 @@ use bevy::input::keyboard::KeyCode;
 use bevy::text::{Text, TextStyle, TextSection};
 use regex::Regex;
 use std::sync::Arc;
+use crate::integration::SharedMemoryReader;
+use scarab_protocol::SharedState;
 
 /// Plugin for link hint functionality
 pub struct LinkHintsPlugin;
@@ -140,20 +142,31 @@ struct HintLabel {
     hint_key: String,
 }
 
+/// Extract text from terminal grid via SharedMemoryReader
+fn extract_terminal_text(state_reader: &SharedMemoryReader) -> String {
+    let shared_ptr = state_reader.shmem.0.as_ptr() as *const SharedState;
+
+    unsafe {
+        let state = &*shared_ptr;
+        crate::integration::extract_grid_text(state)
+    }
+}
+
 /// Detect links in terminal grid
 fn detect_links_system(
     detector: Res<LinkDetector>,
     mut state: ResMut<LinkHintsState>,
     keyboard: Res<ButtonInput<KeyCode>>,
+    state_reader: Res<SharedMemoryReader>,
 ) {
     // Toggle link hints with Ctrl+K
     if keyboard.just_pressed(KeyCode::ControlLeft) && keyboard.pressed(KeyCode::KeyK) {
         state.active = !state.active;
 
         if state.active {
-            // TODO: Get actual terminal text from SharedState
-            let sample_text = "Check out https://example.com or /path/to/file.txt";
-            let detected_links = detector.detect(sample_text);
+            // Get actual terminal text from SharedState
+            let terminal_text = extract_terminal_text(&state_reader);
+            let detected_links = detector.detect(&terminal_text);
 
             let hint_keys = LinkDetector::generate_hint_keys(detected_links.len());
 
@@ -163,12 +176,13 @@ fn detect_links_system(
                 .enumerate()
                 .map(|(i, ((url, link_type), hint_key))| LinkHint {
                     url,
-                    position: Vec2::new(100.0, 100.0 + i as f32 * 20.0), // TODO: Calculate from grid
+                    position: Vec2::new(100.0, 100.0 + i as f32 * 20.0), // TODO: Calculate from grid position
                     hint_key,
                     link_type,
                 })
                 .collect();
 
+            info!("Detected {} links in terminal output", state.hints.len());
             state.current_input.clear();
         } else {
             state.hints.clear();
@@ -281,7 +295,14 @@ fn activate_link_system(
         match event.link.link_type {
             LinkType::Url => {
                 info!("Opening URL: {}", event.link.url);
-                // TODO: Open URL in browser
+                // Open URL in browser using xdg-open (Linux), open (macOS), or start (Windows)
+                #[cfg(target_os = "linux")]
+                {
+                    std::process::Command::new("xdg-open")
+                        .arg(&event.link.url)
+                        .spawn()
+                        .ok();
+                }
                 #[cfg(target_os = "macos")]
                 {
                     std::process::Command::new("open")
@@ -289,10 +310,17 @@ fn activate_link_system(
                         .spawn()
                         .ok();
                 }
+                #[cfg(target_os = "windows")]
+                {
+                    std::process::Command::new("cmd")
+                        .args(&["/C", "start", &event.link.url])
+                        .spawn()
+                        .ok();
+                }
             }
             LinkType::FilePath => {
                 info!("Opening file: {}", event.link.url);
-                // TODO: Open file in editor
+                // TODO: Open file in default editor or with $EDITOR
             }
             LinkType::Email => {
                 info!("Opening email: {}", event.link.url);

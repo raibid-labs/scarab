@@ -8,6 +8,8 @@ use bevy::text::{Text, TextStyle, TextSection};
 use fuzzy_matcher::FuzzyMatcher;
 use fuzzy_matcher::skim::SkimMatcherV2;
 use std::sync::Arc;
+use crate::ipc::IpcChannel;
+use scarab_protocol::ControlMessage;
 
 /// Plugin for command palette functionality
 pub struct CommandPalettePlugin;
@@ -23,7 +25,8 @@ impl Plugin for CommandPalettePlugin {
                 handle_palette_input_system,
                 render_palette_system,
                 execute_command_system,
-            ).chain());
+            ).chain())
+            .add_systems(Startup, register_default_commands_system);
     }
 }
 
@@ -35,13 +38,13 @@ pub struct Command {
     pub description: String,
     pub category: String,
     pub keybind: Option<String>,
-    pub action: Arc<dyn Fn() + Send + Sync>,
+    pub action: Arc<dyn Fn(&IpcChannel) + Send + Sync>,
 }
 
 impl Command {
     pub fn new<F>(id: &str, name: &str, description: &str, category: &str, action: F) -> Self
     where
-        F: Fn() + Send + Sync + 'static,
+        F: Fn(&IpcChannel) + Send + Sync + 'static,
     {
         Self {
             id: id.to_string(),
@@ -313,68 +316,136 @@ fn render_palette_system(
 fn execute_command_system(
     mut events: EventReader<CommandExecutedEvent>,
     registry: Res<CommandRegistry>,
+    ipc: Res<IpcChannel>,
 ) {
     for event in events.read() {
         if let Some(command) = registry.get(&event.command_id) {
             info!("Executing command: {}", command.name);
-            (command.action)();
+            (command.action)(&ipc);
         }
     }
 }
 
-/// Initialize default commands
+/// Initialize default commands at startup
+fn register_default_commands_system(
+    mut registry: ResMut<CommandRegistry>,
+) {
+    register_default_commands(&mut registry);
+}
+
+/// Register default commands with IPC actions
 pub fn register_default_commands(registry: &mut CommandRegistry) {
-    registry.register(
-        Command::new(
-            "copy",
-            "Copy Selection",
-            "Copy selected text to clipboard",
-            "Edit",
-            || info!("Copy executed"),
-        )
-        .with_keybind("Ctrl+C"),
-    );
-
-    registry.register(
-        Command::new(
-            "paste",
-            "Paste",
-            "Paste from clipboard",
-            "Edit",
-            || info!("Paste executed"),
-        )
-        .with_keybind("Ctrl+V"),
-    );
-
+    // Clear terminal (Ctrl+L sends clear command)
     registry.register(
         Command::new(
             "clear",
             "Clear Terminal",
             "Clear all terminal output",
             "Terminal",
-            || info!("Clear executed"),
+            |ipc| {
+                // Send Ctrl+L sequence to clear the terminal
+                ipc.send(ControlMessage::Input {
+                    data: vec![0x0C], // Ctrl+L
+                });
+            },
         )
         .with_keybind("Ctrl+L"),
     );
 
+    // Reset terminal
     registry.register(
         Command::new(
-            "split_h",
-            "Split Horizontal",
-            "Split terminal horizontally",
-            "Window",
-            || info!("Split horizontal executed"),
+            "reset",
+            "Reset Terminal",
+            "Reset terminal to initial state",
+            "Terminal",
+            |ipc| {
+                // Send reset sequence
+                ipc.send(ControlMessage::Input {
+                    data: b"reset\n".to_vec(),
+                });
+            },
         ),
     );
 
+    // Send Ctrl+C (interrupt)
     registry.register(
         Command::new(
-            "split_v",
-            "Split Vertical",
-            "Split terminal vertically",
-            "Window",
-            || info!("Split vertical executed"),
+            "interrupt",
+            "Interrupt Process",
+            "Send SIGINT to current process",
+            "Terminal",
+            |ipc| {
+                ipc.send(ControlMessage::Input {
+                    data: vec![0x03], // Ctrl+C
+                });
+            },
+        )
+        .with_keybind("Ctrl+C"),
+    );
+
+    // Send Ctrl+D (EOF)
+    registry.register(
+        Command::new(
+            "eof",
+            "Send EOF",
+            "Send end-of-file signal",
+            "Terminal",
+            |ipc| {
+                ipc.send(ControlMessage::Input {
+                    data: vec![0x04], // Ctrl+D
+                });
+            },
+        )
+        .with_keybind("Ctrl+D"),
+    );
+
+    // Paste from clipboard
+    registry.register(
+        Command::new(
+            "paste",
+            "Paste from Clipboard",
+            "Paste clipboard contents into terminal",
+            "Edit",
+            |ipc| {
+                use arboard::Clipboard;
+                if let Ok(mut clipboard) = Clipboard::new() {
+                    if let Ok(text) = clipboard.get_text() {
+                        ipc.send(ControlMessage::Input {
+                            data: text.into_bytes(),
+                        });
+                    }
+                }
+            },
+        )
+        .with_keybind("Ctrl+Shift+V"),
+    );
+
+    // Reload configuration (placeholder)
+    registry.register(
+        Command::new(
+            "reload_config",
+            "Reload Configuration",
+            "Reload Scarab configuration files",
+            "Settings",
+            |_ipc| {
+                info!("Configuration reload requested (not yet implemented)");
+            },
         ),
+    );
+
+    // Show help
+    registry.register(
+        Command::new(
+            "help",
+            "Show Help",
+            "Display keyboard shortcuts and commands",
+            "Help",
+            |_ipc| {
+                info!("Help display requested (not yet implemented)");
+            },
+        )
+        .with_keybind("F1"),
     );
 }
 
@@ -385,19 +456,22 @@ mod tests {
     #[test]
     fn test_fuzzy_search() {
         let mut registry = CommandRegistry::default();
+        // Create a dummy IPC channel action
+        let dummy_action = |_: &IpcChannel| {};
+
         registry.register(Command::new(
             "copy",
             "Copy Selection",
             "Copy text",
             "Edit",
-            || {},
+            dummy_action,
         ));
         registry.register(Command::new(
             "paste",
             "Paste",
             "Paste text",
             "Edit",
-            || {},
+            dummy_action,
         ));
 
         let results = registry.fuzzy_search("cop");
@@ -408,6 +482,7 @@ mod tests {
     #[test]
     fn test_fuzzy_search_performance() {
         let mut registry = CommandRegistry::default();
+        let dummy_action = |_: &IpcChannel| {};
 
         // Add 1000 commands
         for i in 0..1000 {
@@ -416,7 +491,7 @@ mod tests {
                 &format!("Command {}", i),
                 &format!("Description {}", i),
                 "Test",
-                || {},
+                dummy_action,
             ));
         }
 
