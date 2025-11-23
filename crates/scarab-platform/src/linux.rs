@@ -133,7 +133,9 @@ pub mod utils {
             || std::env::var("VK_ICD_FILENAMES").is_ok()
     }
 
-    /// Get distribution info
+    /// Get distribution info from /etc/os-release
+    /// Currently unused but available for debugging/logging purposes
+    #[allow(dead_code)]
     pub fn distro_info() -> Option<String> {
         std::fs::read_to_string("/etc/os-release")
             .ok()
@@ -151,8 +153,6 @@ pub mod utils {
 }
 
 // Add users dependency for Linux
-use std::sync::OnceLock;
-
 mod users {
     pub fn get_current_uid() -> u32 {
         #[cfg(unix)]

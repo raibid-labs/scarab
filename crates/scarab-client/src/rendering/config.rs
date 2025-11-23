@@ -1,8 +1,6 @@
 // Font configuration and management
 
-use bevy::prelude::*;
 use serde::{Deserialize, Serialize};
-use bevy::render::render_resource::TextureFormat;
 
 /// Font configuration for the text renderer
 #[derive(Debug, Clone, Serialize, Deserialize)]

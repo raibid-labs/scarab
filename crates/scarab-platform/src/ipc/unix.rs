@@ -62,7 +62,7 @@ pub struct IpcListener {
 }
 
 impl IpcListener {
-    pub fn new(name: &str, config: &IpcConfig) -> Result<Self> {
+    pub fn new(name: &str, _config: &IpcConfig) -> Result<Self> {
         let path = if name.starts_with('/') {
             PathBuf::from(name)
         } else {

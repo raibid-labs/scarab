@@ -5,7 +5,7 @@ use scarab_protocol::{
     RECONNECT_DELAY_MS, MAX_RECONNECT_ATTEMPTS
 };
 use std::sync::Arc;
-use tokio::io::{AsyncReadExt, AsyncWriteExt};
+use tokio::io::AsyncWriteExt;
 use tokio::net::UnixStream;
 use tokio::sync::RwLock;
 use tokio::time::{sleep, Duration};

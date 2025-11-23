@@ -134,16 +134,9 @@ impl Default for TerminalMesh {
     }
 }
 
-/// Vertex data for terminal quad
-#[repr(C)]
-#[derive(Copy, Clone, Debug)]
-struct TerminalVertex {
-    position: [f32; 3],
-    uv: [f32; 2],
-    color: [f32; 4],
-}
-
 /// Generate mesh from terminal grid state
+/// Note: Uses separate attribute arrays instead of a vertex struct
+/// for better compatibility with Bevy's mesh API
 pub fn generate_terminal_mesh(
     state: &SharedState,
     renderer: &mut TextRenderer,

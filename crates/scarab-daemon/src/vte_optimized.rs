@@ -7,7 +7,6 @@
 //! - Zero-allocation parsing for common sequences
 
 use vte::{Parser, Perform};
-use std::sync::Arc;
 
 #[cfg(target_arch = "x86_64")]
 use std::arch::x86_64::*;
@@ -220,7 +219,10 @@ struct CsiKey {
     action: u8,
 }
 
+/// Cached VTE action types (currently stub implementations)
+/// TODO: Implement actual caching logic when integrating this optimization module
 #[derive(Clone)]
+#[allow(dead_code)]
 enum CachedAction {
     CursorMove(i32, i32),
     ColorChange(Color),
@@ -228,6 +230,7 @@ enum CachedAction {
 }
 
 #[derive(Clone, Copy)]
+#[allow(dead_code)]
 struct Color {
     r: u8,
     g: u8,
@@ -235,6 +238,7 @@ struct Color {
 }
 
 #[derive(Clone, Copy)]
+#[allow(dead_code)]
 enum EraseMode {
     ToEnd,
     ToBeginning,
