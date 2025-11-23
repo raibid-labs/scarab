@@ -172,9 +172,13 @@ impl PluginManager {
         match path.extension().and_then(|e| e.to_str()) {
             Some("fzb") => {
                 log::debug!("Would load compiled plugin: {:?}", path);
+                // TODO: Load and execute .fzb bytecode via fusabi-vm
+                // This will create a Plugin trait object that we register
             }
             Some("fsx") => {
                 log::debug!("Would load script plugin: {:?}", path);
+                // TODO: Parse and execute .fsx script via fusabi-frontend
+                // This will create a Plugin trait object that we register
             }
             _ => {
                 return Err(PluginError::LoadError(format!(
@@ -407,7 +411,7 @@ impl PluginManager {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use scarab_plugin_api::context::SharedState;
+    use scarab_plugin_api::context::PluginSharedState;
     use std::sync::Arc;
 
     // Mock plugin for testing
@@ -437,7 +441,7 @@ mod tests {
     }
 
     fn create_test_context() -> Arc<PluginContext> {
-        let state = Arc::new(parking_lot::Mutex::new(SharedState::new(80, 24)));
+        let state = Arc::new(parking_lot::Mutex::new(PluginSharedState::new(80, 24)));
         Arc::new(PluginContext::new(
             Default::default(),
             state,

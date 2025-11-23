@@ -6,8 +6,12 @@ use serde::Deserialize;
 use std::{collections::HashMap, sync::Arc};
 
 /// Shared state accessible to plugins
+///
+/// This wraps the protocol's SharedState with a simpler interface for plugins.
+/// The protocol's SharedState uses #[repr(C)] for IPC, while this one provides
+/// a high-level API for plugin development.
 #[derive(Debug)]
-pub struct SharedState {
+pub struct PluginSharedState {
     /// Terminal grid cells
     pub cells: Vec<Cell>,
     /// Grid width in columns
@@ -22,7 +26,7 @@ pub struct SharedState {
     pub data: HashMap<String, String>,
 }
 
-impl SharedState {
+impl PluginSharedState {
     /// Create new shared state
     pub fn new(cols: u16, rows: u16) -> Self {
         let size = (cols as usize) * (rows as usize);
@@ -83,7 +87,7 @@ pub struct PluginContext {
     /// Plugin-specific configuration
     pub config: PluginConfigData,
     /// Shared terminal state
-    pub state: Arc<Mutex<SharedState>>,
+    pub state: Arc<Mutex<PluginSharedState>>,
     /// Logger name for this plugin
     pub logger_name: String,
 }
@@ -92,7 +96,7 @@ impl PluginContext {
     /// Create new plugin context
     pub fn new(
         config: PluginConfigData,
-        state: Arc<Mutex<SharedState>>,
+        state: Arc<Mutex<PluginSharedState>>,
         logger_name: impl Into<String>,
     ) -> Self {
         Self {
