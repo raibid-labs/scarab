@@ -6,7 +6,7 @@ use std::sync::Arc;
 // Helper to create test context
 fn create_test_context() -> Arc<PluginContext> {
     let state = Arc::new(parking_lot::Mutex::new(
-        context::SharedState::new(80, 24)
+        context::PluginSharedState::new(80, 24)
     ));
     Arc::new(PluginContext::new(
         context::PluginConfigData::default(),
@@ -202,7 +202,7 @@ fn test_cell_default() {
 
 #[test]
 fn test_shared_state() {
-    let mut state = context::SharedState::new(80, 24);
+    let mut state = context::PluginSharedState::new(80, 24);
 
     // Test get/set cell
     assert!(state.get_cell(0, 0).is_some());

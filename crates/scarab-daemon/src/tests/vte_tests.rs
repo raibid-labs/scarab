@@ -13,8 +13,8 @@
 #[cfg(test)]
 mod tests {
     use crate::vte::*;
-    use scarab_protocol::{SharedState, Cell, GRID_WIDTH, GRID_HEIGHT, BUFFER_SIZE};
-    use std::sync::atomic::{AtomicU64, Ordering};
+    use scarab_protocol::{SharedState, Cell, GRID_WIDTH, GRID_HEIGHT};
+    use std::sync::atomic::AtomicU64;
     use std::sync::Arc;
 
     /// Helper to create a test terminal state

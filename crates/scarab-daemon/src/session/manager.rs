@@ -11,6 +11,8 @@ use uuid::Uuid;
 pub struct Session {
     pub id: SessionId,
     pub name: String,
+    /// PTY master for reading/writing terminal data (public API for VTE integration)
+    #[allow(dead_code)]
     pub pty_master: Arc<RwLock<Option<Box<dyn portable_pty::MasterPty + Send + Sync>>>>,
     pub grid_state: Arc<RwLock<GridState>>,
     pub created_at: SystemTime,
@@ -97,7 +99,8 @@ impl Session {
         self.attached_clients.read().len()
     }
 
-    /// Resize the PTY
+    /// Resize the PTY (public API for client resize events)
+    #[allow(dead_code)]
     pub fn resize(&self, cols: u16, rows: u16) -> Result<()> {
         if let Some(ref master) = *self.pty_master.read() {
             master.resize(PtySize {
@@ -114,7 +117,8 @@ impl Session {
         Ok(())
     }
 
-    /// Get PTY master for reading/writing
+    /// Get PTY master for reading/writing (public API for VTE integration)
+    #[allow(dead_code)]
     pub fn pty_master(&self) -> Arc<RwLock<Option<Box<dyn portable_pty::MasterPty + Send + Sync>>>> {
         Arc::clone(&self.pty_master)
     }
@@ -205,7 +209,8 @@ impl SessionManager {
         self.sessions.read().get(id).cloned()
     }
 
-    /// Get default session (or first available)
+    /// Get default session (or first available) - Public API for session routing
+    #[allow(dead_code)]
     pub fn get_default_session(&self) -> Option<Arc<Session>> {
         let sessions = self.sessions.read();
 
@@ -282,7 +287,8 @@ impl SessionManager {
         self.sessions.read().len()
     }
 
-    /// Cleanup sessions with no attached clients (optional maintenance)
+    /// Cleanup sessions with no attached clients (optional maintenance) - Public API
+    #[allow(dead_code)]
     pub fn cleanup_detached_sessions(&self, max_age_secs: u64) -> Result<usize> {
         let _now = SystemTime::now();
         let sessions_to_delete: Vec<SessionId> = {

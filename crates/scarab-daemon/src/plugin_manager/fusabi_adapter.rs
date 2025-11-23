@@ -159,7 +159,8 @@ impl FusabiScriptPlugin {
         })
     }
 
-    /// Hot-reload the script from disk
+    /// Hot-reload the script from disk (TODO: implement when hot-reload feature is added)
+    #[allow(dead_code)]
     pub fn reload(&mut self, path: &Path) -> Result<()> {
         let script_source = std::fs::read_to_string(path).map_err(|e| {
             PluginError::LoadError(format!("Failed to reload script: {}", e))

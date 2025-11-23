@@ -1,7 +1,7 @@
 use anyhow::Result;
 use scarab_protocol::{ControlMessage, SOCKET_PATH, MAX_MESSAGE_SIZE};
 use std::time::Duration;
-use tokio::io::{AsyncReadExt, AsyncWriteExt};
+use tokio::io::AsyncWriteExt;
 use tokio::net::UnixStream;
 use tokio::time::{sleep, timeout};
 

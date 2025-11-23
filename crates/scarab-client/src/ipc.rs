@@ -55,7 +55,8 @@ impl IpcChannel {
         });
     }
 
-    /// Check if connected
+    /// Check if connected - Public API for connection status monitoring
+    #[allow(dead_code)]
     pub fn is_connected(&self) -> bool {
         self.runtime.block_on(async {
             let conn = self.inner.read().await;
@@ -63,7 +64,8 @@ impl IpcChannel {
         })
     }
 
-    /// Force reconnection
+    /// Force reconnection - Public API for manual reconnection attempts
+    #[allow(dead_code)]
     pub fn reconnect(&self) {
         let inner = self.inner.clone();
         self.runtime.spawn(async move {

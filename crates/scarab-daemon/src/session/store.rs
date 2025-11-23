@@ -162,7 +162,8 @@ impl SessionStore {
         Ok(())
     }
 
-    /// Get session by ID
+    /// Get session by ID - Public API for session restoration
+    #[allow(dead_code)]
     pub fn get_session(&self, id: &SessionId) -> Result<Option<Session>> {
         let conn = self.connect()?;
 
@@ -190,7 +191,8 @@ impl SessionStore {
         }
     }
 
-    /// Get session count
+    /// Get session count - Public API for statistics
+    #[allow(dead_code)]
     pub fn session_count(&self) -> Result<usize> {
         let conn = self.connect()?;
 

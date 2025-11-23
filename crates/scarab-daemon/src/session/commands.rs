@@ -17,12 +17,12 @@ pub async fn handle_session_command(
                 Ok(id) => {
                     let session = session_manager.get_session(&id).unwrap();
                     Ok(Some(SessionResponse::Created {
-                        id: id.to_string().into(),
-                        name: session.name.clone().into(),
+                        id: id.to_string(),
+                        name: session.name.clone(),
                     }))
                 }
                 Err(e) => Ok(Some(SessionResponse::Error {
-                    message: format!("Failed to create session: {}", e).into(),
+                    message: format!("Failed to create session: {}", e),
                 })),
             }
         }
@@ -35,7 +35,7 @@ pub async fn handle_session_command(
                     id: id.clone(),
                 })),
                 Err(e) => Ok(Some(SessionResponse::Error {
-                    message: format!("Failed to delete session: {}", e).into(),
+                    message: format!("Failed to delete session: {}", e),
                 })),
             }
         }
@@ -47,8 +47,8 @@ pub async fn handle_session_command(
             let session_infos: Vec<SessionInfo> = sessions
                 .into_iter()
                 .map(|(id, name, created_at, last_attached, attached_clients)| SessionInfo {
-                    id: id.into(),
-                    name: name.into(),
+                    id,
+                    name,
                     created_at,
                     last_attached,
                     attached_clients: attached_clients as u32,
@@ -56,7 +56,7 @@ pub async fn handle_session_command(
                 .collect();
 
             Ok(Some(SessionResponse::List {
-                sessions: session_infos.into(),
+                sessions: session_infos,
             }))
         }
 
@@ -68,7 +68,7 @@ pub async fn handle_session_command(
                     id: id.clone(),
                 })),
                 Err(e) => Ok(Some(SessionResponse::Error {
-                    message: format!("Failed to attach to session: {}", e).into(),
+                    message: format!("Failed to attach to session: {}", e),
                 })),
             }
         }
@@ -81,7 +81,7 @@ pub async fn handle_session_command(
                     id: id.clone(),
                 })),
                 Err(e) => Ok(Some(SessionResponse::Error {
-                    message: format!("Failed to detach from session: {}", e).into(),
+                    message: format!("Failed to detach from session: {}", e),
                 })),
             }
         }
@@ -95,7 +95,7 @@ pub async fn handle_session_command(
                     new_name: new_name.clone(),
                 })),
                 Err(e) => Ok(Some(SessionResponse::Error {
-                    message: format!("Failed to rename session: {}", e).into(),
+                    message: format!("Failed to rename session: {}", e),
                 })),
             }
         }

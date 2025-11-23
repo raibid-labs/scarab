@@ -17,7 +17,8 @@ use fusabi_adapter::{FusabiBytecodePlugin, FusabiScriptPlugin};
 struct ManagedPlugin {
     /// The actual plugin instance
     plugin: Box<dyn Plugin>,
-    /// Plugin configuration
+    /// Plugin configuration (retained for future use in hot-reload)
+    #[allow(dead_code)]
     config: PluginConfig,
     /// Number of consecutive failures
     failure_count: u32,

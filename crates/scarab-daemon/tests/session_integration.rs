@@ -1,4 +1,4 @@
-use scarab_daemon::session::{SessionManager, Session};
+use scarab_daemon::session::SessionManager;
 use tempfile::TempDir;
 use std::time::Duration;
 
@@ -10,7 +10,7 @@ fn test_session_creation_and_persistence() {
     // Create manager and session
     let manager = SessionManager::new(db_path.clone()).unwrap();
     let id1 = manager.create_session("session1".to_string(), 80, 24).unwrap();
-    let id2 = manager.create_session("session2".to_string(), 100, 30).unwrap();
+    let _id2 = manager.create_session("session2".to_string(), 100, 30).unwrap();
 
     assert_eq!(manager.session_count(), 2);
 
