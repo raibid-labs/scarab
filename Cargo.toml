@@ -11,8 +11,8 @@ members = [
 
 [workspace.dependencies]
 # Official Fusabi dependencies (from local path)
-fusabi-vm = { path = "../../../fusabi-lang/fusabi/rust/crates/fusabi-vm" }
-fusabi-frontend = { path = "../../../fusabi-lang/fusabi/rust/crates/fusabi-frontend" }
+# fusabi-vm = { path = "../../../fusabi-lang/fusabi/rust/crates/fusabi-vm" }
+# fusabi-frontend = { path = "../../../fusabi-lang/fusabi/rust/crates/fusabi-frontend" }
 
 # Base Bevy configuration
 bevy = { version = "0.15", default-features = false, features = [
@@ -26,6 +26,8 @@ bevy = { version = "0.15", default-features = false, features = [
     "multi_threaded",
     "png",
     "jpeg",
+    "x11",
+    "wayland",
 ]}
 tokio = { version = "1.36", features = ["full"] }
 portable-pty = "0.8"

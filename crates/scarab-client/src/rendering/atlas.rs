@@ -2,7 +2,7 @@
 
 use bevy::prelude::*;
 use bevy::render::render_resource::{Extent3d, TextureDimension, TextureFormat};
-use cosmic_text::{CacheKey, SwashCache, SwashContent};
+use cosmic_text::{CacheKey, SwashCache, SwashContent, SwashImage, FontSystem, SubpixelBin, CacheKeyFlags};
 use std::collections::HashMap;
 
 /// Maximum atlas texture size (4096x4096 for compatibility)
@@ -87,6 +87,7 @@ impl GlyphAtlas {
             TextureDimension::D2,
             &[0, 0, 0, 0], // Transparent black
             TextureFormat::Rgba8UnormSrgb,
+            bevy::render::render_asset::RenderAssetUsages::default(),
         );
 
         image.texture_descriptor.usage = bevy::render::render_resource::TextureUsages::TEXTURE_BINDING
@@ -108,6 +109,7 @@ impl GlyphAtlas {
     /// Get or cache a glyph in the atlas
     pub fn get_or_cache(
         &mut self,
+        font_system: &mut FontSystem,
         glyph_key: GlyphKey,
         swash_cache: &mut SwashCache,
     ) -> Option<AtlasRect> {
@@ -122,11 +124,12 @@ impl GlyphAtlas {
             font_id: glyph_key.font_id,
             glyph_id: glyph_key.glyph_id,
             font_size_bits: glyph_key.font_size_bits,
-            x_bin: 0,  // Subpixel positioning bins
-            y_bin: 0,
-            flags: 0,  // Rendering flags
+            x_bin: SubpixelBin::Zero,
+            y_bin: SubpixelBin::Zero,
+            flags: CacheKeyFlags::empty(),
         };
-        let image = swash_cache.get_image(cache_key)?;
+        
+        let image = swash_cache.get_image(font_system, cache_key).as_ref()?;
 
         // Check if we have space in the atlas
         let glyph_width = image.placement.width as u32;
@@ -141,7 +144,7 @@ impl GlyphAtlas {
         let rect = self.pack_glyph(glyph_width, glyph_height);
 
         // Copy glyph data to atlas
-        self.copy_glyph_data(&image, &rect);
+        self.copy_glyph_data(image, &rect);
 
         // Cache the position
         self.glyph_positions.insert(glyph_key, rect);
@@ -191,24 +194,24 @@ impl GlyphAtlas {
     }
 
     /// Copy glyph image data to the atlas texture
-    fn copy_glyph_data(&mut self, image: &SwashContent, rect: &AtlasRect) {
-        let atlas_width = ATLAS_SIZE as usize;
-
+    fn copy_glyph_data(&mut self, image: &SwashImage, rect: &AtlasRect) {
+        let data = &image.data;
+        
         for y in 0..rect.height {
             for x in 0..rect.width {
                 let src_idx = (y * rect.width + x) as usize;
                 let dst_idx = ((rect.y + y) * ATLAS_SIZE + (rect.x + x)) as usize * 4;
 
                 // Convert alpha mask to RGBA - cosmic-text 0.11 uses enum variants
-                let alpha = match image {
-                    SwashContent::Mask(data) => {
+                let alpha = match image.content {
+                    SwashContent::Mask => {
                         if src_idx < data.len() {
                             data[src_idx]
                         } else {
                             0
                         }
                     }
-                    SwashContent::Color(data) => {
+                    SwashContent::Color => {
                         // For colored emoji, copy RGBA directly
                         if src_idx * 4 + 3 < data.len() {
                             let offset = src_idx * 4;
@@ -220,7 +223,7 @@ impl GlyphAtlas {
                             0
                         }
                     }
-                    SwashContent::SubpixelMask(data) => {
+                    SwashContent::SubpixelMask => {
                         // Use red channel for subpixel rendering
                         if src_idx * 3 < data.len() {
                             data[src_idx * 3]
@@ -231,7 +234,7 @@ impl GlyphAtlas {
                 };
 
                 // Set white color with alpha (for monochrome glyphs)
-                if matches!(image, SwashContent::Mask(_)) {
+                if matches!(image.content, SwashContent::Mask) {
                     self.texture_data[dst_idx] = 255;
                     self.texture_data[dst_idx + 1] = 255;
                     self.texture_data[dst_idx + 2] = 255;

@@ -114,28 +114,28 @@ impl Platform for PlatformInstance {
 #[cfg(target_os = "linux")]
 impl Platform for PlatformInstance {
     fn socket_path(&self) -> Result<PathBuf> {
-        linux::LinuxPlatform::socket_path()
+        linux::LinuxPlatform.socket_path()
     }
     fn config_dir(&self) -> Result<PathBuf> {
-        linux::LinuxPlatform::config_dir()
+        linux::LinuxPlatform.config_dir()
     }
     fn data_dir(&self) -> Result<PathBuf> {
-        linux::LinuxPlatform::data_dir()
+        linux::LinuxPlatform.data_dir()
     }
     fn cache_dir(&self) -> Result<PathBuf> {
-        linux::LinuxPlatform::cache_dir()
+        linux::LinuxPlatform.cache_dir()
     }
     fn runtime_dir(&self) -> Result<PathBuf> {
-        linux::LinuxPlatform::runtime_dir()
+        linux::LinuxPlatform.runtime_dir()
     }
     fn platform_name(&self) -> &'static str {
-        linux::LinuxPlatform::platform_name()
+        linux::LinuxPlatform.platform_name()
     }
     fn graphics_backend(&self) -> GraphicsBackend {
-        linux::LinuxPlatform::graphics_backend()
+        linux::LinuxPlatform.graphics_backend()
     }
     fn init(&self) -> Result<()> {
-        linux::LinuxPlatform::init()
+        linux::LinuxPlatform.init()
     }
 }
 

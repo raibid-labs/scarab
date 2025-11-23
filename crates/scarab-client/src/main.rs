@@ -2,27 +2,11 @@ use bevy::prelude::*;
 use scarab_protocol::{SharedState, SHMEM_PATH};
 use shared_memory::ShmemConf;
 use std::sync::Arc;
-use scarab_client::ui::AdvancedUIPlugin;
+use scarab_client::AdvancedUIPlugin;
+use scarab_client::integration::{SharedMemoryReader, SharedMemWrapper, IntegrationPlugin};
 
 mod ipc;
 use ipc::IpcPlugin;
-
-// Marker for the grid entity
-#[derive(Component)]
-struct TerminalGrid;
-
-// Wrapper to make shared memory Send + Sync
-struct SharedMemWrapper(Arc<shared_memory::Shmem>);
-
-unsafe impl Send for SharedMemWrapper {}
-unsafe impl Sync for SharedMemWrapper {}
-
-// Resource to hold shared memory state
-#[derive(Resource)]
-struct SharedMemoryReader {
-    shmem: SharedMemWrapper,
-    last_sequence: u64,
-}
 
 fn main() {
     // Initialize shared memory before Bevy app starts
@@ -41,6 +25,7 @@ fn main() {
         }
     };
 
+    // Initialize the resource from the library crate
     let reader = SharedMemoryReader {
         shmem: SharedMemWrapper(shmem),
         last_sequence: 0,
@@ -57,47 +42,15 @@ fn main() {
         }))
        .add_plugins(IpcPlugin) // Add IPC support
        .add_plugins(AdvancedUIPlugin) // Add advanced UI features
+       .add_plugins(IntegrationPlugin) // Add text rendering
        .insert_resource(reader)
        .add_systems(Startup, setup)
-       .add_systems(Update, sync_grid)
        .run();
 }
 
 fn setup(mut commands: Commands) {
-    commands.spawn(Camera2dBundle::default());
-    commands.spawn((
-        TerminalGrid,
-        SpriteBundle {
-            transform: Transform::from_xyz(0.0, 0.0, 0.0),
-            ..default()
-        },
-    ));
+    // Bevy 0.15 uses Camera2d component, Camera2dBundle is deprecated
+    commands.spawn(Camera2d::default());
+    // IntegrationPlugin handles spawning the TerminalGridEntity
     println!("Scarab Client Initialized with shared memory reader and IPC.");
-}
-
-fn sync_grid(mut reader: ResMut<SharedMemoryReader>) {
-    // Read SharedState from shared memory (zero-copy, lock-free)
-    let shared_ptr = reader.shmem.0.as_ptr() as *const SharedState;
-
-    unsafe {
-        let state = &*shared_ptr;
-
-        // Check if sequence number changed (atomic read)
-        let current_seq = state.sequence_number;
-
-        if current_seq != reader.last_sequence {
-            // Grid has been updated by daemon
-            println!(
-                "Grid updated! Seq: {} -> {}, Cursor: ({}, {})",
-                reader.last_sequence, current_seq, state.cursor_x, state.cursor_y
-            );
-
-            // TODO: Update texture/mesh from state.cells
-            // For now, just update our tracking sequence
-            reader.last_sequence = current_seq;
-
-            // Reset dirty flag (optional, depending on your protocol)
-            // Note: This is a read-only client, so we don't modify shared memory
-        }
-    }
 }

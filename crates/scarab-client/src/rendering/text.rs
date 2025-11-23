@@ -295,40 +295,44 @@ fn render_glyph(
     // Parse text attributes
     let attrs = TextAttributes::from_flags(cell.flags);
 
-    // Create cosmic-text buffer to get glyph info
-    let metrics = Metrics::new(renderer.config.size, renderer.config.size * renderer.config.line_height);
-    let mut buffer = Buffer::new(&mut renderer.font_system, metrics);
-
-    // Build attrs with bold/italic
-    let mut cosmic_attrs = Attrs::new();
-
-    if attrs.bold {
-        cosmic_attrs = cosmic_attrs.weight(cosmic_text::Weight::BOLD);
-    }
-    if attrs.italic {
-        cosmic_attrs = cosmic_attrs.style(cosmic_text::Style::Italic);
-    }
-
-    buffer.set_text(&mut renderer.font_system, &ch.to_string(), cosmic_attrs, Shaping::Advanced);
-
     // Get the glyph cache key
-    let mut glyph_key = None;
-    for run in buffer.layout_runs() {
-        for glyph in run.glyphs {
-            // Create GlyphKey from glyph info (cosmic-text API changed)
-            glyph_key = Some(GlyphKey {
-                font_id: glyph.font_id,
-                glyph_id: glyph.glyph_id,
-                font_size_bits: glyph.font_size.to_bits(),
-            });
-            break;
+    // Use a block to limit the scope of the buffer borrow on font_system
+    let glyph_key = {
+        // Create cosmic-text buffer to get glyph info
+        let metrics = Metrics::new(renderer.config.size, renderer.config.size * renderer.config.line_height);
+        let mut buffer = Buffer::new(&mut renderer.font_system, metrics);
+
+        // Build attrs with bold/italic
+        let mut cosmic_attrs = Attrs::new();
+
+        if attrs.bold {
+            cosmic_attrs = cosmic_attrs.weight(cosmic_text::Weight::BOLD);
         }
-    }
+        if attrs.italic {
+            cosmic_attrs = cosmic_attrs.style(cosmic_text::Style::Italic);
+        }
+
+        buffer.set_text(&mut renderer.font_system, &ch.to_string(), cosmic_attrs, Shaping::Advanced);
+
+        let mut key = None;
+        for run in buffer.layout_runs() {
+            for glyph in run.glyphs {
+                // Create GlyphKey from glyph info (cosmic-text API changed)
+                key = Some(GlyphKey {
+                    font_id: glyph.font_id,
+                    glyph_id: glyph.glyph_id,
+                    font_size_bits: glyph.font_size.to_bits(),
+                });
+                break;
+            }
+        }
+        key
+    };
 
     let glyph_key = glyph_key?;
 
     // Get or cache the glyph in atlas
-    let atlas_rect = renderer.atlas.get_or_cache(glyph_key, &mut renderer.swash_cache)?;
+    let atlas_rect = renderer.atlas.get_or_cache(&mut renderer.font_system, glyph_key, &mut renderer.swash_cache)?;
 
     // Get UV coordinates
     let uv_rect = atlas_rect.uv_rect();
@@ -467,7 +471,7 @@ pub fn update_terminal_mesh_system(
     mut meshes: ResMut<Assets<Mesh>>,
     mut images: ResMut<Assets<Image>>,
     mut query: Query<&mut TerminalMesh>,
-    state_reader: Res<crate::SharedMemoryReader>,
+    state_reader: Res<crate::integration::SharedMemoryReader>,
 ) {
     let state = unsafe { &*(state_reader.shmem.0.as_ptr() as *const SharedState) };
 

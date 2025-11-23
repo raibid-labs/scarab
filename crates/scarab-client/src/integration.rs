@@ -2,7 +2,7 @@
 // This demonstrates the complete VTE → SharedState → Rendering pipeline
 
 use bevy::prelude::*;
-use bevy::pbr::{MeshMaterial3d, Mesh3d};
+use bevy::pbr::MeshMaterial3d;
 use scarab_protocol::{SharedState, GRID_WIDTH, GRID_HEIGHT};
 use crate::rendering::text::{TextRenderer, TerminalMesh, generate_terminal_mesh};
 use crate::rendering::config::FontConfig;
@@ -10,7 +10,7 @@ use std::sync::Arc;
 use shared_memory::Shmem;
 
 // Wrapper to make shared memory Send + Sync
-struct SharedMemWrapper(Arc<Shmem>);
+pub struct SharedMemWrapper(pub Arc<Shmem>);
 
 unsafe impl Send for SharedMemWrapper {}
 unsafe impl Sync for SharedMemWrapper {}

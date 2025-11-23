@@ -136,10 +136,7 @@ impl IpcClient {
         let path = if name.starts_with('/') {
             PathBuf::from(name)
         } else {
-            {
-                let platform = crate::CurrentPlatform;
-                <crate::CurrentPlatform as crate::Platform>::runtime_dir(&platform)?.join(format!("{}.sock", name))
-            }
+            crate::current_platform().runtime_dir()?.join(format!("{}.sock", name))
         };
 
         // Note: UnixStream doesn't have connect_timeout in std, we'll use regular connect
