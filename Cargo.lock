@@ -2301,18 +2301,18 @@ checksum = "e6d5a32815ae3f33302d95fdcb2ce17862f8c65363dcfd29360480ba1001fc9c"
 
 [[package]]
 name = "fusabi-frontend"
-version = "0.1.0"
+version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "26a0969238b56f0b344c87fc30715eb28f25b8317cf99f5f708acc82974ed6be"
+checksum = "26e5485de4fd76c115c69e86a40d62ac0c050d6397653f3361d67bc29f88b75a"
 dependencies = [
  "fusabi-vm",
 ]
 
 [[package]]
 name = "fusabi-vm"
-version = "0.1.0"
+version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "03b05ae0e5aa30238c3cb35f8b1e7960a09c5c8f0aa39be2b8bc7bc689904ccd"
+checksum = "b5a3474e1cda05b4de1f20a197fbd3db2e85452afd0fe27351da4f4cc55d2744"
 dependencies = [
  "bincode",
  "serde",
