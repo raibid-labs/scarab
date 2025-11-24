@@ -20,6 +20,7 @@ VALIDATE_ONLY=0
 OUTPUT_DIR=""
 PLUGIN_FILE=""
 SKIP_METADATA=0
+COMPILER_PATH=""
 
 # Print usage
 usage() {
@@ -78,21 +79,41 @@ log_verbose() {
 check_fusabi_compiler() {
     log_verbose "Checking for Fusabi compiler..."
 
-    # Try to use fusabi-frontend via cargo
-    if cargo run -p fusabi-frontend --help &>/dev/null; then
-        log_verbose "Using Fusabi compiler from cargo workspace"
-        return 0
-    fi
+    # Try multiple possible locations for the compiler binary
+    local possible_paths=(
+        "$PROJECT_ROOT/target/debug/scarab-plugin-compiler"
+        "$HOME/.cargo/target/debug/scarab-plugin-compiler"
+        "$PROJECT_ROOT/target/release/scarab-plugin-compiler"
+        "$HOME/.cargo/target/release/scarab-plugin-compiler"
+    )
 
-    # Check for fusabi CLI tool
-    if command -v fusabi &>/dev/null; then
-        log_verbose "Using system-installed fusabi CLI"
-        return 0
+    for compiler_bin in "${possible_paths[@]}"; do
+        if [ -f "$compiler_bin" ]; then
+            log_verbose "Found scarab-plugin-compiler at: $compiler_bin"
+            COMPILER_PATH="$compiler_bin"
+            return 0
+        fi
+    done
+
+    # Try to build it
+    log_verbose "Compiler not found, building scarab-plugin-compiler..."
+    if cargo build -p scarab-plugin-compiler --manifest-path="$PROJECT_ROOT/Cargo.toml" 2>&1 | grep -q "Finished"; then
+        # Check again after build
+        for compiler_bin in "${possible_paths[@]}"; do
+            if [ -f "$compiler_bin" ]; then
+                log_verbose "Successfully built scarab-plugin-compiler at: $compiler_bin"
+                COMPILER_PATH="$compiler_bin"
+                return 0
+            fi
+        done
     fi
 
     log_error "Fusabi compiler not found!"
-    log_info "Install via: cargo install fusabi-cli"
-    log_info "Or ensure fusabi-frontend is available in the workspace"
+    log_info "Please build it first: cargo build -p scarab-plugin-compiler"
+    log_info "Searched locations:"
+    for path in "${possible_paths[@]}"; do
+        log_info "  - $path"
+    done
     return 1
 }
 
@@ -161,24 +182,43 @@ compile_plugin() {
     output_dir="$(dirname "$output_file")"
     mkdir -p "$output_dir"
 
-    # Compile using Rust-based approach (fusabi-frontend crate)
-    # Since fusabi-frontend is a library, we'll create a simple compiler binary
-    # For now, we'll use a placeholder that copies the source as-is
-    # TODO: Replace with actual Fusabi compiler when available
-
-    log_warn "Fusabi compiler integration pending - copying source to output"
+    # Use the scarab-plugin-compiler binary
+    log_verbose "Using compiler: $COMPILER_PATH"
     log_verbose "Source: $source_file"
     log_verbose "Output: $output_file"
 
-    # For now, just copy the .fsx file to .fzb location
-    # This allows the build system to work while the compiler is being integrated
-    cp "$source_file" "$output_file"
+    # Build compiler arguments
+    local compiler_args=("$source_file" "-o" "$output_file")
 
-    if [ -f "$output_file" ]; then
+    if [ "$VERBOSE" -eq 1 ]; then
+        compiler_args+=("--verbose")
+    fi
+
+    # Always validate metadata with the compiler
+    if [ "$SKIP_METADATA" -eq 0 ]; then
+        compiler_args+=("--validate-metadata")
+    fi
+
+    # Run the compiler
+    local compile_output
+    local exit_code=0
+
+    if [ "$VERBOSE" -eq 1 ]; then
+        "$COMPILER_PATH" "${compiler_args[@]}" || exit_code=$?
+    else
+        compile_output=$("$COMPILER_PATH" "${compiler_args[@]}" 2>&1) || exit_code=$?
+        if [ $exit_code -ne 0 ]; then
+            echo "$compile_output"
+        else
+            echo "$compile_output" | grep -E "(✓|ERROR|Warning:)" || true
+        fi
+    fi
+
+    if [ $exit_code -eq 0 ] && [ -f "$output_file" ]; then
         log_success "Plugin compiled successfully: $output_file"
         return 0
     else
-        log_error "Compilation failed for $source_file"
+        log_error "Compilation failed for $source_file (exit code: $exit_code)"
         return 1
     fi
 }
@@ -299,8 +339,11 @@ main() {
 
     # Check for Fusabi compiler
     if ! check_fusabi_compiler; then
-        log_warn "Continuing with placeholder compiler..."
+        exit 1
     fi
+
+    log_success "Using Fusabi compiler: $COMPILER_PATH"
+    echo ""
 
     # Build all or single plugin
     if [ "$BUILD_ALL" -eq 1 ]; then

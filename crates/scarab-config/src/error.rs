@@ -1,95 +1,87 @@
-//! Error types for configuration system
+//! Error types for the configuration system
 
-use std::path::PathBuf;
+use std::io;
 use thiserror::Error;
 
-pub type Result<T> = std::result::Result<T, ConfigError>;
-
+/// Configuration error type
 #[derive(Debug, Error)]
 pub enum ConfigError {
-    #[error("I/O error: {0}")]
-    Io(#[from] std::io::Error),
+    /// IO error
+    #[error("IO error: {0}")]
+    IoError(#[from] io::Error),
 
-    #[error("TOML parsing error: {0}")]
-    TomlParse(#[from] toml::de::Error),
+    /// TOML parsing error
+    #[error("TOML parse error: {0}")]
+    TomlError(#[from] toml::de::Error),
 
+    /// TOML serialization error
     #[error("TOML serialization error: {0}")]
-    TomlSerialize(#[from] toml::ser::Error),
+    TomlSerializeError(#[from] toml::ser::Error),
 
-    #[error("JSON error: {0}")]
-    Json(#[from] serde_json::Error),
+    /// JSON parsing error
+    #[error("JSON parse error: {0}")]
+    JsonError(#[from] serde_json::Error),
 
-    #[error("Invalid font size: {0} (must be between 6.0 and 72.0)")]
-    InvalidFontSize(f32),
+    /// File watcher error
+    #[error("File watch error: {0}")]
+    NotifyError(#[from] notify::Error),
 
-    #[error("Invalid scrollback lines: {0} (must be between 100 and 100,000)")]
-    InvalidScrollback(u32),
-
-    #[error("Invalid color format: {0} (expected #RRGGBB)")]
-    InvalidColor(String),
-
-    #[error("Invalid line height: {0} (must be between 0.5 and 3.0)")]
-    InvalidLineHeight(f32),
-
-    #[error("Config file not found at {0}")]
-    FileNotFound(PathBuf),
-
-    #[error("Invalid theme name: {0}")]
-    InvalidTheme(String),
-
-    #[error("Invalid shell command: {0}")]
-    InvalidShell(String),
-
-    #[error("Watch error: {0}")]
-    Watch(#[from] notify::Error),
-
-    #[error("Plugin config error: {0}")]
-    PluginConfig(String),
-
-    #[error("Migration error: {0}")]
-    Migration(String),
-
+    /// Validation error
     #[error("Validation error: {0}")]
     Validation(String),
+
+    /// Validation error (alias)
+    #[error("Validation error: {0}")]
+    ValidationError(String),
+
+    /// File not found
+    #[error("File not found: {0}")]
+    FileNotFound(String),
+
+    /// Resource not found (e.g., plugin not installed)
+    #[error("Not found: {0}")]
+    NotFound(String),
+
+    /// Security error (checksum mismatch, signature invalid, etc.)
+    #[error("Security error: {0}")]
+    SecurityError(String),
+
+    /// Network/HTTP error
+    #[error("Network error: {0}")]
+    NetworkError(String),
+
+    /// Invalid configuration value
+    #[error("Invalid value for {field}: {message}")]
+    InvalidValue { field: String, message: String },
+
+    /// Missing required field
+    #[error("Missing required field: {0}")]
+    MissingField(String),
+
+    /// Watch error
+    #[error("File watch error: {0}")]
+    WatchError(String),
+
+    /// Invalid color format
+    #[error("Invalid color: {0}")]
+    InvalidColor(String),
+
+    /// Invalid scrollback value
+    #[error("Invalid scrollback: {0}")]
+    InvalidScrollback(String),
+
+    /// Invalid shell configuration
+    #[error("Invalid shell: {0}")]
+    InvalidShell(String),
+
+    /// Invalid font size
+    #[error("Invalid font size: {0}")]
+    InvalidFontSize(String),
+
+    /// Invalid line height
+    #[error("Invalid line height: {0}")]
+    InvalidLineHeight(String),
 }
 
-impl ConfigError {
-    /// Create a helpful error message with suggestions
-    pub fn help_text(&self) -> String {
-        match self {
-            ConfigError::InvalidFontSize(size) => {
-                format!(
-                    "Font size {} is out of range.\n\
-                     Valid range: 6.0 to 72.0\n\
-                     Suggestion: Try 12.0 or 14.0 for readability",
-                    size
-                )
-            }
-            ConfigError::InvalidColor(color) => {
-                format!(
-                    "Color '{}' is not valid.\n\
-                     Expected format: #RRGGBB (e.g., #FF5555)\n\
-                     You can use color names in theme presets instead",
-                    color
-                )
-            }
-            ConfigError::InvalidScrollback(lines) => {
-                format!(
-                    "Scrollback {} lines is out of range.\n\
-                     Valid range: 100 to 100,000\n\
-                     Suggestion: Try 10,000 for good balance",
-                    lines
-                )
-            }
-            ConfigError::FileNotFound(path) => {
-                format!(
-                    "Config file not found: {}\n\
-                     Run 'scarab config init' to create a default config\n\
-                     Or create it manually at ~/.config/scarab/config.toml",
-                    path.display()
-                )
-            }
-            _ => format!("{}", self),
-        }
-    }
-}
+/// Result type alias
+pub type Result<T> = std::result::Result<T, ConfigError>;

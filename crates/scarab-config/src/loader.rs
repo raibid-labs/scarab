@@ -81,7 +81,7 @@ impl ConfigLoader {
     /// Load config from a specific file
     pub fn from_file(path: &Path) -> Result<ScarabConfig> {
         let content =
-            fs::read_to_string(path).map_err(|_| ConfigError::FileNotFound(path.to_path_buf()))?;
+            fs::read_to_string(path).map_err(|_| ConfigError::FileNotFound(path.display().to_string()))?;
 
         let config: ScarabConfig = toml::from_str(&content)?;
         debug!("Loaded config from: {}", path.display());

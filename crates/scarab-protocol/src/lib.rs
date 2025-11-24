@@ -95,6 +95,18 @@ pub enum ControlMessage {
     CommandSelected {
         id: alloc::string::String,
     },
+
+    // Plugin inspection commands
+    PluginListRequest,
+    PluginEnable {
+        name: alloc::string::String,
+    },
+    PluginDisable {
+        name: alloc::string::String,
+    },
+    PluginReload {
+        name: alloc::string::String,
+    },
 }
 
 // Session response messages
@@ -136,6 +148,21 @@ pub struct SessionInfo {
     pub attached_clients: u32,
 }
 
+// Plugin information for inspector
+#[derive(Debug, Clone, rkyv::Archive, rkyv::Serialize, rkyv::Deserialize)]
+#[archive(check_bytes)]
+pub struct PluginInspectorInfo {
+    pub name: alloc::string::String,
+    pub version: alloc::string::String,
+    pub description: alloc::string::String,
+    pub author: alloc::string::String,
+    pub homepage: Option<alloc::string::String>,
+    pub api_version: alloc::string::String,
+    pub min_scarab_version: alloc::string::String,
+    pub enabled: bool,
+    pub failure_count: u32,
+}
+
 // Messages sent from Daemon to Client (Remote UI & Responses)
 #[derive(Debug, Clone, rkyv::Archive, rkyv::Serialize, rkyv::Deserialize)]
 #[archive(check_bytes)]
@@ -159,6 +186,19 @@ pub enum DaemonMessage {
         items: alloc::vec::Vec<ModalItem>,
     },
     HideModal,
+
+    // Plugin inspection responses
+    PluginList {
+        plugins: alloc::vec::Vec<PluginInspectorInfo>,
+    },
+    PluginStatusChanged {
+        name: alloc::string::String,
+        enabled: bool,
+    },
+    PluginError {
+        name: alloc::string::String,
+        error: alloc::string::String,
+    },
 }
 
 #[derive(Debug, Clone, Copy, rkyv::Archive, rkyv::Serialize, rkyv::Deserialize)]

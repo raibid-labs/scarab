@@ -9,6 +9,9 @@ use std::sync::Arc;
 mod ipc;
 use ipc::IpcPlugin;
 
+#[cfg(feature = "plugin-inspector")]
+use scarab_client::PluginInspectorPlugin;
+
 fn main() {
     // Load Configuration
     let home_dir = std::env::var("HOME").unwrap_or_else(|_| ".".to_string());
@@ -57,8 +60,9 @@ fn main() {
     let window_width = config.terminal.columns as f32 * char_width;
     let window_height = config.terminal.rows as f32 * char_height;
 
-    App::new()
-        .add_plugins(DefaultPlugins.set(WindowPlugin {
+    let mut app = App::new();
+
+    app.add_plugins(DefaultPlugins.set(WindowPlugin {
             primary_window: Some(Window {
                 title: "Scarab Terminal".into(),
                 resolution: (window_width, window_height).into(),
@@ -72,8 +76,16 @@ fn main() {
         .add_plugins(IntegrationPlugin) // Add text rendering
         .insert_resource(reader)
         .insert_resource(config) // Make config available to all systems
-        .add_systems(Startup, setup)
-        .run();
+        .add_systems(Startup, setup);
+
+    // Conditionally add plugin inspector
+    #[cfg(feature = "plugin-inspector")]
+    {
+        app.add_plugins(PluginInspectorPlugin);
+        println!("Plugin Inspector enabled - Press Ctrl+Shift+P to open");
+    }
+
+    app.run();
 }
 
 fn setup(mut commands: Commands) {

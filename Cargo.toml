@@ -5,8 +5,11 @@ members = [
     "crates/scarab-daemon",
     "crates/scarab-protocol",
     "crates/scarab-plugin-api",
+    "crates/scarab-plugin-compiler",
     "crates/scarab-config",
-    "crates/scarab-platform", "crates/scarab-nav", "crates/scarab-session",
+    "crates/scarab-platform",
+    "crates/scarab-nav",
+    "crates/scarab-session",
 ]
 
 [workspace.dependencies]

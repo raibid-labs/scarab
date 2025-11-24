@@ -92,7 +92,7 @@ impl HookType {
     }
 }
 
-/// Information about a loaded plugin
+/// Information about a loaded plugin with personality
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PluginInfo {
     /// Plugin name
@@ -113,6 +113,15 @@ pub struct PluginInfo {
     pub enabled: bool,
     /// Number of failures
     pub failure_count: u32,
+    /// Plugin emoji (for display)
+    #[serde(default)]
+    pub emoji: Option<String>,
+    /// Plugin color (hex code)
+    #[serde(default)]
+    pub color: Option<String>,
+    /// Plugin catchphrase
+    #[serde(default)]
+    pub catchphrase: Option<String>,
 }
 
 impl PluginInfo {
@@ -133,7 +142,24 @@ impl PluginInfo {
             min_scarab_version: "0.1.0".to_string(),
             enabled: true,
             failure_count: 0,
+            emoji: None,
+            color: None,
+            catchphrase: None,
         }
+    }
+
+    /// Get display name with emoji if available
+    pub fn display_name(&self) -> String {
+        if let Some(emoji) = &self.emoji {
+            format!("{} {}", emoji, self.name)
+        } else {
+            self.name.clone()
+        }
+    }
+
+    /// Get plugin mood based on failure count
+    pub fn mood(&self) -> crate::delight::PluginMood {
+        crate::delight::PluginMood::from_failure_count(self.failure_count, 3, self.enabled)
     }
 }
 

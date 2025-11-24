@@ -85,7 +85,7 @@ pub trait Plugin: Send + Sync {
     }
 }
 
-/// Plugin metadata
+/// Plugin metadata with personality
 #[derive(Debug, Clone)]
 pub struct PluginMetadata {
     /// Plugin name (must be unique)
@@ -102,6 +102,12 @@ pub struct PluginMetadata {
     pub api_version: String,
     /// Minimum Scarab version required
     pub min_scarab_version: String,
+    /// Plugin emoji/icon for visual identification
+    pub emoji: Option<String>,
+    /// Plugin theme color (hex code)
+    pub color: Option<String>,
+    /// Plugin catchphrase or motto
+    pub catchphrase: Option<String>,
 }
 
 impl PluginMetadata {
@@ -120,6 +126,9 @@ impl PluginMetadata {
             homepage: None,
             api_version: crate::API_VERSION.to_string(),
             min_scarab_version: "0.1.0".to_string(),
+            emoji: None,
+            color: None,
+            catchphrase: None,
         }
     }
 
@@ -139,6 +148,33 @@ impl PluginMetadata {
     pub fn with_min_scarab_version(mut self, version: impl Into<String>) -> Self {
         self.min_scarab_version = version.into();
         self
+    }
+
+    /// Set plugin emoji for visual flair
+    pub fn with_emoji(mut self, emoji: impl Into<String>) -> Self {
+        self.emoji = Some(emoji.into());
+        self
+    }
+
+    /// Set plugin theme color (hex code like "#FF5733")
+    pub fn with_color(mut self, color: impl Into<String>) -> Self {
+        self.color = Some(color.into());
+        self
+    }
+
+    /// Set plugin catchphrase or motto
+    pub fn with_catchphrase(mut self, catchphrase: impl Into<String>) -> Self {
+        self.catchphrase = Some(catchphrase.into());
+        self
+    }
+
+    /// Get display name with emoji if available
+    pub fn display_name(&self) -> String {
+        if let Some(emoji) = &self.emoji {
+            format!("{} {}", emoji, self.name)
+        } else {
+            self.name.clone()
+        }
     }
 
     /// Check if this plugin is compatible with the current API version
@@ -172,5 +208,20 @@ mod tests {
         assert!(meta.is_compatible("0.2.0"));
         assert!(!meta.is_compatible("1.0.0"));
         assert!(!meta.is_compatible("0.0.1"));
+    }
+
+    #[test]
+    fn test_display_name_with_emoji() {
+        let meta = PluginMetadata::new("awesome-plugin", "1.0.0", "Cool plugin", "Dev")
+            .with_emoji("🚀");
+
+        assert_eq!(meta.display_name(), "🚀 awesome-plugin");
+    }
+
+    #[test]
+    fn test_display_name_without_emoji() {
+        let meta = PluginMetadata::new("plain-plugin", "1.0.0", "Plain plugin", "Dev");
+
+        assert_eq!(meta.display_name(), "plain-plugin");
     }
 }

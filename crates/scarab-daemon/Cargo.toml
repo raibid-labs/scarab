@@ -62,3 +62,7 @@ harness = false
 [[bench]]
 name = "shared_memory"
 harness = false
+
+[[bench]]
+name = "plugin_benchmarks"
+harness = false

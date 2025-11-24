@@ -16,6 +16,7 @@ scarab-protocol = { path = "../scarab-protocol" }
 scarab-config = { path = "../scarab-config", features = ["bevy"] }
 fusabi-frontend = { workspace = true }
 bevy = { workspace = true }
+bevy_egui = { version = "0.31", optional = true }
 serde = { workspace = true }
 cosmic-text = { workspace = true }
 anyhow = { workspace = true }
@@ -38,6 +39,7 @@ tempfile = "3.8"
 
 [features]
 default = []
+plugin-inspector = ["bevy_egui"]
 profiling = ["dep:profiling", "dep:tracy-client", "dep:puffin"]
 tracy = ["profiling", "tracy-client/default"]
 puffin-profiling = ["profiling", "puffin/default"]

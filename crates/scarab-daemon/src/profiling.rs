@@ -54,6 +54,18 @@ pub struct MetricsCollector {
     shmem_sync_time_ns: Arc<AtomicU64>,
     shmem_sync_count: Arc<AtomicU64>,
 
+    // Plugin metrics
+    plugin_load_time_ns: Arc<AtomicU64>,
+    plugin_load_count: Arc<AtomicU64>,
+    plugin_output_time_ns: Arc<AtomicU64>,
+    plugin_output_count: Arc<AtomicU64>,
+    plugin_input_time_ns: Arc<AtomicU64>,
+    plugin_input_count: Arc<AtomicU64>,
+    plugin_resize_time_ns: Arc<AtomicU64>,
+    plugin_resize_count: Arc<AtomicU64>,
+    plugin_vm_exec_time_ns: Arc<AtomicU64>,
+    plugin_vm_exec_count: Arc<AtomicU64>,
+
     collection_enabled: Arc<AtomicBool>,
 }
 
@@ -75,6 +87,16 @@ impl MetricsCollector {
             ipc_bytes_transferred: Arc::new(AtomicU64::new(0)),
             shmem_sync_time_ns: Arc::new(AtomicU64::new(0)),
             shmem_sync_count: Arc::new(AtomicU64::new(0)),
+            plugin_load_time_ns: Arc::new(AtomicU64::new(0)),
+            plugin_load_count: Arc::new(AtomicU64::new(0)),
+            plugin_output_time_ns: Arc::new(AtomicU64::new(0)),
+            plugin_output_count: Arc::new(AtomicU64::new(0)),
+            plugin_input_time_ns: Arc::new(AtomicU64::new(0)),
+            plugin_input_count: Arc::new(AtomicU64::new(0)),
+            plugin_resize_time_ns: Arc::new(AtomicU64::new(0)),
+            plugin_resize_count: Arc::new(AtomicU64::new(0)),
+            plugin_vm_exec_time_ns: Arc::new(AtomicU64::new(0)),
+            plugin_vm_exec_count: Arc::new(AtomicU64::new(0)),
             collection_enabled: Arc::new(AtomicBool::new(true)),
         }
     }
@@ -161,6 +183,47 @@ impl MetricsCollector {
         }
     }
 
+    // Plugin metrics
+    pub fn record_plugin_load(&self, duration: Duration) {
+        if self.is_enabled() {
+            self.plugin_load_time_ns
+                .fetch_add(duration.as_nanos() as u64, Ordering::Relaxed);
+            self.plugin_load_count.fetch_add(1, Ordering::Relaxed);
+        }
+    }
+
+    pub fn record_plugin_output(&self, duration: Duration) {
+        if self.is_enabled() {
+            self.plugin_output_time_ns
+                .fetch_add(duration.as_nanos() as u64, Ordering::Relaxed);
+            self.plugin_output_count.fetch_add(1, Ordering::Relaxed);
+        }
+    }
+
+    pub fn record_plugin_input(&self, duration: Duration) {
+        if self.is_enabled() {
+            self.plugin_input_time_ns
+                .fetch_add(duration.as_nanos() as u64, Ordering::Relaxed);
+            self.plugin_input_count.fetch_add(1, Ordering::Relaxed);
+        }
+    }
+
+    pub fn record_plugin_resize(&self, duration: Duration) {
+        if self.is_enabled() {
+            self.plugin_resize_time_ns
+                .fetch_add(duration.as_nanos() as u64, Ordering::Relaxed);
+            self.plugin_resize_count.fetch_add(1, Ordering::Relaxed);
+        }
+    }
+
+    pub fn record_plugin_vm_exec(&self, duration: Duration) {
+        if self.is_enabled() {
+            self.plugin_vm_exec_time_ns
+                .fetch_add(duration.as_nanos() as u64, Ordering::Relaxed);
+            self.plugin_vm_exec_count.fetch_add(1, Ordering::Relaxed);
+        }
+    }
+
     /// Get current performance report
     pub fn report(&self) -> PerformanceReport {
         let frame_count = self.frame_count.load(Ordering::Relaxed);
@@ -195,6 +258,39 @@ impl MetricsCollector {
             0.0
         };
 
+        // Plugin metrics
+        let plugin_load_count = self.plugin_load_count.load(Ordering::Relaxed);
+        let plugin_load_time_total = self.plugin_load_time_ns.load(Ordering::Relaxed);
+        let avg_plugin_load_time_ms = if plugin_load_count > 0 {
+            (plugin_load_time_total / plugin_load_count) as f64 / 1_000_000.0
+        } else {
+            0.0
+        };
+
+        let plugin_output_count = self.plugin_output_count.load(Ordering::Relaxed);
+        let plugin_output_time_total = self.plugin_output_time_ns.load(Ordering::Relaxed);
+        let avg_plugin_output_time_us = if plugin_output_count > 0 {
+            (plugin_output_time_total / plugin_output_count) as f64 / 1_000.0
+        } else {
+            0.0
+        };
+
+        let plugin_input_count = self.plugin_input_count.load(Ordering::Relaxed);
+        let plugin_input_time_total = self.plugin_input_time_ns.load(Ordering::Relaxed);
+        let avg_plugin_input_time_us = if plugin_input_count > 0 {
+            (plugin_input_time_total / plugin_input_count) as f64 / 1_000.0
+        } else {
+            0.0
+        };
+
+        let plugin_vm_exec_count = self.plugin_vm_exec_count.load(Ordering::Relaxed);
+        let plugin_vm_exec_time_total = self.plugin_vm_exec_time_ns.load(Ordering::Relaxed);
+        let avg_plugin_vm_exec_time_us = if plugin_vm_exec_count > 0 {
+            (plugin_vm_exec_time_total / plugin_vm_exec_count) as f64 / 1_000.0
+        } else {
+            0.0
+        };
+
         PerformanceReport {
             avg_frame_time_ms,
             avg_vte_parse_time_us: avg_vte_time_us,
@@ -209,6 +305,12 @@ impl MetricsCollector {
             gpu_memory_mb: self.gpu_memory_bytes.load(Ordering::Relaxed) as f64 / 1_048_576.0,
             ipc_messages_per_sec: 0.0, // Will calculate based on time window
             avg_shmem_sync_time_us,
+            avg_plugin_load_time_ms,
+            avg_plugin_output_time_us,
+            avg_plugin_input_time_us,
+            avg_plugin_vm_exec_time_us,
+            plugin_output_count,
+            plugin_input_count,
         }
     }
 
@@ -227,6 +329,16 @@ impl MetricsCollector {
         self.ipc_bytes_transferred.store(0, Ordering::Relaxed);
         self.shmem_sync_time_ns.store(0, Ordering::Relaxed);
         self.shmem_sync_count.store(0, Ordering::Relaxed);
+        self.plugin_load_time_ns.store(0, Ordering::Relaxed);
+        self.plugin_load_count.store(0, Ordering::Relaxed);
+        self.plugin_output_time_ns.store(0, Ordering::Relaxed);
+        self.plugin_output_count.store(0, Ordering::Relaxed);
+        self.plugin_input_time_ns.store(0, Ordering::Relaxed);
+        self.plugin_input_count.store(0, Ordering::Relaxed);
+        self.plugin_resize_time_ns.store(0, Ordering::Relaxed);
+        self.plugin_resize_count.store(0, Ordering::Relaxed);
+        self.plugin_vm_exec_time_ns.store(0, Ordering::Relaxed);
+        self.plugin_vm_exec_count.store(0, Ordering::Relaxed);
     }
 }
 
@@ -241,13 +353,19 @@ pub struct PerformanceReport {
     pub gpu_memory_mb: f64,
     pub ipc_messages_per_sec: f64,
     pub avg_shmem_sync_time_us: f64,
+    pub avg_plugin_load_time_ms: f64,
+    pub avg_plugin_output_time_us: f64,
+    pub avg_plugin_input_time_us: f64,
+    pub avg_plugin_vm_exec_time_us: f64,
+    pub plugin_output_count: u64,
+    pub plugin_input_count: u64,
 }
 
 impl PerformanceReport {
     pub fn print_summary(&self) {
         println!("=== Performance Report ===");
         println!("Frame Time:        {:.2} ms", self.avg_frame_time_ms);
-        println!("VTE Parse:         {:.2} μs", self.avg_vte_parse_time_us);
+        println!("VTE Parse:         {:.2} us", self.avg_vte_parse_time_us);
         println!(
             "VTE Throughput:    {:.2} KB/s",
             self.vte_bytes_per_sec / 1024.0
@@ -257,7 +375,12 @@ impl PerformanceReport {
         println!("Memory:            {:.2} MB", self.allocated_mb);
         println!("GPU Memory:        {:.2} MB", self.gpu_memory_mb);
         println!("IPC Messages/sec:  {:.0}", self.ipc_messages_per_sec);
-        println!("Shmem Sync:        {:.2} μs", self.avg_shmem_sync_time_us);
+        println!("Shmem Sync:        {:.2} us", self.avg_shmem_sync_time_us);
+        println!("\n=== Plugin Performance ===");
+        println!("Plugin Load:       {:.2} ms", self.avg_plugin_load_time_ms);
+        println!("Plugin Output:     {:.2} us (count: {})", self.avg_plugin_output_time_us, self.plugin_output_count);
+        println!("Plugin Input:      {:.2} us (count: {})", self.avg_plugin_input_time_us, self.plugin_input_count);
+        println!("Plugin VM Exec:    {:.2} us", self.avg_plugin_vm_exec_time_us);
     }
 
     pub fn check_targets(&self) -> bool {
@@ -266,12 +389,53 @@ impl PerformanceReport {
 
         if self.avg_frame_time_ms > 50.0 {
             println!(
-                "❌ Frame time {:.2}ms exceeds target of 50ms",
+                "FAIL Frame time {:.2}ms exceeds target of 50ms",
                 self.avg_frame_time_ms
             );
             success = false;
         } else {
-            println!("✅ Frame time {:.2}ms meets target", self.avg_frame_time_ms);
+            println!("PASS Frame time {:.2}ms meets target", self.avg_frame_time_ms);
+        }
+
+        // Plugin-specific targets
+        if self.avg_plugin_load_time_ms > 100.0 {
+            println!(
+                "FAIL Plugin load time {:.2}ms exceeds target of 100ms",
+                self.avg_plugin_load_time_ms
+            );
+            success = false;
+        } else {
+            println!("PASS Plugin load time {:.2}ms meets target", self.avg_plugin_load_time_ms);
+        }
+
+        if self.avg_plugin_output_time_us > 50.0 {
+            println!(
+                "FAIL Plugin output hook {:.2}us exceeds target of 50us",
+                self.avg_plugin_output_time_us
+            );
+            success = false;
+        } else {
+            println!("PASS Plugin output hook {:.2}us meets target", self.avg_plugin_output_time_us);
+        }
+
+        if self.avg_plugin_input_time_us > 50.0 {
+            println!(
+                "FAIL Plugin input hook {:.2}us exceeds target of 50us",
+                self.avg_plugin_input_time_us
+            );
+            success = false;
+        } else {
+            println!("PASS Plugin input hook {:.2}us meets target", self.avg_plugin_input_time_us);
+        }
+
+        if self.avg_plugin_vm_exec_time_us > 20.0 {
+            println!(
+                "FAIL Plugin VM execution {:.2}us exceeds target of 20us",
+                self.avg_plugin_vm_exec_time_us
+            );
+            success = false;
+        } else {
+            println!("PASS Plugin VM execution {:.2}us meets target", self.avg_plugin_vm_exec_time_us);
         }
 
         // Estimate CPU usage from timing (rough approximation)
@@ -283,52 +447,52 @@ impl PerformanceReport {
 
         if cpu_usage_vte > 2.0 {
             println!(
-                "❌ VTE CPU usage {:.2}% exceeds target of 2%",
+                "FAIL VTE CPU usage {:.2}% exceeds target of 2%",
                 cpu_usage_vte
             );
             success = false;
         } else {
-            println!("✅ VTE CPU usage {:.2}% meets target", cpu_usage_vte);
+            println!("PASS VTE CPU usage {:.2}% meets target", cpu_usage_vte);
         }
 
         if cpu_usage_render > 3.0 {
             println!(
-                "❌ Render CPU usage {:.2}% exceeds target of 3%",
+                "FAIL Render CPU usage {:.2}% exceeds target of 3%",
                 cpu_usage_render
             );
             success = false;
         } else {
-            println!("✅ Render CPU usage {:.2}% meets target", cpu_usage_render);
+            println!("PASS Render CPU usage {:.2}% meets target", cpu_usage_render);
         }
 
         if cpu_usage_shmem > 0.5 {
             println!(
-                "❌ Shmem CPU usage {:.2}% exceeds target of 0.5%",
+                "FAIL Shmem CPU usage {:.2}% exceeds target of 0.5%",
                 cpu_usage_shmem
             );
             success = false;
         } else {
-            println!("✅ Shmem CPU usage {:.2}% meets target", cpu_usage_shmem);
+            println!("PASS Shmem CPU usage {:.2}% meets target", cpu_usage_shmem);
         }
 
         if self.allocated_mb > 100.0 {
             println!(
-                "❌ Memory usage {:.2}MB exceeds target of 100MB",
+                "FAIL Memory usage {:.2}MB exceeds target of 100MB",
                 self.allocated_mb
             );
             success = false;
         } else {
-            println!("✅ Memory usage {:.2}MB meets target", self.allocated_mb);
+            println!("PASS Memory usage {:.2}MB meets target", self.allocated_mb);
         }
 
         if self.gpu_memory_mb > 150.0 {
             println!(
-                "❌ GPU memory {:.2}MB exceeds target of 150MB",
+                "FAIL GPU memory {:.2}MB exceeds target of 150MB",
                 self.gpu_memory_mb
             );
             success = false;
         } else {
-            println!("✅ GPU memory {:.2}MB meets target", self.gpu_memory_mb);
+            println!("PASS GPU memory {:.2}MB meets target", self.gpu_memory_mb);
         }
 
         success

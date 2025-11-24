@@ -19,11 +19,11 @@ impl ConfigValidator {
     /// Validate font configuration
     fn validate_font(font: &crate::FontConfig) -> Result<()> {
         if font.size < 6.0 || font.size > 72.0 {
-            return Err(ConfigError::InvalidFontSize(font.size));
+            return Err(ConfigError::InvalidFontSize(font.size.to_string()));
         }
 
         if font.line_height < 0.5 || font.line_height > 3.0 {
-            return Err(ConfigError::InvalidLineHeight(font.line_height));
+            return Err(ConfigError::InvalidLineHeight(font.line_height.to_string()));
         }
 
         if font.family.is_empty() {
@@ -38,7 +38,7 @@ impl ConfigValidator {
     /// Validate terminal configuration
     fn validate_terminal(terminal: &crate::TerminalConfig) -> Result<()> {
         if terminal.scrollback_lines < 100 || terminal.scrollback_lines > 100_000 {
-            return Err(ConfigError::InvalidScrollback(terminal.scrollback_lines));
+            return Err(ConfigError::InvalidScrollback(terminal.scrollback_lines.to_string()));
         }
 
         if terminal.default_shell.is_empty() {

@@ -6,6 +6,11 @@ license = "MIT OR Apache-2.0"
 description = "Configuration system for Scarab terminal emulator"
 repository = "https://github.com/raibid-labs/scarab"
 
+[[bin]]
+name = "scarab-plugin"
+path = "src/bin/scarab-plugin.rs"
+required-features = ["registry"]
+
 [dependencies]
 serde = { workspace = true }
 anyhow = { workspace = true }
@@ -16,12 +21,18 @@ dirs = "5.0"
 thiserror = "1.0"
 tracing = "0.1"
 
+# Registry dependencies
+reqwest = { version = "0.12", features = ["json"], optional = true }
+sha2 = { version = "0.10", optional = true }
+tokio = { workspace = true, optional = true }
+
 # Optional Bevy integration
 bevy_ecs = { version = "0.15", optional = true }
 
 [features]
-default = []
+default = ["registry"]
 bevy = ["dep:bevy_ecs"]
+registry = ["dep:reqwest", "dep:sha2", "dep:tokio"]
 
 [dev-dependencies]
 tokio = { workspace = true }

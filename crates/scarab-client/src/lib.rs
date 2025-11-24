@@ -9,6 +9,9 @@ pub mod ipc;
 pub mod rendering;
 pub mod scripting;
 
+#[cfg(feature = "plugin-inspector")]
+pub mod plugin_inspector;
+
 pub use rendering::*;
 
 // Re-export commonly used integration types
@@ -19,3 +22,7 @@ pub use ui_stub::AdvancedUIPlugin;
 
 // Re-export scripting system
 pub use scripting::{ScriptingPlugin, ScriptManager, ScriptEvent, RuntimeContext};
+
+// Re-export plugin inspector (feature-gated)
+#[cfg(feature = "plugin-inspector")]
+pub use plugin_inspector::{PluginInspectorPlugin, PluginInspectorState};

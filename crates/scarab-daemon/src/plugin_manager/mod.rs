@@ -2,8 +2,8 @@
 
 use crate::ipc::ClientRegistry;
 use scarab_plugin_api::{
-    types::RemoteCommand, Action, Plugin, PluginConfig, PluginContext, PluginDiscovery,
-    PluginError, PluginInfo, Result,
+    delight, types::RemoteCommand, Achievement, Action, Plugin, PluginConfig, PluginContext,
+    PluginDiscovery, PluginError, PluginInfo, PluginMood, Result,
 };
 use scarab_protocol::DaemonMessage;
 use std::{
@@ -16,7 +16,7 @@ use tokio::time::timeout;
 pub mod fusabi_adapter;
 use fusabi_adapter::{FusabiBytecodePlugin, FusabiScriptPlugin};
 
-/// Plugin wrapper with failure tracking
+/// Plugin wrapper with failure tracking and personality
 struct ManagedPlugin {
     /// The actual plugin instance
     plugin: Box<dyn Plugin>,
@@ -29,6 +29,8 @@ struct ManagedPlugin {
     enabled: bool,
     /// Maximum failures before auto-disable
     max_failures: u32,
+    /// Total successful hook executions
+    success_count: u64,
 }
 
 impl ManagedPlugin {
@@ -39,6 +41,7 @@ impl ManagedPlugin {
             failure_count: 0,
             enabled: true,
             max_failures: 3,
+            success_count: 0,
         }
     }
 
@@ -46,18 +49,45 @@ impl ManagedPlugin {
     fn record_failure(&mut self) {
         self.failure_count += 1;
         if self.failure_count >= self.max_failures {
+            let mood = PluginMood::from_failure_count(
+                self.failure_count,
+                self.max_failures,
+                self.enabled,
+            );
             log::error!(
-                "Plugin '{}' disabled after {} consecutive failures",
-                self.plugin.metadata().name,
-                self.failure_count
+                "{} Plugin '{}' disabled after {} consecutive failures - {}",
+                mood.emoji(),
+                self.plugin.metadata().display_name(),
+                self.failure_count,
+                mood.description()
             );
             self.enabled = false;
+        } else {
+            let mood = PluginMood::from_failure_count(
+                self.failure_count,
+                self.max_failures,
+                self.enabled,
+            );
+            log::warn!(
+                "{} Plugin '{}' - {} (failures: {})",
+                mood.emoji(),
+                self.plugin.metadata().display_name(),
+                mood.description(),
+                self.failure_count
+            );
         }
     }
 
     /// Record successful execution
     fn record_success(&mut self) {
         self.failure_count = 0;
+        self.success_count += 1;
+
+        // Celebrate zero failures achievement
+        if self.success_count == 100 && self.failure_count == 0 {
+            let achievement = Achievement::ZeroFailures;
+            log::info!("\n{}", achievement.format());
+        }
     }
 
     /// Get plugin info
@@ -73,7 +103,15 @@ impl ManagedPlugin {
             min_scarab_version: meta.min_scarab_version.clone(),
             enabled: self.enabled,
             failure_count: self.failure_count,
+            emoji: meta.emoji.clone(),
+            color: meta.color.clone(),
+            catchphrase: meta.catchphrase.clone(),
         }
+    }
+
+    /// Get plugin mood
+    fn mood(&self) -> PluginMood {
+        PluginMood::from_failure_count(self.failure_count, self.max_failures, self.enabled)
     }
 }
 
@@ -89,17 +127,25 @@ pub struct PluginManager {
     context: Arc<PluginContext>,
     /// Registry for sending commands to clients
     client_registry: ClientRegistry,
+    /// Total number of plugins ever loaded (for achievements)
+    total_loaded: usize,
 }
 
 impl PluginManager {
     /// Create new plugin manager
     pub fn new(context: Arc<PluginContext>, client_registry: ClientRegistry) -> Self {
+        // Check for special date messages
+        if let Some(special_msg) = delight::special_date_message() {
+            log::info!("{}", special_msg);
+        }
+
         Self {
             plugins: Vec::new(),
             discovery: PluginDiscovery::new(),
             hook_timeout: Duration::from_millis(1000),
             context,
             client_registry,
+            total_loaded: 0,
         }
     }
 
@@ -107,6 +153,24 @@ impl PluginManager {
     pub fn with_timeout(mut self, timeout_ms: u64) -> Self {
         self.hook_timeout = Duration::from_millis(timeout_ms);
         self
+    }
+
+    /// Check and celebrate achievements
+    fn check_achievements(&self) {
+        let enabled_count = self.enabled_count();
+
+        let achievement = match enabled_count {
+            1 => Some(Achievement::FirstPlugin),
+            10 => Some(Achievement::TenPlugins),
+            50 => Some(Achievement::FiftyPlugins),
+            100 => Some(Achievement::HundredPlugins),
+            _ => None,
+        };
+
+        if let Some(ach) = achievement {
+            let msg = delight::celebration_message(&ach.format(), ach.ascii_art());
+            log::info!("{}", msg);
+        }
     }
 
     /// Process any pending commands queued by plugins
@@ -166,19 +230,40 @@ impl PluginManager {
         let configs = self.discovery.load_config(config_path)?;
         let mut loaded = 0;
 
+        log::info!("🔍 Discovering plugins...");
+
         for config in configs {
             if !config.enabled {
-                log::info!("Skipping disabled plugin: {}", config.name);
+                log::info!("⏭️  Skipping disabled plugin: {}", config.name);
                 continue;
             }
 
+            log::info!("⏳ {}", delight::random_loading_message());
+
             match self.load_plugin_from_config(config).await {
                 Ok(_) => loaded += 1,
-                Err(e) => log::error!("Failed to load plugin: {}", e),
+                Err(e) => {
+                    log::error!("{}", e.friendly_message());
+                }
             }
         }
 
-        log::info!("Loaded {} plugins", loaded);
+        if loaded > 0 {
+            log::info!(
+                "✨ {} Loaded {} plugin{}!",
+                delight::random_success_message(),
+                loaded,
+                if loaded == 1 { "" } else { "s" }
+            );
+
+            // Show a random developer tip
+            if rand::random::<f32>() < 0.3 {
+                log::info!("💡 {}", delight::random_developer_tip());
+            }
+        } else {
+            log::info!("No plugins loaded. Time to create your first one!");
+        }
+
         Ok(loaded)
     }
 
@@ -186,6 +271,8 @@ impl PluginManager {
     pub async fn discover_and_load(&mut self) -> Result<usize> {
         let plugin_files = self.discovery.discover();
         let mut loaded = 0;
+
+        log::info!("🔍 Scanning plugin directories...");
 
         for path in plugin_files {
             // Create minimal config for discovered plugin
@@ -200,10 +287,20 @@ impl PluginManager {
                 config: Default::default(),
             };
 
+            log::info!("⏳ {}", delight::random_loading_message());
+
             match self.load_plugin_from_config(config).await {
                 Ok(_) => loaded += 1,
                 Err(e) => log::warn!("Failed to load plugin from {:?}: {}", path, e),
             }
+        }
+
+        if loaded > 0 {
+            log::info!("✨ {} Discovered and loaded {} plugin{}!",
+                delight::random_success_message(),
+                loaded,
+                if loaded == 1 { "" } else { "s" }
+            );
         }
 
         Ok(loaded)
@@ -213,7 +310,7 @@ impl PluginManager {
     async fn load_plugin_from_config(&mut self, config: PluginConfig) -> Result<()> {
         let path = config.expanded_path();
 
-        log::info!("Loading plugin: {} from {:?}", config.name, path);
+        log::debug!("📦 Loading plugin: {} from {:?}", config.name, path);
 
         // Check if file exists
         if !path.exists() {
@@ -223,11 +320,11 @@ impl PluginManager {
         // Load plugin based on file extension
         let plugin: Box<dyn Plugin> = match path.extension().and_then(|e| e.to_str()) {
             Some("fzb") => {
-                log::debug!("Loading compiled bytecode plugin: {:?}", path);
+                log::debug!("⚡ Loading compiled bytecode plugin: {:?}", path);
                 Box::new(FusabiBytecodePlugin::load(&path)?)
             }
             Some("fsx") => {
-                log::debug!("Loading script plugin: {:?}", path);
+                log::debug!("📜 Loading script plugin: {:?}", path);
                 Box::new(FusabiScriptPlugin::load(&path)?)
             }
             _ => {
@@ -245,9 +342,10 @@ impl PluginManager {
     /// Manually register a plugin
     pub async fn register_plugin(&mut self, mut plugin: Box<dyn Plugin>) -> Result<()> {
         // Clone metadata values we need before calling on_load
-        let plugin_name = plugin.metadata().name.clone();
+        let plugin_name = plugin.metadata().display_name();
         let plugin_version = plugin.metadata().version.clone();
         let api_version = plugin.metadata().api_version.clone();
+        let catchphrase = plugin.metadata().catchphrase.clone();
 
         // Check API compatibility
         if !plugin
@@ -260,7 +358,10 @@ impl PluginManager {
             });
         }
 
-        log::info!("Registering plugin: {} v{}", plugin_name, plugin_version);
+        log::info!("🎯 Registering plugin: {} v{}", plugin_name, plugin_version);
+        if let Some(phrase) = &catchphrase {
+            log::info!("   💬 \"{}\"", phrase);
+        }
 
         // Call on_load with timeout
         let mut ctx = (*self.context).clone();
@@ -272,16 +373,25 @@ impl PluginManager {
         match load_result {
             Ok(Ok(_)) => {
                 let config = PluginConfig {
-                    name: plugin_name.clone(),
+                    name: plugin.metadata().name.clone(),
                     path: PathBuf::new(),
                     enabled: true,
                     config: Default::default(),
                 };
                 self.plugins.push(ManagedPlugin::new(plugin, config));
-                log::info!("Plugin registered successfully: {}", plugin_name);
+                self.total_loaded += 1;
+
+                log::info!(
+                    "✅ {} Plugin '{}' is ready!",
+                    delight::random_success_message(),
+                    plugin_name
+                );
 
                 // Refresh command list
                 self.refresh_commands();
+
+                // Check for achievements
+                self.check_achievements();
 
                 // Process commands that might have been queued during on_load
                 self.process_pending_commands().await;
@@ -289,12 +399,15 @@ impl PluginManager {
                 Ok(())
             }
             Ok(Err(e)) => {
-                log::error!("Failed to initialize plugin: {}", e);
+                log::error!("❌ Failed to initialize plugin '{}': {}", plugin_name, e);
                 Err(e)
             }
             Err(_) => {
                 let error = PluginError::Timeout(timeout_duration.as_millis() as u64);
-                log::error!("Plugin '{}' initialization timed out", plugin_name);
+                log::error!(
+                    "⏱️  Plugin '{}' initialization timed out",
+                    plugin_name
+                );
                 Err(error)
             }
         }
@@ -309,7 +422,7 @@ impl PluginManager {
                 continue;
             }
 
-            let plugin_name = managed.plugin.metadata().name.clone();
+            let plugin_name = managed.plugin.metadata().display_name();
             let current_data = data.clone();
             let ctx = self.context.clone();
 
@@ -333,11 +446,19 @@ impl PluginManager {
                     data = String::from_utf8(new_data).unwrap_or(data);
                 }
                 Ok(Err(e)) => {
-                    log::error!("Plugin '{}' output hook failed: {}", plugin_name, e);
+                    log::error!(
+                        "{} Plugin '{}' output hook failed: {}",
+                        managed.mood().emoji(),
+                        plugin_name,
+                        e
+                    );
                     managed.record_failure();
                 }
                 Err(_) => {
-                    log::error!("Plugin '{}' output hook timed out", plugin_name);
+                    log::error!(
+                        "⏱️  Plugin '{}' output hook timed out",
+                        plugin_name
+                    );
                     managed.record_failure();
                 }
             }
@@ -358,7 +479,7 @@ impl PluginManager {
                 continue;
             }
 
-            let plugin_name = managed.plugin.metadata().name.clone();
+            let plugin_name = managed.plugin.metadata().display_name();
             let current_data = data.clone();
             let ctx = self.context.clone();
 
@@ -381,11 +502,16 @@ impl PluginManager {
                     data = new_data;
                 }
                 Ok(Err(e)) => {
-                    log::error!("Plugin '{}' input hook failed: {}", plugin_name, e);
+                    log::error!(
+                        "{} Plugin '{}' input hook failed: {}",
+                        managed.mood().emoji(),
+                        plugin_name,
+                        e
+                    );
                     managed.record_failure();
                 }
                 Err(_) => {
-                    log::error!("Plugin '{}' input hook timed out", plugin_name);
+                    log::error!("⏱️  Plugin '{}' input hook timed out", plugin_name);
                     managed.record_failure();
                 }
             }
@@ -404,7 +530,7 @@ impl PluginManager {
                 continue;
             }
 
-            let plugin_name = managed.plugin.metadata().name.clone();
+            let plugin_name = managed.plugin.metadata().display_name();
             let ctx = self.context.clone();
 
             let result = timeout(
@@ -416,11 +542,16 @@ impl PluginManager {
             match result {
                 Ok(Ok(_)) => managed.record_success(),
                 Ok(Err(e)) => {
-                    log::error!("Plugin '{}' resize hook failed: {}", plugin_name, e);
+                    log::error!(
+                        "{} Plugin '{}' resize hook failed: {}",
+                        managed.mood().emoji(),
+                        plugin_name,
+                        e
+                    );
                     managed.record_failure();
                 }
                 Err(_) => {
-                    log::error!("Plugin '{}' resize hook timed out", plugin_name);
+                    log::error!("⏱️  Plugin '{}' resize hook timed out", plugin_name);
                     managed.record_failure();
                 }
             }
@@ -444,26 +575,29 @@ impl PluginManager {
 
     /// Unload all plugins
     pub async fn unload_all(&mut self) -> Result<()> {
-        log::info!("Unloading {} plugins", self.plugins.len());
+        log::info!("👋 Saying goodbye to {} plugins...", self.plugins.len());
 
         for managed in &mut self.plugins {
-            let plugin_name = managed.plugin.metadata().name.clone();
+            let plugin_name = managed.plugin.metadata().display_name();
 
             let result = timeout(self.hook_timeout, managed.plugin.on_unload()).await;
 
             match result {
-                Ok(Ok(_)) => {}
+                Ok(Ok(_)) => {
+                    log::debug!("✅ Plugin '{}' unloaded cleanly", plugin_name);
+                }
                 Ok(Err(e)) => {
-                    log::error!("Error unloading plugin '{}': {}", plugin_name, e);
+                    log::error!("❌ Error unloading plugin '{}': {}", plugin_name, e);
                 }
                 Err(_) => {
-                    log::error!("Plugin '{}' unload timed out", plugin_name);
+                    log::error!("⏱️  Plugin '{}' unload timed out", plugin_name);
                 }
             }
         }
 
         self.plugins.clear();
         self.refresh_commands();
+        log::info!("✨ All plugins unloaded successfully!");
         Ok(())
     }
 
@@ -474,7 +608,7 @@ impl PluginManager {
                 continue;
             }
 
-            let plugin_name = managed.plugin.metadata().name.clone();
+            let plugin_name = managed.plugin.metadata().display_name();
             let ctx = self.context.clone();
 
             let result = timeout(
@@ -486,11 +620,19 @@ impl PluginManager {
             match result {
                 Ok(Ok(_)) => managed.record_success(),
                 Ok(Err(e)) => {
-                    log::error!("Plugin '{}' remote command hook failed: {}", plugin_name, e);
+                    log::error!(
+                        "{} Plugin '{}' remote command hook failed: {}",
+                        managed.mood().emoji(),
+                        plugin_name,
+                        e
+                    );
                     managed.record_failure();
                 }
                 Err(_) => {
-                    log::error!("Plugin '{}' remote command hook timed out", plugin_name);
+                    log::error!(
+                        "⏱️  Plugin '{}' remote command hook timed out",
+                        plugin_name
+                    );
                     managed.record_failure();
                 }
             }

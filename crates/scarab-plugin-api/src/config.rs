@@ -157,19 +157,74 @@ impl PluginDiscovery {
             fs::create_dir_all(parent)?;
         }
 
-        // Create example config
-        let example_config = r#"# Scarab Plugin Configuration
-# Place your plugin configurations here
+        // Create example config with delightful examples
+        let example_config = r#"# 🎉 Scarab Plugin Configuration
+#
+# Welcome to plugin paradise! This is where you configure all your terminal
+# superpowers. Each plugin can transform your terminal experience in unique ways.
+#
+# 💡 Pro Tips:
+#   - Plugins are loaded in the order they appear here
+#   - Use `enabled = false` to temporarily disable a plugin
+#   - Check ~/.config/scarab/plugins/ for available plugins
+#   - Create your own plugins - it's easier than you think!
+#
+# 🚀 Get started by uncommenting one of the examples below!
 
-# Example plugin configuration:
+# Example 1: Error Notification Plugin
+# Gets your attention when something goes wrong
+#
 # [[plugin]]
-# name = "auto-notify"
-# path = "~/.config/scarab/plugins/auto-notify.fzb"
+# name = "error-notifier"
+# path = "~/.config/scarab/plugins/error-notifier.fzb"
 # enabled = true
 #
 # [plugin.config]
-# keywords = ["ERROR", "FAIL", "PANIC"]
+# keywords = ["ERROR", "FAIL", "PANIC", "FATAL"]
 # notification_style = "urgent"
+# play_sound = false
+
+# Example 2: Git Status Plugin
+# Shows git branch and status in your terminal
+#
+# [[plugin]]
+# name = "git-helper"
+# path = "~/.config/scarab/plugins/git-helper.fsx"
+# enabled = true
+#
+# [plugin.config]
+# show_branch = true
+# show_dirty = true
+# emoji_mode = true  # 🌿 for branches, ✨ for clean, 💥 for dirty
+
+# Example 3: Command History Plugin
+# Keeps track of your most-used commands
+#
+# [[plugin]]
+# name = "command-stats"
+# path = "~/.config/scarab/plugins/command-stats.fzb"
+# enabled = true
+#
+# [plugin.config]
+# track_frequency = true
+# suggest_aliases = true
+
+# Example 4: Custom Welcome Message
+# Greet yourself with style every time
+#
+# [[plugin]]
+# name = "welcome"
+# path = "~/.config/scarab/plugins/welcome.fsx"
+# enabled = true
+#
+# [plugin.config]
+# message = "Ready to do amazing things? Let's go! 🚀"
+# show_time = true
+# show_quote_of_the_day = true
+
+# ✨ Your plugins go here! ✨
+# Just uncomment the examples above or add your own.
+# Happy customizing!
 
 "#;
 
