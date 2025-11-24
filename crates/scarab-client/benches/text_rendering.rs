@@ -1,7 +1,7 @@
 //! Text rendering performance benchmarks
 
-use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
 use cosmic_text::{Attrs, Buffer, FontSystem, Metrics, SwashCache};
+use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
 use std::sync::Arc;
 
 fn create_font_system() -> FontSystem {
@@ -20,7 +20,12 @@ fn bench_text_shaping(c: &mut Criterion) {
             let mut buffer = Buffer::new(&mut font_system, Metrics::new(14.0, 20.0));
 
             b.iter(|| {
-                buffer.set_text(&mut font_system, &text, Attrs::new(), cosmic_text::Shaping::Advanced);
+                buffer.set_text(
+                    &mut font_system,
+                    &text,
+                    Attrs::new(),
+                    cosmic_text::Shaping::Advanced,
+                );
                 buffer.shape_until_scroll(&mut font_system, false);
                 black_box(&buffer);
             });
@@ -42,7 +47,12 @@ fn bench_line_wrapping(c: &mut Criterion) {
             buffer.set_size(&mut font_system, Some(width), None);
 
             b.iter(|| {
-                buffer.set_text(&mut font_system, &text, Attrs::new(), cosmic_text::Shaping::Advanced);
+                buffer.set_text(
+                    &mut font_system,
+                    &text,
+                    Attrs::new(),
+                    cosmic_text::Shaping::Advanced,
+                );
                 buffer.shape_until_scroll(&mut font_system, false);
                 black_box(&buffer);
             });
@@ -71,7 +81,12 @@ fn bench_unicode_processing(c: &mut Criterion) {
             let mut buffer = Buffer::new(&mut font_system, Metrics::new(14.0, 20.0));
 
             b.iter(|| {
-                buffer.set_text(&mut font_system, text, Attrs::new(), cosmic_text::Shaping::Advanced);
+                buffer.set_text(
+                    &mut font_system,
+                    text,
+                    Attrs::new(),
+                    cosmic_text::Shaping::Advanced,
+                );
                 buffer.shape_until_scroll(&mut font_system, false);
                 black_box(&buffer);
             });
@@ -88,7 +103,12 @@ fn bench_glyph_cache(c: &mut Criterion) {
 
     // Generate text with varying character repetition
     let texts = vec![
-        ("unique_chars", (0..1000).map(|i| ((i % 94) + 33) as u8 as char).collect::<String>()),
+        (
+            "unique_chars",
+            (0..1000)
+                .map(|i| ((i % 94) + 33) as u8 as char)
+                .collect::<String>(),
+        ),
         ("repeated_chars", "abcdefghij".repeat(100)),
         ("single_char", "a".repeat(1000)),
     ];
@@ -96,7 +116,12 @@ fn bench_glyph_cache(c: &mut Criterion) {
     for (name, text) in texts {
         group.bench_with_input(BenchmarkId::from_parameter(name), &text, |b, text| {
             let mut buffer = Buffer::new(&mut font_system, Metrics::new(14.0, 20.0));
-            buffer.set_text(&mut font_system, text, Attrs::new(), cosmic_text::Shaping::Advanced);
+            buffer.set_text(
+                &mut font_system,
+                text,
+                Attrs::new(),
+                cosmic_text::Shaping::Advanced,
+            );
             buffer.shape_until_scroll(&mut font_system, false);
 
             b.iter(|| {
@@ -129,7 +154,12 @@ fn bench_scrolling(c: &mut Criterion) {
 
         group.bench_with_input(BenchmarkId::from_parameter(lines), lines, |b, _| {
             let mut buffer = Buffer::new(&mut font_system, Metrics::new(14.0, 20.0));
-            buffer.set_text(&mut font_system, &text, Attrs::new(), cosmic_text::Shaping::Advanced);
+            buffer.set_text(
+                &mut font_system,
+                &text,
+                Attrs::new(),
+                cosmic_text::Shaping::Advanced,
+            );
             buffer.shape_until_scroll(&mut font_system, false);
 
             b.iter(|| {
@@ -160,22 +190,39 @@ fn main() {
     // This is a comment
     let s = "This is a string";
 }
-"#.repeat(10);
+"#
+    .repeat(10);
 
     // Simulate different highlighting scenarios
     let scenarios = vec![
         ("no_highlighting", vec![Attrs::new()]),
-        ("basic_highlighting", vec![
-            Attrs::new().color(cosmic_text::Color::rgb(255, 0, 0)),    // Keywords
-            Attrs::new().color(cosmic_text::Color::rgb(0, 255, 0)),    // Strings
-            Attrs::new().color(cosmic_text::Color::rgb(0, 0, 255)),    // Numbers
-            Attrs::new().color(cosmic_text::Color::rgb(128, 128, 128)), // Comments
-        ]),
-        ("complex_highlighting", (0..20).map(|i| {
-            Attrs::new()
-                .color(cosmic_text::Color::rgb((i * 12) as u8, (i * 8) as u8, (i * 16) as u8))
-                .weight(if i % 2 == 0 { cosmic_text::Weight::BOLD } else { cosmic_text::Weight::NORMAL })
-        }).collect()),
+        (
+            "basic_highlighting",
+            vec![
+                Attrs::new().color(cosmic_text::Color::rgb(255, 0, 0)), // Keywords
+                Attrs::new().color(cosmic_text::Color::rgb(0, 255, 0)), // Strings
+                Attrs::new().color(cosmic_text::Color::rgb(0, 0, 255)), // Numbers
+                Attrs::new().color(cosmic_text::Color::rgb(128, 128, 128)), // Comments
+            ],
+        ),
+        (
+            "complex_highlighting",
+            (0..20)
+                .map(|i| {
+                    Attrs::new()
+                        .color(cosmic_text::Color::rgb(
+                            (i * 12) as u8,
+                            (i * 8) as u8,
+                            (i * 16) as u8,
+                        ))
+                        .weight(if i % 2 == 0 {
+                            cosmic_text::Weight::BOLD
+                        } else {
+                            cosmic_text::Weight::NORMAL
+                        })
+                })
+                .collect(),
+        ),
     ];
 
     for (name, attrs_list) in scenarios {
@@ -185,7 +232,12 @@ fn main() {
             b.iter(|| {
                 // Apply different attributes to different parts of the text
                 let attrs = attrs_list[code.len() % attrs_list.len()].clone();
-                buffer.set_text(&mut font_system, code, attrs, cosmic_text::Shaping::Advanced);
+                buffer.set_text(
+                    &mut font_system,
+                    code,
+                    attrs,
+                    cosmic_text::Shaping::Advanced,
+                );
                 buffer.shape_until_scroll(&mut font_system, false);
                 black_box(&buffer);
             });
@@ -214,7 +266,12 @@ fn bench_font_fallback(c: &mut Criterion) {
             let mut buffer = Buffer::new(&mut font_system, Metrics::new(14.0, 20.0));
 
             b.iter(|| {
-                buffer.set_text(&mut font_system, text, Attrs::new(), cosmic_text::Shaping::Advanced);
+                buffer.set_text(
+                    &mut font_system,
+                    text,
+                    Attrs::new(),
+                    cosmic_text::Shaping::Advanced,
+                );
                 buffer.shape_until_scroll(&mut font_system, false);
                 black_box(&buffer);
             });

@@ -74,10 +74,26 @@ struct Mesh {
 impl Mesh {
     fn new_quad() -> Self {
         let vertices = vec![
-            Vertex { position: [-1.0, -1.0, 0.0], uv: [0.0, 0.0], color: [1.0, 1.0, 1.0, 1.0] },
-            Vertex { position: [1.0, -1.0, 0.0], uv: [1.0, 0.0], color: [1.0, 1.0, 1.0, 1.0] },
-            Vertex { position: [1.0, 1.0, 0.0], uv: [1.0, 1.0], color: [1.0, 1.0, 1.0, 1.0] },
-            Vertex { position: [-1.0, 1.0, 0.0], uv: [0.0, 1.0], color: [1.0, 1.0, 1.0, 1.0] },
+            Vertex {
+                position: [-1.0, -1.0, 0.0],
+                uv: [0.0, 0.0],
+                color: [1.0, 1.0, 1.0, 1.0],
+            },
+            Vertex {
+                position: [1.0, -1.0, 0.0],
+                uv: [1.0, 0.0],
+                color: [1.0, 1.0, 1.0, 1.0],
+            },
+            Vertex {
+                position: [1.0, 1.0, 0.0],
+                uv: [1.0, 1.0],
+                color: [1.0, 1.0, 1.0, 1.0],
+            },
+            Vertex {
+                position: [-1.0, 1.0, 0.0],
+                uv: [0.0, 1.0],
+                color: [1.0, 1.0, 1.0, 1.0],
+            },
         ];
         let indices = vec![0, 1, 2, 0, 2, 3];
 
@@ -97,27 +113,31 @@ impl Mesh {
             vertices.push(Vertex {
                 position: [x, y, 0.0],
                 uv: [0.0, 0.0],
-                color: [1.0, 1.0, 1.0, 1.0]
+                color: [1.0, 1.0, 1.0, 1.0],
             });
             vertices.push(Vertex {
                 position: [x + 8.0, y, 0.0],
                 uv: [1.0, 0.0],
-                color: [1.0, 1.0, 1.0, 1.0]
+                color: [1.0, 1.0, 1.0, 1.0],
             });
             vertices.push(Vertex {
                 position: [x + 8.0, y + 16.0, 0.0],
                 uv: [1.0, 1.0],
-                color: [1.0, 1.0, 1.0, 1.0]
+                color: [1.0, 1.0, 1.0, 1.0],
             });
             vertices.push(Vertex {
                 position: [x, y + 16.0, 0.0],
                 uv: [0.0, 1.0],
-                color: [1.0, 1.0, 1.0, 1.0]
+                color: [1.0, 1.0, 1.0, 1.0],
             });
 
             indices.extend_from_slice(&[
-                base_index, base_index + 1, base_index + 2,
-                base_index, base_index + 2, base_index + 3,
+                base_index,
+                base_index + 1,
+                base_index + 2,
+                base_index,
+                base_index + 2,
+                base_index + 3,
             ]);
         }
 
@@ -177,12 +197,16 @@ fn bench_mesh_generation(c: &mut Criterion) {
 
     for glyph_count in [100, 500, 1000, 5000, 10000].iter() {
         group.throughput(Throughput::Elements(*glyph_count as u64));
-        group.bench_with_input(BenchmarkId::from_parameter(glyph_count), glyph_count, |b, &glyph_count| {
-            b.iter(|| {
-                let mesh = Mesh::generate_text_mesh(glyph_count);
-                black_box(mesh);
-            });
-        });
+        group.bench_with_input(
+            BenchmarkId::from_parameter(glyph_count),
+            glyph_count,
+            |b, &glyph_count| {
+                b.iter(|| {
+                    let mesh = Mesh::generate_text_mesh(glyph_count);
+                    black_box(mesh);
+                });
+            },
+        );
     }
 
     group.finish();
@@ -196,30 +220,34 @@ fn bench_vertex_transformation(c: &mut Criterion) {
 
         // Transformation matrix (4x4)
         let transform = [
-            1.0, 0.0, 0.0, 0.0,
-            0.0, 1.0, 0.0, 0.0,
-            0.0, 0.0, 1.0, 0.0,
-            10.0, 20.0, 0.0, 1.0,
+            1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 10.0, 20.0, 0.0, 1.0,
         ];
 
         group.throughput(Throughput::Elements(*vertex_count as u64));
-        group.bench_with_input(BenchmarkId::from_parameter(vertex_count), vertex_count, |b, _| {
-            b.iter(|| {
-                let mut transformed = mesh.vertices.clone();
+        group.bench_with_input(
+            BenchmarkId::from_parameter(vertex_count),
+            vertex_count,
+            |b, _| {
+                b.iter(|| {
+                    let mut transformed = mesh.vertices.clone();
 
-                for vertex in &mut transformed {
-                    let x = vertex.position[0];
-                    let y = vertex.position[1];
-                    let z = vertex.position[2];
+                    for vertex in &mut transformed {
+                        let x = vertex.position[0];
+                        let y = vertex.position[1];
+                        let z = vertex.position[2];
 
-                    vertex.position[0] = x * transform[0] + y * transform[4] + z * transform[8] + transform[12];
-                    vertex.position[1] = x * transform[1] + y * transform[5] + z * transform[9] + transform[13];
-                    vertex.position[2] = x * transform[2] + y * transform[6] + z * transform[10] + transform[14];
-                }
+                        vertex.position[0] =
+                            x * transform[0] + y * transform[4] + z * transform[8] + transform[12];
+                        vertex.position[1] =
+                            x * transform[1] + y * transform[5] + z * transform[9] + transform[13];
+                        vertex.position[2] =
+                            x * transform[2] + y * transform[6] + z * transform[10] + transform[14];
+                    }
 
-                black_box(transformed);
-            });
-        });
+                    black_box(transformed);
+                });
+            },
+        );
     }
 
     group.finish();
@@ -231,27 +259,31 @@ fn bench_draw_calls(c: &mut Criterion) {
     let quad = Mesh::new_quad();
 
     for draw_count in [10, 100, 500, 1000, 5000].iter() {
-        group.bench_with_input(BenchmarkId::from_parameter(draw_count), draw_count, |b, &draw_count| {
-            b.iter(|| {
-                let mut draw_commands = Vec::with_capacity(draw_count);
+        group.bench_with_input(
+            BenchmarkId::from_parameter(draw_count),
+            draw_count,
+            |b, &draw_count| {
+                b.iter(|| {
+                    let mut draw_commands = Vec::with_capacity(draw_count);
 
-                for i in 0..draw_count {
-                    // Simulate creating draw commands
-                    draw_commands.push((
-                        i,                    // shader_id
-                        i * 6,                // index_offset
-                        6,                    // index_count
-                        i as f32 * 10.0,      // x_offset
-                        i as f32 * 20.0,      // y_offset
-                    ));
-                }
+                    for i in 0..draw_count {
+                        // Simulate creating draw commands
+                        draw_commands.push((
+                            i,               // shader_id
+                            i * 6,           // index_offset
+                            6,               // index_count
+                            i as f32 * 10.0, // x_offset
+                            i as f32 * 20.0, // y_offset
+                        ));
+                    }
 
-                // Simulate executing draw commands
-                for cmd in &draw_commands {
-                    black_box(cmd);
-                }
-            });
-        });
+                    // Simulate executing draw commands
+                    for cmd in &draw_commands {
+                        black_box(cmd);
+                    }
+                });
+            },
+        );
     }
 
     group.finish();
@@ -262,26 +294,33 @@ fn bench_instanced_rendering(c: &mut Criterion) {
 
     for instance_count in [100, 1000, 10000, 50000].iter() {
         let instances: Vec<[f32; 4]> = (0..*instance_count)
-            .map(|i| [
-                (i % 80) as f32 * 10.0,  // x
-                (i / 80) as f32 * 20.0,   // y
-                1.0,                       // scale
-                0.0,                       // rotation
-            ])
+            .map(|i| {
+                [
+                    (i % 80) as f32 * 10.0, // x
+                    (i / 80) as f32 * 20.0, // y
+                    1.0,                    // scale
+                    0.0,                    // rotation
+                ]
+            })
             .collect();
 
         group.throughput(Throughput::Elements(*instance_count as u64));
-        group.bench_with_input(BenchmarkId::from_parameter(instance_count), instance_count, |b, _| {
-            b.iter(|| {
-                // Simulate preparing instance data for GPU
-                let instance_buffer: Vec<f32> = instances.iter()
-                    .flat_map(|inst| inst.iter())
-                    .copied()
-                    .collect();
+        group.bench_with_input(
+            BenchmarkId::from_parameter(instance_count),
+            instance_count,
+            |b, _| {
+                b.iter(|| {
+                    // Simulate preparing instance data for GPU
+                    let instance_buffer: Vec<f32> = instances
+                        .iter()
+                        .flat_map(|inst| inst.iter())
+                        .copied()
+                        .collect();
 
-                black_box(instance_buffer);
-            });
-        });
+                    black_box(instance_buffer);
+                });
+            },
+        );
     }
 
     group.finish();
@@ -292,34 +331,41 @@ fn bench_culling(c: &mut Criterion) {
 
     for object_count in [100, 1000, 10000, 50000].iter() {
         let objects: Vec<[f32; 4]> = (0..*object_count)
-            .map(|i| [
-                (i as f32) * 10.0,        // x
-                (i as f32) * 20.0,        // y
-                8.0,                       // width
-                16.0,                      // height
-            ])
+            .map(|i| {
+                [
+                    (i as f32) * 10.0, // x
+                    (i as f32) * 20.0, // y
+                    8.0,               // width
+                    16.0,              // height
+                ]
+            })
             .collect();
 
         let viewport = [0.0, 0.0, 800.0, 600.0]; // x, y, width, height
 
         group.throughput(Throughput::Elements(*object_count as u64));
-        group.bench_with_input(BenchmarkId::from_parameter(object_count), object_count, |b, _| {
-            b.iter(|| {
-                let mut visible_count = 0;
+        group.bench_with_input(
+            BenchmarkId::from_parameter(object_count),
+            object_count,
+            |b, _| {
+                b.iter(|| {
+                    let mut visible_count = 0;
 
-                for obj in &objects {
-                    // Simple AABB culling
-                    if obj[0] + obj[2] >= viewport[0] &&
-                       obj[0] <= viewport[0] + viewport[2] &&
-                       obj[1] + obj[3] >= viewport[1] &&
-                       obj[1] <= viewport[1] + viewport[3] {
-                        visible_count += 1;
+                    for obj in &objects {
+                        // Simple AABB culling
+                        if obj[0] + obj[2] >= viewport[0]
+                            && obj[0] <= viewport[0] + viewport[2]
+                            && obj[1] + obj[3] >= viewport[1]
+                            && obj[1] <= viewport[1] + viewport[3]
+                        {
+                            visible_count += 1;
+                        }
                     }
-                }
 
-                black_box(visible_count);
-            });
-        });
+                    black_box(visible_count);
+                });
+            },
+        );
     }
 
     group.finish();
@@ -372,13 +418,17 @@ fn bench_atlas_packing(c: &mut Criterion) {
             })
             .collect();
 
-        group.bench_with_input(BenchmarkId::from_parameter(glyph_count), glyph_count, |b, _| {
-            b.iter(|| {
-                let mut glyphs_copy = glyphs.clone();
-                let success = pack_rectangles(&mut glyphs_copy, 2048, 2048);
-                black_box((success, glyphs_copy));
-            });
-        });
+        group.bench_with_input(
+            BenchmarkId::from_parameter(glyph_count),
+            glyph_count,
+            |b, _| {
+                b.iter(|| {
+                    let mut glyphs_copy = glyphs.clone();
+                    let success = pack_rectangles(&mut glyphs_copy, 2048, 2048);
+                    black_box((success, glyphs_copy));
+                });
+            },
+        );
     }
 
     group.finish();

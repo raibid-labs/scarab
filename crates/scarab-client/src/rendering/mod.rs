@@ -2,9 +2,9 @@
 // Integrates cosmic-text with Bevy for GPU-accelerated text rendering
 
 pub mod atlas;
-pub mod text;
 pub mod config;
+pub mod text;
 
-pub use atlas::{GlyphAtlas, GlyphKey, AtlasRect};
-pub use text::{TextRenderer, TerminalMesh, DirtyRegion};
+pub use atlas::{AtlasRect, GlyphAtlas, GlyphKey};
 pub use config::FontConfig;
+pub use text::{DirtyRegion, TerminalMesh, TextRenderer};

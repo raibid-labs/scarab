@@ -1,13 +1,13 @@
 // Integration module - wires all components together
 // This demonstrates the complete VTE → SharedState → Rendering pipeline
 
-use bevy::prelude::*;
-use bevy::pbr::MeshMaterial3d;
-use scarab_protocol::{SharedState, GRID_WIDTH, GRID_HEIGHT};
-use crate::rendering::text::{TextRenderer, TerminalMesh, generate_terminal_mesh};
 use crate::rendering::config::FontConfig;
-use std::sync::Arc;
+use crate::rendering::text::{generate_terminal_mesh, TerminalMesh, TextRenderer};
+use bevy::pbr::MeshMaterial3d;
+use bevy::prelude::*;
+use scarab_protocol::{SharedState, GRID_HEIGHT, GRID_WIDTH};
 use shared_memory::Shmem;
+use std::sync::Arc;
 
 // Wrapper to make shared memory Send + Sync
 pub struct SharedMemWrapper(pub Arc<Shmem>);
@@ -36,12 +36,11 @@ pub struct IntegrationPlugin;
 
 impl Plugin for IntegrationPlugin {
     fn build(&self, app: &mut App) {
-        app
-            .add_systems(Startup, setup_terminal_rendering)
-            .add_systems(Update, (
-                sync_terminal_state_system,
-                update_terminal_rendering_system,
-            ).chain());
+        app.add_systems(Startup, setup_terminal_rendering)
+            .add_systems(
+                Update,
+                (sync_terminal_state_system, update_terminal_rendering_system).chain(),
+            );
     }
 }
 
@@ -93,9 +92,7 @@ fn setup_terminal_rendering(
 }
 
 /// Sync terminal state from shared memory
-fn sync_terminal_state_system(
-    mut state_reader: ResMut<SharedMemoryReader>,
-) {
+fn sync_terminal_state_system(mut state_reader: ResMut<SharedMemoryReader>) {
     // Read current sequence number from shared memory
     let shared_ptr = state_reader.shmem.0.as_ptr() as *const SharedState;
 

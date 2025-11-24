@@ -3,16 +3,16 @@
 //! This crate provides the core plugin API for the Scarab terminal emulator.
 //! It defines traits, types, and utilities for building 3rd-party plugins.
 
-pub mod plugin;
-pub mod context;
 pub mod config;
+pub mod context;
 pub mod error;
+pub mod plugin;
 pub mod types;
 
-pub use plugin::{Plugin, PluginMetadata};
-pub use context::PluginContext;
 pub use config::{PluginConfig, PluginDiscovery};
+pub use context::PluginContext;
 pub use error::{PluginError, Result};
+pub use plugin::{Plugin, PluginMetadata};
 pub use types::{Action, HookType, PluginInfo};
 
 /// Current plugin API version

@@ -40,14 +40,24 @@ fn test_basic_ansi_colors() -> Result<()> {
     for cell in &state.cells[..] {
         if cell.fg != DEFAULT_FG || cell.bg != DEFAULT_BG {
             has_colors = true;
-            println!("Found colored cell - FG: 0x{:08X}, BG: 0x{:08X}", cell.fg, cell.bg);
+            println!(
+                "Found colored cell - FG: 0x{:08X}, BG: 0x{:08X}",
+                cell.fg, cell.bg
+            );
             break;
         }
     }
 
     // Note: This might not find colors if the VTE parser isn't fully implemented
     // For now, just verify the test runs without crashing
-    println!("Color detection: {}", if has_colors { "YES" } else { "NO (VTE may not be fully implemented)" });
+    println!(
+        "Color detection: {}",
+        if has_colors {
+            "YES"
+        } else {
+            "NO (VTE may not be fully implemented)"
+        }
+    );
 
     println!("=== Test Passed ===\n");
     Ok(())
@@ -164,7 +174,10 @@ fn test_bold_attribute() -> Result<()> {
         }
     }
 
-    println!("Attribute detection: {}", if has_flags { "YES" } else { "NO" });
+    println!(
+        "Attribute detection: {}",
+        if has_flags { "YES" } else { "NO" }
+    );
 
     println!("=== Test Passed ===\n");
     Ok(())

@@ -1,10 +1,10 @@
 use bevy::prelude::*;
+use scarab_client::integration::{IntegrationPlugin, SharedMemWrapper, SharedMemoryReader};
+use scarab_client::AdvancedUIPlugin;
+use scarab_config::ConfigLoader;
 use scarab_protocol::{SharedState, SHMEM_PATH};
 use shared_memory::ShmemConf;
 use std::sync::Arc;
-use scarab_client::AdvancedUIPlugin;
-use scarab_client::integration::{SharedMemoryReader, SharedMemWrapper, IntegrationPlugin};
-use scarab_config::ConfigLoader;
 
 mod ipc;
 use ipc::IpcPlugin;
@@ -12,14 +12,16 @@ use ipc::IpcPlugin;
 fn main() {
     // Load Configuration
     let home_dir = std::env::var("HOME").unwrap_or_else(|_| ".".to_string());
-    let config_path = std::path::PathBuf::from(&home_dir)
-        .join(".config/scarab/config.toml");
+    let config_path = std::path::PathBuf::from(&home_dir).join(".config/scarab/config.toml");
 
     let config = if config_path.exists() {
         println!("Loading config from: {}", config_path.display());
         ConfigLoader::from_file(&config_path).expect("Failed to load config")
     } else {
-        println!("No config found at {}, using defaults", config_path.display());
+        println!(
+            "No config found at {}, using defaults",
+            config_path.display()
+        );
         scarab_config::ScarabConfig::default()
     };
 
@@ -34,7 +36,10 @@ fn main() {
             Arc::new(m)
         }
         Err(e) => {
-            eprintln!("Failed to open shared memory: {}. Is the daemon running?", e);
+            eprintln!(
+                "Failed to open shared memory: {}. Is the daemon running?",
+                e
+            );
             std::process::exit(1);
         }
     };
@@ -53,21 +58,21 @@ fn main() {
     let window_height = config.terminal.rows as f32 * char_height;
 
     App::new()
-       .add_plugins(DefaultPlugins.set(WindowPlugin {
+        .add_plugins(DefaultPlugins.set(WindowPlugin {
             primary_window: Some(Window {
                 title: "Scarab Terminal".into(),
                 resolution: (window_width, window_height).into(),
-               ..default()
+                ..default()
             }),
-           ..default()
+            ..default()
         }))
-       .add_plugins(IpcPlugin) // Add IPC support
-       .add_plugins(AdvancedUIPlugin) // Add advanced UI features
-       .add_plugins(IntegrationPlugin) // Add text rendering
-       .insert_resource(reader)
-       .insert_resource(config) // Make config available to all systems
-       .add_systems(Startup, setup)
-       .run();
+        .add_plugins(IpcPlugin) // Add IPC support
+        .add_plugins(AdvancedUIPlugin) // Add advanced UI features
+        .add_plugins(IntegrationPlugin) // Add text rendering
+        .insert_resource(reader)
+        .insert_resource(config) // Make config available to all systems
+        .add_systems(Startup, setup)
+        .run();
 }
 
 fn setup(mut commands: Commands) {

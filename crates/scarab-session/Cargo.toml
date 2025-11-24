@@ -1,0 +1,10 @@
+[package]
+name = "scarab-session"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+scarab-plugin-api = { path = "../scarab-plugin-api" }
+scarab-protocol = { path = "../scarab-protocol" }
+async-trait = "0.1"
+log = "0.4"

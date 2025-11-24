@@ -1,5 +1,5 @@
 use anyhow::Result;
-use scarab_protocol::{ControlMessage, SOCKET_PATH, MAX_MESSAGE_SIZE};
+use scarab_protocol::{ControlMessage, MAX_MESSAGE_SIZE, SOCKET_PATH};
 use std::time::Duration;
 use tokio::io::AsyncWriteExt;
 use tokio::net::UnixStream;
@@ -160,8 +160,11 @@ async fn test_message_roundtrip_latency() -> Result<()> {
     println!("✓ Average message latency: {:?}", avg_latency);
 
     // Verify we're under 1ms requirement
-    assert!(avg_latency < Duration::from_millis(1),
-            "Average latency {}μs exceeds 1ms requirement", avg_latency.as_micros());
+    assert!(
+        avg_latency < Duration::from_millis(1),
+        "Average latency {}μs exceeds 1ms requirement",
+        avg_latency.as_micros()
+    );
 
     Ok(())
 }
@@ -172,9 +175,7 @@ async fn test_large_input_message() -> Result<()> {
 
     // Send a large but valid input message
     let large_input = vec![b'a'; 4096];
-    let msg = ControlMessage::Input {
-        data: large_input,
-    };
+    let msg = ControlMessage::Input { data: large_input };
 
     send_message(&mut stream, msg).await?;
     println!("✓ Large input message sent successfully");

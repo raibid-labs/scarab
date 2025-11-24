@@ -2,8 +2,7 @@
 
 use crate::{error::Result, ConfigError, ScarabConfig};
 use std::{
-    env,
-    fs,
+    env, fs,
     path::{Path, PathBuf},
 };
 use tracing::{debug, info};
@@ -23,9 +22,7 @@ impl ConfigLoader {
 
     /// Create a loader with custom global path (for testing)
     pub fn with_path(path: PathBuf) -> Self {
-        Self {
-            global_path: path,
-        }
+        Self { global_path: path }
     }
 
     /// Get default global config path (~/.config/scarab/config.toml)
@@ -83,9 +80,8 @@ impl ConfigLoader {
 
     /// Load config from a specific file
     pub fn from_file(path: &Path) -> Result<ScarabConfig> {
-        let content = fs::read_to_string(path).map_err(|_| {
-            ConfigError::FileNotFound(path.to_path_buf())
-        })?;
+        let content =
+            fs::read_to_string(path).map_err(|_| ConfigError::FileNotFound(path.to_path_buf()))?;
 
         let config: ScarabConfig = toml::from_str(&content)?;
         debug!("Loaded config from: {}", path.display());
@@ -132,24 +128,18 @@ impl ConfigLoader {
 
     /// Get all config locations (for debugging)
     pub fn config_locations(&self) -> Vec<(String, PathBuf, bool)> {
-        let mut locations = vec![
-            (
-                "Global".to_string(),
-                self.global_path.clone(),
-                self.global_path.exists(),
-            ),
-        ];
+        let mut locations = vec![(
+            "Global".to_string(),
+            self.global_path.clone(),
+            self.global_path.exists(),
+        )];
 
         // Walk up from cwd
         if let Ok(mut current) = env::current_dir() {
             loop {
                 let local_path = current.join(".scarab.toml");
                 if local_path.exists() {
-                    locations.push((
-                        format!("Local ({})", current.display()),
-                        local_path,
-                        true,
-                    ));
+                    locations.push((format!("Local ({})", current.display()), local_path, true));
                 }
 
                 if !current.pop() {

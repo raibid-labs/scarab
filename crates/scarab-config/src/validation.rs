@@ -1,8 +1,6 @@
 //! Configuration validation
 
-use crate::{
-    ColorPalette, ConfigError, Result, ScarabConfig,
-};
+use crate::{ColorPalette, ConfigError, Result, ScarabConfig};
 use tracing::warn;
 
 /// Configuration validator
@@ -162,9 +160,8 @@ impl ConfigValidator {
         ];
 
         for (name, color) in colors {
-            Self::validate_color(color).map_err(|e| {
-                ConfigError::InvalidColor(format!("palette.{}: {}", name, e))
-            })?;
+            Self::validate_color(color)
+                .map_err(|e| ConfigError::InvalidColor(format!("palette.{}: {}", name, e)))?;
         }
 
         Ok(())

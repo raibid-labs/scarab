@@ -3,8 +3,10 @@
 //! This module provides the core test harness for end-to-end integration testing.
 //! It manages daemon and client processes, shared memory, and IPC communication.
 
-use anyhow::{Context, Result, bail};
-use scarab_protocol::{SharedState, Cell, ControlMessage, SHMEM_PATH, SOCKET_PATH, MAX_MESSAGE_SIZE};
+use anyhow::{bail, Context, Result};
+use scarab_protocol::{
+    Cell, ControlMessage, SharedState, MAX_MESSAGE_SIZE, SHMEM_PATH, SOCKET_PATH,
+};
 use shared_memory::{Shmem, ShmemConf};
 use std::io::Write;
 use std::path::{Path, PathBuf};
@@ -50,8 +52,7 @@ impl E2ETestHarness {
         println!("=== Initializing E2E Test Harness ===");
 
         // Create temporary directory for test artifacts
-        let temp_dir = tempfile::tempdir()
-            .context("Failed to create temporary directory")?;
+        let temp_dir = tempfile::tempdir().context("Failed to create temporary directory")?;
 
         println!("Temp directory: {}", temp_dir.path().display());
 
@@ -148,8 +149,8 @@ impl E2ETestHarness {
     pub fn send_input(&self, text: &str) -> Result<()> {
         use std::os::unix::net::UnixStream;
 
-        let mut stream = UnixStream::connect(&self.socket_path)
-            .context("Failed to connect to daemon socket")?;
+        let mut stream =
+            UnixStream::connect(&self.socket_path).context("Failed to connect to daemon socket")?;
 
         // Create input message
         let msg = ControlMessage::Input {
@@ -157,28 +158,31 @@ impl E2ETestHarness {
         };
 
         // Serialize with rkyv
-        let bytes = rkyv::to_bytes::<_, MAX_MESSAGE_SIZE>(&msg)
-            .context("Failed to serialize message")?;
+        let bytes =
+            rkyv::to_bytes::<_, MAX_MESSAGE_SIZE>(&msg).context("Failed to serialize message")?;
 
         let len = bytes.len() as u32;
 
         // Write length prefix
-        stream.write_all(&len.to_le_bytes())
+        stream
+            .write_all(&len.to_le_bytes())
             .context("Failed to write message length")?;
 
         // Write message data
-        stream.write_all(&bytes)
+        stream
+            .write_all(&bytes)
             .context("Failed to write message data")?;
 
-        stream.flush()
-            .context("Failed to flush stream")?;
+        stream.flush().context("Failed to flush stream")?;
 
         Ok(())
     }
 
     /// Get the current shared state
     pub fn get_shared_state(&self) -> Result<SharedState> {
-        let shmem = self.shared_memory.as_ref()
+        let shmem = self
+            .shared_memory
+            .as_ref()
             .context("Shared memory not initialized")?;
 
         let ptr = shmem.as_ptr() as *const SharedState;
@@ -244,7 +248,10 @@ impl E2ETestHarness {
         }
 
         println!("✗ Expected text not found: '{}'", expected);
-        println!("Current output:\n{}", self.get_output(Duration::from_millis(10))?);
+        println!(
+            "Current output:\n{}",
+            self.get_output(Duration::from_millis(10))?
+        );
 
         Ok(false)
     }
@@ -295,8 +302,8 @@ impl E2ETestHarness {
 
         println!("Sending resize: {}x{}", cols, rows);
 
-        let mut stream = UnixStream::connect(&self.socket_path)
-            .context("Failed to connect to daemon socket")?;
+        let mut stream =
+            UnixStream::connect(&self.socket_path).context("Failed to connect to daemon socket")?;
 
         let msg = ControlMessage::Resize { cols, rows };
 
@@ -473,15 +480,14 @@ impl E2ETestHarness {
 
     /// Find the workspace root directory
     fn find_workspace_root() -> Result<PathBuf> {
-        let mut current = std::env::current_dir()
-            .context("Failed to get current directory")?;
+        let mut current = std::env::current_dir().context("Failed to get current directory")?;
 
         loop {
             let cargo_toml = current.join("Cargo.toml");
             if cargo_toml.exists() {
                 // Check if this is a workspace root
-                let contents = std::fs::read_to_string(&cargo_toml)
-                    .context("Failed to read Cargo.toml")?;
+                let contents =
+                    std::fs::read_to_string(&cargo_toml).context("Failed to read Cargo.toml")?;
                 if contents.contains("[workspace]") {
                     return Ok(current);
                 }

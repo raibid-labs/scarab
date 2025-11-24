@@ -1,19 +1,20 @@
-use portable_pty::{CommandBuilder, NativePtySystem, PtySize, PtySystem};
 use anyhow::Result;
+use portable_pty::{CommandBuilder, NativePtySystem, PtySize, PtySystem};
+use scarab_config::ConfigLoader;
+use scarab_protocol::{SharedState, SHMEM_PATH};
+use shared_memory::ShmemConf;
 use std::io::Read;
 use std::sync::atomic::AtomicU64;
 use std::sync::{Arc, Mutex};
 use tokio::sync::mpsc;
-use shared_memory::ShmemConf;
-use scarab_protocol::{SharedState, SHMEM_PATH};
-use scarab_config::ConfigLoader;
 
-mod ipc;
-mod vte;
-mod session;
+use scarab_daemon::ipc::{ClientRegistry, IpcServer, PtyHandle};
+use scarab_daemon::plugin_manager::PluginManager;
+use scarab_daemon::session::SessionManager;
+use scarab_daemon::vte;
 
-use ipc::{IpcServer, PtyHandle};
-use session::SessionManager;
+use scarab_plugin_api::context::PluginSharedState;
+use scarab_plugin_api::PluginContext;
 
 #[cfg(test)]
 mod tests;
@@ -25,33 +26,40 @@ async fn main() -> Result<()> {
 
     // 0. Load Configuration
     let home_dir = std::env::var("HOME").unwrap_or_else(|_| ".".to_string());
-    let config_path = std::path::PathBuf::from(&home_dir)
-        .join(".config/scarab/config.toml");
+    let config_path = std::path::PathBuf::from(&home_dir).join(".config/scarab/config.toml");
 
     let config = if config_path.exists() {
         println!("Loading config from: {}", config_path.display());
         ConfigLoader::from_file(&config_path)?
     } else {
-        println!("No config found at {}, using defaults", config_path.display());
+        println!(
+            "No config found at {}, using defaults",
+            config_path.display()
+        );
         scarab_config::ScarabConfig::default()
     };
 
     // 1. Initialize Session Manager
-    let db_path = std::path::PathBuf::from(&home_dir)
-        .join(".local/share/scarab/sessions.db");
+    let db_path = std::path::PathBuf::from(&home_dir).join(".local/share/scarab/sessions.db");
 
     let session_manager = std::sync::Arc::new(SessionManager::new(db_path)?);
 
     // Restore sessions from previous daemon runs
     session_manager.restore_sessions()?;
-    println!("Session Manager: Active ({} sessions)", session_manager.session_count());
+    println!(
+        "Session Manager: Active ({} sessions)",
+        session_manager.session_count()
+    );
 
     // Create default session if none exist
     if session_manager.session_count() == 0 {
         let cols = config.terminal.columns;
         let rows = config.terminal.rows;
         let session_id = session_manager.create_session("default".to_string(), cols, rows)?;
-        println!("Created default session: {} ({}x{})", session_id, cols, rows);
+        println!(
+            "Created default session: {} ({}x{})",
+            session_id, cols, rows
+        );
     }
 
     // 2. Setup PTY System (legacy - will be per-session)
@@ -67,7 +75,10 @@ async fn main() -> Result<()> {
     let shell = &config.terminal.default_shell;
     let cmd = CommandBuilder::new(shell);
     let _child = pair.slave.spawn_command(cmd)?;
-    println!("Spawned shell: {} ({}x{})", shell, config.terminal.columns, config.terminal.rows);
+    println!(
+        "Spawned shell: {} ({}x{})",
+        shell, config.terminal.columns, config.terminal.rows
+    );
 
     // Important: Release slave handle in parent process
     drop(pair.slave);
@@ -102,7 +113,57 @@ async fn main() -> Result<()> {
     let (input_tx, mut input_rx) = mpsc::unbounded_channel::<Vec<u8>>();
     let pty_handle = PtyHandle::new(input_tx, resize_tx);
 
-    let ipc_server = IpcServer::new(pty_handle.clone(), session_manager.clone()).await?;
+    let client_registry = ClientRegistry::new();
+
+    // Initialize Plugin Manager
+    let plugin_state = Arc::new(parking_lot::Mutex::new(PluginSharedState::new(
+        config.terminal.columns,
+        config.terminal.rows,
+    )));
+    let plugin_ctx = Arc::new(PluginContext::new(
+        Default::default(),
+        plugin_state.clone(),
+        "daemon",
+    ));
+    let mut plugin_manager = PluginManager::new(plugin_ctx, client_registry.clone());
+
+    if let Err(e) = plugin_manager
+        .register_plugin(Box::new(scarab_nav::NavigationPlugin::new()))
+        .await
+    {
+        eprintln!("Failed to register NavigationPlugin: {}", e);
+    }
+
+    // Register Palette Plugin
+    if let Err(e) = plugin_manager
+        .register_plugin(Box::new(scarab_palette::PalettePlugin::new()))
+        .await
+    {
+        eprintln!("Failed to register PalettePlugin: {}", e);
+    }
+
+    // Register Session Plugin
+    if let Err(e) = plugin_manager
+        .register_plugin(Box::new(scarab_session::SessionPlugin::new()))
+        .await
+    {
+        eprintln!("Failed to register SessionPlugin: {}", e);
+    }
+
+    // Discover and load plugins
+    if let Err(e) = plugin_manager.discover_and_load().await {
+        eprintln!("Failed to load plugins: {}", e);
+    }
+
+    let plugin_manager = Arc::new(tokio::sync::Mutex::new(plugin_manager));
+
+    let ipc_server = IpcServer::new(
+        pty_handle.clone(),
+        session_manager.clone(),
+        client_registry.clone(),
+        plugin_manager.clone(),
+    )
+    .await?;
 
     // Spawn IPC server task
     tokio::spawn(async move {
@@ -113,10 +174,27 @@ async fn main() -> Result<()> {
 
     // Spawn PTY writer task to handle input from IPC
     let mut writer = writer;
+    let pm_input = plugin_manager.clone();
     tokio::spawn(async move {
         use std::io::Write;
         while let Some(data) = input_rx.recv().await {
-            if let Err(e) = writer.write_all(&data) {
+            // Dispatch input to plugins
+            let processed_data = {
+                let mut pm = pm_input.lock().await;
+                match pm.dispatch_input(&data).await {
+                    Ok(d) => d,
+                    Err(e) => {
+                        eprintln!("Plugin input error: {}", e);
+                        data
+                    }
+                }
+            };
+
+            if processed_data.is_empty() {
+                continue; // Input consumed by plugin
+            }
+
+            if let Err(e) = writer.write_all(&processed_data) {
                 eprintln!("PTY write error: {}", e);
                 break;
             }
@@ -150,6 +228,20 @@ async fn main() -> Result<()> {
                             print!("{}", String::from_utf8_lossy(data));
                         }
 
+                        // Process output through plugins first
+                        let data_str = String::from_utf8_lossy(data);
+
+                        let processed_data = {
+                            let mut pm = plugin_manager.lock().await;
+                            match pm.dispatch_output(&data_str).await {
+                                Ok(d) => d,
+                                Err(e) => {
+                                    eprintln!("Plugin dispatch error: {}", e);
+                                    data_str.to_string()
+                                }
+                            }
+                        };
+
                         // Process output through VTE parser
                         // This will:
                         // 1. Parse ANSI escape sequences
@@ -157,7 +249,7 @@ async fn main() -> Result<()> {
                         // 3. Handle cursor positioning
                         // 4. Manage scrollback buffer
                         // 5. Atomically update shared state
-                        terminal_state.process_output(data);
+                        terminal_state.process_output(processed_data.as_bytes());
                     }
                     Ok(_) => break, // EOF
                     Err(e) => {

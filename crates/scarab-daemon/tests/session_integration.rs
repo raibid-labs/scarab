@@ -1,6 +1,6 @@
 use scarab_daemon::session::SessionManager;
-use tempfile::TempDir;
 use std::time::Duration;
+use tempfile::TempDir;
 
 #[test]
 fn test_session_creation_and_persistence() {
@@ -9,8 +9,12 @@ fn test_session_creation_and_persistence() {
 
     // Create manager and session
     let manager = SessionManager::new(db_path.clone()).unwrap();
-    let id1 = manager.create_session("session1".to_string(), 80, 24).unwrap();
-    let _id2 = manager.create_session("session2".to_string(), 100, 30).unwrap();
+    let id1 = manager
+        .create_session("session1".to_string(), 80, 24)
+        .unwrap();
+    let _id2 = manager
+        .create_session("session2".to_string(), 100, 30)
+        .unwrap();
 
     assert_eq!(manager.session_count(), 2);
 
@@ -64,12 +68,17 @@ fn test_session_listing() {
 
     let _id1 = manager.create_session("alpha".to_string(), 80, 24).unwrap();
     let _id2 = manager.create_session("beta".to_string(), 100, 30).unwrap();
-    let _id3 = manager.create_session("gamma".to_string(), 120, 40).unwrap();
+    let _id3 = manager
+        .create_session("gamma".to_string(), 120, 40)
+        .unwrap();
 
     let sessions = manager.list_sessions();
     assert_eq!(sessions.len(), 3);
 
-    let names: Vec<String> = sessions.iter().map(|(_, name, _, _, _)| name.clone()).collect();
+    let names: Vec<String> = sessions
+        .iter()
+        .map(|(_, name, _, _, _)| name.clone())
+        .collect();
     assert!(names.contains(&"alpha".to_string()));
     assert!(names.contains(&"beta".to_string()));
     assert!(names.contains(&"gamma".to_string()));
@@ -81,7 +90,9 @@ fn test_session_rename() {
     let db_path = temp_dir.path().join("sessions.db");
 
     let manager = SessionManager::new(db_path.clone()).unwrap();
-    let id = manager.create_session("old_name".to_string(), 80, 24).unwrap();
+    let id = manager
+        .create_session("old_name".to_string(), 80, 24)
+        .unwrap();
 
     manager.rename_session(&id, "new_name".to_string()).unwrap();
 
@@ -109,7 +120,9 @@ fn test_default_session() {
     let default = manager.get_default_session().unwrap();
     assert_eq!(default.id, id1);
 
-    let _id2 = manager.create_session("second".to_string(), 80, 24).unwrap();
+    let _id2 = manager
+        .create_session("second".to_string(), 80, 24)
+        .unwrap();
 
     // Default should still be first session
     let default = manager.get_default_session().unwrap();
@@ -123,8 +136,12 @@ fn test_session_cleanup_detached() {
 
     let manager = SessionManager::new(db_path).unwrap();
 
-    let id1 = manager.create_session("attached".to_string(), 80, 24).unwrap();
-    let id2 = manager.create_session("detached_old".to_string(), 80, 24).unwrap();
+    let id1 = manager
+        .create_session("attached".to_string(), 80, 24)
+        .unwrap();
+    let id2 = manager
+        .create_session("detached_old".to_string(), 80, 24)
+        .unwrap();
 
     // Attach client to first session
     manager.attach_client(&id1, 1).unwrap();
@@ -179,8 +196,12 @@ fn test_session_resurrection() {
     // First daemon instance
     {
         let manager = SessionManager::new(db_path.clone()).unwrap();
-        let _id1 = manager.create_session("persistent1".to_string(), 80, 24).unwrap();
-        let _id2 = manager.create_session("persistent2".to_string(), 100, 30).unwrap();
+        let _id1 = manager
+            .create_session("persistent1".to_string(), 80, 24)
+            .unwrap();
+        let _id2 = manager
+            .create_session("persistent2".to_string(), 100, 30)
+            .unwrap();
 
         assert_eq!(manager.session_count(), 2);
     } // Manager dropped, simulating daemon shutdown
@@ -193,7 +214,10 @@ fn test_session_resurrection() {
         assert_eq!(manager.session_count(), 2);
 
         let sessions = manager.list_sessions();
-        let names: Vec<String> = sessions.iter().map(|(_, name, _, _, _)| name.clone()).collect();
+        let names: Vec<String> = sessions
+            .iter()
+            .map(|(_, name, _, _, _)| name.clone())
+            .collect();
 
         assert!(names.contains(&"persistent1".to_string()));
         assert!(names.contains(&"persistent2".to_string()));
@@ -209,7 +233,9 @@ fn test_session_memory_efficiency() {
 
     // Create 50+ sessions to test scalability
     for i in 0..60 {
-        manager.create_session(format!("session_{}", i), 80, 24).unwrap();
+        manager
+            .create_session(format!("session_{}", i), 80, 24)
+            .unwrap();
     }
 
     assert_eq!(manager.session_count(), 60);
@@ -227,8 +253,12 @@ async fn test_session_attach_performance() {
     let db_path = temp_dir.path().join("sessions.db");
 
     let manager = SessionManager::new(db_path).unwrap();
-    let id1 = manager.create_session("perf_test".to_string(), 80, 24).unwrap();
-    let id2 = manager.create_session("perf_test2".to_string(), 80, 24).unwrap();
+    let id1 = manager
+        .create_session("perf_test".to_string(), 80, 24)
+        .unwrap();
+    let id2 = manager
+        .create_session("perf_test2".to_string(), 80, 24)
+        .unwrap();
 
     // Measure session switch time
     manager.attach_client(&id1, 1).unwrap();
@@ -241,5 +271,9 @@ async fn test_session_attach_performance() {
     println!("Session switch time: {:?}", elapsed);
 
     // Should be well under 10ms target
-    assert!(elapsed.as_millis() < 10, "Session switch took {:?}, expected <10ms", elapsed);
+    assert!(
+        elapsed.as_millis() < 10,
+        "Session switch took {:?}, expected <10ms",
+        elapsed
+    );
 }

@@ -20,6 +20,10 @@ The main trait that all plugins must implement.
 #[async_trait]
 pub trait Plugin: Send + Sync {
     fn metadata(&self) -> &PluginMetadata;
+    
+    /// Get list of commands provided by this plugin
+    fn get_commands(&self) -> Vec<ModalItem> { Vec::new() }
+
     async fn on_load(&mut self, ctx: &mut PluginContext) -> Result<()>;
     async fn on_unload(&mut self) -> Result<()>;
     async fn on_output(&mut self, line: &str, ctx: &PluginContext) -> Result<Action>;
@@ -29,10 +33,13 @@ pub trait Plugin: Send + Sync {
     async fn on_resize(&mut self, cols: u16, rows: u16, ctx: &PluginContext) -> Result<()>;
     async fn on_attach(&mut self, client_id: u64, ctx: &PluginContext) -> Result<()>;
     async fn on_detach(&mut self, client_id: u64, ctx: &PluginContext) -> Result<()>;
+    
+    /// Hook called when a remote command is selected/triggered by the client
+    async fn on_remote_command(&mut self, id: &str, ctx: &PluginContext) -> Result<()> { Ok(()) }
 }
 ```
 
-All methods except `metadata()` have default implementations that return `Ok(())` or `Ok(Action::Continue)`.
+All methods except `metadata()` have default implementations that return `Ok(())`, `Ok(Action::Continue)`, or empty collections.
 
 ## Types
 
@@ -81,6 +88,18 @@ let metadata = PluginMetadata::new(
 )
 .with_homepage("https://github.com/user/plugin")
 .with_api_version("0.1.0");
+```
+
+### ModalItem
+
+A command or item to be displayed in the Command Palette or other modals.
+
+```rust
+pub struct ModalItem {
+    pub id: String,
+    pub label: String,
+    pub description: Option<String>,
+}
 ```
 
 ### Action

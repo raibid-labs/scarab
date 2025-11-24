@@ -9,10 +9,10 @@
 use anyhow::Result;
 use std::path::PathBuf;
 
-#[cfg(target_os = "macos")]
-mod macos;
 #[cfg(target_os = "linux")]
 mod linux;
+#[cfg(target_os = "macos")]
+mod macos;
 #[cfg(target_os = "windows")]
 mod windows;
 
@@ -47,7 +47,10 @@ pub trait Platform {
     fn graphics_backend(&self) -> GraphicsBackend;
 
     /// Platform-specific initialization
-    fn init(&self) -> Result<()> where Self: Sized {
+    fn init(&self) -> Result<()>
+    where
+        Self: Sized,
+    {
         Ok(())
     }
 }

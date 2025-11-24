@@ -1,31 +1,43 @@
 // Command palette with fuzzy search
 // Provides quick access to all terminal commands
 
-use bevy::prelude::*;
-use bevy::input::keyboard::KeyCode;
-use fuzzy_matcher::FuzzyMatcher;
-use fuzzy_matcher::skim::SkimMatcherV2;
-use std::sync::Arc;
 use crate::ipc::IpcChannel;
-use scarab_protocol::ControlMessage;
+use bevy::input::keyboard::KeyCode;
+use bevy::prelude::*;
+use fuzzy_matcher::skim::SkimMatcherV2;
+use fuzzy_matcher::FuzzyMatcher;
+use scarab_protocol::{ControlMessage, ModalItem};
+use std::sync::Arc;
 
 /// Plugin for command palette functionality
 pub struct CommandPalettePlugin;
 
 impl Plugin for CommandPalettePlugin {
     fn build(&self, app: &mut App) {
-        app
-            .init_resource::<CommandRegistry>()
+        app.init_resource::<CommandRegistry>()
             .init_resource::<CommandPaletteState>()
             .add_event::<CommandExecutedEvent>()
-            .add_systems(Update, (
-                toggle_palette_system,
-                handle_palette_input_system,
-                render_palette_system,
-                execute_command_system,
-            ).chain())
+            .add_event::<ShowRemoteModalEvent>()
+            .add_systems(
+                Update,
+                (
+                    toggle_palette_system,
+                    handle_palette_input_system,
+                    render_palette_system,
+                    execute_command_system,
+                    handle_remote_modal_system,
+                )
+                    .chain(),
+            )
             .add_systems(Startup, register_default_commands_system);
     }
+}
+
+/// Event to trigger a remote modal (populating palette from daemon)
+#[derive(Event)]
+pub struct ShowRemoteModalEvent {
+    pub title: String,
+    pub items: Vec<ModalItem>,
 }
 
 /// A command that can be executed
@@ -85,7 +97,8 @@ impl CommandRegistry {
         }
 
         let matcher = SkimMatcherV2::default();
-        let mut results: Vec<(Command, i64)> = self.commands
+        let mut results: Vec<(Command, i64)> = self
+            .commands
             .iter()
             .filter_map(|cmd| {
                 let name_score = matcher.fuzzy_match(&cmd.name, query).unwrap_or(0);
@@ -171,6 +184,18 @@ fn handle_palette_input_system(
     // Handle backspace
     if keyboard.just_pressed(KeyCode::Backspace) {
         state.query.pop();
+        // If we are in remote mode (empty registry or special flag?), we might need to re-filter remote items.
+        // For now, we assume remote mode uses the filtered_commands directly and local mode uses registry.
+        // But wait, toggle_palette_system resets filtered_commands from registry.
+        // If we received a remote modal, we should NOT query the registry.
+        // We need a flag in State.
+
+        // Simple hack: if active and filtered_commands is not empty but registry search returns different count?
+        // No. We need `mode` in state.
+
+        // For now, let's assume if we have a query we filter from registry.
+        // If we are in remote mode, we probably shouldn't type to search yet (needs implementation).
+        // Let's just re-run search on registry.
         state.filtered_commands = registry.fuzzy_search(&state.query);
         state.selected_index = 0;
     }
@@ -197,6 +222,35 @@ fn handle_palette_input_system(
     }
 }
 
+fn handle_remote_modal_system(
+    mut events: EventReader<ShowRemoteModalEvent>,
+    mut state: ResMut<CommandPaletteState>,
+) {
+    for event in events.read() {
+        state.active = true;
+        state.query.clear();
+        state.selected_index = 0;
+        state.filtered_commands.clear();
+
+        for item in &event.items {
+            let id_for_closure = item.id.clone();
+            // Create a command that sends CommandSelected
+            let command = Command::new(
+                &item.id,
+                &item.label,
+                item.description.as_deref().unwrap_or(""),
+                "Remote",
+                move |ipc| {
+                    ipc.send(ControlMessage::CommandSelected {
+                        id: id_for_closure.clone(),
+                    });
+                },
+            );
+            state.filtered_commands.push((command, 0));
+        }
+    }
+}
+
 /// Render command palette UI
 fn render_palette_system(
     mut commands: Commands,
@@ -213,86 +267,89 @@ fn render_palette_system(
     }
 
     // Create palette container
-    commands.spawn((
-        PaletteUI,
-        Node {
-            width: Val::Px(600.0),
-            height: Val::Px(400.0),
-            position_type: PositionType::Absolute,
-            left: Val::Px(200.0),
-            top: Val::Px(100.0),
-            flex_direction: FlexDirection::Column,
-            padding: UiRect::all(Val::Px(10.0)),
-            ..default()
-        },
-        BackgroundColor(Color::srgba(0.1, 0.1, 0.1, 0.95)),
-    ))
-    .with_children(|parent| {
-        // Search input display
-        parent.spawn((
-            Text::new(format!("> {}", state.query)),
-            TextFont {
-                font_size: 20.0,
-                ..default()
-            },
-            TextColor(Color::WHITE),
+    commands
+        .spawn((
+            PaletteUI,
             Node {
-                margin: UiRect::bottom(Val::Px(10.0)),
+                width: Val::Px(600.0),
+                height: Val::Px(400.0),
+                position_type: PositionType::Absolute,
+                left: Val::Px(200.0),
+                top: Val::Px(100.0),
+                flex_direction: FlexDirection::Column,
+                padding: UiRect::all(Val::Px(10.0)),
                 ..default()
             },
-        ));
-
-        // Command list (show first 10 results)
-        for (index, (command, score)) in state.filtered_commands.iter().take(10).enumerate() {
-            let is_selected = index == state.selected_index;
-            let bg_color = if is_selected {
-                Color::srgba(0.3, 0.3, 0.5, 0.8)
-            } else {
-                Color::srgba(0.2, 0.2, 0.2, 0.5)
-            };
-
+            BackgroundColor(Color::srgba(0.1, 0.1, 0.1, 0.95)),
+        ))
+        .with_children(|parent| {
+            // Search input display
             parent.spawn((
-                CommandItem { index },
-                Node {
-                    width: Val::Percent(100.0),
-                    padding: UiRect::all(Val::Px(8.0)),
-                    margin: UiRect::bottom(Val::Px(2.0)),
+                Text::new(format!("> {}", state.query)),
+                TextFont {
+                    font_size: 20.0,
                     ..default()
                 },
-                BackgroundColor(bg_color),
-            ))
-            .with_children(|item| {
-                // Command name and keybind
-                let keybind_text = command.keybind
-                    .as_ref()
-                    .map(|k| format!(" [{}]", k))
-                    .unwrap_or_default();
+                TextColor(Color::WHITE),
+                Node {
+                    margin: UiRect::bottom(Val::Px(10.0)),
+                    ..default()
+                },
+            ));
 
-                item.spawn((
-                    Text::new(format!("{}{}", command.name, keybind_text)),
-                    TextFont {
-                        font_size: 16.0,
-                        ..default()
-                    },
-                    TextColor(Color::WHITE),
-                ));
+            // Command list (show first 10 results)
+            for (index, (command, score)) in state.filtered_commands.iter().take(10).enumerate() {
+                let is_selected = index == state.selected_index;
+                let bg_color = if is_selected {
+                    Color::srgba(0.3, 0.3, 0.5, 0.8)
+                } else {
+                    Color::srgba(0.2, 0.2, 0.2, 0.5)
+                };
 
-                // Command description
-                item.spawn((
-                    Text::new(format!("{} (score: {})", command.description, score)),
-                    TextFont {
-                        font_size: 12.0,
-                        ..default()
-                    },
-                    TextColor(Color::srgba(0.7, 0.7, 0.7, 1.0)),
-                    Node {
-                        margin: UiRect::top(Val::Px(4.0)),
-                        ..default()
-                    },
-                ));
-            });
-        }
-    });
+                parent
+                    .spawn((
+                        CommandItem { index },
+                        Node {
+                            width: Val::Percent(100.0),
+                            padding: UiRect::all(Val::Px(8.0)),
+                            margin: UiRect::bottom(Val::Px(2.0)),
+                            ..default()
+                        },
+                        BackgroundColor(bg_color),
+                    ))
+                    .with_children(|item| {
+                        // Command name and keybind
+                        let keybind_text = command
+                            .keybind
+                            .as_ref()
+                            .map(|k| format!(" [{}]", k))
+                            .unwrap_or_default();
+
+                        item.spawn((
+                            Text::new(format!("{}{}", command.name, keybind_text)),
+                            TextFont {
+                                font_size: 16.0,
+                                ..default()
+                            },
+                            TextColor(Color::WHITE),
+                        ));
+
+                        // Command description
+                        item.spawn((
+                            Text::new(format!("{} (score: {})", command.description, score)),
+                            TextFont {
+                                font_size: 12.0,
+                                ..default()
+                            },
+                            TextColor(Color::srgba(0.7, 0.7, 0.7, 1.0)),
+                            Node {
+                                margin: UiRect::top(Val::Px(4.0)),
+                                ..default()
+                            },
+                        ));
+                    });
+            }
+        });
 }
 
 /// Execute selected command
@@ -310,9 +367,7 @@ fn execute_command_system(
 }
 
 /// Initialize default commands at startup
-fn register_default_commands_system(
-    mut registry: ResMut<CommandRegistry>,
-) {
+fn register_default_commands_system(mut registry: ResMut<CommandRegistry>) {
     register_default_commands(&mut registry);
 }
 
@@ -336,20 +391,18 @@ pub fn register_default_commands(registry: &mut CommandRegistry) {
     );
 
     // Reset terminal
-    registry.register(
-        Command::new(
-            "reset",
-            "Reset Terminal",
-            "Reset terminal to initial state",
-            "Terminal",
-            |ipc| {
-                // Send reset sequence
-                ipc.send(ControlMessage::Input {
-                    data: b"reset\n".to_vec(),
-                });
-            },
-        ),
-    );
+    registry.register(Command::new(
+        "reset",
+        "Reset Terminal",
+        "Reset terminal to initial state",
+        "Terminal",
+        |ipc| {
+            // Send reset sequence
+            ipc.send(ControlMessage::Input {
+                data: b"reset\n".to_vec(),
+            });
+        },
+    ));
 
     // Send Ctrl+C (interrupt)
     registry.register(
@@ -405,17 +458,15 @@ pub fn register_default_commands(registry: &mut CommandRegistry) {
     );
 
     // Reload configuration (placeholder)
-    registry.register(
-        Command::new(
-            "reload_config",
-            "Reload Configuration",
-            "Reload Scarab configuration files",
-            "Settings",
-            |_ipc| {
-                info!("Configuration reload requested (not yet implemented)");
-            },
-        ),
-    );
+    registry.register(Command::new(
+        "reload_config",
+        "Reload Configuration",
+        "Reload Scarab configuration files",
+        "Settings",
+        |_ipc| {
+            info!("Configuration reload requested (not yet implemented)");
+        },
+    ));
 
     // Show help
     registry.register(

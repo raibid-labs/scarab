@@ -13,7 +13,7 @@
 #[cfg(test)]
 mod tests {
     use crate::vte::*;
-    use scarab_protocol::{SharedState, Cell, GRID_WIDTH, GRID_HEIGHT};
+    use scarab_protocol::{Cell, SharedState, GRID_HEIGHT, GRID_WIDTH};
     use std::sync::atomic::AtomicU64;
     use std::sync::Arc;
 

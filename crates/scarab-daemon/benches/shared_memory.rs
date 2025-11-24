@@ -45,9 +45,11 @@ fn bench_shmem_write(c: &mut Criterion) {
         let data = vec![0u8; *chunk_size];
 
         group.throughput(Throughput::Bytes(*chunk_size as u64));
-        group.bench_with_input(BenchmarkId::from_parameter(chunk_size), chunk_size, |b, &chunk_size| {
-            b.iter(|| {
-                unsafe {
+        group.bench_with_input(
+            BenchmarkId::from_parameter(chunk_size),
+            chunk_size,
+            |b, &chunk_size| {
+                b.iter(|| unsafe {
                     let ptr = shmem.as_ptr();
                     for offset in (0..SHMEM_SIZE).step_by(chunk_size) {
                         if offset + chunk_size <= SHMEM_SIZE {
@@ -58,9 +60,9 @@ fn bench_shmem_write(c: &mut Criterion) {
                             );
                         }
                     }
-                }
-            });
-        });
+                });
+            },
+        );
     }
 
     group.finish();
@@ -82,9 +84,11 @@ fn bench_shmem_read(c: &mut Criterion) {
         }
 
         group.throughput(Throughput::Bytes(*chunk_size as u64));
-        group.bench_with_input(BenchmarkId::from_parameter(chunk_size), chunk_size, |b, &chunk_size| {
-            b.iter(|| {
-                unsafe {
+        group.bench_with_input(
+            BenchmarkId::from_parameter(chunk_size),
+            chunk_size,
+            |b, &chunk_size| {
+                b.iter(|| unsafe {
                     let ptr = shmem.as_ptr();
                     for offset in (0..SHMEM_SIZE).step_by(chunk_size) {
                         if offset + chunk_size <= SHMEM_SIZE {
@@ -96,9 +100,9 @@ fn bench_shmem_read(c: &mut Criterion) {
                             black_box(&buffer);
                         }
                     }
-                }
-            });
-        });
+                });
+            },
+        );
     }
 
     group.finish();
@@ -107,7 +111,10 @@ fn bench_shmem_read(c: &mut Criterion) {
 fn bench_atomic_operations(c: &mut Criterion) {
     let mut group = c.benchmark_group("shmem_atomics");
 
-    let shmem = create_shared_memory("/scarab_bench_atomic", std::mem::size_of::<AtomicU64>() * 1000);
+    let shmem = create_shared_memory(
+        "/scarab_bench_atomic",
+        std::mem::size_of::<AtomicU64>() * 1000,
+    );
 
     unsafe {
         let ptr = shmem.as_ptr() as *mut AtomicU64;
@@ -117,29 +124,22 @@ fn bench_atomic_operations(c: &mut Criterion) {
     }
 
     group.bench_function("atomic_increment", |b| {
-        b.iter(|| {
-            unsafe {
-                let ptr = shmem.as_ptr() as *mut AtomicU64;
-                for i in 0..1000 {
-                    (*ptr.add(i)).fetch_add(1, Ordering::Relaxed);
-                }
+        b.iter(|| unsafe {
+            let ptr = shmem.as_ptr() as *mut AtomicU64;
+            for i in 0..1000 {
+                (*ptr.add(i)).fetch_add(1, Ordering::Relaxed);
             }
         });
     });
 
     group.bench_function("atomic_cas", |b| {
-        b.iter(|| {
-            unsafe {
-                let ptr = shmem.as_ptr() as *mut AtomicU64;
-                for i in 0..1000 {
-                    let current = (*ptr.add(i)).load(Ordering::Relaxed);
-                    (*ptr.add(i)).compare_exchange(
-                        current,
-                        current + 1,
-                        Ordering::SeqCst,
-                        Ordering::Relaxed,
-                    ).ok();
-                }
+        b.iter(|| unsafe {
+            let ptr = shmem.as_ptr() as *mut AtomicU64;
+            for i in 0..1000 {
+                let current = (*ptr.add(i)).load(Ordering::Relaxed);
+                (*ptr.add(i))
+                    .compare_exchange(current, current + 1, Ordering::SeqCst, Ordering::Relaxed)
+                    .ok();
             }
         });
     });
@@ -151,32 +151,36 @@ fn bench_concurrent_access(c: &mut Criterion) {
     let mut group = c.benchmark_group("shmem_concurrent");
 
     for num_threads in [1, 2, 4, 8].iter() {
-        group.bench_with_input(BenchmarkId::from_parameter(num_threads), num_threads, |b, &num_threads| {
-            let shmem = Arc::new(create_shared_memory("/scarab_bench_concurrent", SHMEM_SIZE));
+        group.bench_with_input(
+            BenchmarkId::from_parameter(num_threads),
+            num_threads,
+            |b, &num_threads| {
+                let shmem = Arc::new(create_shared_memory("/scarab_bench_concurrent", SHMEM_SIZE));
 
-            b.iter(|| {
-                let mut handles = vec![];
+                b.iter(|| {
+                    let mut handles = vec![];
 
-                for _ in 0..num_threads {
-                    let shmem_clone = Arc::clone(&shmem);
-                    let handle = thread::spawn(move || {
-                        let mut sum = 0u64;
-                        unsafe {
-                            let ptr = shmem_clone.as_ptr();
-                            for i in 0..1000 {
-                                sum += *ptr.add(i) as u64;
+                    for _ in 0..num_threads {
+                        let shmem_clone = Arc::clone(&shmem);
+                        let handle = thread::spawn(move || {
+                            let mut sum = 0u64;
+                            unsafe {
+                                let ptr = shmem_clone.as_ptr();
+                                for i in 0..1000 {
+                                    sum += *ptr.add(i) as u64;
+                                }
                             }
-                        }
-                        sum
-                    });
-                    handles.push(handle);
-                }
+                            sum
+                        });
+                        handles.push(handle);
+                    }
 
-                for handle in handles {
-                    black_box(handle.join().unwrap());
-                }
-            });
-        });
+                    for handle in handles {
+                        black_box(handle.join().unwrap());
+                    }
+                });
+            },
+        );
     }
 
     group.finish();
@@ -185,40 +189,37 @@ fn bench_concurrent_access(c: &mut Criterion) {
 fn bench_memory_barriers(c: &mut Criterion) {
     let mut group = c.benchmark_group("shmem_barriers");
 
-    let shmem = create_shared_memory("/scarab_bench_barriers", std::mem::size_of::<AtomicU64>() * 100);
+    let shmem = create_shared_memory(
+        "/scarab_bench_barriers",
+        std::mem::size_of::<AtomicU64>() * 100,
+    );
 
     group.bench_function("relaxed_ordering", |b| {
-        b.iter(|| {
-            unsafe {
-                let ptr = shmem.as_ptr() as *mut AtomicU64;
-                for i in 0..100 {
-                    (*ptr.add(i)).store(i as u64, Ordering::Relaxed);
-                    black_box((*ptr.add(i)).load(Ordering::Relaxed));
-                }
+        b.iter(|| unsafe {
+            let ptr = shmem.as_ptr() as *mut AtomicU64;
+            for i in 0..100 {
+                (*ptr.add(i)).store(i as u64, Ordering::Relaxed);
+                black_box((*ptr.add(i)).load(Ordering::Relaxed));
             }
         });
     });
 
     group.bench_function("acquire_release", |b| {
-        b.iter(|| {
-            unsafe {
-                let ptr = shmem.as_ptr() as *mut AtomicU64;
-                for i in 0..100 {
-                    (*ptr.add(i)).store(i as u64, Ordering::Release);
-                    black_box((*ptr.add(i)).load(Ordering::Acquire));
-                }
+        b.iter(|| unsafe {
+            let ptr = shmem.as_ptr() as *mut AtomicU64;
+            for i in 0..100 {
+                (*ptr.add(i)).store(i as u64, Ordering::Release);
+                black_box((*ptr.add(i)).load(Ordering::Acquire));
             }
         });
     });
 
     group.bench_function("seq_cst", |b| {
-        b.iter(|| {
-            unsafe {
-                let ptr = shmem.as_ptr() as *mut AtomicU64;
-                for i in 0..100 {
-                    (*ptr.add(i)).store(i as u64, Ordering::SeqCst);
-                    black_box((*ptr.add(i)).load(Ordering::SeqCst));
-                }
+        b.iter(|| unsafe {
+            let ptr = shmem.as_ptr() as *mut AtomicU64;
+            for i in 0..100 {
+                (*ptr.add(i)).store(i as u64, Ordering::SeqCst);
+                black_box((*ptr.add(i)).load(Ordering::SeqCst));
             }
         });
     });

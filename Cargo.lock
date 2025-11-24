@@ -4336,8 +4336,11 @@ dependencies = [
  "rkyv",
  "rusqlite",
  "scarab-config",
+ "scarab-nav",
+ "scarab-palette",
  "scarab-plugin-api",
  "scarab-protocol",
+ "scarab-session",
  "serde",
  "serde_json",
  "shared_memory",
@@ -4346,6 +4349,27 @@ dependencies = [
  "tracy-client",
  "uuid",
  "vte",
+]
+
+[[package]]
+name = "scarab-nav"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "log",
+ "regex",
+ "scarab-plugin-api",
+ "scarab-protocol",
+]
+
+[[package]]
+name = "scarab-palette"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "log",
+ "scarab-plugin-api",
+ "scarab-protocol",
 ]
 
 [[package]]
@@ -4373,6 +4397,7 @@ dependencies = [
  "async-trait",
  "log",
  "parking_lot",
+ "scarab-protocol",
  "semver",
  "serde",
  "thiserror",
@@ -4387,6 +4412,16 @@ dependencies = [
  "bytemuck",
  "rkyv",
  "serde",
+]
+
+[[package]]
+name = "scarab-session"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "log",
+ "scarab-plugin-api",
+ "scarab-protocol",
 ]
 
 [[package]]

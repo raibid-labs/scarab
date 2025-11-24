@@ -116,8 +116,16 @@ fn test_stress_short() -> Result<()> {
         thread::sleep(Duration::from_millis(100));
 
         if iteration % 50 == 0 {
-            println!("Iteration {}, elapsed: {:.1}s", iteration, start.elapsed().as_secs_f64());
-            assert!(harness.daemon_is_alive(), "Daemon died at iteration {}", iteration);
+            println!(
+                "Iteration {}, elapsed: {:.1}s",
+                iteration,
+                start.elapsed().as_secs_f64()
+            );
+            assert!(
+                harness.daemon_is_alive(),
+                "Daemon died at iteration {}",
+                iteration
+            );
         }
     }
 

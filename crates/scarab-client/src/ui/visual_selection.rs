@@ -1,26 +1,28 @@
 // Visual selection mode for terminal text
 // Allows users to select text using keyboard
 
-use bevy::prelude::*;
-use bevy::input::keyboard::KeyCode;
 use crate::integration::SharedMemoryReader;
-use scarab_protocol::{SharedState, GRID_WIDTH, GRID_HEIGHT};
 use arboard::Clipboard;
+use bevy::input::keyboard::KeyCode;
+use bevy::prelude::*;
+use scarab_protocol::{SharedState, GRID_HEIGHT, GRID_WIDTH};
 
 /// Plugin for visual selection
 pub struct VisualSelectionPlugin;
 
 impl Plugin for VisualSelectionPlugin {
     fn build(&self, app: &mut App) {
-        app
-            .init_resource::<SelectionState>()
+        app.init_resource::<SelectionState>()
             .add_event::<SelectionChangedEvent>()
             .add_event::<SelectionCopiedEvent>()
-            .add_systems(Update, (
-                handle_selection_input_system,
-                render_selection_system,
-                copy_selection_system,
-            ));
+            .add_systems(
+                Update,
+                (
+                    handle_selection_input_system,
+                    render_selection_system,
+                    copy_selection_system,
+                ),
+            );
     }
 }
 
@@ -148,7 +150,11 @@ pub struct SelectionCopiedEvent {
 struct SelectionOverlay;
 
 /// Extract text from selection region using SharedMemoryReader
-fn extract_selection_text(state_reader: &SharedMemoryReader, region: &SelectionRegion, mode: SelectionMode) -> String {
+fn extract_selection_text(
+    state_reader: &SharedMemoryReader,
+    region: &SelectionRegion,
+    mode: SelectionMode,
+) -> String {
     let shared_ptr = state_reader.shmem.0.as_ptr() as *const SharedState;
 
     unsafe {
@@ -175,7 +181,9 @@ fn extract_selection_text(state_reader: &SharedMemoryReader, region: &SelectionR
                     };
 
                     for x in start_x..=end_x {
-                        if let Some(cell) = crate::integration::get_cell_at(state, x as usize, y as usize) {
+                        if let Some(cell) =
+                            crate::integration::get_cell_at(state, x as usize, y as usize)
+                        {
                             if cell.char_codepoint == 0 || cell.char_codepoint == 32 {
                                 text.push(' ');
                             } else if let Some(ch) = char::from_u32(cell.char_codepoint) {
@@ -215,7 +223,9 @@ fn extract_selection_text(state_reader: &SharedMemoryReader, region: &SelectionR
                 // Extract rectangular block
                 for y in region.start_y..=region.end_y {
                     for x in region.start_x..=region.end_x {
-                        if let Some(cell) = crate::integration::get_cell_at(state, x as usize, y as usize) {
+                        if let Some(cell) =
+                            crate::integration::get_cell_at(state, x as usize, y as usize)
+                        {
                             if cell.char_codepoint == 0 || cell.char_codepoint == 32 {
                                 text.push(' ');
                             } else if let Some(ch) = char::from_u32(cell.char_codepoint) {
@@ -261,13 +271,17 @@ fn handle_selection_input_system(
     }
 
     // Enter visual line mode with 'V'
-    if keyboard.just_pressed(KeyCode::KeyV) && keyboard.pressed(KeyCode::ShiftLeft) && !state.active {
+    if keyboard.just_pressed(KeyCode::KeyV) && keyboard.pressed(KeyCode::ShiftLeft) && !state.active
+    {
         state.start_selection(cursor_x, cursor_y, SelectionMode::Line);
         info!("Visual line selection mode activated");
     }
 
     // Enter visual block mode with Ctrl+V
-    if keyboard.just_pressed(KeyCode::KeyV) && keyboard.pressed(KeyCode::ControlLeft) && !state.active {
+    if keyboard.just_pressed(KeyCode::KeyV)
+        && keyboard.pressed(KeyCode::ControlLeft)
+        && !state.active
+    {
         state.start_selection(cursor_x, cursor_y, SelectionMode::Block);
         info!("Visual block selection mode activated");
     }
@@ -381,17 +395,10 @@ fn render_selection_system(
                     SelectionOverlay,
                     Sprite {
                         color: Color::srgba(0.3, 0.5, 1.0, 0.3),
-                        custom_size: Some(Vec2::new(
-                            GRID_WIDTH as f32 * cell_width,
-                            cell_height,
-                        )),
+                        custom_size: Some(Vec2::new(GRID_WIDTH as f32 * cell_width, cell_height)),
                         ..default()
                     },
-                    Transform::from_xyz(
-                        0.0,
-                        -(y as f32 * cell_height),
-                        10.0,
-                    ),
+                    Transform::from_xyz(0.0, -(y as f32 * cell_height), 10.0),
                 ));
             }
         }

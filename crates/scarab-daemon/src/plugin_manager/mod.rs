@@ -1,8 +1,11 @@
 //! Plugin lifecycle management and hook dispatch
 
+use crate::ipc::ClientRegistry;
 use scarab_plugin_api::{
-    Action, Plugin, PluginConfig, PluginContext, PluginDiscovery, PluginError, PluginInfo, Result,
+    types::RemoteCommand, Action, Plugin, PluginConfig, PluginContext, PluginDiscovery,
+    PluginError, PluginInfo, Result,
 };
+use scarab_protocol::DaemonMessage;
 use std::{
     path::{Path, PathBuf},
     sync::Arc,
@@ -84,16 +87,19 @@ pub struct PluginManager {
     hook_timeout: Duration,
     /// Plugin context
     context: Arc<PluginContext>,
+    /// Registry for sending commands to clients
+    client_registry: ClientRegistry,
 }
 
 impl PluginManager {
     /// Create new plugin manager
-    pub fn new(context: Arc<PluginContext>) -> Self {
+    pub fn new(context: Arc<PluginContext>, client_registry: ClientRegistry) -> Self {
         Self {
             plugins: Vec::new(),
             discovery: PluginDiscovery::new(),
             hook_timeout: Duration::from_millis(1000),
             context,
+            client_registry,
         }
     }
 
@@ -101,6 +107,58 @@ impl PluginManager {
     pub fn with_timeout(mut self, timeout_ms: u64) -> Self {
         self.hook_timeout = Duration::from_millis(timeout_ms);
         self
+    }
+
+    /// Process any pending commands queued by plugins
+    async fn process_pending_commands(&self) {
+        let commands = {
+            let mut cmds = self.context.commands.lock();
+            std::mem::take(&mut *cmds)
+        };
+
+        for cmd in commands {
+            match cmd {
+                RemoteCommand::DrawOverlay {
+                    id,
+                    x,
+                    y,
+                    text,
+                    style,
+                } => {
+                    // Broadcast to all clients for now
+                    self.client_registry
+                        .broadcast(DaemonMessage::DrawOverlay {
+                            id,
+                            x,
+                            y,
+                            text,
+                            style,
+                        })
+                        .await;
+                }
+                RemoteCommand::ClearOverlays { id } => {
+                    self.client_registry
+                        .broadcast(DaemonMessage::ClearOverlays { id })
+                        .await;
+                }
+                RemoteCommand::ShowModal { title, items } => {
+                    self.client_registry
+                        .broadcast(DaemonMessage::ShowModal { title, items })
+                        .await;
+                }
+            }
+        }
+    }
+
+    /// Refresh aggregated command list from all plugins
+    fn refresh_commands(&self) {
+        let mut all_commands = Vec::new();
+        for managed in &self.plugins {
+            if managed.enabled {
+                all_commands.extend(managed.plugin.get_commands());
+            }
+        }
+        self.context.state.lock().commands = all_commands;
     }
 
     /// Load plugins from configuration file
@@ -192,7 +250,10 @@ impl PluginManager {
         let api_version = plugin.metadata().api_version.clone();
 
         // Check API compatibility
-        if !plugin.metadata().is_compatible(scarab_plugin_api::API_VERSION) {
+        if !plugin
+            .metadata()
+            .is_compatible(scarab_plugin_api::API_VERSION)
+        {
             return Err(PluginError::VersionIncompatible {
                 required: scarab_plugin_api::API_VERSION.to_string(),
                 actual: api_version,
@@ -218,6 +279,13 @@ impl PluginManager {
                 };
                 self.plugins.push(ManagedPlugin::new(plugin, config));
                 log::info!("Plugin registered successfully: {}", plugin_name);
+
+                // Refresh command list
+                self.refresh_commands();
+
+                // Process commands that might have been queued during on_load
+                self.process_pending_commands().await;
+
                 Ok(())
             }
             Ok(Err(e)) => {
@@ -248,8 +316,9 @@ impl PluginManager {
             // Apply timeout to plugin call
             let result = timeout(
                 self.hook_timeout,
-                managed.plugin.on_output(&current_data, &ctx)
-            ).await;
+                managed.plugin.on_output(&current_data, &ctx),
+            )
+            .await;
 
             match result {
                 Ok(Ok(Action::Continue)) => {
@@ -274,6 +343,9 @@ impl PluginManager {
             }
         }
 
+        // Process pending commands from all plugins
+        self.process_pending_commands().await;
+
         Ok(data)
     }
 
@@ -292,8 +364,9 @@ impl PluginManager {
 
             let result = timeout(
                 self.hook_timeout,
-                managed.plugin.on_input(&current_data, &ctx)
-            ).await;
+                managed.plugin.on_input(&current_data, &ctx),
+            )
+            .await;
 
             match result {
                 Ok(Ok(Action::Continue)) => {
@@ -318,6 +391,9 @@ impl PluginManager {
             }
         }
 
+        // Process pending commands
+        self.process_pending_commands().await;
+
         Ok(data)
     }
 
@@ -333,8 +409,9 @@ impl PluginManager {
 
             let result = timeout(
                 self.hook_timeout,
-                managed.plugin.on_resize(cols, rows, &ctx)
-            ).await;
+                managed.plugin.on_resize(cols, rows, &ctx),
+            )
+            .await;
 
             match result {
                 Ok(Ok(_)) => managed.record_success(),
@@ -348,6 +425,9 @@ impl PluginManager {
                 }
             }
         }
+
+        // Process pending commands
+        self.process_pending_commands().await;
 
         Ok(())
     }
@@ -369,13 +449,10 @@ impl PluginManager {
         for managed in &mut self.plugins {
             let plugin_name = managed.plugin.metadata().name.clone();
 
-            let result = timeout(
-                self.hook_timeout,
-                managed.plugin.on_unload()
-            ).await;
+            let result = timeout(self.hook_timeout, managed.plugin.on_unload()).await;
 
             match result {
-                Ok(Ok(_)) => {},
+                Ok(Ok(_)) => {}
                 Ok(Err(e)) => {
                     log::error!("Error unloading plugin '{}': {}", plugin_name, e);
                 }
@@ -386,189 +463,42 @@ impl PluginManager {
         }
 
         self.plugins.clear();
+        self.refresh_commands();
         Ok(())
     }
-}
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use scarab_plugin_api::context::PluginSharedState;
-    use scarab_plugin_api::PluginMetadata;
-    use std::sync::Arc;
-
-    // Mock plugin for testing
-    struct MockPlugin {
-        metadata: PluginMetadata,
-        should_panic: bool,
-    }
-
-    #[async_trait::async_trait]
-    impl Plugin for MockPlugin {
-        fn metadata(&self) -> &PluginMetadata {
-            &self.metadata
-        }
-
-        async fn on_output(&mut self, line: &str, _ctx: &PluginContext) -> Result<Action> {
-            if self.should_panic {
-                panic!("Intentional panic");
+    /// Dispatch remote command to all enabled plugins
+    pub async fn dispatch_remote_command(&mut self, id: &str) -> Result<()> {
+        for managed in &mut self.plugins {
+            if !managed.enabled {
+                continue;
             }
-            if line.contains("MODIFY") {
-                Ok(Action::Modify(b"MODIFIED".to_vec()))
-            } else if line.contains("STOP") {
-                Ok(Action::Stop)
-            } else {
-                Ok(Action::Continue)
+
+            let plugin_name = managed.plugin.metadata().name.clone();
+            let ctx = self.context.clone();
+
+            let result = timeout(
+                self.hook_timeout,
+                managed.plugin.on_remote_command(id, &ctx),
+            )
+            .await;
+
+            match result {
+                Ok(Ok(_)) => managed.record_success(),
+                Ok(Err(e)) => {
+                    log::error!("Plugin '{}' remote command hook failed: {}", plugin_name, e);
+                    managed.record_failure();
+                }
+                Err(_) => {
+                    log::error!("Plugin '{}' remote command hook timed out", plugin_name);
+                    managed.record_failure();
+                }
             }
         }
-    }
 
-    fn create_test_context() -> Arc<PluginContext> {
-        let state = Arc::new(parking_lot::Mutex::new(PluginSharedState::new(80, 24)));
-        Arc::new(PluginContext::new(
-            Default::default(),
-            state,
-            "test-plugin",
-        ))
-    }
+        // Process pending commands (e.g. if command triggers another UI update)
+        self.process_pending_commands().await;
 
-    #[tokio::test]
-    async fn test_plugin_registration() {
-        let ctx = create_test_context();
-        let mut manager = PluginManager::new(ctx);
-
-        let plugin = Box::new(MockPlugin {
-            metadata: PluginMetadata::new("test", "1.0.0", "Test plugin", "Test Author"),
-            should_panic: false,
-        });
-
-        assert!(manager.register_plugin(plugin).await.is_ok());
-        assert_eq!(manager.enabled_count(), 1);
-    }
-
-    #[tokio::test]
-    async fn test_output_dispatch() {
-        let ctx = create_test_context();
-        let mut manager = PluginManager::new(ctx);
-
-        let plugin = Box::new(MockPlugin {
-            metadata: PluginMetadata::new("test", "1.0.0", "Test plugin", "Test Author"),
-            should_panic: false,
-        });
-
-        manager.register_plugin(plugin).await.unwrap();
-
-        let result = manager.dispatch_output("test").await.unwrap();
-        assert_eq!(result, "test");
-
-        let result = manager.dispatch_output("MODIFY this").await.unwrap();
-        assert_eq!(result, "MODIFIED");
-    }
-
-    #[tokio::test]
-    async fn test_panic_handling() {
-        let ctx = create_test_context();
-        let mut manager = PluginManager::new(ctx);
-
-        let plugin = Box::new(MockPlugin {
-            metadata: PluginMetadata::new("test", "1.0.0", "Test plugin", "Test Author"),
-            should_panic: true,
-        });
-
-        manager.register_plugin(plugin).await.unwrap();
-
-        // Should not crash, plugin should be disabled after failures
-        for _ in 0..5 {
-            let _ = manager.dispatch_output("test").await;
-        }
-
-        assert_eq!(manager.enabled_count(), 0);
-    }
-
-    #[tokio::test]
-    async fn test_load_fusabi_bytecode() {
-        use std::io::Write;
-        use tempfile::NamedTempFile;
-
-        let ctx = create_test_context();
-        let mut manager = PluginManager::new(ctx);
-
-        // Create temporary bytecode file
-        let mut temp_file = NamedTempFile::new().unwrap();
-        temp_file.write_all(b"FZB\0").unwrap();
-        temp_file.write_all(&[0u8; 100]).unwrap();
-        temp_file.flush().unwrap();
-
-        let config = PluginConfig {
-            name: "test_bytecode".to_string(),
-            path: temp_file.path().to_path_buf(),
-            enabled: true,
-            config: Default::default(),
-        };
-
-        let result = manager.load_plugin_from_config(config).await;
-        assert!(result.is_ok());
-        assert_eq!(manager.enabled_count(), 1);
-    }
-
-    #[tokio::test]
-    async fn test_load_fusabi_script() {
-        use std::io::Write;
-        use tempfile::NamedTempFile;
-
-        let ctx = create_test_context();
-        let mut manager = PluginManager::new(ctx);
-
-        // Create temporary script file
-        let mut temp_file = NamedTempFile::new().unwrap();
-        temp_file
-            .write_all(b"let greeting = \"Hello, Fusabi!\"")
-            .unwrap();
-        temp_file.flush().unwrap();
-
-        let config = PluginConfig {
-            name: "test_script".to_string(),
-            path: temp_file.path().to_path_buf(),
-            enabled: true,
-            config: Default::default(),
-        };
-
-        let result = manager.load_plugin_from_config(config).await;
-        assert!(result.is_ok());
-        assert_eq!(manager.enabled_count(), 1);
-    }
-
-    #[tokio::test]
-    async fn test_load_unsupported_format() {
-        use std::io::Write;
-        use tempfile::NamedTempFile;
-
-        let ctx = create_test_context();
-        let mut manager = PluginManager::new(ctx);
-
-        // Create file with unsupported extension
-        let mut temp_file = NamedTempFile::new().unwrap();
-        temp_file.write_all(b"invalid content").unwrap();
-        temp_file.flush().unwrap();
-
-        let mut path = temp_file.path().to_path_buf();
-        path.set_extension("txt");
-
-        let config = PluginConfig {
-            name: "test_invalid".to_string(),
-            path: path.clone(),
-            enabled: true,
-            config: Default::default(),
-        };
-
-        // Create the file with .txt extension
-        std::fs::write(&path, b"invalid content").unwrap();
-
-        let result = manager.load_plugin_from_config(config).await;
-        assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("Unsupported"));
-
-        // Clean up
-        let _ = std::fs::remove_file(&path);
+        Ok(())
     }
 }

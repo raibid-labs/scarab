@@ -153,7 +153,9 @@ fn generate_scrollback_buffer(lines: usize) -> Vec<u8> {
         data.extend_from_slice(format!("[{:06}] Log line with some content here\n", i).as_bytes());
         if i % 10 == 0 {
             // Add some color every 10 lines
-            data.extend_from_slice(format!("\x1b[31m[ERROR]\x1b[0m Error at line {}\n", i).as_bytes());
+            data.extend_from_slice(
+                format!("\x1b[31m[ERROR]\x1b[0m Error at line {}\n", i).as_bytes(),
+            );
         }
     }
     data
@@ -279,20 +281,24 @@ fn bench_batch_processing(c: &mut Criterion) {
 
     for chunk_size in [1, 10, 100, 1000, 4096].iter() {
         let data = generate_mixed_sequences(100000);
-        group.bench_with_input(BenchmarkId::from_parameter(chunk_size), chunk_size, |b, &chunk_size| {
-            let mut parser = Parser::new();
-            let mut performer = BenchPerformer::new();
+        group.bench_with_input(
+            BenchmarkId::from_parameter(chunk_size),
+            chunk_size,
+            |b, &chunk_size| {
+                let mut parser = Parser::new();
+                let mut performer = BenchPerformer::new();
 
-            b.iter(|| {
-                performer.reset();
-                for chunk in data.chunks(chunk_size) {
-                    for byte in chunk {
-                        parser.advance(&mut performer, *byte);
+                b.iter(|| {
+                    performer.reset();
+                    for chunk in data.chunks(chunk_size) {
+                        for byte in chunk {
+                            parser.advance(&mut performer, *byte);
+                        }
                     }
-                }
-                black_box(&performer.operations);
-            });
-        });
+                    black_box(&performer.operations);
+                });
+            },
+        );
     }
 
     group.finish();

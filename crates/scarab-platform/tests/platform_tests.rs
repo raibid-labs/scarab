@@ -95,7 +95,7 @@ fn test_platform_initialization() {
 
 #[cfg(test)]
 mod ipc_tests {
-    use scarab_platform::ipc::{self, IpcConfig, IpcServer, IpcConnection};
+    use scarab_platform::ipc::{self, IpcConfig, IpcConnection, IpcServer};
     use std::io::{Read, Write};
     use std::thread;
     use std::time::Duration;

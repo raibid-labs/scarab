@@ -2,7 +2,9 @@
 
 use bevy::prelude::*;
 use bevy::render::render_resource::{Extent3d, TextureDimension, TextureFormat};
-use cosmic_text::{CacheKey, SwashCache, SwashContent, SwashImage, FontSystem, SubpixelBin, CacheKeyFlags};
+use cosmic_text::{
+    CacheKey, CacheKeyFlags, FontSystem, SubpixelBin, SwashCache, SwashContent, SwashImage,
+};
 use std::collections::HashMap;
 
 /// Maximum atlas texture size (4096x4096 for compatibility)
@@ -90,8 +92,9 @@ impl GlyphAtlas {
             bevy::render::render_asset::RenderAssetUsages::default(),
         );
 
-        image.texture_descriptor.usage = bevy::render::render_resource::TextureUsages::TEXTURE_BINDING
-            | bevy::render::render_resource::TextureUsages::COPY_DST;
+        image.texture_descriptor.usage =
+            bevy::render::render_resource::TextureUsages::TEXTURE_BINDING
+                | bevy::render::render_resource::TextureUsages::COPY_DST;
 
         let texture = images.add(image);
 
@@ -128,7 +131,7 @@ impl GlyphAtlas {
             y_bin: SubpixelBin::Zero,
             flags: CacheKeyFlags::empty(),
         };
-        
+
         let image = swash_cache.get_image(font_system, cache_key).as_ref()?;
 
         // Check if we have space in the atlas
@@ -196,7 +199,7 @@ impl GlyphAtlas {
     /// Copy glyph image data to the atlas texture
     fn copy_glyph_data(&mut self, image: &SwashImage, rect: &AtlasRect) {
         let data = &image.data;
-        
+
         for y in 0..rect.height {
             for x in 0..rect.width {
                 let src_idx = (y * rect.width + x) as usize;

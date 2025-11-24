@@ -1,6 +1,26 @@
 //! Common types used throughout the plugin API
 
+pub use scarab_protocol::{ModalItem, OverlayStyle};
 use serde::{Deserialize, Serialize};
+
+/// Command sent from plugin to daemon
+#[derive(Debug, Clone)]
+pub enum RemoteCommand {
+    DrawOverlay {
+        id: u64,
+        x: u16,
+        y: u16,
+        text: String,
+        style: OverlayStyle,
+    },
+    ClearOverlays {
+        id: Option<u64>,
+    },
+    ShowModal {
+        title: String,
+        items: Vec<ModalItem>,
+    },
+}
 
 /// Action that a plugin hook can return
 #[derive(Debug, Clone, PartialEq, Eq)]

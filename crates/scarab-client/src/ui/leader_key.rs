@@ -1,8 +1,8 @@
 // Spacemacs-like leader key menu system
 // Provides hierarchical command menus triggered by a leader key
 
-use bevy::prelude::*;
 use bevy::input::keyboard::KeyCode;
+use bevy::prelude::*;
 use std::time::{Duration, Instant};
 
 /// Plugin for leader key functionality
@@ -10,16 +10,19 @@ pub struct LeaderKeyPlugin;
 
 impl Plugin for LeaderKeyPlugin {
     fn build(&self, app: &mut App) {
-        app
-            .init_resource::<LeaderKeyState>()
+        app.init_resource::<LeaderKeyState>()
             .init_resource::<LeaderKeyMenus>()
             .add_event::<LeaderKeyActivatedEvent>()
-            .add_systems(Update, (
-                handle_leader_key_system,
-                handle_menu_navigation_system,
-                render_menu_system,
-                timeout_check_system,
-            ).chain());
+            .add_systems(
+                Update,
+                (
+                    handle_leader_key_system,
+                    handle_menu_navigation_system,
+                    render_menu_system,
+                    timeout_check_system,
+                )
+                    .chain(),
+            );
     }
 }
 
@@ -184,127 +187,130 @@ fn render_menu_system(
     };
 
     // Create menu container
-    commands.spawn((
-        LeaderMenuUI,
-        Node {
-            width: Val::Px(400.0),
-            position_type: PositionType::Absolute,
-            left: Val::Px(50.0),
-            top: Val::Px(50.0),
-            flex_direction: FlexDirection::Column,
-            padding: UiRect::all(Val::Px(15.0)),
-            row_gap: Val::Px(5.0),
-            ..default()
-        },
-        BackgroundColor(Color::srgba(0.1, 0.1, 0.1, 0.95)),
-    ))
-    .with_children(|parent| {
-        // Menu title
-        parent.spawn((
-            Text::new(&current_menu.title),
-            TextFont {
-                font_size: 20.0,
-                ..default()
-            },
-            TextColor(Color::WHITE),
+    commands
+        .spawn((
+            LeaderMenuUI,
             Node {
-                margin: UiRect::bottom(Val::Px(10.0)),
+                width: Val::Px(400.0),
+                position_type: PositionType::Absolute,
+                left: Val::Px(50.0),
+                top: Val::Px(50.0),
+                flex_direction: FlexDirection::Column,
+                padding: UiRect::all(Val::Px(15.0)),
+                row_gap: Val::Px(5.0),
                 ..default()
             },
-        ));
-
-        // Key sequence display
-        if !state.key_sequence.is_empty() {
-            let sequence: String = state.key_sequence.iter().collect();
+            BackgroundColor(Color::srgba(0.1, 0.1, 0.1, 0.95)),
+        ))
+        .with_children(|parent| {
+            // Menu title
             parent.spawn((
-                Text::new(format!("Keys: {}", sequence)),
+                Text::new(&current_menu.title),
                 TextFont {
-                    font_size: 14.0,
+                    font_size: 20.0,
                     ..default()
                 },
-                TextColor(Color::srgb(0.5, 0.8, 0.5)),
+                TextColor(Color::WHITE),
                 Node {
                     margin: UiRect::bottom(Val::Px(10.0)),
                     ..default()
                 },
             ));
-        }
 
-        // Menu items
-        for item in &current_menu.items {
-            parent.spawn(Node {
-                flex_direction: FlexDirection::Row,
-                padding: UiRect::all(Val::Px(5.0)),
-                ..default()
-            })
-            .with_children(|item_parent| {
-                // Key
-                item_parent.spawn((
-                    Text::new(format!("[{}]", item.key)),
+            // Key sequence display
+            if !state.key_sequence.is_empty() {
+                let sequence: String = state.key_sequence.iter().collect();
+                parent.spawn((
+                    Text::new(format!("Keys: {}", sequence)),
                     TextFont {
-                        font_size: 16.0,
+                        font_size: 14.0,
                         ..default()
                     },
-                    TextColor(Color::srgb(1.0, 0.8, 0.0)),
+                    TextColor(Color::srgb(0.5, 0.8, 0.5)),
                     Node {
-                        margin: UiRect::right(Val::Px(10.0)),
+                        margin: UiRect::bottom(Val::Px(10.0)),
                         ..default()
                     },
                 ));
+            }
 
-                // Label
-                item_parent.spawn((
-                    Text::new(&item.label),
-                    TextFont {
-                        font_size: 16.0,
+            // Menu items
+            for item in &current_menu.items {
+                parent
+                    .spawn(Node {
+                        flex_direction: FlexDirection::Row,
+                        padding: UiRect::all(Val::Px(5.0)),
                         ..default()
-                    },
-                    TextColor(Color::WHITE),
-                    Node {
-                        margin: UiRect::right(Val::Px(10.0)),
-                        ..default()
-                    },
-                ));
+                    })
+                    .with_children(|item_parent| {
+                        // Key
+                        item_parent.spawn((
+                            Text::new(format!("[{}]", item.key)),
+                            TextFont {
+                                font_size: 16.0,
+                                ..default()
+                            },
+                            TextColor(Color::srgb(1.0, 0.8, 0.0)),
+                            Node {
+                                margin: UiRect::right(Val::Px(10.0)),
+                                ..default()
+                            },
+                        ));
 
-                // Description
-                item_parent.spawn((
-                    Text::new(&item.description),
-                    TextFont {
-                        font_size: 12.0,
-                        ..default()
-                    },
-                    TextColor(Color::srgba(0.7, 0.7, 0.7, 1.0)),
-                ));
-            });
-        }
+                        // Label
+                        item_parent.spawn((
+                            Text::new(&item.label),
+                            TextFont {
+                                font_size: 16.0,
+                                ..default()
+                            },
+                            TextColor(Color::WHITE),
+                            Node {
+                                margin: UiRect::right(Val::Px(10.0)),
+                                ..default()
+                            },
+                        ));
 
-        // Timeout indicator
-        if let Some(last_press) = state.last_press {
-            let elapsed = last_press.elapsed();
-            let remaining = state.timeout.saturating_sub(elapsed);
-            let progress = (remaining.as_millis() as f32) / (state.timeout.as_millis() as f32);
+                        // Description
+                        item_parent.spawn((
+                            Text::new(&item.description),
+                            TextFont {
+                                font_size: 12.0,
+                                ..default()
+                            },
+                            TextColor(Color::srgba(0.7, 0.7, 0.7, 1.0)),
+                        ));
+                    });
+            }
 
-            parent.spawn((
-                Node {
-                    width: Val::Percent(100.0),
-                    height: Val::Px(4.0),
-                    margin: UiRect::top(Val::Px(10.0)),
-                    ..default()
-                },
-                BackgroundColor(Color::srgba(0.3, 0.3, 0.3, 0.5)),
-            ))
-            .with_children(|bar| {
-                bar.spawn((
-                    Node {
-                        width: Val::Percent(progress * 100.0),
-                        height: Val::Percent(100.0),
-                        ..default()
-                    },
-                    BackgroundColor(Color::srgb(0.0, 0.8, 0.0)),
-                ));
-            });
-        }
-    });
+            // Timeout indicator
+            if let Some(last_press) = state.last_press {
+                let elapsed = last_press.elapsed();
+                let remaining = state.timeout.saturating_sub(elapsed);
+                let progress = (remaining.as_millis() as f32) / (state.timeout.as_millis() as f32);
+
+                parent
+                    .spawn((
+                        Node {
+                            width: Val::Percent(100.0),
+                            height: Val::Px(4.0),
+                            margin: UiRect::top(Val::Px(10.0)),
+                            ..default()
+                        },
+                        BackgroundColor(Color::srgba(0.3, 0.3, 0.3, 0.5)),
+                    ))
+                    .with_children(|bar| {
+                        bar.spawn((
+                            Node {
+                                width: Val::Percent(progress * 100.0),
+                                height: Val::Percent(100.0),
+                                ..default()
+                            },
+                            BackgroundColor(Color::srgb(0.0, 0.8, 0.0)),
+                        ));
+                    });
+            }
+        });
 }
 
 /// Check for timeout and deactivate

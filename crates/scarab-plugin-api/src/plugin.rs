@@ -1,6 +1,10 @@
 //! Core plugin trait and metadata definitions
 
-use crate::{context::PluginContext, error::Result, types::Action};
+use crate::{
+    context::PluginContext,
+    error::Result,
+    types::{Action, ModalItem},
+};
 use async_trait::async_trait;
 
 /// Main plugin trait that all plugins must implement
@@ -11,6 +15,11 @@ use async_trait::async_trait;
 pub trait Plugin: Send + Sync {
     /// Get plugin metadata
     fn metadata(&self) -> &PluginMetadata;
+
+    /// Get list of commands provided by this plugin
+    fn get_commands(&self) -> Vec<ModalItem> {
+        Vec::new()
+    }
 
     /// Called when the plugin is loaded
     ///
@@ -67,6 +76,11 @@ pub trait Plugin: Send + Sync {
 
     /// Hook called when a client detaches from the session
     async fn on_detach(&mut self, _client_id: u64, _ctx: &PluginContext) -> Result<()> {
+        Ok(())
+    }
+
+    /// Hook called when a remote command is selected/triggered by the client
+    async fn on_remote_command(&mut self, _id: &str, _ctx: &PluginContext) -> Result<()> {
         Ok(())
     }
 }

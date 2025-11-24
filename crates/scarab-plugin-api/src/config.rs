@@ -1,9 +1,6 @@
 //! Plugin configuration loading and discovery
 
-use crate::{
-    context::PluginConfigData,
-    error::Result,
-};
+use crate::{context::PluginConfigData, error::Result};
 use serde::{Deserialize, Serialize};
 use std::{
     fs,

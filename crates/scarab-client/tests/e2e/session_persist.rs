@@ -23,7 +23,8 @@ fn test_client_disconnect_reconnect() -> Result<()> {
     thread::sleep(Duration::from_millis(500));
 
     // Verify the text appears
-    let found = harness.verify_output_contains("echo 'Test persistence'", Duration::from_secs(1))?;
+    let found =
+        harness.verify_output_contains("echo 'Test persistence'", Duration::from_secs(1))?;
     assert!(found, "Typed command should be visible");
 
     // Now execute it
@@ -80,7 +81,10 @@ fn test_daemon_survives_client_crash() -> Result<()> {
 
     // Verify daemon survived
     thread::sleep(Duration::from_millis(500));
-    assert!(harness.daemon_is_alive(), "Daemon should survive client crash");
+    assert!(
+        harness.daemon_is_alive(),
+        "Daemon should survive client crash"
+    );
 
     // Terminal should still be functional
     harness.send_input("echo 'After crash'\n")?;
@@ -161,7 +165,11 @@ fn test_multiple_disconnect_cycles() -> Result<()> {
         thread::sleep(Duration::from_millis(500));
 
         // Verify daemon is alive
-        assert!(harness.daemon_is_alive(), "Daemon should be alive in cycle {}", i);
+        assert!(
+            harness.daemon_is_alive(),
+            "Daemon should be alive in cycle {}",
+            i
+        );
 
         // Reconnect
         harness.reconnect_client()?;
@@ -204,7 +212,10 @@ fn test_long_running_process() -> Result<()> {
     // Verify terminal is responsive
     harness.send_input("echo 'Still responsive'\n")?;
     let found = harness.verify_output_contains("Still responsive", Duration::from_secs(2))?;
-    assert!(found, "Terminal should be responsive with background process");
+    assert!(
+        found,
+        "Terminal should be responsive with background process"
+    );
 
     println!("=== Test Passed ===\n");
     Ok(())

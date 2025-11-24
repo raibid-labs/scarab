@@ -1,12 +1,30 @@
+use crate::plugin_manager::PluginManager;
+use crate::session::{handle_session_command, SessionManager};
 use anyhow::{Context, Result};
-use scarab_protocol::{ControlMessage, SOCKET_PATH, MAX_MESSAGE_SIZE, MAX_CLIENTS};
-use crate::session::{SessionManager, handle_session_command};
+use portable_pty::PtySize;
+use scarab_protocol::{ControlMessage, DaemonMessage, MAX_CLIENTS, MAX_MESSAGE_SIZE, SOCKET_PATH};
+use std::collections::HashMap;
 use std::path::Path;
 use std::sync::Arc;
-use tokio::io::AsyncReadExt;
+use tokio::io::{AsyncReadExt, AsyncWriteExt};
+use tokio::net::unix::{OwnedReadHalf, OwnedWriteHalf};
 use tokio::net::{UnixListener, UnixStream};
-use tokio::sync::{mpsc, RwLock};
-use portable_pty::PtySize;
+use tokio::sync::{mpsc, Mutex, RwLock};
+
+/// Helper for defer logic (since we don't have a crate for it)
+macro_rules! defer {
+    ( $($code:tt)* ) => {
+        struct Defer<F: FnOnce()>(Option<F>);
+        impl<F: FnOnce()> Drop for Defer<F> {
+            fn drop(&mut self) {
+                if let Some(f) = self.0.take() {
+                    f();
+                }
+            }
+        }
+        let _defer = Defer(Some(|| { $($code)* }));
+    }
+}
 
 /// Handle to send commands to PTY
 /// Using channels for thread-safe communication
@@ -17,10 +35,7 @@ pub struct PtyHandle {
 }
 
 impl PtyHandle {
-    pub fn new(
-        input_tx: mpsc::UnboundedSender<Vec<u8>>,
-        resize_tx: mpsc::Sender<PtySize>,
-    ) -> Self {
+    pub fn new(input_tx: mpsc::UnboundedSender<Vec<u8>>, resize_tx: mpsc::Sender<PtySize>) -> Self {
         Self {
             input_tx,
             resize_tx,
@@ -48,35 +63,106 @@ impl PtyHandle {
     }
 }
 
+/// Thread-safe handle for sending messages to a specific client
+#[derive(Clone)]
+pub struct ClientSender {
+    sink: Arc<Mutex<OwnedWriteHalf>>,
+}
+
+impl ClientSender {
+    pub fn new(sink: OwnedWriteHalf) -> Self {
+        Self {
+            sink: Arc::new(Mutex::new(sink)),
+        }
+    }
+
+    pub async fn send(&self, msg: DaemonMessage) -> Result<()> {
+        let bytes =
+            rkyv::to_bytes::<_, MAX_MESSAGE_SIZE>(&msg).context("Failed to serialize message")?;
+        let len = bytes.len() as u32;
+
+        let mut sink = self.sink.lock().await;
+        sink.write_u32(len).await?;
+        sink.write_all(&bytes).await?;
+        sink.flush().await?;
+        Ok(())
+    }
+}
+
+/// Registry of active client connections
+#[derive(Clone)]
+pub struct ClientRegistry {
+    clients: Arc<RwLock<HashMap<u64, ClientSender>>>,
+}
+
+impl ClientRegistry {
+    pub fn new() -> Self {
+        Self {
+            clients: Arc::new(RwLock::new(HashMap::new())),
+        }
+    }
+
+    pub async fn register(&self, id: u64, sender: ClientSender) {
+        let mut map = self.clients.write().await;
+        map.insert(id, sender);
+    }
+
+    pub async fn unregister(&self, id: u64) {
+        let mut map = self.clients.write().await;
+        map.remove(&id);
+    }
+
+    pub async fn send(&self, id: u64, msg: DaemonMessage) -> Result<()> {
+        let map = self.clients.read().await;
+        if let Some(sender) = map.get(&id) {
+            sender.send(msg).await?;
+            Ok(())
+        } else {
+            anyhow::bail!("Client {} not found", id);
+        }
+    }
+
+    pub async fn broadcast(&self, msg: DaemonMessage) {
+        let map = self.clients.read().await;
+        for (id, sender) in map.iter() {
+            if let Err(e) = sender.send(msg.clone()).await {
+                eprintln!("Failed to broadcast to client {}: {}", id, e);
+            }
+        }
+    }
+}
+
 /// IPC server managing multiple client connections
 pub struct IpcServer {
     listener: UnixListener,
     pty_handle: PtyHandle,
     session_manager: Arc<SessionManager>,
+    plugin_manager: Arc<Mutex<PluginManager>>,
+    client_registry: ClientRegistry,
     client_counter: Arc<RwLock<u64>>,
 }
 
 impl IpcServer {
     /// Create new IPC server, removing stale socket if exists
-    pub async fn new(pty_handle: PtyHandle, session_manager: Arc<SessionManager>) -> Result<Self> {
+    pub async fn new(
+        pty_handle: PtyHandle,
+        session_manager: Arc<SessionManager>,
+        client_registry: ClientRegistry,
+        plugin_manager: Arc<Mutex<PluginManager>>,
+    ) -> Result<Self> {
         // Remove existing socket if present
         if Path::new(SOCKET_PATH).exists() {
-            std::fs::remove_file(SOCKET_PATH)
-                .context("Failed to remove stale socket")?;
+            std::fs::remove_file(SOCKET_PATH).context("Failed to remove stale socket")?;
         }
 
-        let listener = UnixListener::bind(SOCKET_PATH)
-            .context("Failed to bind Unix socket")?;
+        let listener = UnixListener::bind(SOCKET_PATH).context("Failed to bind Unix socket")?;
 
         // Set socket permissions to 700 (owner only)
         #[cfg(unix)]
         {
             use std::os::unix::fs::PermissionsExt;
-            std::fs::set_permissions(
-                SOCKET_PATH,
-                std::fs::Permissions::from_mode(0o700),
-            )
-            .context("Failed to set socket permissions")?;
+            std::fs::set_permissions(SOCKET_PATH, std::fs::Permissions::from_mode(0o700))
+                .context("Failed to set socket permissions")?;
         }
 
         println!("IPC server listening on: {}", SOCKET_PATH);
@@ -85,6 +171,8 @@ impl IpcServer {
             listener,
             pty_handle,
             session_manager,
+            plugin_manager,
+            client_registry,
             client_counter: Arc::new(RwLock::new(0)),
         })
     }
@@ -103,7 +191,10 @@ impl IpcServer {
                     };
 
                     if client_count > MAX_CLIENTS {
-                        eprintln!("Max clients ({}) reached, rejecting connection", MAX_CLIENTS);
+                        eprintln!(
+                            "Max clients ({}) reached, rejecting connection",
+                            MAX_CLIENTS
+                        );
                         let mut count = active_clients.write().await;
                         *count -= 1;
                         continue;
@@ -119,10 +210,21 @@ impl IpcServer {
 
                     let pty_handle = self.pty_handle.clone();
                     let session_manager = self.session_manager.clone();
+                    let client_registry = self.client_registry.clone();
+                    let plugin_manager = self.plugin_manager.clone();
                     let active_clients = active_clients.clone();
 
                     tokio::spawn(async move {
-                        if let Err(e) = handle_client(stream, client_id, pty_handle, session_manager).await {
+                        if let Err(e) = handle_client(
+                            stream,
+                            client_id,
+                            pty_handle,
+                            session_manager,
+                            client_registry,
+                            plugin_manager,
+                        )
+                        .await
+                        {
                             eprintln!("Client {} error: {}", client_id, e);
                         }
 
@@ -141,16 +243,32 @@ impl IpcServer {
 
 /// Handle individual client connection
 async fn handle_client(
-    mut stream: UnixStream,
+    stream: UnixStream, // Takes ownership
     client_id: u64,
     pty_handle: PtyHandle,
     session_manager: Arc<SessionManager>,
+    client_registry: ClientRegistry,
+    plugin_manager: Arc<Mutex<PluginManager>>,
 ) -> Result<()> {
+    let (mut stream_read, stream_write) = stream.into_split();
     let mut buffer = vec![0u8; MAX_MESSAGE_SIZE];
 
+    // Register client for writing
+    let sender = ClientSender::new(stream_write);
+    client_registry.register(client_id, sender).await;
+
+    // Ensure cleanup on exit
+    let registry_clone = client_registry.clone();
+    defer! {
+        tokio::spawn(async move {
+            registry_clone.unregister(client_id).await;
+        });
+    }
+
+    // Reading loop
     loop {
         // Read message length prefix (4 bytes)
-        let len = match stream.read_u32().await {
+        let len = match stream_read.read_u32().await {
             Ok(len) => len as usize,
             Err(e) if e.kind() == std::io::ErrorKind::UnexpectedEof => {
                 // Client disconnected gracefully
@@ -166,7 +284,9 @@ async fn handle_client(
         }
 
         // Read message data
-        stream.read_exact(&mut buffer[..len]).await
+        stream_read
+            .read_exact(&mut buffer[..len])
+            .await
             .context("Failed to read message data")?;
 
         // Deserialize with rkyv
@@ -179,7 +299,15 @@ async fn handle_client(
         };
 
         // Handle message
-        if let Err(e) = handle_message(msg, &pty_handle, &session_manager, client_id).await {
+        if let Err(e) = handle_message(
+            msg,
+            &pty_handle,
+            &session_manager,
+            &plugin_manager,
+            client_id,
+        )
+        .await
+        {
             eprintln!("Client {} message handling error: {}", client_id, e);
             // Don't disconnect on individual message errors
         }
@@ -193,10 +321,13 @@ async fn handle_message(
     msg: ControlMessage,
     pty_handle: &PtyHandle,
     session_manager: &Arc<SessionManager>,
+    plugin_manager: &Arc<Mutex<PluginManager>>,
     client_id: u64,
 ) -> Result<()> {
     // Try to handle as session command first
-    if let Ok(Some(response)) = handle_session_command(msg.clone(), session_manager, client_id).await {
+    if let Ok(Some(response)) =
+        handle_session_command(msg.clone(), session_manager, client_id).await
+    {
         log::info!("Session command response: {:?}", response);
         // TODO: Send response back to client (requires bidirectional communication)
         return Ok(());
@@ -227,6 +358,13 @@ async fn handle_message(
         ControlMessage::Disconnect { client_id: id } => {
             println!("Client {} requesting disconnect", id);
             // Client will disconnect when this function returns
+        }
+        ControlMessage::CommandSelected { id } => {
+            println!("Client {} selected command: {}", client_id, id);
+            let mut pm = plugin_manager.lock().await;
+            if let Err(e) = pm.dispatch_remote_command(&id).await {
+                eprintln!("Failed to dispatch remote command: {}", e);
+            }
         }
         // Session commands are already handled above, but add catch-all for completeness
         ControlMessage::SessionCreate { .. }

@@ -18,8 +18,7 @@ impl SessionStore {
     pub fn new(db_path: PathBuf) -> Result<Self> {
         // Ensure parent directory exists
         if let Some(parent) = db_path.parent() {
-            std::fs::create_dir_all(parent)
-                .context("Failed to create database directory")?;
+            std::fs::create_dir_all(parent).context("Failed to create database directory")?;
         }
 
         let store = Self { db_path };
@@ -32,8 +31,7 @@ impl SessionStore {
 
     /// Get database connection
     fn connect(&self) -> Result<Connection> {
-        Connection::open(&self.db_path)
-            .context("Failed to open database connection")
+        Connection::open(&self.db_path).context("Failed to open database connection")
     }
 
     /// Initialize database schema
@@ -66,12 +64,15 @@ impl SessionStore {
     pub fn save_session(&self, session: &Session) -> Result<()> {
         let conn = self.connect()?;
 
-        let created_at = session.created_at
+        let created_at = session
+            .created_at
             .duration_since(UNIX_EPOCH)
             .unwrap_or_default()
             .as_secs() as i64;
 
-        let last_attached = session.last_attached.read()
+        let last_attached = session
+            .last_attached
+            .read()
             .duration_since(UNIX_EPOCH)
             .unwrap_or_default()
             .as_secs() as i64;
@@ -99,25 +100,26 @@ impl SessionStore {
         let conn = self.connect()?;
 
         let mut stmt = conn.prepare(
-            "SELECT id, name, created_at, last_attached FROM sessions ORDER BY last_attached DESC"
+            "SELECT id, name, created_at, last_attached FROM sessions ORDER BY last_attached DESC",
         )?;
 
-        let sessions = stmt.query_map([], |row| {
-            let id: String = row.get(0)?;
-            let name: String = row.get(1)?;
-            let created_at: i64 = row.get(2)?;
-            let last_attached: i64 = row.get(3)?;
+        let sessions = stmt
+            .query_map([], |row| {
+                let id: String = row.get(0)?;
+                let name: String = row.get(1)?;
+                let created_at: i64 = row.get(2)?;
+                let last_attached: i64 = row.get(3)?;
 
-            Ok((id, name, created_at, last_attached))
-        })?
-        .filter_map(|r| r.ok())
-        .map(|(id, name, created_at, last_attached)| {
-            let created = UNIX_EPOCH + std::time::Duration::from_secs(created_at as u64);
-            let attached = UNIX_EPOCH + std::time::Duration::from_secs(last_attached as u64);
+                Ok((id, name, created_at, last_attached))
+            })?
+            .filter_map(|r| r.ok())
+            .map(|(id, name, created_at, last_attached)| {
+                let created = UNIX_EPOCH + std::time::Duration::from_secs(created_at as u64);
+                let attached = UNIX_EPOCH + std::time::Duration::from_secs(last_attached as u64);
 
-            Session::restore(id, name, created, attached)
-        })
-        .collect();
+                Session::restore(id, name, created, attached)
+            })
+            .collect();
 
         Ok(sessions)
     }
@@ -167,19 +169,20 @@ impl SessionStore {
     pub fn get_session(&self, id: &SessionId) -> Result<Option<Session>> {
         let conn = self.connect()?;
 
-        let result = conn.query_row(
-            "SELECT id, name, created_at, last_attached FROM sessions WHERE id = ?1",
-            params![id],
-            |row| {
-                let id: String = row.get(0)?;
-                let name: String = row.get(1)?;
-                let created_at: i64 = row.get(2)?;
-                let last_attached: i64 = row.get(3)?;
+        let result = conn
+            .query_row(
+                "SELECT id, name, created_at, last_attached FROM sessions WHERE id = ?1",
+                params![id],
+                |row| {
+                    let id: String = row.get(0)?;
+                    let name: String = row.get(1)?;
+                    let created_at: i64 = row.get(2)?;
+                    let last_attached: i64 = row.get(3)?;
 
-                Ok((id, name, created_at, last_attached))
-            },
-        )
-        .optional()?;
+                    Ok((id, name, created_at, last_attached))
+                },
+            )
+            .optional()?;
 
         if let Some((id, name, created_at, last_attached)) = result {
             let created = UNIX_EPOCH + std::time::Duration::from_secs(created_at as u64);
@@ -196,11 +199,7 @@ impl SessionStore {
     pub fn session_count(&self) -> Result<usize> {
         let conn = self.connect()?;
 
-        let count: i64 = conn.query_row(
-            "SELECT COUNT(*) FROM sessions",
-            [],
-            |row| row.get(0),
-        )?;
+        let count: i64 = conn.query_row("SELECT COUNT(*) FROM sessions", [], |row| row.get(0))?;
 
         Ok(count as usize)
     }
@@ -277,7 +276,8 @@ mod tests {
         assert!(
             loaded_attached > initial_attached,
             "Expected loaded timestamp ({:?}) to be later than initial ({:?})",
-            loaded_attached, initial_attached
+            loaded_attached,
+            initial_attached
         );
     }
 }

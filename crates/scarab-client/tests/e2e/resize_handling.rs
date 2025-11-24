@@ -114,9 +114,7 @@ fn test_resize_with_running_app() -> Result<()> {
     thread::sleep(Duration::from_secs(1));
 
     // Check if 'top' is available
-    let top_check = std::process::Command::new("which")
-        .arg("top")
-        .output()?;
+    let top_check = std::process::Command::new("which").arg("top").output()?;
 
     if !top_check.status.success() {
         println!("'top' not available, using alternative test");

@@ -4,14 +4,14 @@
 pub mod ui;
 pub mod ui_stub;
 
-pub mod rendering;
-pub mod ipc;
 pub mod integration;
+pub mod ipc;
+pub mod rendering;
 
 pub use rendering::*;
 
 // Re-export commonly used integration types
-pub use integration::{IntegrationPlugin, extract_grid_text, get_cell_at, SharedMemoryReader};
+pub use integration::{extract_grid_text, get_cell_at, IntegrationPlugin, SharedMemoryReader};
 
 // Re-export UI plugin
 pub use ui_stub::AdvancedUIPlugin;

@@ -1,6 +1,9 @@
 //! Plugin context providing access to terminal state
 
-use crate::{error::Result, types::Cell};
+use crate::{
+    error::Result,
+    types::{Cell, ModalItem, RemoteCommand},
+};
 use parking_lot::Mutex;
 use serde::Deserialize;
 use std::{collections::HashMap, sync::Arc};
@@ -24,6 +27,8 @@ pub struct PluginSharedState {
     pub env: HashMap<String, String>,
     /// Custom plugin-specific data storage
     pub data: HashMap<String, String>,
+    /// Aggregated list of commands from all plugins
+    pub commands: Vec<ModalItem>,
 }
 
 impl PluginSharedState {
@@ -37,6 +42,7 @@ impl PluginSharedState {
             cursor: (0, 0),
             env: std::env::vars().collect(),
             data: HashMap::new(),
+            commands: Vec::new(),
         }
     }
 
@@ -90,6 +96,8 @@ pub struct PluginContext {
     pub state: Arc<Mutex<PluginSharedState>>,
     /// Logger name for this plugin
     pub logger_name: String,
+    /// Queue of commands to be sent to the client/daemon
+    pub commands: Arc<Mutex<Vec<RemoteCommand>>>,
 }
 
 impl PluginContext {
@@ -103,7 +111,13 @@ impl PluginContext {
             config,
             state,
             logger_name: logger_name.into(),
+            commands: Arc::new(Mutex::new(Vec::new())),
         }
+    }
+
+    /// Queue a command to be sent to the client or daemon
+    pub fn queue_command(&self, cmd: RemoteCommand) {
+        self.commands.lock().push(cmd);
     }
 
     /// Get cell at position
@@ -184,16 +198,17 @@ pub struct PluginConfigData {
 impl PluginConfigData {
     /// Get configuration value
     pub fn get<T: for<'de> Deserialize<'de>>(&self, key: &str) -> Result<T> {
-        let value = self
-            .data
-            .get(key)
-            .ok_or_else(|| crate::error::PluginError::ConfigError(format!("Missing key: {}", key)))?;
+        let value = self.data.get(key).ok_or_else(|| {
+            crate::error::PluginError::ConfigError(format!("Missing key: {}", key))
+        })?;
         T::deserialize(value.clone())
             .map_err(|e| crate::error::PluginError::ConfigError(e.to_string()))
     }
 
     /// Get optional configuration value
     pub fn get_opt<T: for<'de> Deserialize<'de>>(&self, key: &str) -> Option<T> {
-        self.data.get(key).and_then(|v| T::deserialize(v.clone()).ok())
+        self.data
+            .get(key)
+            .and_then(|v| T::deserialize(v.clone()).ok())
     }
 }

@@ -68,10 +68,10 @@ pub mod harness;
 
 // Test scenario modules
 mod basic_workflow;
-mod vim_editing;
 mod color_rendering;
-mod scrollback;
-mod session_persist;
 mod input_forward;
 mod resize_handling;
+mod scrollback;
+mod session_persist;
 mod stress_test;
+mod vim_editing;

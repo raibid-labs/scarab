@@ -13,9 +13,9 @@ pub const BUFFER_SIZE: usize = GRID_WIDTH * GRID_HEIGHT;
 #[derive(Copy, Clone, Pod, Zeroable)]
 pub struct Cell {
     pub char_codepoint: u32,
-    pub fg: u32,   // RGBA
-    pub bg: u32,   // RGBA
-    pub flags: u8, // Bold, Italic, etc.
+    pub fg: u32,           // RGBA
+    pub bg: u32,           // RGBA
+    pub flags: u8,         // Bold, Italic, etc.
     pub _padding: [u8; 3], // Align to 16 bytes
 }
 
@@ -37,10 +37,10 @@ impl Default for Cell {
 pub struct SharedState {
     pub sequence_number: u64, // Atomic sequence for synchronization
     pub dirty_flag: u8,
-    pub _padding1: [u8; 1],   // Align to u16 boundary
+    pub _padding1: [u8; 1], // Align to u16 boundary
     pub cursor_x: u16,
     pub cursor_y: u16,
-    pub _padding2: [u8; 2],   // Align to u64 boundary for cells array
+    pub _padding2: [u8; 2], // Align to u64 boundary for cells array
     // Fixed size buffer for the "visible" screen.
     // In production, use offset pointers to a larger ring buffer.
     pub cells: [Cell; BUFFER_SIZE],
@@ -55,32 +55,75 @@ unsafe impl Zeroable for SharedState {}
 #[derive(Debug, Clone, rkyv::Archive, rkyv::Serialize, rkyv::Deserialize)]
 #[archive(check_bytes)]
 pub enum ControlMessage {
-    Resize { cols: u16, rows: u16 },
-    Input { data: alloc::vec::Vec<u8> },
-    LoadPlugin { path: alloc::string::String },
-    Ping { timestamp: u64 },
-    Disconnect { client_id: u64 },
+    Resize {
+        cols: u16,
+        rows: u16,
+    },
+    Input {
+        data: alloc::vec::Vec<u8>,
+    },
+    LoadPlugin {
+        path: alloc::string::String,
+    },
+    Ping {
+        timestamp: u64,
+    },
+    Disconnect {
+        client_id: u64,
+    },
 
     // Session management commands
-    SessionCreate { name: alloc::string::String },
-    SessionDelete { id: alloc::string::String },
+    SessionCreate {
+        name: alloc::string::String,
+    },
+    SessionDelete {
+        id: alloc::string::String,
+    },
     SessionList,
-    SessionAttach { id: alloc::string::String },
-    SessionDetach { id: alloc::string::String },
-    SessionRename { id: alloc::string::String, new_name: alloc::string::String },
+    SessionAttach {
+        id: alloc::string::String,
+    },
+    SessionDetach {
+        id: alloc::string::String,
+    },
+    SessionRename {
+        id: alloc::string::String,
+        new_name: alloc::string::String,
+    },
+
+    // Remote UI Responses
+    CommandSelected {
+        id: alloc::string::String,
+    },
 }
 
 // Session response messages
 #[derive(Debug, Clone, rkyv::Archive, rkyv::Serialize, rkyv::Deserialize)]
 #[archive(check_bytes)]
 pub enum SessionResponse {
-    Created { id: alloc::string::String, name: alloc::string::String },
-    Deleted { id: alloc::string::String },
-    List { sessions: alloc::vec::Vec<SessionInfo> },
-    Attached { id: alloc::string::String },
-    Detached { id: alloc::string::String },
-    Renamed { id: alloc::string::String, new_name: alloc::string::String },
-    Error { message: alloc::string::String },
+    Created {
+        id: alloc::string::String,
+        name: alloc::string::String,
+    },
+    Deleted {
+        id: alloc::string::String,
+    },
+    List {
+        sessions: alloc::vec::Vec<SessionInfo>,
+    },
+    Attached {
+        id: alloc::string::String,
+    },
+    Detached {
+        id: alloc::string::String,
+    },
+    Renamed {
+        id: alloc::string::String,
+        new_name: alloc::string::String,
+    },
+    Error {
+        message: alloc::string::String,
+    },
 }
 
 #[derive(Debug, Clone, rkyv::Archive, rkyv::Serialize, rkyv::Deserialize)]
@@ -91,6 +134,57 @@ pub struct SessionInfo {
     pub created_at: u64,
     pub last_attached: u64,
     pub attached_clients: u32,
+}
+
+// Messages sent from Daemon to Client (Remote UI & Responses)
+#[derive(Debug, Clone, rkyv::Archive, rkyv::Serialize, rkyv::Deserialize)]
+#[archive(check_bytes)]
+pub enum DaemonMessage {
+    // Wrap existing session responses
+    Session(SessionResponse),
+
+    // Remote UI Commands
+    DrawOverlay {
+        id: u64, // UUID-like identifier
+        x: u16,
+        y: u16,
+        text: alloc::string::String,
+        style: OverlayStyle,
+    },
+    ClearOverlays {
+        id: Option<u64>, // None = Clear All
+    },
+    ShowModal {
+        title: alloc::string::String,
+        items: alloc::vec::Vec<ModalItem>,
+    },
+    HideModal,
+}
+
+#[derive(Debug, Clone, Copy, rkyv::Archive, rkyv::Serialize, rkyv::Deserialize)]
+#[archive(check_bytes)]
+pub struct OverlayStyle {
+    pub fg: u32, // RGBA
+    pub bg: u32, // RGBA
+    pub z_index: f32,
+}
+
+impl Default for OverlayStyle {
+    fn default() -> Self {
+        Self {
+            fg: 0xFFFFFFFF, // White
+            bg: 0xFF0000FF, // Red background for high visibility by default
+            z_index: 100.0,
+        }
+    }
+}
+
+#[derive(Debug, Clone, rkyv::Archive, rkyv::Serialize, rkyv::Deserialize)]
+#[archive(check_bytes)]
+pub struct ModalItem {
+    pub id: alloc::string::String,
+    pub label: alloc::string::String,
+    pub description: Option<alloc::string::String>,
 }
 
 // IPC configuration constants

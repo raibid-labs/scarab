@@ -1,0 +1,11 @@
+[package]
+name = "scarab-nav"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+scarab-plugin-api = { path = "../scarab-plugin-api" }
+scarab-protocol = { path = "../scarab-protocol" }
+regex = "1.10"
+async-trait = "0.1"
+log = "0.4"

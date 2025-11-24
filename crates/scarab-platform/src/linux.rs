@@ -15,7 +15,10 @@ impl Platform for LinuxPlatform {
     fn config_dir(&self) -> Result<PathBuf> {
         std::env::var("XDG_CONFIG_HOME")
             .map(PathBuf::from)
-            .or_else(|_| dirs::config_dir().ok_or_else(|| anyhow::anyhow!("Could not determine config directory")))
+            .or_else(|_| {
+                dirs::config_dir()
+                    .ok_or_else(|| anyhow::anyhow!("Could not determine config directory"))
+            })
             .map(|p| p.join("scarab"))
             .context("Failed to get config directory")
     }
@@ -23,7 +26,10 @@ impl Platform for LinuxPlatform {
     fn data_dir(&self) -> Result<PathBuf> {
         std::env::var("XDG_DATA_HOME")
             .map(PathBuf::from)
-            .or_else(|_| dirs::data_dir().ok_or_else(|| anyhow::anyhow!("Could not determine data directory")))
+            .or_else(|_| {
+                dirs::data_dir()
+                    .ok_or_else(|| anyhow::anyhow!("Could not determine data directory"))
+            })
             .map(|p| p.join("scarab"))
             .context("Failed to get data directory")
     }
@@ -31,7 +37,10 @@ impl Platform for LinuxPlatform {
     fn cache_dir(&self) -> Result<PathBuf> {
         std::env::var("XDG_CACHE_HOME")
             .map(PathBuf::from)
-            .or_else(|_| dirs::cache_dir().ok_or_else(|| anyhow::anyhow!("Could not determine cache directory")))
+            .or_else(|_| {
+                dirs::cache_dir()
+                    .ok_or_else(|| anyhow::anyhow!("Could not determine cache directory"))
+            })
             .map(|p| p.join("scarab"))
             .context("Failed to get cache directory")
     }
@@ -42,7 +51,7 @@ impl Platform for LinuxPlatform {
             .or_else(|_| std::env::var("TMPDIR").map(PathBuf::from))
             .unwrap_or_else(|_| PathBuf::from("/tmp"))
             .join(format!("scarab-{}", users::get_current_uid()));
-        
+
         Ok(path)
     }
 

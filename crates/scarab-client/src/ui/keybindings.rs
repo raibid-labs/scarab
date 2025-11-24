@@ -1,8 +1,8 @@
 // Configurable key bindings system
 // Allows users to customize keyboard shortcuts
 
-use bevy::prelude::*;
 use bevy::input::keyboard::KeyCode;
+use bevy::prelude::*;
 use std::collections::HashMap;
 
 /// Plugin for key bindings functionality
@@ -10,8 +10,7 @@ pub struct KeybindingsPlugin;
 
 impl Plugin for KeybindingsPlugin {
     fn build(&self, app: &mut App) {
-        app
-            .init_resource::<KeyBindingConfig>()
+        app.init_resource::<KeyBindingConfig>()
             .add_event::<KeyBindingTriggeredEvent>()
             .add_systems(Update, handle_keybindings_system);
     }
@@ -171,44 +170,20 @@ impl KeyBindingConfig {
 
     fn register_defaults(&mut self) {
         // Copy/Paste
-        self.bind(
-            KeyBinding::new(KeyCode::KeyC).with_ctrl(),
-            "edit.copy",
-        );
-        self.bind(
-            KeyBinding::new(KeyCode::KeyV).with_ctrl(),
-            "edit.paste",
-        );
-        self.bind(
-            KeyBinding::new(KeyCode::KeyX).with_ctrl(),
-            "edit.cut",
-        );
+        self.bind(KeyBinding::new(KeyCode::KeyC).with_ctrl(), "edit.copy");
+        self.bind(KeyBinding::new(KeyCode::KeyV).with_ctrl(), "edit.paste");
+        self.bind(KeyBinding::new(KeyCode::KeyX).with_ctrl(), "edit.cut");
 
         // Undo/Redo
-        self.bind(
-            KeyBinding::new(KeyCode::KeyZ).with_ctrl(),
-            "edit.undo",
-        );
-        self.bind(
-            KeyBinding::new(KeyCode::KeyY).with_ctrl(),
-            "edit.redo",
-        );
+        self.bind(KeyBinding::new(KeyCode::KeyZ).with_ctrl(), "edit.undo");
+        self.bind(KeyBinding::new(KeyCode::KeyY).with_ctrl(), "edit.redo");
 
         // Search
-        self.bind(
-            KeyBinding::new(KeyCode::KeyF).with_ctrl(),
-            "search.find",
-        );
-        self.bind(
-            KeyBinding::new(KeyCode::KeyH).with_ctrl(),
-            "search.replace",
-        );
+        self.bind(KeyBinding::new(KeyCode::KeyF).with_ctrl(), "search.find");
+        self.bind(KeyBinding::new(KeyCode::KeyH).with_ctrl(), "search.replace");
 
         // Terminal operations
-        self.bind(
-            KeyBinding::new(KeyCode::KeyL).with_ctrl(),
-            "terminal.clear",
-        );
+        self.bind(KeyBinding::new(KeyCode::KeyL).with_ctrl(), "terminal.clear");
         self.bind(
             KeyBinding::new(KeyCode::KeyT).with_ctrl(),
             "terminal.new_tab",
@@ -239,10 +214,7 @@ impl KeyBindingConfig {
         );
 
         // Command palette
-        self.bind(
-            KeyBinding::new(KeyCode::KeyP).with_ctrl(),
-            "palette.open",
-        );
+        self.bind(KeyBinding::new(KeyCode::KeyP).with_ctrl(), "palette.open");
 
         // Link hints
         self.bind(
@@ -295,7 +267,11 @@ fn handle_keybindings_system(
     // Check all registered bindings
     for (binding, action) in config.all_bindings() {
         if keyboard.just_pressed(binding.key) && binding.matches(&keyboard) {
-            info!("Key binding triggered: {} -> {}", binding.to_string(), action);
+            info!(
+                "Key binding triggered: {} -> {}",
+                binding.to_string(),
+                action
+            );
             event_writer.send(KeyBindingTriggeredEvent {
                 action: action.clone(),
             });
@@ -364,9 +340,6 @@ mod tests {
         config.bind(binding.clone(), "test.save");
 
         assert_eq!(config.get_action(&binding), Some("test.save"));
-        assert_eq!(
-            config.find_binding("test.save").unwrap(),
-            &binding
-        );
+        assert_eq!(config.find_binding("test.save").unwrap(), &binding);
     }
 }

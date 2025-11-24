@@ -1,19 +1,21 @@
 // Advanced UI/UX module for Scarab terminal emulator
 // Provides power-user features: link hints, command palette, leader keys, etc.
 
-pub mod link_hints;
-pub mod command_palette;
-pub mod leader_key;
-pub mod keybindings;
 pub mod animations;
+pub mod command_palette;
+pub mod keybindings;
+pub mod leader_key;
+pub mod link_hints;
+pub mod overlays;
 pub mod visual_selection;
 
-pub use link_hints::{LinkHintsPlugin, LinkHint, LinkDetector};
-pub use command_palette::{CommandPalettePlugin, Command, CommandRegistry};
+pub use animations::{AnimationState, AnimationsPlugin, FadeAnimation};
+pub use command_palette::{Command, CommandPalettePlugin, CommandRegistry};
+pub use keybindings::{KeyBinding, KeyBindingConfig, KeybindingsPlugin};
 pub use leader_key::{LeaderKeyPlugin, LeaderKeyState};
-pub use keybindings::{KeybindingsPlugin, KeyBinding, KeyBindingConfig};
-pub use animations::{AnimationsPlugin, FadeAnimation, AnimationState};
-pub use visual_selection::{VisualSelectionPlugin, SelectionMode, SelectionRegion};
+pub use link_hints::{LinkDetector, LinkHint, LinkHintsPlugin};
+pub use overlays::RemoteUiPlugin;
+pub use visual_selection::{SelectionMode, SelectionRegion, VisualSelectionPlugin};
 
 use bevy::prelude::*;
 
@@ -22,16 +24,16 @@ pub struct AdvancedUIPlugin;
 
 impl Plugin for AdvancedUIPlugin {
     fn build(&self, app: &mut App) {
-        app
-            .add_plugins((
-                LinkHintsPlugin,
-                CommandPalettePlugin,
-                LeaderKeyPlugin,
-                KeybindingsPlugin,
-                AnimationsPlugin,
-                VisualSelectionPlugin,
-            ))
-            .insert_resource(UIConfig::default());
+        app.add_plugins((
+            LinkHintsPlugin,
+            CommandPalettePlugin,
+            LeaderKeyPlugin,
+            KeybindingsPlugin,
+            AnimationsPlugin,
+            VisualSelectionPlugin,
+            RemoteUiPlugin,
+        ))
+        .insert_resource(UIConfig::default());
     }
 }
 

@@ -3,10 +3,8 @@
 //! This module provides adapters for both .fzb (compiled bytecode) and .fsx (scripts)
 //! to implement the scarab-plugin-api Plugin trait.
 
-use scarab_plugin_api::{
-    Action, Plugin, PluginContext, PluginError, PluginMetadata, Result,
-};
 use async_trait::async_trait;
+use scarab_plugin_api::{Action, Plugin, PluginContext, PluginError, PluginMetadata, Result};
 use std::path::Path;
 
 // Import Fusabi VM (official runtime from crates.io)
@@ -33,14 +31,12 @@ impl FusabiBytecodePlugin {
     /// Load a .fzb bytecode file
     pub fn load(path: &Path) -> Result<Self> {
         // Read bytecode file
-        let bytecode = std::fs::read(path).map_err(|e| {
-            PluginError::LoadError(format!("Failed to read bytecode file: {}", e))
-        })?;
+        let bytecode = std::fs::read(path)
+            .map_err(|e| PluginError::LoadError(format!("Failed to read bytecode file: {}", e)))?;
 
         // Validate we can deserialize the bytecode
-        let _ = fusabi_vm::deserialize_chunk(&bytecode).map_err(|e| {
-            PluginError::LoadError(format!("Invalid Fusabi bytecode: {}", e))
-        })?;
+        let _ = fusabi_vm::deserialize_chunk(&bytecode)
+            .map_err(|e| PluginError::LoadError(format!("Invalid Fusabi bytecode: {}", e)))?;
 
         // Extract metadata from bytecode
         let plugin_name = path
@@ -49,28 +45,23 @@ impl FusabiBytecodePlugin {
             .unwrap_or("unknown")
             .to_string();
 
-        let metadata = PluginMetadata::new(
-            plugin_name,
-            "0.1.0",
-            "Fusabi bytecode plugin",
-            "Fusabi VM",
-        );
+        let metadata =
+            PluginMetadata::new(plugin_name, "0.1.0", "Fusabi bytecode plugin", "Fusabi VM");
 
         Ok(Self { metadata, bytecode })
     }
 
     /// Execute bytecode in a new VM instance
     fn execute_bytecode(&self) -> Result<()> {
-        let chunk = fusabi_vm::deserialize_chunk(&self.bytecode).map_err(|e| {
-            PluginError::LoadError(format!("Failed to deserialize chunk: {}", e))
-        })?;
+        let chunk = fusabi_vm::deserialize_chunk(&self.bytecode)
+            .map_err(|e| PluginError::LoadError(format!("Failed to deserialize chunk: {}", e)))?;
 
         let mut vm = Vm::new();
 
         // Execute the chunk and get the result
-        let _result = vm.execute(chunk).map_err(|e| {
-            PluginError::Other(anyhow::anyhow!("VM execution failed: {}", e))
-        })?;
+        let _result = vm
+            .execute(chunk)
+            .map_err(|e| PluginError::Other(anyhow::anyhow!("VM execution failed: {}", e)))?;
 
         Ok(())
     }
@@ -148,9 +139,8 @@ impl FusabiScriptPlugin {
     /// Load a .fsx script file
     pub fn load(path: &Path) -> Result<Self> {
         // Read script file
-        let script_source = std::fs::read_to_string(path).map_err(|e| {
-            PluginError::LoadError(format!("Failed to read script file: {}", e))
-        })?;
+        let script_source = std::fs::read_to_string(path)
+            .map_err(|e| PluginError::LoadError(format!("Failed to read script file: {}", e)))?;
 
         // Extract metadata from script
         // TODO: Parse metadata from script comments/attributes
@@ -181,9 +171,8 @@ impl FusabiScriptPlugin {
     /// Hot-reload the script from disk (TODO: implement when hot-reload feature is added)
     #[allow(dead_code)]
     pub fn reload(&mut self, path: &Path) -> Result<()> {
-        let script_source = std::fs::read_to_string(path).map_err(|e| {
-            PluginError::LoadError(format!("Failed to reload script: {}", e))
-        })?;
+        let script_source = std::fs::read_to_string(path)
+            .map_err(|e| PluginError::LoadError(format!("Failed to reload script: {}", e)))?;
 
         // TODO: Reparse and update interpreter
         // let ast = fusabi_frontend::parse(&script_source)?;

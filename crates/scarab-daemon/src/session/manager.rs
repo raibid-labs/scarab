@@ -1,7 +1,7 @@
-use super::{SessionId, ClientId, GridState, SessionStore};
-use anyhow::{Result, bail};
-use portable_pty::{CommandBuilder, NativePtySystem, PtySize, PtySystem};
+use super::{ClientId, GridState, SessionId, SessionStore};
+use anyhow::{bail, Result};
 use parking_lot::RwLock;
+use portable_pty::{CommandBuilder, NativePtySystem, PtySize, PtySystem};
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -119,7 +119,9 @@ impl Session {
 
     /// Get PTY master for reading/writing (public API for VTE integration)
     #[allow(dead_code)]
-    pub fn pty_master(&self) -> Arc<RwLock<Option<Box<dyn portable_pty::MasterPty + Send + Sync>>>> {
+    pub fn pty_master(
+        &self,
+    ) -> Arc<RwLock<Option<Box<dyn portable_pty::MasterPty + Send + Sync>>>> {
         Arc::clone(&self.pty_master)
     }
 }
@@ -227,17 +229,26 @@ impl SessionManager {
         sessions
             .values()
             .map(|s| {
-                let created = s.created_at
+                let created = s
+                    .created_at
                     .duration_since(UNIX_EPOCH)
                     .unwrap_or_default()
                     .as_secs();
-                let last_attached = s.last_attached.read()
+                let last_attached = s
+                    .last_attached
+                    .read()
                     .duration_since(UNIX_EPOCH)
                     .unwrap_or_default()
                     .as_secs();
                 let client_count = s.attached_client_count();
 
-                (s.id.clone(), s.name.clone(), created, last_attached, client_count)
+                (
+                    s.id.clone(),
+                    s.name.clone(),
+                    created,
+                    last_attached,
+                    client_count,
+                )
             })
             .collect()
     }
@@ -297,7 +308,8 @@ impl SessionManager {
                 .values()
                 .filter(|s| {
                     !s.has_attached_clients()
-                        && s.last_attached.read()
+                        && s.last_attached
+                            .read()
                             .elapsed()
                             .map(|d| d.as_secs() > max_age_secs)
                             .unwrap_or(false)

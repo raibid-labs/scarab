@@ -50,7 +50,10 @@ impl TextRenderer {
 
     /// Get actual font metrics for precise cell sizing
     pub fn update_metrics(&mut self) {
-        let mut buffer = Buffer::new(&mut self.font_system, Metrics::new(self.config.size, self.config.size * self.config.line_height));
+        let mut buffer = Buffer::new(
+            &mut self.font_system,
+            Metrics::new(self.config.size, self.config.size * self.config.line_height),
+        );
 
         buffer.set_size(&mut self.font_system, 100.0, 100.0);
         buffer.set_text(&mut self.font_system, "M", Attrs::new(), Shaping::Advanced);
@@ -245,12 +248,7 @@ fn add_background_quad(
     ]);
 
     // UVs don't matter for solid color
-    uvs.extend_from_slice(&[
-        [0.0, 0.0],
-        [1.0, 0.0],
-        [1.0, 1.0],
-        [0.0, 1.0],
-    ]);
+    uvs.extend_from_slice(&[[0.0, 0.0], [1.0, 0.0], [1.0, 1.0], [0.0, 1.0]]);
 
     // All vertices have same background color
     for _ in 0..4 {
@@ -292,7 +290,10 @@ fn render_glyph(
     // Use a block to limit the scope of the buffer borrow on font_system
     let glyph_key = {
         // Create cosmic-text buffer to get glyph info
-        let metrics = Metrics::new(renderer.config.size, renderer.config.size * renderer.config.line_height);
+        let metrics = Metrics::new(
+            renderer.config.size,
+            renderer.config.size * renderer.config.line_height,
+        );
         let mut buffer = Buffer::new(&mut renderer.font_system, metrics);
 
         // Build attrs with bold/italic
@@ -305,7 +306,12 @@ fn render_glyph(
             cosmic_attrs = cosmic_attrs.style(cosmic_text::Style::Italic);
         }
 
-        buffer.set_text(&mut renderer.font_system, &ch.to_string(), cosmic_attrs, Shaping::Advanced);
+        buffer.set_text(
+            &mut renderer.font_system,
+            &ch.to_string(),
+            cosmic_attrs,
+            Shaping::Advanced,
+        );
 
         let mut key = None;
         for run in buffer.layout_runs() {
@@ -325,7 +331,11 @@ fn render_glyph(
     let glyph_key = glyph_key?;
 
     // Get or cache the glyph in atlas
-    let atlas_rect = renderer.atlas.get_or_cache(&mut renderer.font_system, glyph_key, &mut renderer.swash_cache)?;
+    let atlas_rect = renderer.atlas.get_or_cache(
+        &mut renderer.font_system,
+        glyph_key,
+        &mut renderer.swash_cache,
+    )?;
 
     // Get UV coordinates
     let uv_rect = atlas_rect.uv_rect();
@@ -435,12 +445,7 @@ fn add_underline_quad(
         [x, y - height, 0.15],
     ]);
 
-    uvs.extend_from_slice(&[
-        [0.0, 0.0],
-        [1.0, 0.0],
-        [1.0, 1.0],
-        [0.0, 1.0],
-    ]);
+    uvs.extend_from_slice(&[[0.0, 0.0], [1.0, 0.0], [1.0, 1.0], [0.0, 1.0]]);
 
     for _ in 0..4 {
         colors.push(color_array);

@@ -1,10 +1,10 @@
+mod commands;
 mod manager;
 mod store;
-mod commands;
 
-pub use manager::{SessionManager, Session};
-pub use store::SessionStore;
 pub use commands::handle_session_command;
+pub use manager::{Session, SessionManager};
+pub use store::SessionStore;
 
 /// Client identifier
 pub type ClientId = u64;

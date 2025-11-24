@@ -144,8 +144,8 @@ impl Perform for OptimizedPerformer {
     fn execute(&mut self, byte: u8) {
         // Handle control characters
         match byte {
-            0x07 => {}, // BEL - ignore or handle bell
-            0x08 => {}, // BS - backspace
+            0x07 => {}                              // BEL - ignore or handle bell
+            0x08 => {}                              // BS - backspace
             0x09 => self.output_buffer.push(b'\t'), // HT - tab
             0x0A => self.output_buffer.push(b'\n'), // LF
             0x0D => self.output_buffer.push(b'\r'), // CR
@@ -153,12 +153,21 @@ impl Perform for OptimizedPerformer {
         }
     }
 
-    fn csi_dispatch(&mut self, params: &vte::Params, intermediates: &[u8], _ignore: bool, action: char) {
+    fn csi_dispatch(
+        &mut self,
+        params: &vte::Params,
+        intermediates: &[u8],
+        _ignore: bool,
+        action: char,
+    ) {
         // Convert params to slice for cache lookup
         let params_vec: Vec<i64> = params.iter().map(|p| p[0] as i64).collect();
 
         // Check cache first
-        let cached_action = self.sequence_cache.get_csi(&params_vec, intermediates, action as u8).cloned();
+        let cached_action = self
+            .sequence_cache
+            .get_csi(&params_vec, intermediates, action as u8)
+            .cloned();
         if let Some(cached) = cached_action {
             self.apply_cached_sequence(&cached);
             return;
@@ -166,14 +175,14 @@ impl Perform for OptimizedPerformer {
 
         // Process and cache result
         match action {
-            'A' => {}, // Cursor up
-            'B' => {}, // Cursor down
-            'C' => {}, // Cursor forward
-            'D' => {}, // Cursor backward
-            'H' | 'f' => {}, // Cursor position
-            'J' => {}, // Erase display
-            'K' => {}, // Erase line
-            'm' => {}, // SGR - colors and attributes
+            'A' => {}       // Cursor up
+            'B' => {}       // Cursor down
+            'C' => {}       // Cursor forward
+            'D' => {}       // Cursor backward
+            'H' | 'f' => {} // Cursor position
+            'J' => {}       // Erase display
+            'K' => {}       // Erase line
+            'm' => {}       // SGR - colors and attributes
             _ => {}
         }
     }
@@ -186,8 +195,8 @@ impl Perform for OptimizedPerformer {
 
         // Cache frequently used OSC sequences
         match params[0] {
-            b"0" | b"2" => {}, // Window title
-            b"4" => {}, // Color palette
+            b"0" | b"2" => {} // Window title
+            b"4" => {}        // Color palette
             _ => {}
         }
     }
@@ -254,7 +263,12 @@ impl SequenceCache {
         }
     }
 
-    fn get_csi(&mut self, params: &[i64], intermediates: &[u8], action: u8) -> Option<&CachedAction> {
+    fn get_csi(
+        &mut self,
+        params: &[i64],
+        intermediates: &[u8],
+        action: u8,
+    ) -> Option<&CachedAction> {
         let key = CsiKey {
             params: params.to_vec(),
             intermediates: intermediates.to_vec(),
@@ -352,7 +366,10 @@ mod tests {
         assert_eq!(OptimizedPerformer::find_plain_text_end(with_esc), Some(6));
 
         let with_control = b"Line1\nLine2";
-        assert_eq!(OptimizedPerformer::find_plain_text_end(with_control), Some(5));
+        assert_eq!(
+            OptimizedPerformer::find_plain_text_end(with_control),
+            Some(5)
+        );
     }
 
     #[test]

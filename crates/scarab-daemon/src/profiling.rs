@@ -94,7 +94,8 @@ impl MetricsCollector {
     // Frame timing
     pub fn record_frame_time(&self, duration: Duration) {
         if self.is_enabled() {
-            self.frame_times.fetch_add(duration.as_nanos() as u64, Ordering::Relaxed);
+            self.frame_times
+                .fetch_add(duration.as_nanos() as u64, Ordering::Relaxed);
             self.frame_count.fetch_add(1, Ordering::Relaxed);
         }
     }
@@ -102,18 +103,22 @@ impl MetricsCollector {
     // VTE parsing
     pub fn record_vte_parse(&self, duration: Duration, bytes: usize) {
         if self.is_enabled() {
-            self.vte_parse_time_ns.fetch_add(duration.as_nanos() as u64, Ordering::Relaxed);
+            self.vte_parse_time_ns
+                .fetch_add(duration.as_nanos() as u64, Ordering::Relaxed);
             self.vte_parse_count.fetch_add(1, Ordering::Relaxed);
-            self.vte_bytes_processed.fetch_add(bytes as u64, Ordering::Relaxed);
+            self.vte_bytes_processed
+                .fetch_add(bytes as u64, Ordering::Relaxed);
         }
     }
 
     // Rendering
     pub fn record_render(&self, duration: Duration, draw_calls: u32) {
         if self.is_enabled() {
-            self.render_time_ns.fetch_add(duration.as_nanos() as u64, Ordering::Relaxed);
+            self.render_time_ns
+                .fetch_add(duration.as_nanos() as u64, Ordering::Relaxed);
             self.render_count.fetch_add(1, Ordering::Relaxed);
-            self.draw_calls.fetch_add(draw_calls as u64, Ordering::Relaxed);
+            self.draw_calls
+                .fetch_add(draw_calls as u64, Ordering::Relaxed);
         }
     }
 
@@ -134,21 +139,24 @@ impl MetricsCollector {
     pub fn record_ipc_send(&self, bytes: usize) {
         if self.is_enabled() {
             self.ipc_messages_sent.fetch_add(1, Ordering::Relaxed);
-            self.ipc_bytes_transferred.fetch_add(bytes as u64, Ordering::Relaxed);
+            self.ipc_bytes_transferred
+                .fetch_add(bytes as u64, Ordering::Relaxed);
         }
     }
 
     pub fn record_ipc_receive(&self, bytes: usize) {
         if self.is_enabled() {
             self.ipc_messages_received.fetch_add(1, Ordering::Relaxed);
-            self.ipc_bytes_transferred.fetch_add(bytes as u64, Ordering::Relaxed);
+            self.ipc_bytes_transferred
+                .fetch_add(bytes as u64, Ordering::Relaxed);
         }
     }
 
     // Shared memory
     pub fn record_shmem_sync(&self, duration: Duration) {
         if self.is_enabled() {
-            self.shmem_sync_time_ns.fetch_add(duration.as_nanos() as u64, Ordering::Relaxed);
+            self.shmem_sync_time_ns
+                .fetch_add(duration.as_nanos() as u64, Ordering::Relaxed);
             self.shmem_sync_count.fetch_add(1, Ordering::Relaxed);
         }
     }
@@ -240,7 +248,10 @@ impl PerformanceReport {
         println!("=== Performance Report ===");
         println!("Frame Time:        {:.2} ms", self.avg_frame_time_ms);
         println!("VTE Parse:         {:.2} μs", self.avg_vte_parse_time_us);
-        println!("VTE Throughput:    {:.2} KB/s", self.vte_bytes_per_sec / 1024.0);
+        println!(
+            "VTE Throughput:    {:.2} KB/s",
+            self.vte_bytes_per_sec / 1024.0
+        );
         println!("Render Time:       {:.2} ms", self.avg_render_time_ms);
         println!("Draw Calls/Frame:  {:.1}", self.draw_calls_per_frame);
         println!("Memory:            {:.2} MB", self.allocated_mb);
@@ -254,7 +265,10 @@ impl PerformanceReport {
         let mut success = true;
 
         if self.avg_frame_time_ms > 50.0 {
-            println!("❌ Frame time {:.2}ms exceeds target of 50ms", self.avg_frame_time_ms);
+            println!(
+                "❌ Frame time {:.2}ms exceeds target of 50ms",
+                self.avg_frame_time_ms
+            );
             success = false;
         } else {
             println!("✅ Frame time {:.2}ms meets target", self.avg_frame_time_ms);
@@ -268,35 +282,50 @@ impl PerformanceReport {
         let cpu_usage_shmem = (self.avg_shmem_sync_time_us / 1000.0) / frame_budget_ms * 100.0;
 
         if cpu_usage_vte > 2.0 {
-            println!("❌ VTE CPU usage {:.2}% exceeds target of 2%", cpu_usage_vte);
+            println!(
+                "❌ VTE CPU usage {:.2}% exceeds target of 2%",
+                cpu_usage_vte
+            );
             success = false;
         } else {
             println!("✅ VTE CPU usage {:.2}% meets target", cpu_usage_vte);
         }
 
         if cpu_usage_render > 3.0 {
-            println!("❌ Render CPU usage {:.2}% exceeds target of 3%", cpu_usage_render);
+            println!(
+                "❌ Render CPU usage {:.2}% exceeds target of 3%",
+                cpu_usage_render
+            );
             success = false;
         } else {
             println!("✅ Render CPU usage {:.2}% meets target", cpu_usage_render);
         }
 
         if cpu_usage_shmem > 0.5 {
-            println!("❌ Shmem CPU usage {:.2}% exceeds target of 0.5%", cpu_usage_shmem);
+            println!(
+                "❌ Shmem CPU usage {:.2}% exceeds target of 0.5%",
+                cpu_usage_shmem
+            );
             success = false;
         } else {
             println!("✅ Shmem CPU usage {:.2}% meets target", cpu_usage_shmem);
         }
 
         if self.allocated_mb > 100.0 {
-            println!("❌ Memory usage {:.2}MB exceeds target of 100MB", self.allocated_mb);
+            println!(
+                "❌ Memory usage {:.2}MB exceeds target of 100MB",
+                self.allocated_mb
+            );
             success = false;
         } else {
             println!("✅ Memory usage {:.2}MB meets target", self.allocated_mb);
         }
 
         if self.gpu_memory_mb > 150.0 {
-            println!("❌ GPU memory {:.2}MB exceeds target of 150MB", self.gpu_memory_mb);
+            println!(
+                "❌ GPU memory {:.2}MB exceeds target of 150MB",
+                self.gpu_memory_mb
+            );
             success = false;
         } else {
             println!("✅ GPU memory {:.2}MB meets target", self.gpu_memory_mb);

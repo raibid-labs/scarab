@@ -54,18 +54,17 @@ impl ConfigWatcher {
         let _running = Arc::clone(&self.running);
         let watch_paths = self.watch_paths.clone();
 
-        let mut watcher = notify::recommended_watcher(
-            move |res: std::result::Result<Event, notify::Error>| {
+        let mut watcher =
+            notify::recommended_watcher(move |res: std::result::Result<Event, notify::Error>| {
                 match res {
                     Ok(event) => {
-                        if matches!(
-                            event.kind,
-                            EventKind::Create(_) | EventKind::Modify(_)
-                        ) {
+                        if matches!(event.kind, EventKind::Create(_) | EventKind::Modify(_)) {
                             // Check if the event is for a config file
-                            if event.paths.iter().any(|p| {
-                                watch_paths.iter().any(|wp| p.ends_with(wp))
-                            }) {
+                            if event
+                                .paths
+                                .iter()
+                                .any(|p| watch_paths.iter().any(|wp| p.ends_with(wp)))
+                            {
                                 let start = Instant::now();
                                 debug!("Config file changed, reloading...");
 
@@ -73,10 +72,7 @@ impl ConfigWatcher {
                                 if let Ok(new_config) = ConfigLoader::new().load() {
                                     *config.write().unwrap() = new_config.clone();
                                     let reload_time = start.elapsed();
-                                    info!(
-                                        "Config reloaded in {}ms",
-                                        reload_time.as_millis()
-                                    );
+                                    info!("Config reloaded in {}ms", reload_time.as_millis());
 
                                     // Call callbacks
                                     let cbs = callbacks.read().unwrap();
@@ -91,8 +87,7 @@ impl ConfigWatcher {
                     }
                     Err(e) => error!("Watch error: {:?}", e),
                 }
-            },
-        )?;
+            })?;
 
         // Watch config directories
         for path in &self.watch_paths {

@@ -19,9 +19,7 @@ fn test_vim_basic_editing() -> Result<()> {
     println!("\n=== Test: Vim Basic Editing ===");
 
     // Check if vim is available
-    let vim_check = std::process::Command::new("which")
-        .arg("vim")
-        .output()?;
+    let vim_check = std::process::Command::new("which").arg("vim").output()?;
 
     if !vim_check.status.success() {
         println!("Vim not available, skipping test");
@@ -64,11 +62,13 @@ fn test_vim_basic_editing() -> Result<()> {
     thread::sleep(Duration::from_secs(1));
 
     // Verify file was created and contains expected content
-    let contents = fs::read_to_string(temp_file)
-        .expect("File should have been created");
+    let contents = fs::read_to_string(temp_file).expect("File should have been created");
 
     assert!(contents.contains("Hello from Scarab"), "First line missing");
-    assert!(contents.contains("This is a test file"), "Second line missing");
+    assert!(
+        contents.contains("This is a test file"),
+        "Second line missing"
+    );
 
     // Cleanup
     fs::remove_file(temp_file)?;
@@ -82,9 +82,7 @@ fn test_vim_basic_editing() -> Result<()> {
 fn test_vim_quit_without_saving() -> Result<()> {
     println!("\n=== Test: Vim Quit Without Saving ===");
 
-    let vim_check = std::process::Command::new("which")
-        .arg("vim")
-        .output()?;
+    let vim_check = std::process::Command::new("which").arg("vim").output()?;
 
     if !vim_check.status.success() {
         println!("Vim not available, skipping test");
@@ -116,7 +114,10 @@ fn test_vim_quit_without_saving() -> Result<()> {
     thread::sleep(Duration::from_secs(1));
 
     // Verify file was NOT created
-    assert!(!std::path::Path::new(temp_file).exists(), "File should not exist");
+    assert!(
+        !std::path::Path::new(temp_file).exists(),
+        "File should not exist"
+    );
 
     println!("=== Test Passed ===\n");
     Ok(())
@@ -127,9 +128,7 @@ fn test_vim_quit_without_saving() -> Result<()> {
 fn test_vim_navigation() -> Result<()> {
     println!("\n=== Test: Vim Navigation ===");
 
-    let vim_check = std::process::Command::new("which")
-        .arg("vim")
-        .output()?;
+    let vim_check = std::process::Command::new("which").arg("vim").output()?;
 
     if !vim_check.status.success() {
         println!("Vim not available, skipping test");
@@ -183,9 +182,7 @@ fn test_vim_navigation() -> Result<()> {
 fn test_vim_search() -> Result<()> {
     println!("\n=== Test: Vim Search ===");
 
-    let vim_check = std::process::Command::new("which")
-        .arg("vim")
-        .output()?;
+    let vim_check = std::process::Command::new("which").arg("vim").output()?;
 
     if !vim_check.status.success() {
         println!("Vim not available, skipping test");

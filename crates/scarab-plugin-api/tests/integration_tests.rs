@@ -5,9 +5,9 @@ use std::sync::Arc;
 
 // Helper to create test context
 fn create_test_context() -> Arc<PluginContext> {
-    let state = Arc::new(parking_lot::Mutex::new(
-        context::PluginSharedState::new(80, 24)
-    ));
+    let state = Arc::new(parking_lot::Mutex::new(context::PluginSharedState::new(
+        80, 24,
+    )));
     Arc::new(PluginContext::new(
         context::PluginConfigData::default(),
         state,
@@ -24,12 +24,7 @@ struct TestPlugin {
 impl TestPlugin {
     fn new() -> Self {
         Self {
-            metadata: PluginMetadata::new(
-                "test-plugin",
-                "1.0.0",
-                "Test plugin",
-                "Test Author",
-            ),
+            metadata: PluginMetadata::new("test-plugin", "1.0.0", "Test plugin", "Test Author"),
             call_count: 0,
         }
     }
@@ -59,7 +54,8 @@ impl Plugin for TestPlugin {
     }
 
     async fn on_input(&mut self, input: &[u8], _ctx: &PluginContext) -> Result<Action> {
-        if input == b"\x18" {  // Ctrl+X
+        if input == b"\x18" {
+            // Ctrl+X
             Ok(Action::Stop)
         } else {
             Ok(Action::Continue)
@@ -137,8 +133,7 @@ async fn test_input_hook() {
 
 #[test]
 fn test_version_compatibility() {
-    let meta = PluginMetadata::new("test", "1.0.0", "Test", "Author")
-        .with_api_version("0.1.0");
+    let meta = PluginMetadata::new("test", "1.0.0", "Test", "Author").with_api_version("0.1.0");
 
     // Same version
     assert!(meta.is_compatible("0.1.0"));
@@ -183,10 +178,14 @@ fn test_plugin_discovery() {
 
     // Test default paths
     let plugin_dir = PluginDiscovery::default_plugin_dir();
-    assert!(plugin_dir.to_string_lossy().contains(".config/scarab/plugins"));
+    assert!(plugin_dir
+        .to_string_lossy()
+        .contains(".config/scarab/plugins"));
 
     let config_path = PluginDiscovery::default_config_path();
-    assert!(config_path.to_string_lossy().contains(".config/scarab/plugins.toml"));
+    assert!(config_path
+        .to_string_lossy()
+        .contains(".config/scarab/plugins.toml"));
 }
 
 #[test]
@@ -206,7 +205,7 @@ fn test_shared_state() {
 
     // Test get/set cell
     assert!(state.get_cell(0, 0).is_some());
-    assert!(state.get_cell(80, 0).is_none());  // Out of bounds
+    assert!(state.get_cell(80, 0).is_none()); // Out of bounds
 
     let cell = types::Cell {
         c: 'X',
@@ -218,7 +217,7 @@ fn test_shared_state() {
     };
 
     assert!(state.set_cell(0, 0, cell));
-    assert!(!state.set_cell(100, 100, cell));  // Out of bounds
+    assert!(!state.set_cell(100, 100, cell)); // Out of bounds
 
     let retrieved = state.get_cell(0, 0).unwrap();
     assert_eq!(retrieved.c, 'X');
@@ -269,12 +268,7 @@ fn test_action_checks() {
 
 #[test]
 fn test_plugin_info() {
-    let info = types::PluginInfo::new(
-        "test",
-        "1.0.0",
-        "Test plugin",
-        "Author",
-    );
+    let info = types::PluginInfo::new("test", "1.0.0", "Test plugin", "Author");
 
     assert_eq!(info.name, "test");
     assert_eq!(info.version, "1.0.0");

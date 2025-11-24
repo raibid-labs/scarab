@@ -1,10 +1,10 @@
 // Vimium-style link hints for clickable URLs and file paths
 // Detects links in terminal output and provides keyboard shortcuts
 
-use bevy::prelude::*;
-use bevy::input::keyboard::KeyCode;
-use regex::Regex;
 use crate::integration::SharedMemoryReader;
+use bevy::input::keyboard::KeyCode;
+use bevy::prelude::*;
+use regex::Regex;
 use scarab_protocol::SharedState;
 
 /// Plugin for link hint functionality
@@ -12,16 +12,19 @@ pub struct LinkHintsPlugin;
 
 impl Plugin for LinkHintsPlugin {
     fn build(&self, app: &mut App) {
-        app
-            .init_resource::<LinkDetector>()
+        app.init_resource::<LinkDetector>()
             .init_resource::<LinkHintsState>()
             .add_event::<LinkActivatedEvent>()
-            .add_systems(Update, (
-                detect_links_system,
-                show_hints_system,
-                handle_hint_input_system,
-                activate_link_system,
-            ).chain());
+            .add_systems(
+                Update,
+                (
+                    detect_links_system,
+                    show_hints_system,
+                    handle_hint_input_system,
+                    activate_link_system,
+                )
+                    .chain(),
+            );
     }
 }
 
@@ -54,17 +57,13 @@ impl Default for LinkDetector {
     fn default() -> Self {
         Self {
             // Match HTTP(S) URLs
-            url_regex: Regex::new(
-                r"https?://[^\s<>{}|\^~\[\]`]+|www\.[^\s<>{}|\^~\[\]`]+"
-            ).unwrap(),
+            url_regex: Regex::new(r"https?://[^\s<>{}|\^~\[\]`]+|www\.[^\s<>{}|\^~\[\]`]+")
+                .unwrap(),
             // Match absolute and relative file paths
-            filepath_regex: Regex::new(
-                r"(?:~|\.{1,2}|/)?(?:[a-zA-Z0-9_\-./]+/)*[a-zA-Z0-9_\-.]+"
-            ).unwrap(),
+            filepath_regex: Regex::new(r"(?:~|\.{1,2}|/)?(?:[a-zA-Z0-9_\-./]+/)*[a-zA-Z0-9_\-.]+")
+                .unwrap(),
             // Match email addresses
-            email_regex: Regex::new(
-                r"[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}"
-            ).unwrap(),
+            email_regex: Regex::new(r"[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}").unwrap(),
         }
     }
 }
@@ -267,10 +266,12 @@ fn handle_hint_input_system(
             state.current_input.push(char);
 
             // Check if we have a complete match
-            if let Some(hint) = state.hints.iter().find(|h| h.hint_key == state.current_input) {
-                event_writer.send(LinkActivatedEvent {
-                    link: hint.clone(),
-                });
+            if let Some(hint) = state
+                .hints
+                .iter()
+                .find(|h| h.hint_key == state.current_input)
+            {
+                event_writer.send(LinkActivatedEvent { link: hint.clone() });
                 state.active = false;
                 state.hints.clear();
                 state.current_input.clear();
@@ -280,9 +281,7 @@ fn handle_hint_input_system(
 }
 
 /// Activate selected link
-fn activate_link_system(
-    mut events: EventReader<LinkActivatedEvent>,
-) {
+fn activate_link_system(mut events: EventReader<LinkActivatedEvent>) {
     for event in events.read() {
         match event.link.link_type {
             LinkType::Url => {

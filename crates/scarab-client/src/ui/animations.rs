@@ -8,12 +8,14 @@ pub struct AnimationsPlugin;
 
 impl Plugin for AnimationsPlugin {
     fn build(&self, app: &mut App) {
-        app
-            .add_systems(Update, (
+        app.add_systems(
+            Update,
+            (
                 update_fade_animations_system,
                 update_slide_animations_system,
                 cleanup_finished_animations_system,
-            ));
+            ),
+        );
     }
 }
 
@@ -145,7 +147,11 @@ pub struct AnimationComplete;
 /// Update fade animations
 fn update_fade_animations_system(
     time: Res<Time>,
-    mut query: Query<(&mut FadeAnimation, Option<&mut BackgroundColor>, Option<&mut Text>)>,
+    mut query: Query<(
+        &mut FadeAnimation,
+        Option<&mut BackgroundColor>,
+        Option<&mut Text>,
+    )>,
 ) {
     for (mut anim, bg_color, text) in query.iter_mut() {
         anim.elapsed += time.delta_secs();

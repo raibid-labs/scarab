@@ -141,7 +141,10 @@ fn test_toml_serialization() {
     // Deserialize back
     let parsed: ScarabConfig = toml::from_str(&toml).unwrap();
     assert_eq!(parsed.font.size, config.font.size);
-    assert_eq!(parsed.terminal.scrollback_lines, config.terminal.scrollback_lines);
+    assert_eq!(
+        parsed.terminal.scrollback_lines,
+        config.terminal.scrollback_lines
+    );
 }
 
 #[test]
@@ -189,10 +192,10 @@ fn test_color_palette_validation() {
 #[test]
 fn test_keybindings_custom() {
     let mut config = ScarabConfig::default();
-    config.keybindings.custom.insert(
-        "my_action".to_string(),
-        "Ctrl+Alt+X".to_string(),
-    );
+    config
+        .keybindings
+        .custom
+        .insert("my_action".to_string(), "Ctrl+Alt+X".to_string());
 
     let toml = toml::to_string_pretty(&config).unwrap();
     let parsed: ScarabConfig = toml::from_str(&toml).unwrap();
@@ -213,7 +216,10 @@ fn test_plugin_config() {
         "min_runtime": 30
     });
 
-    config.plugins.config.insert("auto-notify".to_string(), plugin_cfg);
+    config
+        .plugins
+        .config
+        .insert("auto-notify".to_string(), plugin_cfg);
 
     let toml = toml::to_string_pretty(&config).unwrap();
     let parsed: ScarabConfig = toml::from_str(&toml).unwrap();

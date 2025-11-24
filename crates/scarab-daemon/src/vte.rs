@@ -1,3 +1,7 @@
+use scarab_protocol::{Cell, SharedState, GRID_HEIGHT, GRID_WIDTH};
+use std::collections::VecDeque;
+use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::Arc;
 /// VTE (Virtual Terminal Emulator) Parser Integration
 ///
 /// This module implements the VTE parser to handle ANSI escape sequences
@@ -9,12 +13,7 @@
 /// - Support colors and text attributes
 /// - UTF-8 multibyte character handling
 /// - Scrollback buffer (10k lines)
-
 use vte::{Parser, Perform};
-use scarab_protocol::{SharedState, Cell, GRID_WIDTH, GRID_HEIGHT};
-use std::sync::atomic::{AtomicU64, Ordering};
-use std::sync::Arc;
-use std::collections::VecDeque;
 
 /// Maximum scrollback buffer size (10,000 lines)
 const SCROLLBACK_SIZE: usize = 10_000;
@@ -321,7 +320,8 @@ impl Perform for TerminalState {
         }
     }
 
-    fn hook(&mut self, _params: &vte::Params, _intermediates: &[u8], _ignore: bool, _action: char) {}
+    fn hook(&mut self, _params: &vte::Params, _intermediates: &[u8], _ignore: bool, _action: char) {
+    }
 
     fn put(&mut self, _byte: u8) {}
 

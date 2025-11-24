@@ -47,7 +47,10 @@ fn test_large_output() -> Result<()> {
     let output = harness.get_output(Duration::from_millis(100))?;
     let has_high_numbers = output.contains("99") || output.contains("100");
 
-    assert!(has_high_numbers, "Output should contain high numbers from seq command");
+    assert!(
+        has_high_numbers,
+        "Output should contain high numbers from seq command"
+    );
 
     println!("=== Test Passed ===\n");
     Ok(())
@@ -138,7 +141,10 @@ fn test_rapid_updates() -> Result<()> {
     let state_after = harness.get_shared_state()?;
     let seq_after = state_after.sequence_number;
 
-    println!("Rapid updates caused {} sequence increments", seq_after - seq_before);
+    println!(
+        "Rapid updates caused {} sequence increments",
+        seq_after - seq_before
+    );
 
     assert!(
         seq_after > seq_before,

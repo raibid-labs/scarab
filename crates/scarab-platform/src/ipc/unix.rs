@@ -66,7 +66,9 @@ impl IpcListener {
         let path = if name.starts_with('/') {
             PathBuf::from(name)
         } else {
-            crate::current_platform().runtime_dir()?.join(format!("{}.sock", name))
+            crate::current_platform()
+                .runtime_dir()?
+                .join(format!("{}.sock", name))
         };
 
         // Remove existing socket file if it exists
@@ -115,8 +117,7 @@ impl IpcServer for IpcListener {
     fn shutdown(&mut self) -> Result<()> {
         // Remove the socket file
         if self.path.exists() {
-            std::fs::remove_file(&self.path)
-                .context("Failed to remove Unix socket file")?;
+            std::fs::remove_file(&self.path).context("Failed to remove Unix socket file")?;
         }
         Ok(())
     }
@@ -136,7 +137,9 @@ impl IpcClient {
         let path = if name.starts_with('/') {
             PathBuf::from(name)
         } else {
-            crate::current_platform().runtime_dir()?.join(format!("{}.sock", name))
+            crate::current_platform()
+                .runtime_dir()?
+                .join(format!("{}.sock", name))
         };
 
         // Note: UnixStream doesn't have connect_timeout in std, we'll use regular connect

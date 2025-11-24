@@ -139,8 +139,8 @@ impl IpcListener {
             format!(r"\\.\pipe\{}", name)
         };
 
-        let pipe_name_cstring = CString::new(pipe_name.clone())
-            .context("Failed to create CString for pipe name")?;
+        let pipe_name_cstring =
+            CString::new(pipe_name.clone()).context("Failed to create CString for pipe name")?;
 
         let handle = unsafe {
             CreateNamedPipeA(
@@ -172,8 +172,8 @@ impl IpcListener {
     }
 
     fn create_new_instance(&self) -> Result<HANDLE> {
-        let pipe_name_cstring = CString::new(self.name.clone())
-            .context("Failed to create CString for pipe name")?;
+        let pipe_name_cstring =
+            CString::new(self.name.clone()).context("Failed to create CString for pipe name")?;
 
         let handle = unsafe {
             CreateNamedPipeA(
@@ -257,8 +257,8 @@ impl IpcClient {
             format!(r"\\.\pipe\{}", name)
         };
 
-        let pipe_name_cstring = CString::new(pipe_name.clone())
-            .context("Failed to create CString for pipe name")?;
+        let pipe_name_cstring =
+            CString::new(pipe_name.clone()).context("Failed to create CString for pipe name")?;
 
         // Try to connect with timeout
         let start = std::time::Instant::now();
@@ -280,19 +280,15 @@ impl IpcClient {
             if handle != INVALID_HANDLE_VALUE {
                 // Set pipe to byte mode
                 let mut mode = PIPE_READMODE_BYTE | PIPE_WAIT;
-                let result = unsafe {
-                    SetNamedPipeHandleState(handle, &mut mode, null_mut(), null_mut())
-                };
+                let result =
+                    unsafe { SetNamedPipeHandleState(handle, &mut mode, null_mut(), null_mut()) };
 
                 if result == FALSE {
                     unsafe {
                         CloseHandle(handle);
                     }
                     let error = unsafe { GetLastError() };
-                    return Err(anyhow!(
-                        "Failed to set pipe mode: Error {}",
-                        error
-                    ));
+                    return Err(anyhow!("Failed to set pipe mode: Error {}", error));
                 }
 
                 return Ok(IpcStream::new(handle, false));
@@ -311,10 +307,7 @@ impl IpcClient {
 
             // Check timeout
             if start.elapsed() >= timeout {
-                return Err(anyhow!(
-                    "Timeout connecting to named pipe '{}'",
-                    pipe_name
-                ));
+                return Err(anyhow!("Timeout connecting to named pipe '{}'", pipe_name));
             }
 
             // Wait a bit before retrying

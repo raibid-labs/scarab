@@ -97,12 +97,24 @@ impl TextAttributes {
 
     pub fn to_flags(&self) -> u8 {
         let mut flags = 0u8;
-        if self.bold { flags |= 0x01; }
-        if self.italic { flags |= 0x02; }
-        if self.underline { flags |= 0x04; }
-        if self.strikethrough { flags |= 0x08; }
-        if self.dim { flags |= 0x10; }
-        if self.reverse { flags |= 0x20; }
+        if self.bold {
+            flags |= 0x01;
+        }
+        if self.italic {
+            flags |= 0x02;
+        }
+        if self.underline {
+            flags |= 0x04;
+        }
+        if self.strikethrough {
+            flags |= 0x08;
+        }
+        if self.dim {
+            flags |= 0x10;
+        }
+        if self.reverse {
+            flags |= 0x20;
+        }
         flags
     }
 }
