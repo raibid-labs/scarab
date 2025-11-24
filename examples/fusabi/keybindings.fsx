@@ -1,40 +1,70 @@
-// Example keybindings configuration
+// @name keybindings
+// @version 0.1.0
+// @description Custom keybindings plugin
+// @author Scarab Team
+// @api-version 0.1.0
+// @min-scarab-version 0.1.0
 
-// Leader key configuration
-let leader = "<Space>"
+// Custom Keybindings Example
+// Demonstrates how to intercept and handle keyboard input
 
-// Define keybinding groups
-let window_bindings = [
-    { keys = [leader; "w"; "v"]; command = "split_vertical"; desc = "Split window vertically" };
-    { keys = [leader; "w"; "h"]; command = "split_horizontal"; desc = "Split window horizontally" };
-    { keys = [leader; "w"; "q"]; command = "close_window"; desc = "Close current window" };
-    { keys = [leader; "w"; "o"]; command = "close_others"; desc = "Close other windows" }
+type KeyModifier =
+    | None
+    | Ctrl
+    | Alt
+    | Shift
+    | CtrlShift
+    | AltShift
+
+type KeyBinding = {
+    key: string
+    modifier: KeyModifier
+    action: string
+}
+
+// Define custom keybindings
+let bindings = [
+    { key = "t"; modifier = Ctrl; action = "new_tab" }
+    { key = "w"; modifier = Ctrl; action = "close_tab" }
+    { key = "n"; modifier = CtrlShift; action = "new_window" }
+    { key = "f"; modifier = Ctrl; action = "search" }
+    { key = "p"; modifier = CtrlShift; action = "command_palette" }
+    { key = "k"; modifier = Ctrl; action = "clear_screen" }
 ]
 
-let tab_bindings = [
-    { keys = [leader; "t"; "n"]; command = "new_tab"; desc = "New tab" };
-    { keys = [leader; "t"; "q"]; command = "close_tab"; desc = "Close tab" };
-    { keys = [leader; "t"; "l"]; command = "next_tab"; desc = "Next tab" };
-    { keys = [leader; "t"; "h"]; command = "prev_tab"; desc = "Previous tab" }
-]
+// Handle key input
+let handle_key key modifier =
+    let binding = bindings
+                  |> List.tryFind (fun b -> b.key = key && b.modifier = modifier)
 
-let search_bindings = [
-    { keys = [leader; "/"]; command = "search"; desc = "Search in buffer" };
-    { keys = [leader; "?"]; command = "search_reverse"; desc = "Search backward" };
-    { keys = [leader; "f"; "f"]; command = "find_file"; desc = "Find file" };
-    { keys = [leader; "f"; "r"]; command = "recent_files"; desc = "Recent files" }
-]
+    match binding with
+    | Some b ->
+        printfn "Executing action: %s" b.action
+        true
+    | None ->
+        false
 
-// Combine all bindings
-let all_bindings = append window_bindings (append tab_bindings search_bindings)
+// Parse key sequence from bytes
+let parse_key_sequence (bytes: byte[]) =
+    // Detect Ctrl+T (0x14)
+    if bytes.Length = 1 && bytes.[0] = 0x14uy then
+        Some ("t", Ctrl)
+    // Detect Ctrl+W (0x17)
+    elif bytes.Length = 1 && bytes.[0] = 0x17uy then
+        Some ("w", Ctrl)
+    // Detect Ctrl+K (0x0B)
+    elif bytes.Length = 1 && bytes.[0] = 0x0Buy then
+        Some ("k", Ctrl)
+    else
+        None
 
-// Print keybindings by category
-let print_category name bindings =
-    println (concat "\n" (concat name ":"))
-    println "=================="
-
-print_category "Window Management" window_bindings
-print_category "Tab Management" tab_bindings
-print_category "Search" search_bindings
-
-println (concat "\nTotal bindings: " (to_string (length all_bindings)))
+// Input handler hook
+let on_input (input: byte[]) =
+    match parse_key_sequence input with
+    | Some (key, modifier) ->
+        if handle_key key modifier then
+            printfn "Key handled by plugin"
+        else
+            printfn "Key not bound"
+    | None ->
+        printfn "Unknown key sequence"

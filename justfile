@@ -201,3 +201,124 @@ status:
     @echo ""
     @echo "Workspace crates:"
     @cargo metadata --no-deps --format-version 1 | grep -o '"name":"[^"]*"' | cut -d'"' -f4 | grep scarab
+
+# ============================================
+# Plugin Development Commands
+# ============================================
+
+# Build a single Fusabi plugin (.fsx -> .fzb)
+plugin-build file:
+    #!/usr/bin/env bash
+    echo "Building plugin: {{file}}"
+    ./scripts/build-plugin.sh "{{file}}"
+
+# Build all example plugins
+plugin-build-all:
+    #!/usr/bin/env bash
+    echo "Building all example plugins..."
+    ./scripts/build-plugin.sh --all
+
+# Validate a single plugin
+plugin-validate file:
+    #!/usr/bin/env bash
+    echo "Validating plugin: {{file}}"
+    ./scripts/plugin-validator.sh "{{file}}"
+
+# Validate all example plugins
+plugin-validate-all:
+    #!/usr/bin/env bash
+    echo "Validating all example plugins..."
+    ./scripts/plugin-validator.sh --all
+
+# Watch plugins and rebuild on changes (requires cargo-watch)
+plugin-watch:
+    #!/usr/bin/env bash
+    echo "Watching plugins for changes..."
+    if ! command -v cargo-watch &> /dev/null; then
+        echo "Error: cargo-watch not found. Install with: cargo install cargo-watch"
+        exit 1
+    fi
+    cargo watch -w examples/fusabi -s "just plugin-build-all"
+
+# Test plugin loading in daemon
+plugin-test:
+    #!/usr/bin/env bash
+    echo "Testing plugin loading..."
+    cargo test -p scarab-daemon plugin -- --nocapture
+
+# Run plugin CI checks (validate + test)
+plugin-ci: plugin-validate-all plugin-test
+    @echo "Plugin CI checks complete"
+
+# Create a new plugin from template
+plugin-new name:
+    #!/usr/bin/env bash
+    PLUGIN_NAME="{{name}}"
+    PLUGIN_FILE="examples/fusabi/${PLUGIN_NAME}.fsx"
+
+    if [ -f "$PLUGIN_FILE" ]; then
+        echo "Error: Plugin already exists: $PLUGIN_FILE"
+        exit 1
+    fi
+
+    echo "Creating new plugin: $PLUGIN_NAME"
+    mkdir -p examples/fusabi
+
+    cat > "$PLUGIN_FILE" << 'PLUGINEOF'
+    // Plugin initialization
+    let on_load (ctx: PluginContext) =
+        printfn "Plugin loaded!"
+        Ok ()
+
+    // Handle terminal output
+    let on_output (line: string) (ctx: PluginContext) =
+        // Process output line
+        Continue
+
+    // Handle user input
+    let on_input (input: byte[]) (ctx: PluginContext) =
+        // Process input
+        Continue
+
+    // Export plugin metadata
+    let metadata = {
+        name = "{{name}}"
+        version = "0.1.0"
+        description = "A new Fusabi plugin for Scarab"
+        author = "Your Name"
+    }
+    PLUGINEOF
+
+    # Add metadata header
+    sed -i '1i// @name {{name}}\n// @version 0.1.0\n// @description A new Fusabi plugin for Scarab\n// @author Your Name\n// @api-version 0.1.0\n// @min-scarab-version 0.1.0\n' "$PLUGIN_FILE"
+
+    echo "Created: $PLUGIN_FILE"
+    echo "Edit the file and run: just plugin-build $PLUGIN_FILE"
+
+# Show plugin development status
+plugin-status:
+    @echo "Fusabi Plugin Development Status"
+    @echo "================================="
+    @echo ""
+    @echo "Example Plugins:"
+    @find examples/fusabi -name "*.fsx" -type f | wc -l | xargs echo "  .fsx files:"
+    @find examples/fusabi -name "*.fzb" -type f 2>/dev/null | wc -l | xargs echo "  .fzb files:"
+    @echo ""
+    @echo "Plugin API Version: 0.1.0"
+    @echo ""
+    @echo "Available Commands:"
+    @echo "  just plugin-build FILE      - Build single plugin"
+    @echo "  just plugin-build-all       - Build all plugins"
+    @echo "  just plugin-validate FILE   - Validate single plugin"
+    @echo "  just plugin-validate-all    - Validate all plugins"
+    @echo "  just plugin-watch           - Watch and rebuild on changes"
+    @echo "  just plugin-test            - Test plugin loading"
+    @echo "  just plugin-new NAME        - Create new plugin from template"
+
+# Clean plugin build artifacts
+plugin-clean:
+    #!/usr/bin/env bash
+    echo "Cleaning plugin build artifacts..."
+    find examples/fusabi -name "*.fzb" -type f -delete
+    find examples/fusabi-config -name "*.fzb" -type f -delete
+    echo "Done"

@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 use scarab_client::integration::{IntegrationPlugin, SharedMemWrapper, SharedMemoryReader};
-use scarab_client::AdvancedUIPlugin;
+use scarab_client::{AdvancedUIPlugin, ScriptingPlugin};
 use scarab_config::ConfigLoader;
 use scarab_protocol::{SharedState, SHMEM_PATH};
 use shared_memory::ShmemConf;
@@ -68,6 +68,7 @@ fn main() {
         }))
         .add_plugins(IpcPlugin) // Add IPC support
         .add_plugins(AdvancedUIPlugin) // Add advanced UI features
+        .add_plugins(ScriptingPlugin) // Add client-side scripting
         .add_plugins(IntegrationPlugin) // Add text rendering
         .insert_resource(reader)
         .insert_resource(config) // Make config available to all systems
@@ -79,5 +80,5 @@ fn setup(mut commands: Commands) {
     // Bevy 0.15 uses Camera2d component, Camera2dBundle is deprecated
     commands.spawn(Camera2d::default());
     // IntegrationPlugin handles spawning the TerminalGridEntity
-    println!("Scarab Client Initialized with shared memory reader and IPC.");
+    println!("Scarab Client Initialized with shared memory reader, IPC, and scripting.");
 }

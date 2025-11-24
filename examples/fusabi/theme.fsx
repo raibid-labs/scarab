@@ -1,56 +1,62 @@
-// Theme configuration example
+// @name theme
+// @version 0.1.0
+// @description Theme customization plugin
+// @author Scarab Team
+// @api-version 0.1.0
+// @min-scarab-version 0.1.0
 
-// Color palette
-let colors = {
-    background = "#1e1e2e";
-    foreground = "#cdd6f4";
-    black = "#45475a";
-    red = "#f38ba8";
-    green = "#a6e3a1";
-    yellow = "#f9e2af";
-    blue = "#89b4fa";
-    magenta = "#f5c2e7";
-    cyan = "#94e2d5";
-    white = "#bac2de"
+// Theme Configuration Example
+// Demonstrates how to customize colors and appearance
+
+type Theme = {
+    name: string
+    background: string
+    foreground: string
+    cursor: string
+    selection: string
+    colors: string list
 }
 
-// UI element styles
-let styles = {
-    terminal = {
-        background = colors.background;
-        foreground = colors.foreground;
-        cursor = colors.blue;
-        selection = "#313244"
-    };
-    tabs = {
-        active_bg = colors.blue;
-        active_fg = colors.background;
-        inactive_bg = "#313244";
-        inactive_fg = colors.foreground
-    };
-    statusline = {
-        normal_bg = colors.blue;
-        normal_fg = colors.background;
-        insert_bg = colors.green;
-        insert_fg = colors.background
-    }
+let dracula = {
+    name = "Dracula"
+    background = "#282a36"
+    foreground = "#f8f8f2"
+    cursor = "#f8f8f2"
+    selection = "#44475a"
+    colors = [
+        "#21222c"  // black
+        "#ff5555"  // red
+        "#50fa7b"  // green
+        "#f1fa8c"  // yellow
+        "#bd93f9"  // blue
+        "#ff79c6"  // magenta
+        "#8be9fd"  // cyan
+        "#f8f8f2"  // white
+    ]
 }
 
-// Font configuration
-let fonts = {
-    family = "JetBrains Mono";
-    size = 14;
-    ligatures = true
+let nord = {
+    name = "Nord"
+    background = "#2e3440"
+    foreground = "#d8dee9"
+    cursor = "#d8dee9"
+    selection = "#4c566a"
+    colors = [
+        "#3b4252"  // black
+        "#bf616a"  // red
+        "#a3be8c"  // green
+        "#ebcb8b"  // yellow
+        "#81a1c1"  // blue
+        "#b48ead"  // magenta
+        "#88c0d0"  // cyan
+        "#e5e9f0"  // white
+    ]
 }
 
-// Export theme
-let theme = {
-    name = "Catppuccin Mocha";
-    colors = colors;
-    styles = styles;
-    fonts = fonts
-}
+let current_theme = dracula
 
-println "Theme loaded: Catppuccin Mocha"
-println (concat "Background: " colors.background)
-println (concat "Font: " (concat fonts.family (concat " " (to_string fonts.size))))
+let apply_theme theme =
+    printfn "Applying theme: %s" theme.name
+    // Set terminal colors
+    printfn "Background: %s" theme.background
+    printfn "Foreground: %s" theme.foreground

@@ -1,0 +1,74 @@
+# EditorConfig for Scarab project
+# https://editorconfig.org
+
+root = true
+
+# Default settings for all files
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+
+# Rust source files
+[*.rs]
+indent_style = space
+indent_size = 4
+max_line_length = 100
+
+# TOML configuration files
+[*.toml]
+indent_style = space
+indent_size = 2
+
+# Fusabi plugin files (.fsx - F# syntax)
+[*.fsx]
+indent_style = space
+indent_size = 4
+max_line_length = 100
+
+# Fusabi bytecode (binary, no formatting)
+[*.fzb]
+insert_final_newline = false
+trim_trailing_whitespace = false
+
+# Markdown documentation
+[*.md]
+indent_style = space
+indent_size = 2
+max_line_length = 120
+trim_trailing_whitespace = false
+
+# YAML/GitHub Actions
+[*.{yml,yaml}]
+indent_style = space
+indent_size = 2
+
+# JSON files
+[*.json]
+indent_style = space
+indent_size = 2
+
+# Shell scripts
+[*.sh]
+indent_style = space
+indent_size = 4
+end_of_line = lf
+
+# Justfile
+[justfile]
+indent_style = space
+indent_size = 4
+
+# Makefiles (must use tabs)
+[Makefile]
+indent_style = tab
+
+# Git configuration
+[.gitattributes]
+indent_style = space
+indent_size = 2
+
+[.gitignore]
+indent_style = space
+indent_size = 2

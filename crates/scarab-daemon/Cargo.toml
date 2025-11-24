@@ -18,6 +18,7 @@ scarab-nav = { path = "../scarab-nav" }
 scarab-palette = { path = "../scarab-palette" }
 scarab-session = { path = "../scarab-session" }
 fusabi-vm = { workspace = true }
+fusabi-frontend = { workspace = true }
 tokio = { workspace = true }
 portable-pty = { workspace = true }
 vte = { workspace = true }

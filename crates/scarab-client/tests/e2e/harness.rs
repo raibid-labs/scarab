@@ -33,6 +33,7 @@ const POLL_INTERVAL: Duration = Duration::from_millis(50);
 pub struct E2ETestHarness {
     daemon: Option<Child>,
     client: Option<Child>,
+    client_stream: Option<std::os::unix::net::UnixStream>, // Added for persistent client IPC
     shared_memory: Option<Shmem>,
     socket_path: String,
     temp_dir: TempDir,
@@ -71,7 +72,7 @@ impl E2ETestHarness {
         let daemon = Command::new(&daemon_bin)
             .env("RUST_LOG", "info")
             .env("HOME", temp_dir.path()) // Isolate daemon data
-            .env("SHELL", "/bin/sh")      // Force simple shell for testing
+            .env("SHELL", "/bin/sh") // Force simple shell for testing
             .stdout(Stdio::inherit())
             .stderr(Stdio::inherit())
             .spawn()
@@ -117,6 +118,7 @@ impl E2ETestHarness {
         Ok(Self {
             daemon: Some(daemon),
             client: None,
+            client_stream: None, // Initialize as None
             shared_memory,
             socket_path: SOCKET_PATH.to_string(),
             temp_dir,
@@ -125,33 +127,25 @@ impl E2ETestHarness {
         })
     }
 
-    /// Start the client process
+    /// Start the client process and establish persistent IPC stream
     pub fn start_client(&mut self) -> Result<()> {
-        println!("Starting client...");
-
-        let client = Command::new(&self.client_bin)
-            .env("RUST_LOG", "info")
-            .stdout(Stdio::piped())
-            .stderr(Stdio::piped())
-            .spawn()
-            .context("Failed to spawn client process")?;
-
-        self.client = Some(client);
-
-        // Give client time to connect
-        thread::sleep(Duration::from_millis(500));
-
-        println!("✓ Client started\n");
-
+        println!("Starting client (no UI process needed)...");
+        // Establish persistent IPC stream
+        let stream = std::os::unix::net::UnixStream::connect(&self.socket_path)
+            .context("Failed to connect to daemon socket for persistent stream")?;
+        self.client_stream = Some(stream);
+        println!("✓ Persistent client IPC stream established\n");
         Ok(())
     }
 
-    /// Send input to the daemon via IPC
-    pub fn send_input(&self, text: &str) -> Result<()> {
-        use std::os::unix::net::UnixStream;
-
-        let mut stream =
-            UnixStream::connect(&self.socket_path).context("Failed to connect to daemon socket")?;
+    /// Send input to the daemon via persistent IPC stream
+    pub fn send_input(&mut self, text: &str) -> Result<()> {
+        let mut stream = self
+            .client_stream
+            .as_ref()
+            .context("Client IPC stream not established. Call start_client() first.")?
+            .try_clone() // Clone for concurrent access if needed, or pass &mut self?
+            .context("Failed to clone client IPC stream")?;
 
         // Create input message
         let msg = ControlMessage::Input {
@@ -164,7 +158,7 @@ impl E2ETestHarness {
 
         let len = bytes.len() as u32;
 
-        // Write length prefix
+        // Write length prefix (Big Endian)
         stream
             .write_all(&len.to_be_bytes())
             .context("Failed to write message length")?;
@@ -284,11 +278,14 @@ impl E2ETestHarness {
     /// Disconnect the client (kill it)
     pub fn disconnect_client(&mut self) -> Result<()> {
         if let Some(mut client) = self.client.take() {
-            println!("Disconnecting client...");
+            println!("Disconnecting client process (killing)...");
             client.kill().context("Failed to kill client process")?;
             client.wait().context("Failed to wait for client")?;
-            println!("✓ Client disconnected\n");
+            println!("✓ Client process disconnected\n");
         }
+        // Also drop the persistent stream if it exists
+        self.client_stream = None;
+        println!("✓ Persistent client IPC stream dropped\n");
         Ok(())
     }
 
@@ -298,13 +295,17 @@ impl E2ETestHarness {
     }
 
     /// Send a resize command to the daemon
-    pub fn resize(&self, cols: u16, rows: u16) -> Result<()> {
+    pub fn resize(&mut self, cols: u16, rows: u16) -> Result<()> {
         use std::os::unix::net::UnixStream;
 
         println!("Sending resize: {}x{}", cols, rows);
 
-        let mut stream =
-            UnixStream::connect(&self.socket_path).context("Failed to connect to daemon socket")?;
+        let mut stream = self
+            .client_stream
+            .as_ref()
+            .context("Client IPC stream not established for resize. Call start_client() first.")?
+            .try_clone() // Clone for concurrent access if needed, or pass &mut self?
+            .context("Failed to clone client IPC stream for resize")?;
 
         let msg = ControlMessage::Resize { cols, rows };
 
@@ -365,6 +366,9 @@ impl E2ETestHarness {
             let _ = daemon.wait();
             println!("✓ Daemon terminated");
         }
+
+        // Drop persistent client stream
+        self.client_stream = None;
 
         // Clean up shared memory
         self.shared_memory = None;
@@ -551,7 +555,8 @@ mod tests {
 
     #[test]
     fn test_send_input() -> Result<()> {
-        let harness = E2ETestHarness::new()?;
+        let mut harness = E2ETestHarness::new()?;
+        harness.start_client()?; // Start persistent client stream
 
         // Send simple input (use \r for PTY)
         harness.send_input("echo test_output\r")?;

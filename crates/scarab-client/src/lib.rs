@@ -7,6 +7,7 @@ pub mod ui_stub;
 pub mod integration;
 pub mod ipc;
 pub mod rendering;
+pub mod scripting;
 
 pub use rendering::*;
 
@@ -15,3 +16,6 @@ pub use integration::{extract_grid_text, get_cell_at, IntegrationPlugin, SharedM
 
 // Re-export UI plugin
 pub use ui_stub::AdvancedUIPlugin;
+
+// Re-export scripting system
+pub use scripting::{ScriptingPlugin, ScriptManager, ScriptEvent, RuntimeContext};

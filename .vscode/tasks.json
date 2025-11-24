@@ -1,0 +1,74 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "cargo build",
+      "type": "shell",
+      "command": "cargo build",
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      },
+      "problemMatcher": ["$rustc"]
+    },
+    {
+      "label": "cargo check",
+      "type": "shell",
+      "command": "cargo check --workspace",
+      "group": "build",
+      "problemMatcher": ["$rustc"]
+    },
+    {
+      "label": "cargo test",
+      "type": "shell",
+      "command": "cargo test --workspace",
+      "group": {
+        "kind": "test",
+        "isDefault": true
+      },
+      "problemMatcher": ["$rustc"]
+    },
+    {
+      "label": "cargo clippy",
+      "type": "shell",
+      "command": "cargo clippy --workspace -- -D warnings",
+      "group": "build",
+      "problemMatcher": ["$rustc"]
+    },
+    {
+      "label": "plugin: build all",
+      "type": "shell",
+      "command": "just plugin-build-all",
+      "group": "build",
+      "problemMatcher": []
+    },
+    {
+      "label": "plugin: validate all",
+      "type": "shell",
+      "command": "just plugin-validate-all",
+      "group": "test",
+      "problemMatcher": []
+    },
+    {
+      "label": "plugin: watch",
+      "type": "shell",
+      "command": "just plugin-watch",
+      "isBackground": true,
+      "problemMatcher": []
+    },
+    {
+      "label": "run daemon",
+      "type": "shell",
+      "command": "cargo run -p scarab-daemon",
+      "isBackground": true,
+      "problemMatcher": []
+    },
+    {
+      "label": "run client",
+      "type": "shell",
+      "command": "cargo run -p scarab-client",
+      "isBackground": true,
+      "problemMatcher": []
+    }
+  ]
+}

@@ -14,7 +14,8 @@ use std::time::Duration;
 fn test_basic_echo() -> Result<()> {
     println!("\n=== Test: Basic Echo ===");
 
-    let harness = E2ETestHarness::new()?;
+    let mut harness = E2ETestHarness::new()?;
+    harness.start_client()?;
 
     // Wait for shell prompt to appear
     thread::sleep(Duration::from_secs(1));
@@ -35,7 +36,8 @@ fn test_basic_echo() -> Result<()> {
 fn test_multiple_commands() -> Result<()> {
     println!("\n=== Test: Multiple Commands ===");
 
-    let harness = E2ETestHarness::new()?;
+    let mut harness = E2ETestHarness::new()?;
+    harness.start_client()?;
 
     thread::sleep(Duration::from_secs(1));
 
@@ -63,7 +65,8 @@ fn test_multiple_commands() -> Result<()> {
 fn test_pwd_command() -> Result<()> {
     println!("\n=== Test: PWD Command ===");
 
-    let harness = E2ETestHarness::new()?;
+    let mut harness = E2ETestHarness::new()?;
+    harness.start_client()?;
 
     thread::sleep(Duration::from_secs(1));
 

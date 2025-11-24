@@ -13,7 +13,7 @@ use std::{
 };
 use tokio::time::timeout;
 
-mod fusabi_adapter;
+pub mod fusabi_adapter;
 use fusabi_adapter::{FusabiBytecodePlugin, FusabiScriptPlugin};
 
 /// Plugin wrapper with failure tracking

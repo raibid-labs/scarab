@@ -1,0 +1,61 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "type": "lldb",
+      "request": "launch",
+      "name": "Debug Scarab Daemon",
+      "cargo": {
+        "args": [
+          "build",
+          "--bin=scarab-daemon",
+          "--package=scarab-daemon"
+        ],
+        "filter": {
+          "name": "scarab-daemon",
+          "kind": "bin"
+        }
+      },
+      "args": [],
+      "cwd": "${workspaceFolder}",
+      "env": {
+        "RUST_BACKTRACE": "1"
+      }
+    },
+    {
+      "type": "lldb",
+      "request": "launch",
+      "name": "Debug Scarab Client",
+      "cargo": {
+        "args": [
+          "build",
+          "--bin=scarab-client",
+          "--package=scarab-client"
+        ],
+        "filter": {
+          "name": "scarab-client",
+          "kind": "bin"
+        }
+      },
+      "args": [],
+      "cwd": "${workspaceFolder}",
+      "env": {
+        "RUST_BACKTRACE": "1"
+      }
+    },
+    {
+      "type": "lldb",
+      "request": "launch",
+      "name": "Debug Unit Tests",
+      "cargo": {
+        "args": [
+          "test",
+          "--no-run",
+          "--workspace"
+        ]
+      },
+      "args": [],
+      "cwd": "${workspaceFolder}"
+    }
+  ]
+}
