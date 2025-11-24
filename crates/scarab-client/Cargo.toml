@@ -13,7 +13,7 @@ path = "src/main.rs"
 
 [dependencies]
 scarab-protocol = { path = "../scarab-protocol" }
-# fusabi-frontend = { workspace = true }
+fusabi-frontend = { workspace = true }
 bevy = { workspace = true }
 serde = { workspace = true }
 cosmic-text = { workspace = true }

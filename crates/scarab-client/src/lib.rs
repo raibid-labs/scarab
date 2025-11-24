@@ -12,3 +12,6 @@ pub use rendering::*;
 
 // Re-export commonly used integration types
 pub use integration::{IntegrationPlugin, extract_grid_text, get_cell_at, SharedMemoryReader};
+
+// Re-export UI plugin
+pub use ui_stub::AdvancedUIPlugin;

@@ -9,13 +9,24 @@ use scarab_plugin_api::{
 use async_trait::async_trait;
 use std::path::Path;
 
+// Import Fusabi VM (official runtime from crates.io)
+use fusabi_vm::Vm;
+
 /// Adapter for compiled Fusabi bytecode (.fzb files)
-#[derive(Debug)]
 pub struct FusabiBytecodePlugin {
     metadata: PluginMetadata,
-    _bytecode: Vec<u8>,
-    // TODO: Add fusabi-vm VM instance when available
-    // vm: fusabi_vm::VM,
+    bytecode: Vec<u8>,
+    // Note: Vm contains Rc which is !Send, so we can't store it directly
+    // We'll recreate the VM on each hook call (acceptable for now)
+}
+
+impl std::fmt::Debug for FusabiBytecodePlugin {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("FusabiBytecodePlugin")
+            .field("metadata", &self.metadata)
+            .field("bytecode_len", &self.bytecode.len())
+            .finish()
+    }
 }
 
 impl FusabiBytecodePlugin {
@@ -26,15 +37,12 @@ impl FusabiBytecodePlugin {
             PluginError::LoadError(format!("Failed to read bytecode file: {}", e))
         })?;
 
-        // Validate magic number "FZB\0"
-        if bytecode.len() < 4 || &bytecode[0..4] != b"FZB\0" {
-            return Err(PluginError::LoadError(
-                "Invalid bytecode magic number".to_string(),
-            ));
-        }
+        // Validate we can deserialize the bytecode
+        let _ = fusabi_vm::deserialize_chunk(&bytecode).map_err(|e| {
+            PluginError::LoadError(format!("Invalid Fusabi bytecode: {}", e))
+        })?;
 
         // Extract metadata from bytecode
-        // TODO: Parse actual metadata from bytecode format
         let plugin_name = path
             .file_stem()
             .and_then(|s| s.to_str())
@@ -48,14 +56,23 @@ impl FusabiBytecodePlugin {
             "Fusabi VM",
         );
 
-        // TODO: Initialize VM and load bytecode
-        // let vm = fusabi_vm::VM::new()?;
-        // vm.load_bytecode(&bytecode)?;
+        Ok(Self { metadata, bytecode })
+    }
 
-        Ok(Self {
-            metadata,
-            _bytecode: bytecode,
-        })
+    /// Execute bytecode in a new VM instance
+    fn execute_bytecode(&self) -> Result<()> {
+        let chunk = fusabi_vm::deserialize_chunk(&self.bytecode).map_err(|e| {
+            PluginError::LoadError(format!("Failed to deserialize chunk: {}", e))
+        })?;
+
+        let mut vm = Vm::new();
+
+        // Execute the chunk and get the result
+        let _result = vm.execute(chunk).map_err(|e| {
+            PluginError::Other(anyhow::anyhow!("VM execution failed: {}", e))
+        })?;
+
+        Ok(())
     }
 }
 
@@ -71,8 +88,10 @@ impl Plugin for FusabiBytecodePlugin {
             &format!("Loading Fusabi bytecode plugin: {}", self.metadata.name),
         );
 
-        // TODO: Execute VM initialization code
-        // self.vm.call_function("on_load", &[ctx_value])?;
+        // Execute the plugin bytecode
+        // TODO: Pass context to VM via host functions
+        // Note: For now, we just log. Actual execution requires proper host function setup.
+        log::debug!("Plugin bytecode loaded, {} bytes", self.bytecode.len());
 
         Ok(())
     }
@@ -251,16 +270,19 @@ mod tests {
         assert!(result
             .unwrap_err()
             .to_string()
-            .contains("Invalid bytecode magic number"));
+            .contains("Invalid Fusabi bytecode"));
     }
 
     #[test]
-    fn test_load_valid_bytecode_header() {
+    fn test_load_valid_bytecode() {
+        use fusabi_vm::{Chunk, ChunkBuilder};
+
+        // Create a valid Fusabi chunk
+        let chunk = ChunkBuilder::new().build();
+        let bytecode = fusabi_vm::serialize_chunk(&chunk).unwrap();
+
         let mut temp_file = NamedTempFile::new().unwrap();
-        // Write valid magic number
-        temp_file.write_all(b"FZB\0").unwrap();
-        // Write dummy version and data
-        temp_file.write_all(&[0u8; 100]).unwrap();
+        temp_file.write_all(&bytecode).unwrap();
         temp_file.flush().unwrap();
 
         let result = FusabiBytecodePlugin::load(temp_file.path());
@@ -285,9 +307,14 @@ mod tests {
 
     #[tokio::test]
     async fn test_bytecode_plugin_lifecycle() {
+        use fusabi_vm::{Chunk, ChunkBuilder};
+
+        // Create valid bytecode
+        let chunk = ChunkBuilder::new().build();
+        let bytecode = fusabi_vm::serialize_chunk(&chunk).unwrap();
+
         let mut temp_file = NamedTempFile::new().unwrap();
-        temp_file.write_all(b"FZB\0").unwrap();
-        temp_file.write_all(&[0u8; 100]).unwrap();
+        temp_file.write_all(&bytecode).unwrap();
         temp_file.flush().unwrap();
 
         let mut plugin = FusabiBytecodePlugin::load(temp_file.path()).unwrap();
