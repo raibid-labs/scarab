@@ -5,6 +5,7 @@ use std::collections::HashMap;
 
 /// Root configuration structure
 #[derive(Debug, Clone, Deserialize, Serialize)]
+#[cfg_attr(feature = "bevy", derive(bevy_ecs::system::Resource))]
 #[serde(default)]
 pub struct ScarabConfig {
     pub terminal: TerminalConfig,
@@ -76,6 +77,8 @@ pub struct TerminalConfig {
     pub alt_screen: bool,
     pub scroll_multiplier: f32,
     pub auto_scroll: bool,
+    pub columns: u16,
+    pub rows: u16,
 }
 
 impl Default for TerminalConfig {
@@ -86,6 +89,8 @@ impl Default for TerminalConfig {
             alt_screen: true,
             scroll_multiplier: 3.0,
             auto_scroll: true,
+            columns: 80,
+            rows: 24,
         }
     }
 }

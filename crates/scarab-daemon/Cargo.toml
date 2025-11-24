@@ -13,6 +13,7 @@ path = "src/main.rs"
 [dependencies]
 scarab-protocol = { path = "../scarab-protocol" }
 scarab-plugin-api = { path = "../scarab-plugin-api" }
+scarab-config = { path = "../scarab-config" }
 fusabi-vm = { workspace = true }
 tokio = { workspace = true }
 portable-pty = { workspace = true }

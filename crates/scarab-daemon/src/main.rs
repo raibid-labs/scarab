@@ -6,6 +6,7 @@ use std::sync::{Arc, Mutex};
 use tokio::sync::mpsc;
 use shared_memory::ShmemConf;
 use scarab_protocol::{SharedState, SHMEM_PATH};
+use scarab_config::ConfigLoader;
 
 mod ipc;
 mod vte;
@@ -22,9 +23,21 @@ async fn main() -> Result<()> {
     env_logger::init();
     println!("Starting Scarab Daemon...");
 
-    // 1. Initialize Session Manager
+    // 0. Load Configuration
     let home_dir = std::env::var("HOME").unwrap_or_else(|_| ".".to_string());
-    let db_path = std::path::PathBuf::from(home_dir)
+    let config_path = std::path::PathBuf::from(&home_dir)
+        .join(".config/scarab/config.toml");
+
+    let config = if config_path.exists() {
+        println!("Loading config from: {}", config_path.display());
+        ConfigLoader::from_file(&config_path)?
+    } else {
+        println!("No config found at {}, using defaults", config_path.display());
+        scarab_config::ScarabConfig::default()
+    };
+
+    // 1. Initialize Session Manager
+    let db_path = std::path::PathBuf::from(&home_dir)
         .join(".local/share/scarab/sessions.db");
 
     let session_manager = std::sync::Arc::new(SessionManager::new(db_path)?);
@@ -35,21 +48,26 @@ async fn main() -> Result<()> {
 
     // Create default session if none exist
     if session_manager.session_count() == 0 {
-        let session_id = session_manager.create_session("default".to_string(), 80, 24)?;
-        println!("Created default session: {}", session_id);
+        let cols = config.terminal.columns;
+        let rows = config.terminal.rows;
+        let session_id = session_manager.create_session("default".to_string(), cols, rows)?;
+        println!("Created default session: {} ({}x{})", session_id, cols, rows);
     }
 
     // 2. Setup PTY System (legacy - will be per-session)
     let pty_system = NativePtySystem::default();
     let pair = pty_system.openpty(PtySize {
-        rows: 24,
-        cols: 80,
+        rows: config.terminal.rows,
+        cols: config.terminal.columns,
         pixel_width: 0,
         pixel_height: 0,
     })?;
 
-    let cmd = CommandBuilder::new("bash");
+    // Use configured shell or fallback to bash
+    let shell = &config.terminal.default_shell;
+    let cmd = CommandBuilder::new(shell);
     let _child = pair.slave.spawn_command(cmd)?;
+    println!("Spawned shell: {} ({}x{})", shell, config.terminal.columns, config.terminal.rows);
 
     // Important: Release slave handle in parent process
     drop(pair.slave);

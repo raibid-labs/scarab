@@ -4291,6 +4291,7 @@ dependencies = [
  "puffin",
  "regex",
  "rkyv",
+ "scarab-config",
  "scarab-protocol",
  "serde",
  "shared_memory",
@@ -4304,6 +4305,7 @@ name = "scarab-config"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "bevy_ecs",
  "dirs",
  "notify",
  "serde",
@@ -4333,6 +4335,7 @@ dependencies = [
  "puffin",
  "rkyv",
  "rusqlite",
+ "scarab-config",
  "scarab-plugin-api",
  "scarab-protocol",
  "serde",
