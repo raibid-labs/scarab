@@ -63,7 +63,7 @@ fn test_resize_during_output() -> Result<()> {
     thread::sleep(Duration::from_secs(2));
 
     // Verify terminal is still responsive
-    harness.send_input("echo 'After resize'\n")?;
+    harness.send_input("echo 'After resize'\r")?;
 
     let found = harness.verify_output_contains("After resize", Duration::from_secs(2))?;
     assert!(found, "Should handle resize during output");
@@ -96,7 +96,7 @@ fn test_multiple_resizes() -> Result<()> {
     }
 
     // Verify terminal is still responsive
-    harness.send_input("echo 'Resize test complete'\n")?;
+    harness.send_input("echo 'Resize test complete'\r")?;
 
     let found = harness.verify_output_contains("Resize test complete", Duration::from_secs(2))?;
     assert!(found, "Should handle multiple resizes");
@@ -122,7 +122,7 @@ fn test_resize_with_running_app() -> Result<()> {
         harness.resize(100, 30)?;
         thread::sleep(Duration::from_millis(500));
 
-        harness.send_input("echo 'Resize ok'\n")?;
+        harness.send_input("echo 'Resize ok'\r")?;
         let found = harness.verify_output_contains("Resize ok", Duration::from_secs(2))?;
         assert!(found);
 
@@ -131,7 +131,7 @@ fn test_resize_with_running_app() -> Result<()> {
     }
 
     // Start top in batch mode (non-interactive)
-    harness.send_input("top -b -n 1 > /dev/null &\n")?;
+    harness.send_input("top -b -n 1 > /dev/null &\r")?;
     thread::sleep(Duration::from_millis(500));
 
     // Resize while app is running
@@ -139,7 +139,7 @@ fn test_resize_with_running_app() -> Result<()> {
     thread::sleep(Duration::from_millis(500));
 
     // Terminal should still be responsive
-    harness.send_input("echo 'App resize test'\n")?;
+    harness.send_input("echo 'App resize test'\r")?;
 
     let found = harness.verify_output_contains("App resize test", Duration::from_secs(2))?;
     assert!(found, "Should handle resize with running app");
@@ -161,7 +161,7 @@ fn test_extreme_sizes() -> Result<()> {
     harness.resize(20, 5)?;
     thread::sleep(Duration::from_millis(500));
 
-    harness.send_input("echo 'small'\n")?;
+    harness.send_input("echo 'small'\r")?;
     thread::sleep(Duration::from_millis(500));
 
     // Test very large size
@@ -169,14 +169,14 @@ fn test_extreme_sizes() -> Result<()> {
     harness.resize(300, 100)?;
     thread::sleep(Duration::from_millis(500));
 
-    harness.send_input("echo 'large'\n")?;
+    harness.send_input("echo 'large'\r")?;
     thread::sleep(Duration::from_millis(500));
 
     // Back to normal
     harness.resize(80, 24)?;
     thread::sleep(Duration::from_millis(500));
 
-    harness.send_input("echo 'normal'\n")?;
+    harness.send_input("echo 'normal'\r")?;
 
     let found = harness.verify_output_contains("normal", Duration::from_secs(2))?;
     assert!(found, "Should handle extreme sizes");
@@ -194,11 +194,11 @@ fn test_resize_preserves_content() -> Result<()> {
     thread::sleep(Duration::from_secs(1));
 
     // Output some content
-    harness.send_input("echo 'Line 1'\n")?;
+    harness.send_input("echo 'Line 1'\r")?;
     thread::sleep(Duration::from_millis(300));
-    harness.send_input("echo 'Line 2'\n")?;
+    harness.send_input("echo 'Line 2'\r")?;
     thread::sleep(Duration::from_millis(300));
-    harness.send_input("echo 'Line 3'\n")?;
+    harness.send_input("echo 'Line 3'\r")?;
     thread::sleep(Duration::from_millis(300));
 
     // Get output before resize
@@ -242,7 +242,7 @@ fn test_rapid_resize_changes() -> Result<()> {
     thread::sleep(Duration::from_millis(500));
 
     // Verify terminal is still functional
-    harness.send_input("echo 'Rapid resize done'\n")?;
+    harness.send_input("echo 'Rapid resize done'\r")?;
 
     let found = harness.verify_output_contains("Rapid resize done", Duration::from_secs(2))?;
     assert!(found, "Should handle rapid resize changes");

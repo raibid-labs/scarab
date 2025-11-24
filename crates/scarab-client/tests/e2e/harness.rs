@@ -71,8 +71,9 @@ impl E2ETestHarness {
         let daemon = Command::new(&daemon_bin)
             .env("RUST_LOG", "info")
             .env("HOME", temp_dir.path()) // Isolate daemon data
-            .stdout(Stdio::piped())
-            .stderr(Stdio::piped())
+            .env("SHELL", "/bin/sh")      // Force simple shell for testing
+            .stdout(Stdio::inherit())
+            .stderr(Stdio::inherit())
             .spawn()
             .context("Failed to spawn daemon process")?;
 
@@ -165,7 +166,7 @@ impl E2ETestHarness {
 
         // Write length prefix
         stream
-            .write_all(&len.to_le_bytes())
+            .write_all(&len.to_be_bytes())
             .context("Failed to write message length")?;
 
         // Write message data
@@ -179,7 +180,7 @@ impl E2ETestHarness {
     }
 
     /// Get the current shared state
-    pub fn get_shared_state(&self) -> Result<SharedState> {
+    pub fn get_shared_state(&self) -> Result<&SharedState> {
         let shmem = self
             .shared_memory
             .as_ref()
@@ -187,8 +188,8 @@ impl E2ETestHarness {
 
         let ptr = shmem.as_ptr() as *const SharedState;
 
-        // Safe because we control the daemon and know the layout
-        let state = unsafe { std::ptr::read_volatile(ptr) };
+        // Return reference to mapped memory to avoid stack overflow from copying large struct
+        let state = unsafe { &*ptr };
 
         Ok(state)
     }
@@ -312,7 +313,7 @@ impl E2ETestHarness {
 
         let len = bytes.len() as u32;
 
-        stream.write_all(&len.to_le_bytes())?;
+        stream.write_all(&len.to_be_bytes())?;
         stream.write_all(&bytes)?;
         stream.flush()?;
 
@@ -396,6 +397,14 @@ impl E2ETestHarness {
         // Try to find built binary first
         let workspace_root = Self::find_workspace_root()?;
 
+        // Check CARGO_TARGET_DIR
+        if let Ok(target_dir) = std::env::var("CARGO_TARGET_DIR") {
+            let debug_bin = PathBuf::from(&target_dir).join("debug/scarab-daemon");
+            let release_bin = PathBuf::from(&target_dir).join("release/scarab-daemon");
+            if release_bin.exists() { return Ok(release_bin); }
+            if debug_bin.exists() { return Ok(debug_bin); }
+        }
+
         let debug_bin = workspace_root.join("target/debug/scarab-daemon");
         let release_bin = workspace_root.join("target/release/scarab-daemon");
 
@@ -411,6 +420,12 @@ impl E2ETestHarness {
         println!("Daemon binary not found, building...");
         Self::build_daemon(&workspace_root)?;
 
+        // Recheck paths after build (including target dir)
+        if let Ok(target_dir) = std::env::var("CARGO_TARGET_DIR") {
+            let debug_bin = PathBuf::from(target_dir).join("debug/scarab-daemon");
+            if debug_bin.exists() { return Ok(debug_bin); }
+        }
+        
         if debug_bin.exists() {
             Ok(debug_bin)
         } else {
@@ -421,6 +436,14 @@ impl E2ETestHarness {
     /// Find or build the client binary
     fn find_or_build_client() -> Result<PathBuf> {
         let workspace_root = Self::find_workspace_root()?;
+
+        // Check CARGO_TARGET_DIR
+        if let Ok(target_dir) = std::env::var("CARGO_TARGET_DIR") {
+            let debug_bin = PathBuf::from(&target_dir).join("debug/scarab-client");
+            let release_bin = PathBuf::from(&target_dir).join("release/scarab-client");
+            if release_bin.exists() { return Ok(release_bin); }
+            if debug_bin.exists() { return Ok(debug_bin); }
+        }
 
         let debug_bin = workspace_root.join("target/debug/scarab-client");
         let release_bin = workspace_root.join("target/release/scarab-client");
@@ -436,6 +459,12 @@ impl E2ETestHarness {
         // Build if not found
         println!("Client binary not found, building...");
         Self::build_client(&workspace_root)?;
+
+        // Recheck paths after build (including target dir)
+        if let Ok(target_dir) = std::env::var("CARGO_TARGET_DIR") {
+            let debug_bin = PathBuf::from(target_dir).join("debug/scarab-client");
+            if debug_bin.exists() { return Ok(debug_bin); }
+        }
 
         if debug_bin.exists() {
             Ok(debug_bin)
@@ -524,11 +553,11 @@ mod tests {
     fn test_send_input() -> Result<()> {
         let harness = E2ETestHarness::new()?;
 
-        // Send simple input
-        harness.send_input("echo test\n")?;
+        // Send simple input (use \r for PTY)
+        harness.send_input("echo test_output\r")?;
 
-        // Wait for output
-        thread::sleep(Duration::from_millis(500));
+        // Verify output
+        assert!(harness.verify_output_contains("test_output", Duration::from_secs(2))?);
 
         Ok(())
     }
