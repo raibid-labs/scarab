@@ -69,6 +69,76 @@
       "command": "cargo run -p scarab-client",
       "isBackground": true,
       "problemMatcher": []
+    },
+    {
+      "label": "Watch Plugin (Hot Reload)",
+      "type": "shell",
+      "command": "just",
+      "args": ["dev-mode", "${input:pluginName}"],
+      "problemMatcher": [],
+      "isBackground": true,
+      "presentation": {
+        "reveal": "always",
+        "panel": "new"
+      }
+    },
+    {
+      "label": "Compile Plugin to .fzb",
+      "type": "shell",
+      "command": "just",
+      "args": ["plugin-build", "${input:pluginName}"],
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared"
+      }
+    },
+    {
+      "label": "Test Plugin",
+      "type": "shell",
+      "command": "just",
+      "args": ["plugin-test", "${input:pluginName}"],
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared"
+      }
+    },
+    {
+      "label": "Package Plugin",
+      "type": "shell",
+      "command": "just",
+      "args": ["plugin-package", "${input:pluginName}"],
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared"
+      }
+    },
+    {
+      "label": "Create New Plugin",
+      "type": "shell",
+      "command": "just",
+      "args": ["plugin-new", "${input:pluginName}", "${input:pluginType}"],
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared"
+      }
+    }
+  ],
+  "inputs": [
+    {
+      "id": "pluginName",
+      "type": "promptString",
+      "description": "Plugin name (e.g., my-plugin)"
+    },
+    {
+      "id": "pluginType",
+      "type": "pickString",
+      "description": "Plugin type",
+      "options": ["frontend", "backend"],
+      "default": "frontend"
     }
   ]
 }

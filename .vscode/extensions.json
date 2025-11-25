@@ -9,11 +9,17 @@
     // F# support for Fusabi plugins
     "ionide.ionide-fsharp",
 
+    // Plugin development
+    "redhat.vscode-yaml",
+    "ms-vscode.hexeditor",
+    "ms-vscode.vscode-json",
+
     // General development
     "editorconfig.editorconfig",
     "streetsidesoftware.code-spell-checker",
     "usernamehw.errorlens",
     "eamodio.gitlens",
+    "aaron-bond.better-comments",
 
     // Build tools
     "skellock.just",
