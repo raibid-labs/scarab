@@ -2835,6 +2835,8 @@ version = "0.15.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9229cfe53dfd69f0609a49f65461bd93001ea1ef889cd5529dd176593f5338a1"
 dependencies = [
+ "allocator-api2",
+ "equivalent",
  "foldhash",
 ]
 
@@ -3451,6 +3453,15 @@ dependencies = [
  "scoped-tls",
  "tracing",
  "tracing-subscriber",
+]
+
+[[package]]
+name = "lru"
+version = "0.12.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "234cf4f4a04dc1f57e24b96cc0cd600cf2af460d4161ac5ecdd0af8e1f3b2a38"
+dependencies = [
+ "hashbrown 0.15.5",
 ]
 
 [[package]]
@@ -4992,7 +5003,7 @@ dependencies = [
 
 [[package]]
 name = "scarab-client"
-version = "0.1.0-alpha.1"
+version = "0.1.0-alpha.4"
 dependencies = [
  "anyhow",
  "arboard",
@@ -5018,7 +5029,7 @@ dependencies = [
 
 [[package]]
 name = "scarab-config"
-version = "0.1.0-alpha.1"
+version = "0.1.0-alpha.4"
 dependencies = [
  "anyhow",
  "bevy_ecs",
@@ -5037,7 +5048,7 @@ dependencies = [
 
 [[package]]
 name = "scarab-daemon"
-version = "0.1.0-alpha.1"
+version = "0.1.0-alpha.4"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -5047,6 +5058,7 @@ dependencies = [
  "fusabi-frontend",
  "fusabi-vm",
  "log",
+ "lru",
  "parking_lot",
  "portable-pty",
  "profiling",
@@ -5072,7 +5084,7 @@ dependencies = [
 
 [[package]]
 name = "scarab-nav"
-version = "0.1.0-alpha.1"
+version = "0.1.0-alpha.4"
 dependencies = [
  "async-trait",
  "log",
@@ -5083,7 +5095,7 @@ dependencies = [
 
 [[package]]
 name = "scarab-palette"
-version = "0.1.0-alpha.1"
+version = "0.1.0-alpha.4"
 dependencies = [
  "async-trait",
  "log",
@@ -5093,7 +5105,7 @@ dependencies = [
 
 [[package]]
 name = "scarab-platform"
-version = "0.1.0-alpha.1"
+version = "0.1.0-alpha.4"
 dependencies = [
  "anyhow",
  "cocoa",
@@ -5110,7 +5122,7 @@ dependencies = [
 
 [[package]]
 name = "scarab-plugin-api"
-version = "0.1.0-alpha.1"
+version = "0.1.0-alpha.4"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -5128,7 +5140,7 @@ dependencies = [
 
 [[package]]
 name = "scarab-plugin-compiler"
-version = "0.1.0-alpha.1"
+version = "0.1.0-alpha.4"
 dependencies = [
  "anyhow",
  "bincode",
@@ -5141,7 +5153,7 @@ dependencies = [
 
 [[package]]
 name = "scarab-protocol"
-version = "0.1.0-alpha.1"
+version = "0.1.0-alpha.4"
 dependencies = [
  "bytemuck",
  "rkyv",
@@ -5150,7 +5162,7 @@ dependencies = [
 
 [[package]]
 name = "scarab-session"
-version = "0.1.0-alpha.1"
+version = "0.1.0-alpha.4"
 dependencies = [
  "async-trait",
  "log",
