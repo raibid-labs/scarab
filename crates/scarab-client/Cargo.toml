@@ -33,6 +33,7 @@ crossbeam = { workspace = true }
 regex = "1.10"
 fuzzy-matcher = "0.3"
 arboard = "3.3"
+image = "0.25"
 
 # Profiling dependencies
 tracy-client = { workspace = true, optional = true }

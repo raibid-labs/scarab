@@ -93,7 +93,7 @@ impl ScriptManager {
         let mut results = Vec::new();
 
         for (name, script) in &self.scripts {
-            info!("Executing script: {}", name);
+            debug!("Executing script: {}", name);  // Changed from info! to debug!
             let result = self
                 .runtime
                 .execute_source(&script.source, name, context.context());
@@ -118,17 +118,10 @@ impl ScriptManager {
 
     /// Execute pending scripts (called from Bevy system)
     pub fn execute_pending(&mut self, context: &RuntimeContext, _commands: &mut Commands) {
-        // Execute all scripts once on first run
-        if self.initialized && !self.scripts.is_empty() {
-            let results = self.execute_all(context);
-
-            // Log any errors
-            for (_idx, result) in results.iter().enumerate() {
-                if let Err(e) = result {
-                    error!("Script execution error: {}", e);
-                }
-            }
-        }
+        // This method is intentionally left empty now
+        // Scripts should be executed on-demand or on specific events, not every frame
+        // TODO: Implement event-based script execution
+        let _ = (context, _commands);
     }
 
     /// Handle a script event

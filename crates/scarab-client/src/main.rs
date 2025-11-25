@@ -67,12 +67,20 @@ fn main() {
     let window_width = config.terminal.columns as f32 * char_width;
     let window_height = config.terminal.rows as f32 * char_height;
 
+    // TODO: Window icon loading in Bevy 0.15 requires platform-specific handling
+    // For now, we'll leave this as a config option that can be implemented later
+    if let Some(icon_path) = &config.ui.window_icon {
+        println!("Custom window icon specified: {}", icon_path);
+        println!("Note: Window icon loading is not yet fully implemented in Bevy 0.15");
+    }
+
     let mut app = App::new();
 
     app.add_plugins(DefaultPlugins.set(WindowPlugin {
             primary_window: Some(Window {
                 title: "Scarab Terminal".into(),
                 resolution: (window_width, window_height).into(),
+                window_theme: Some(bevy::window::WindowTheme::Dark),
                 ..default()
             }),
             ..default()

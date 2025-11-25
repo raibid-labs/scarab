@@ -24,8 +24,11 @@ install PREFIX="~/.local":
     # Expand tilde
     PREFIX_EXPANDED="${PREFIX_VALUE/#\~/$HOME}"
     BIN_DIR="$PREFIX_EXPANDED/bin"
+    SHARE_DIR="$PREFIX_EXPANDED/share"
+    ICON_DIR="$SHARE_DIR/icons/hicolor"
+    APPS_DIR="$SHARE_DIR/applications"
 
-    echo "🪲 Installing Scarab Terminal to $BIN_DIR"
+    echo "🪲 Installing Scarab Terminal to $PREFIX_EXPANDED"
 
     # Build release binaries
     echo "Building release binaries..."
@@ -43,8 +46,14 @@ install PREFIX="~/.local":
 
     echo "Found binaries in: $TARGET_DIR"
 
-    # Create bin directory if it doesn't exist
+    # Create directories
     mkdir -p "$BIN_DIR"
+    mkdir -p "$ICON_DIR/scalable/apps"
+    mkdir -p "$ICON_DIR/128x128/apps"
+    mkdir -p "$ICON_DIR/64x64/apps"
+    mkdir -p "$ICON_DIR/48x48/apps"
+    mkdir -p "$ICON_DIR/32x32/apps"
+    mkdir -p "$APPS_DIR"
 
     # Install binaries
     echo "Installing binaries..."
@@ -66,18 +75,62 @@ install PREFIX="~/.local":
         echo "✓ scarab-plugin-compiler → $BIN_DIR/scarab-plugin-compiler"
     fi
 
+    # Install icon (SVG)
+    if [ -f "assets/icon.svg" ]; then
+        cp "assets/icon.svg" "$ICON_DIR/scalable/apps/scarab.svg"
+        echo "✓ icon → $ICON_DIR/scalable/apps/scarab.svg"
+
+        # Convert to PNG sizes using ImageMagick if available
+        if command -v convert &> /dev/null; then
+            convert -background none "assets/icon.svg" -resize 128x128 "$ICON_DIR/128x128/apps/scarab.png"
+            convert -background none "assets/icon.svg" -resize 64x64 "$ICON_DIR/64x64/apps/scarab.png"
+            convert -background none "assets/icon.svg" -resize 48x48 "$ICON_DIR/48x48/apps/scarab.png"
+            convert -background none "assets/icon.svg" -resize 32x32 "$ICON_DIR/32x32/apps/scarab.png"
+            echo "✓ Generated PNG icons (128x128, 64x64, 48x48, 32x32)"
+        else
+            echo "⚠️  ImageMagick not found - PNG icons not generated"
+            echo "   Install imagemagick to generate PNG icons from SVG"
+        fi
+    else
+        echo "⚠️  Icon not found at assets/icon.svg"
+    fi
+
+    # Install .desktop file
+    if [ -f "scarab.desktop" ]; then
+        # Replace Exec path with actual binary location
+        sed "s|Exec=scarab|Exec=$BIN_DIR/scarab|g" scarab.desktop > "$APPS_DIR/scarab.desktop"
+        chmod +x "$APPS_DIR/scarab.desktop"
+        echo "✓ desktop entry → $APPS_DIR/scarab.desktop"
+    else
+        echo "⚠️  Desktop file not found at scarab.desktop"
+    fi
+
+    # Update icon cache if possible
+    if command -v gtk-update-icon-cache &> /dev/null; then
+        gtk-update-icon-cache -f -t "$ICON_DIR" 2>/dev/null || true
+        echo "✓ Updated icon cache"
+    fi
+
+    # Update desktop database if possible
+    if command -v update-desktop-database &> /dev/null; then
+        update-desktop-database "$APPS_DIR" 2>/dev/null || true
+        echo "✓ Updated desktop database"
+    fi
+
     echo "✓ scarab-daemon → $BIN_DIR/scarab-daemon"
     echo "✓ scarab-client → $BIN_DIR/scarab-client"
     echo "✓ scarab → $BIN_DIR/scarab (symlink to scarab-client)"
     echo ""
     echo "Installation complete! 🎉"
     echo ""
+    echo "Scarab should now appear in your application menu."
+    echo ""
     echo "Make sure $BIN_DIR is in your PATH:"
     echo "  export PATH=\"$BIN_DIR:\$PATH\""
     echo ""
     echo "To start using Scarab:"
     echo "  1. Start the daemon: scarab-daemon &"
-    echo "  2. Launch the client: scarab"
+    echo "  2. Launch the client: scarab (or find it in your app menu)"
     echo ""
     echo "Or use the quick start: just run"
 
@@ -91,8 +144,11 @@ uninstall PREFIX="~/.local":
     # Expand tilde
     PREFIX_EXPANDED="${PREFIX_VALUE/#\~/$HOME}"
     BIN_DIR="$PREFIX_EXPANDED/bin"
+    SHARE_DIR="$PREFIX_EXPANDED/share"
+    ICON_DIR="$SHARE_DIR/icons/hicolor"
+    APPS_DIR="$SHARE_DIR/applications"
 
-    echo "🪲 Uninstalling Scarab Terminal from $BIN_DIR"
+    echo "🪲 Uninstalling Scarab Terminal from $PREFIX_EXPANDED"
 
     # Remove binaries
     rm -f "$BIN_DIR/scarab-daemon"
@@ -100,7 +156,25 @@ uninstall PREFIX="~/.local":
     rm -f "$BIN_DIR/scarab"
     rm -f "$BIN_DIR/scarab-plugin-compiler"
 
-    echo "✓ Uninstalled from $BIN_DIR"
+    # Remove icons
+    rm -f "$ICON_DIR/scalable/apps/scarab.svg"
+    rm -f "$ICON_DIR/128x128/apps/scarab.png"
+    rm -f "$ICON_DIR/64x64/apps/scarab.png"
+    rm -f "$ICON_DIR/48x48/apps/scarab.png"
+    rm -f "$ICON_DIR/32x32/apps/scarab.png"
+
+    # Remove desktop file
+    rm -f "$APPS_DIR/scarab.desktop"
+
+    # Update caches
+    if command -v gtk-update-icon-cache &> /dev/null; then
+        gtk-update-icon-cache -f -t "$ICON_DIR" 2>/dev/null || true
+    fi
+    if command -v update-desktop-database &> /dev/null; then
+        update-desktop-database "$APPS_DIR" 2>/dev/null || true
+    fi
+
+    echo "✓ Uninstalled from $PREFIX_EXPANDED"
     echo ""
     echo "Note: Config files remain in ~/.config/scarab"
     echo "To remove config: rm -rf ~/.config/scarab"
