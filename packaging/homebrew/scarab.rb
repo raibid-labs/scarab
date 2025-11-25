@@ -1,8 +1,8 @@
 class Scarab < Formula
   desc "GPU-accelerated terminal emulator with plugin system"
   homepage "https://github.com/raibid-labs/scarab"
-  version "0.1.0"
-  license "MIT"
+  version "0.1.0-alpha.7"
+  license "MIT OR Apache-2.0"
 
   # URL will be updated when releases are available
   if OS.mac? && Hardware::CPU.arm?
