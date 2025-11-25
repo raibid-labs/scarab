@@ -7,6 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.0-alpha.6] - 2025-11-24
+
+### Added
+- Complete plugin logging and notification system (#13, #16)
+  - `log()` method with Rust `log` crate integration
+  - `notify()` method with rich client UI
+  - Convenience methods: `notify_info()`, `notify_success()`, `notify_warning()`, `notify_error()`
+  - Color-coded notification badges (Error=Red, Warning=Orange, Info=Blue, Success=Green)
+  - Auto-dismiss notifications after 5 seconds
+  - Vertical stacking of multiple notifications
+- Bidirectional IPC for logs and notifications
+- Protocol message types: `PluginLog` and `PluginNotify`
+- Comprehensive documentation in `docs/PLUGIN_LOGGING_AND_NOTIFICATIONS.md`
+- Example plugin: `examples/plugins/logging-demo.fsx`
+
+### Changed
+- Updated `scarab-session` to use new notification API
+- Updated `scarab-nav` to use new notification API
+- Client overlay system now handles modal hiding
+
+### Fixed
+- Resolved TODO at line 166 in context.rs (Logging integration)
+- Resolved TODO at line 177 in context.rs (Notification system)
+- Resolved TODO at line 80 in overlays.rs (Modal hiding)
+
 ## [0.1.0-alpha.5] - 2025-11-24
 
 ### Added
