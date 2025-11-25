@@ -1,6 +1,7 @@
 //! VTE parsing performance benchmarks
 
 use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
+use scarab_daemon::vte_optimized::{BatchProcessor, OptimizedPerformer};
 use vte::{Parser, Perform};
 
 /// Test performer that processes VTE sequences
@@ -27,7 +28,7 @@ impl Perform for BenchPerformer {
         self.operations += 1;
     }
 
-    fn csi_dispatch(&mut self, _params: &[i64], _intermediates: &[u8], _ignore: bool, _c: u8) {
+    fn csi_dispatch(&mut self, _params: &vte::Params, _intermediates: &[u8], _ignore: bool, _action: char) {
         self.operations += 1;
     }
 
@@ -35,7 +36,7 @@ impl Perform for BenchPerformer {
         self.operations += 1;
     }
 
-    fn hook(&mut self, _params: &[i64], _intermediates: &[u8], _ignore: bool, _c: u8) {
+    fn hook(&mut self, _params: &vte::Params, _intermediates: &[u8], _ignore: bool, _action: char) {
         self.operations += 1;
     }
 
@@ -157,6 +158,23 @@ fn generate_scrollback_buffer(lines: usize) -> Vec<u8> {
                 format!("\x1b[31m[ERROR]\x1b[0m Error at line {}\n", i).as_bytes(),
             );
         }
+    }
+    data
+}
+
+fn generate_repetitive_sequences(count: usize) -> Vec<u8> {
+    // Generate highly repetitive sequences (best case for caching)
+    let mut data = Vec::new();
+    let sequences = [
+        b"\x1b[31m",   // Red
+        b"\x1b[32m",   // Green
+        b"\x1b[33m",   // Yellow
+        b"\x1b[0m",    // Reset
+    ];
+
+    for i in 0..count {
+        data.extend_from_slice(sequences[i % sequences.len()]);
+        data.extend_from_slice(b"Text ");
     }
     data
 }
@@ -304,6 +322,192 @@ fn bench_batch_processing(c: &mut Criterion) {
     group.finish();
 }
 
+// NEW BENCHMARKS FOR CACHE PERFORMANCE
+
+fn bench_cache_baseline_vs_optimized(c: &mut Criterion) {
+    let mut group = c.benchmark_group("cache_comparison");
+
+    for size in [1000, 10000, 50000].iter() {
+        let data = generate_ansi_colors(*size);
+
+        // Baseline: Standard VTE parser (no cache)
+        group.bench_with_input(
+            BenchmarkId::new("baseline", size),
+            size,
+            |b, _| {
+                let mut parser = Parser::new();
+                let mut performer = BenchPerformer::new();
+
+                b.iter(|| {
+                    performer.reset();
+                    for byte in &data {
+                        parser.advance(&mut performer, *byte);
+                    }
+                    black_box(&performer.operations);
+                });
+            },
+        );
+
+        // Optimized: With LRU cache
+        group.bench_with_input(
+            BenchmarkId::new("cached", size),
+            size,
+            |b, _| {
+                let mut processor = BatchProcessor::new();
+
+                b.iter(|| {
+                    processor.reset_cache_stats();
+                    processor.add_data(&data);
+                    processor.flush();
+                    black_box(processor.cache_stats());
+                });
+            },
+        );
+    }
+
+    group.finish();
+}
+
+fn bench_cache_hit_rates(c: &mut Criterion) {
+    let mut group = c.benchmark_group("cache_hit_rate");
+
+    // Test different cache scenarios
+    let scenarios = vec![
+        ("repetitive", generate_repetitive_sequences(10000)),
+        ("mixed", generate_mixed_sequences(10000)),
+        ("colors", generate_ansi_colors(1000)),
+    ];
+
+    for (name, data) in scenarios {
+        group.bench_function(name, |b| {
+            let mut processor = BatchProcessor::new();
+
+            b.iter(|| {
+                processor.reset_cache_stats();
+                processor.add_data(&data);
+                processor.flush();
+                let stats = processor.cache_stats();
+                black_box(stats);
+            });
+        });
+    }
+
+    group.finish();
+}
+
+fn bench_cache_sizes(c: &mut Criterion) {
+    let mut group = c.benchmark_group("cache_size");
+
+    let data = generate_mixed_sequences(50000);
+
+    for cache_size in [64, 128, 256, 512, 1024].iter() {
+        group.bench_with_input(
+            BenchmarkId::from_parameter(cache_size),
+            cache_size,
+            |b, &cache_size| {
+                let mut performer = OptimizedPerformer::with_cache_capacity(cache_size);
+                let mut parser = Parser::new();
+
+                b.iter(|| {
+                    performer.reset_cache_stats();
+                    performer.process_batch(&mut parser, &data);
+                    black_box(performer.cache_stats());
+                });
+            },
+        );
+    }
+
+    group.finish();
+}
+
+fn bench_real_world_scenarios(c: &mut Criterion) {
+    let mut group = c.benchmark_group("real_world");
+
+    // Scenario 1: Git diff output (lots of colors)
+    let git_diff = {
+        let mut data = Vec::new();
+        for i in 0..1000 {
+            if i % 3 == 0 {
+                data.extend_from_slice(b"\x1b[32m+ Added line\x1b[0m\n");
+            } else if i % 3 == 1 {
+                data.extend_from_slice(b"\x1b[31m- Removed line\x1b[0m\n");
+            } else {
+                data.extend_from_slice(b"  Context line\n");
+            }
+        }
+        data
+    };
+
+    // Scenario 2: Log file with timestamps and levels
+    let log_output = {
+        let mut data = Vec::new();
+        for i in 0..1000 {
+            let level = match i % 4 {
+                0 => ("\x1b[34m[INFO]\x1b[0m", "Information message"),
+                1 => ("\x1b[33m[WARN]\x1b[0m", "Warning message"),
+                2 => ("\x1b[31m[ERROR]\x1b[0m", "Error message"),
+                _ => ("\x1b[90m[DEBUG]\x1b[0m", "Debug message"),
+            };
+            data.extend_from_slice(
+                format!("2024-01-01 12:00:{:02} {} {}\n", i % 60, level.0, level.1).as_bytes()
+            );
+        }
+        data
+    };
+
+    // Scenario 3: Interactive shell with prompts
+    let shell_output = {
+        let mut data = Vec::new();
+        for i in 0..500 {
+            data.extend_from_slice(b"\x1b[32m\xE2\x9E\x9C\x1b[0m \x1b[36m~/code\x1b[0m \x1b[33m$\x1b[0m ls -la\n");
+            data.extend_from_slice(format!("file{}.txt\n", i).as_bytes());
+        }
+        data
+    };
+
+    for (name, data) in [
+        ("git_diff", git_diff),
+        ("log_output", log_output),
+        ("shell_output", shell_output),
+    ] {
+        // Baseline
+        group.bench_with_input(
+            BenchmarkId::new("baseline", name),
+            &data,
+            |b, data| {
+                let mut parser = Parser::new();
+                let mut performer = BenchPerformer::new();
+
+                b.iter(|| {
+                    performer.reset();
+                    for byte in data {
+                        parser.advance(&mut performer, *byte);
+                    }
+                    black_box(&performer.operations);
+                });
+            },
+        );
+
+        // Cached
+        group.bench_with_input(
+            BenchmarkId::new("cached", name),
+            &data,
+            |b, data| {
+                let mut processor = BatchProcessor::new();
+
+                b.iter(|| {
+                    processor.reset_cache_stats();
+                    processor.add_data(data);
+                    processor.flush();
+                    black_box(processor.cache_stats());
+                });
+            },
+        );
+    }
+
+    group.finish();
+}
+
 criterion_group!(
     benches,
     bench_plain_text,
@@ -311,6 +515,10 @@ criterion_group!(
     bench_cursor_movements,
     bench_mixed_sequences,
     bench_scrollback,
-    bench_batch_processing
+    bench_batch_processing,
+    bench_cache_baseline_vs_optimized,
+    bench_cache_hit_rates,
+    bench_cache_sizes,
+    bench_real_world_scenarios,
 );
 criterion_main!(benches);

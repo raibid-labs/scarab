@@ -3,9 +3,12 @@
 //! This module provides performance-optimized VTE parsing with:
 //! - Batch processing for better cache locality
 //! - SIMD acceleration for plain text detection
-//! - Lookup tables for state transitions
+//! - LRU cache for frequently used escape sequences
 //! - Zero-allocation parsing for common sequences
 
+use lru::LruCache;
+use std::num::NonZeroUsize;
+use std::sync::atomic::{AtomicU64, Ordering};
 use vte::{Parser, Perform};
 
 #[cfg(target_arch = "x86_64")]
@@ -21,16 +24,20 @@ pub struct OptimizedPerformer {
 
     // Metrics for profiling
     #[cfg(feature = "profiling")]
-    metrics: Arc<crate::profiling::MetricsCollector>,
+    metrics: std::sync::Arc<crate::profiling::MetricsCollector>,
 }
 
 impl OptimizedPerformer {
     pub fn new() -> Self {
+        Self::with_cache_capacity(256)
+    }
+
+    pub fn with_cache_capacity(capacity: usize) -> Self {
         Self {
             output_buffer: Vec::with_capacity(4096),
-            sequence_cache: SequenceCache::new(),
+            sequence_cache: SequenceCache::with_capacity(capacity),
             #[cfg(feature = "profiling")]
-            metrics: Arc::new(crate::profiling::MetricsCollector::new()),
+            metrics: std::sync::Arc::new(crate::profiling::MetricsCollector::new()),
         }
     }
 
@@ -131,6 +138,22 @@ impl OptimizedPerformer {
             self.output_buffer.clear();
         }
     }
+
+    /// Get cache statistics
+    pub fn cache_stats(&self) -> CacheStats {
+        self.sequence_cache.stats()
+    }
+
+    /// Reset cache statistics
+    pub fn reset_cache_stats(&mut self) {
+        self.sequence_cache.reset_stats();
+    }
+}
+
+impl Default for OptimizedPerformer {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl Perform for OptimizedPerformer {
@@ -164,27 +187,75 @@ impl Perform for OptimizedPerformer {
         let params_vec: Vec<i64> = params.iter().map(|p| p[0] as i64).collect();
 
         // Check cache first
-        let cached_action = self
+        if let Some(cached) = self
             .sequence_cache
             .get_csi(&params_vec, intermediates, action as u8)
-            .cloned();
-        if let Some(cached) = cached_action {
+        {
             self.apply_cached_sequence(&cached);
             return;
         }
 
-        // Process and cache result
-        match action {
-            'A' => {}       // Cursor up
-            'B' => {}       // Cursor down
-            'C' => {}       // Cursor forward
-            'D' => {}       // Cursor backward
-            'H' | 'f' => {} // Cursor position
-            'J' => {}       // Erase display
-            'K' => {}       // Erase line
-            'm' => {}       // SGR - colors and attributes
-            _ => {}
-        }
+        // Process and parse the action
+        let parsed_action = match action {
+            'A' => CachedAction::CursorMove(0, -params_vec.get(0).copied().unwrap_or(1) as i32),
+            'B' => CachedAction::CursorMove(0, params_vec.get(0).copied().unwrap_or(1) as i32),
+            'C' => CachedAction::CursorMove(params_vec.get(0).copied().unwrap_or(1) as i32, 0),
+            'D' => CachedAction::CursorMove(-params_vec.get(0).copied().unwrap_or(1) as i32, 0),
+            'H' | 'f' => {
+                let row = params_vec.get(0).copied().unwrap_or(1) as i32 - 1;
+                let col = params_vec.get(1).copied().unwrap_or(1) as i32 - 1;
+                CachedAction::CursorPosition(col, row)
+            }
+            'J' => {
+                let mode = params_vec.get(0).copied().unwrap_or(0);
+                match mode {
+                    0 => CachedAction::EraseRegion(EraseMode::ToEnd),
+                    1 => CachedAction::EraseRegion(EraseMode::ToBeginning),
+                    2 | 3 => CachedAction::EraseRegion(EraseMode::All),
+                    _ => CachedAction::EraseRegion(EraseMode::ToEnd),
+                }
+            }
+            'K' => {
+                let mode = params_vec.get(0).copied().unwrap_or(0);
+                match mode {
+                    0 => CachedAction::EraseRegion(EraseMode::ToEnd),
+                    1 => CachedAction::EraseRegion(EraseMode::ToBeginning),
+                    2 => CachedAction::EraseRegion(EraseMode::All),
+                    _ => CachedAction::EraseRegion(EraseMode::ToEnd),
+                }
+            }
+            'm' => {
+                // SGR - colors and attributes
+                if params_vec.is_empty() || params_vec[0] == 0 {
+                    CachedAction::Reset
+                } else {
+                    let sgr_code = params_vec[0];
+                    if (30..=37).contains(&sgr_code) {
+                        // Foreground color
+                        let color_idx = (sgr_code - 30) as u8;
+                        CachedAction::ColorChange(Color::ansi(color_idx))
+                    } else if (40..=47).contains(&sgr_code) {
+                        // Background color
+                        let color_idx = (sgr_code - 40) as u8;
+                        CachedAction::BackgroundColorChange(Color::ansi(color_idx))
+                    } else {
+                        CachedAction::Attribute(sgr_code as u8)
+                    }
+                }
+            }
+            _ => return, // Don't cache unknown sequences
+        };
+
+        // Cache the parsed action
+        self.sequence_cache.insert_csi(
+            params_vec,
+            intermediates.to_vec(),
+            action as u8,
+            parsed_action.clone(),
+        );
+
+        // Apply the action
+        self.apply_cached_sequence(&parsed_action);
     }
 
     fn osc_dispatch(&mut self, params: &[&[u8]], _bell_terminated: bool) {
@@ -214,40 +285,81 @@ impl Perform for OptimizedPerformer {
     }
 }
 
-/// Cache for frequently used VTE sequences
+/// LRU Cache for frequently used VTE sequences
+///
+/// Implements efficient caching of parsed VTE escape sequences to avoid
+/// re-parsing common sequences like color changes and cursor movements.
+/// Uses LRU eviction policy to maintain bounded memory usage.
 struct SequenceCache {
-    csi_cache: std::collections::HashMap<CsiKey, CachedAction>,
-    cache_hits: u64,
-    cache_misses: u64,
+    csi_cache: LruCache<CsiKey, CachedAction>,
+    cache_hits: AtomicU64,
+    cache_misses: AtomicU64,
 }
 
-#[derive(Hash, Eq, PartialEq)]
+#[derive(Hash, Eq, PartialEq, Clone)]
 struct CsiKey {
     params: Vec<i64>,
     intermediates: Vec<u8>,
     action: u8,
 }
 
-/// Cached VTE action types (currently stub implementations)
-/// TODO: Implement actual caching logic when integrating this optimization module
-#[derive(Clone)]
-#[allow(dead_code)]
+/// Cached VTE action types
+#[derive(Clone, Debug)]
 enum CachedAction {
     CursorMove(i32, i32),
+    CursorPosition(i32, i32),
     ColorChange(Color),
+    BackgroundColorChange(Color),
     EraseRegion(EraseMode),
+    Attribute(u8),
+    Reset,
 }
 
-#[derive(Clone, Copy)]
-#[allow(dead_code)]
+#[derive(Clone, Copy, Debug)]
 struct Color {
     r: u8,
     g: u8,
     b: u8,
 }
 
-#[derive(Clone, Copy)]
-#[allow(dead_code)]
+impl Color {
+    fn ansi(index: u8) -> Self {
+        // Standard ANSI color palette
+        match index {
+            0 => Color { r: 0, g: 0, b: 0 },   // Black
+            1 => Color { r: 205, g: 0, b: 0 }, // Red
+            2 => Color { r: 0, g: 205, b: 0 }, // Green
+            3 => Color {
+                r: 205,
+                g: 205,
+                b: 0,
+            }, // Yellow
+            4 => Color { r: 0, g: 0, b: 238 }, // Blue
+            5 => Color {
+                r: 205,
+                g: 0,
+                b: 205,
+            }, // Magenta
+            6 => Color {
+                r: 0,
+                g: 205,
+                b: 205,
+            }, // Cyan
+            7 => Color {
+                r: 229,
+                g: 229,
+                b: 229,
+            }, // White
+            _ => Color {
+                r: 255,
+                g: 255,
+                b: 255,
+            },
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug)]
 enum EraseMode {
     ToEnd,
     ToBeginning,
@@ -255,11 +367,12 @@ enum EraseMode {
 }
 
 impl SequenceCache {
-    fn new() -> Self {
+    fn with_capacity(capacity: usize) -> Self {
+        let cap = NonZeroUsize::new(capacity).unwrap_or(NonZeroUsize::new(256).unwrap());
         Self {
-            csi_cache: std::collections::HashMap::with_capacity(256),
-            cache_hits: 0,
-            cache_misses: 0,
+            csi_cache: LruCache::new(cap),
+            cache_hits: AtomicU64::new(0),
+            cache_misses: AtomicU64::new(0),
         }
     }
 
@@ -268,7 +381,7 @@ impl SequenceCache {
         params: &[i64],
         intermediates: &[u8],
         action: u8,
-    ) -> Option<&CachedAction> {
+    ) -> Option<CachedAction> {
         let key = CsiKey {
             params: params.to_vec(),
             intermediates: intermediates.to_vec(),
@@ -276,28 +389,104 @@ impl SequenceCache {
         };
 
         if let Some(cached) = self.csi_cache.get(&key) {
-            self.cache_hits += 1;
-            Some(cached)
+            self.cache_hits.fetch_add(1, Ordering::Relaxed);
+            Some(cached.clone())
         } else {
-            self.cache_misses += 1;
+            self.cache_misses.fetch_add(1, Ordering::Relaxed);
             None
         }
     }
 
-    #[allow(dead_code)]
-    fn cache_hit_rate(&self) -> f64 {
-        if self.cache_hits + self.cache_misses == 0 {
-            0.0
+    fn insert_csi(
+        &mut self,
+        params: Vec<i64>,
+        intermediates: Vec<u8>,
+        action: u8,
+        value: CachedAction,
+    ) {
+        let key = CsiKey {
+            params,
+            intermediates,
+            action,
+        };
+        self.csi_cache.put(key, value);
+    }
+
+    fn stats(&self) -> CacheStats {
+        let hits = self.cache_hits.load(Ordering::Relaxed);
+        let misses = self.cache_misses.load(Ordering::Relaxed);
+        let total = hits + misses;
+        let hit_rate = if total > 0 {
+            hits as f64 / total as f64
         } else {
-            self.cache_hits as f64 / (self.cache_hits + self.cache_misses) as f64
+            0.0
+        };
+
+        CacheStats {
+            hits,
+            misses,
+            hit_rate,
+            size: self.csi_cache.len(),
+            capacity: self.csi_cache.cap().get(),
         }
+    }
+
+    fn reset_stats(&mut self) {
+        self.cache_hits.store(0, Ordering::Relaxed);
+        self.cache_misses.store(0, Ordering::Relaxed);
+    }
+}
+
+/// Cache performance statistics
+#[derive(Debug, Clone, Copy)]
+pub struct CacheStats {
+    pub hits: u64,
+    pub misses: u64,
+    pub hit_rate: f64,
+    pub size: usize,
+    pub capacity: usize,
+}
+
+impl CacheStats {
+    pub fn memory_usage(&self) -> usize {
+        // Estimate memory usage:
+        // Each CsiKey is roughly: Vec<i64> (24 bytes + data) + Vec<u8> (24 bytes + data) + u8 (1 byte)
+        // Each CachedAction is roughly: enum discriminant (1 byte) + largest variant (16 bytes)
+        // LRU node overhead: 2 pointers (16 bytes) + key + value
+
+        // Conservative estimate: 128 bytes per entry
+        self.size * 128
     }
 }
 
 impl OptimizedPerformer {
-    fn apply_cached_sequence(&mut self, _action: &CachedAction) {
+    fn apply_cached_sequence(&mut self, action: &CachedAction) {
         // Apply the cached action without re-parsing
         // This would integrate with your terminal state
+        // For now, this is a placeholder that demonstrates the caching benefit
+        match action {
+            CachedAction::CursorMove(_, _) => {
+                // Move cursor by offset
+            }
+            CachedAction::CursorPosition(_, _) => {
+                // Set absolute cursor position
+            }
+            CachedAction::ColorChange(_) => {
+                // Change foreground color
+            }
+            CachedAction::BackgroundColorChange(_) => {
+                // Change background color
+            }
+            CachedAction::EraseRegion(_) => {
+                // Erase screen region
+            }
+            CachedAction::Attribute(_) => {
+                // Set text attribute
+            }
+            CachedAction::Reset => {
+                // Reset all attributes
+            }
+        }
     }
 }
 
@@ -311,11 +500,15 @@ pub struct BatchProcessor {
 
 impl BatchProcessor {
     pub fn new() -> Self {
+        Self::with_capacity(4096)
+    }
+
+    pub fn with_capacity(capacity: usize) -> Self {
         Self {
             parser: Parser::new(),
             performer: OptimizedPerformer::new(),
-            input_buffer: Vec::with_capacity(4096),
-            buffer_capacity: 4096,
+            input_buffer: Vec::with_capacity(capacity),
+            buffer_capacity: capacity,
         }
     }
 
@@ -350,6 +543,22 @@ impl BatchProcessor {
     /// Flush any pending data
     pub fn flush(&mut self) {
         self.process_buffer();
+    }
+
+    /// Get cache statistics
+    pub fn cache_stats(&self) -> CacheStats {
+        self.performer.cache_stats()
+    }
+
+    /// Reset cache statistics
+    pub fn reset_cache_stats(&mut self) {
+        self.performer.reset_cache_stats();
+    }
+}
+
+impl Default for BatchProcessor {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -386,5 +595,78 @@ mod tests {
         // Flush to process
         processor.flush();
         assert!(processor.input_buffer.is_empty());
+    }
+
+    #[test]
+    fn test_cache_basic() {
+        let mut processor = BatchProcessor::new();
+
+        // Process same sequence multiple times
+        let red_text = b"\x1b[31mRed\x1b[0m";
+        for _ in 0..10 {
+            processor.add_data(red_text);
+        }
+        processor.flush();
+
+        let stats = processor.cache_stats();
+        assert!(stats.hits > 0, "Cache should have hits");
+        assert!(stats.hit_rate > 0.0, "Hit rate should be > 0");
+    }
+
+    #[test]
+    fn test_cache_stats() {
+        let mut processor = BatchProcessor::new();
+
+        // Generate varied escape sequences
+        let sequences = vec![
+            b"\x1b[31m", // Red
+            b"\x1b[32m", // Green
+            b"\x1b[33m", // Yellow
+            b"\x1b[31m", // Red again (should hit cache)
+            b"\x1b[32m", // Green again (should hit cache)
+        ];
+
+        for seq in sequences {
+            processor.add_data(seq);
+        }
+        processor.flush();
+
+        let stats = processor.cache_stats();
+        assert!(stats.hits >= 2, "Should have at least 2 cache hits");
+        assert!(stats.misses >= 3, "Should have at least 3 cache misses");
+    }
+
+    #[test]
+    fn test_cache_memory_estimation() {
+        let stats = CacheStats {
+            hits: 1000,
+            misses: 500,
+            hit_rate: 0.666,
+            size: 256,
+            capacity: 256,
+        };
+
+        let mem = stats.memory_usage();
+        // 256 entries * 128 bytes = 32768 bytes = 32KB
+        assert_eq!(mem, 32768);
+    }
+
+    #[test]
+    fn test_lru_eviction() {
+        let mut performer = OptimizedPerformer::with_cache_capacity(4);
+
+        // Insert 5 items to trigger eviction
+        for i in 0..5 {
+            performer.sequence_cache.insert_csi(
+                vec![i],
+                vec![],
+                b'm',
+                CachedAction::Attribute(i as u8),
+            );
+        }
+
+        let stats = performer.cache_stats();
+        assert_eq!(stats.size, 4, "Cache size should be limited to 4");
+        assert_eq!(stats.capacity, 4, "Cache capacity should be 4");
     }
 }
