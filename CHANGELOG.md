@@ -7,6 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.0-alpha.5] - 2025-11-24
+
+### Added
+- Fusabi VM hook function implementations (#12, #15)
+  - `call_hook_function()` method for unified hook invocation
+  - Complete `on_output` hook with VM function calls
+  - Complete `on_input` hook with VM function calls
+  - Complete `on_resize` hook with VM function calls
+  - VM cleanup code in `shutdown` method
+- Thread-local VM storage for handling Rc<!Send> constraints
+- Graceful degradation for missing hooks
+
+### Changed
+- `FusabiBytecodePlugin` now fully functional with VM integration
+- All plugin lifecycle hooks properly invoke Fusabi VM functions
+
+### Fixed
+- Resolved TODO at line 93 (Pass PluginContext to VM)
+- Resolved TODO at line 101 (on_output hook invocation)
+- Resolved TODO at line 111 (on_input hook invocation)
+- Resolved TODO at line 121 (on_resize hook invocation)
+- Resolved TODO at line 133 (VM cleanup code)
+
 ## [0.1.0-alpha.4] - 2025-11-24
 
 ### Added
