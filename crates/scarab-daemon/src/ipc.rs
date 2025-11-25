@@ -651,6 +651,55 @@ async fn handle_message(
         | ControlMessage::SessionRename { .. } => {
             // Already handled by handle_session_command
         }
+        // Tab management - delegate to plugins
+        ControlMessage::TabCreate { title } => {
+            log::info!("Client {} creating tab: {:?}", client_id, title);
+            let mut pm = plugin_manager.lock().await;
+            if let Err(e) = pm.dispatch_remote_command("tabs.new").await {
+                log::error!("Failed to create tab: {}", e);
+            }
+        }
+        ControlMessage::TabClose { tab_id } => {
+            log::info!("Client {} closing tab {}", client_id, tab_id);
+            // TODO: Implement tab closing via plugin
+        }
+        ControlMessage::TabSwitch { tab_id } => {
+            log::info!("Client {} switching to tab {}", client_id, tab_id);
+            // TODO: Implement tab switching via plugin
+        }
+        ControlMessage::TabRename { tab_id, new_title } => {
+            log::info!("Client {} renaming tab {} to '{}'", client_id, tab_id, new_title);
+            // TODO: Implement tab renaming via plugin
+        }
+        ControlMessage::TabList => {
+            log::info!("Client {} requesting tab list", client_id);
+            // TODO: Implement tab list via plugin
+        }
+
+        // Pane management - delegate to plugins
+        ControlMessage::PaneSplit { pane_id, direction } => {
+            log::info!("Client {} splitting pane {} {:?}", client_id, pane_id, direction);
+            let mut pm = plugin_manager.lock().await;
+            let command = match direction {
+                scarab_protocol::SplitDirection::Horizontal => "panes.split_horizontal",
+                scarab_protocol::SplitDirection::Vertical => "panes.split_vertical",
+            };
+            if let Err(e) = pm.dispatch_remote_command(command).await {
+                log::error!("Failed to split pane: {}", e);
+            }
+        }
+        ControlMessage::PaneClose { pane_id } => {
+            log::info!("Client {} closing pane {}", client_id, pane_id);
+            // TODO: Implement pane closing via plugin
+        }
+        ControlMessage::PaneFocus { pane_id } => {
+            log::info!("Client {} focusing pane {}", client_id, pane_id);
+            // TODO: Implement pane focusing via plugin
+        }
+        ControlMessage::PaneResize { pane_id, width, height } => {
+            log::info!("Client {} resizing pane {} to {}x{}", client_id, pane_id, width, height);
+            // TODO: Implement pane resizing via plugin
+        }
         ControlMessage::PluginLog { .. }
         | ControlMessage::PluginNotify { .. } => {
             // These are internal messages sent BY plugins, not received FROM clients

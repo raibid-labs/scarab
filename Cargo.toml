@@ -10,6 +10,11 @@ members = [
     "crates/scarab-platform",
     "crates/scarab-nav",
     "crates/scarab-session",
+    "crates/scarab-tabs",
+    "crates/scarab-panes",
+    "crates/scarab-clipboard",
+    "crates/scarab-mouse",
+    "crates/scarab-themes",
 ]
 
 [workspace.package]
@@ -23,8 +28,8 @@ rust-version = "1.75"
 
 [workspace.dependencies]
 # Official Fusabi dependencies (from crates.io)
-fusabi-vm = { version = "0.11.0", features = ["serde"] }
-fusabi-frontend = "0.11.0"
+fusabi-vm = { version = "0.12.0", features = ["serde"] }
+fusabi-frontend = "0.12.0"
 
 # Base Bevy configuration
 bevy = { version = "0.15", default-features = false, features = [

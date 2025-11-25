@@ -2520,18 +2520,18 @@ checksum = "e6d5a32815ae3f33302d95fdcb2ce17862f8c65363dcfd29360480ba1001fc9c"
 
 [[package]]
 name = "fusabi-frontend"
-version = "0.11.0"
+version = "0.12.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e997fe57eb6cb0d99fe10be18a67cc47e9d03f69994ee48fe6a5573ceed6a378"
+checksum = "b80729381bfc74d2134af7b39ae4952023d241e4f3f441151bdf9e6fe8a97670"
 dependencies = [
  "fusabi-vm",
 ]
 
 [[package]]
 name = "fusabi-vm"
-version = "0.11.0"
+version = "0.12.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ecf93f20ff27974844816cb1f8aa9d565cbcc7a47b9ebd7875db2d8977abf749"
+checksum = "acdad3c03d5e9de91662bf58c269cc5e4496ba2f146782617ae7ce387a6948fa"
 dependencies = [
  "bincode",
  "serde",
@@ -5029,6 +5029,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "scarab-clipboard"
+version = "0.1.0-alpha.13"
+dependencies = [
+ "arboard",
+ "async-trait",
+ "log",
+ "parking_lot",
+ "regex",
+ "scarab-plugin-api",
+ "scarab-protocol",
+]
+
+[[package]]
 name = "scarab-config"
 version = "0.1.0-alpha.13"
 dependencies = [
@@ -5085,6 +5098,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "scarab-mouse"
+version = "0.1.0-alpha.13"
+dependencies = [
+ "async-trait",
+ "bevy",
+ "bitflags 2.10.0",
+ "log",
+ "parking_lot",
+ "scarab-plugin-api",
+ "scarab-protocol",
+ "serde",
+ "tokio",
+]
+
+[[package]]
 name = "scarab-nav"
 version = "0.1.0-alpha.13"
 dependencies = [
@@ -5103,6 +5131,20 @@ dependencies = [
  "log",
  "scarab-plugin-api",
  "scarab-protocol",
+]
+
+[[package]]
+name = "scarab-panes"
+version = "0.1.0-alpha.13"
+dependencies = [
+ "async-trait",
+ "log",
+ "parking_lot",
+ "portable-pty",
+ "scarab-plugin-api",
+ "scarab-protocol",
+ "serde",
+ "thiserror",
 ]
 
 [[package]]
@@ -5170,6 +5212,35 @@ dependencies = [
  "log",
  "scarab-plugin-api",
  "scarab-protocol",
+]
+
+[[package]]
+name = "scarab-tabs"
+version = "0.1.0-alpha.13"
+dependencies = [
+ "async-trait",
+ "log",
+ "parking_lot",
+ "scarab-plugin-api",
+ "scarab-protocol",
+ "serde",
+]
+
+[[package]]
+name = "scarab-themes"
+version = "0.1.0-alpha.13"
+dependencies = [
+ "async-trait",
+ "log",
+ "scarab-config",
+ "scarab-plugin-api",
+ "scarab-protocol",
+ "serde",
+ "serde_json",
+ "serde_yaml",
+ "thiserror",
+ "tokio",
+ "toml",
 ]
 
 [[package]]
@@ -5315,6 +5386,19 @@ dependencies = [
  "itoa",
  "ryu",
  "serde",
+]
+
+[[package]]
+name = "serde_yaml"
+version = "0.9.34+deprecated"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6a8b1a1a2ebf674015cc02edccce75287f1a0130d394307b36743c2f5d504b47"
+dependencies = [
+ "indexmap",
+ "itoa",
+ "ryu",
+ "serde",
+ "unsafe-libyaml",
 ]
 
 [[package]]
@@ -6213,6 +6297,12 @@ name = "unicode-xid"
 version = "0.2.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ebc1c04c71510c7f702b52b7c350734c9ff1295c464a03335b00bb84fc54f853"
+
+[[package]]
+name = "unsafe-libyaml"
+version = "0.2.11"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "673aac59facbab8a9007c7f6108d11f63b603f7cabff99fabf650fea5c32b861"
 
 [[package]]
 name = "untrusted"

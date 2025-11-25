@@ -70,6 +70,14 @@ pub enum NotifyLevel {
     Success,
 }
 
+// Tab/Pane split direction
+#[derive(Debug, Clone, Copy, PartialEq, Eq, rkyv::Archive, rkyv::Serialize, rkyv::Deserialize)]
+#[archive(check_bytes)]
+pub enum SplitDirection {
+    Horizontal,
+    Vertical,
+}
+
 // Control messages (Sent via Socket/Pipe, not ShMem)
 // Using rkyv for zero-copy serialization
 #[derive(Debug, Clone, rkyv::Archive, rkyv::Serialize, rkyv::Deserialize)]
@@ -109,6 +117,39 @@ pub enum ControlMessage {
     SessionRename {
         id: alloc::string::String,
         new_name: alloc::string::String,
+    },
+
+    // Tab management commands
+    TabCreate {
+        title: Option<alloc::string::String>,
+    },
+    TabClose {
+        tab_id: u64,
+    },
+    TabSwitch {
+        tab_id: u64,
+    },
+    TabRename {
+        tab_id: u64,
+        new_title: alloc::string::String,
+    },
+    TabList,
+
+    // Pane management commands
+    PaneSplit {
+        pane_id: u64,
+        direction: SplitDirection,
+    },
+    PaneClose {
+        pane_id: u64,
+    },
+    PaneFocus {
+        pane_id: u64,
+    },
+    PaneResize {
+        pane_id: u64,
+        width: u16,
+        height: u16,
     },
 
     // Remote UI Responses
@@ -180,6 +221,29 @@ pub struct SessionInfo {
     pub attached_clients: u32,
 }
 
+// Tab information
+#[derive(Debug, Clone, rkyv::Archive, rkyv::Serialize, rkyv::Deserialize)]
+#[archive(check_bytes)]
+pub struct TabInfo {
+    pub id: u64,
+    pub title: alloc::string::String,
+    pub session_id: Option<alloc::string::String>,
+    pub is_active: bool,
+    pub pane_count: u32,
+}
+
+// Pane layout information
+#[derive(Debug, Clone, rkyv::Archive, rkyv::Serialize, rkyv::Deserialize)]
+#[archive(check_bytes)]
+pub struct PaneInfo {
+    pub id: u64,
+    pub x: u16,
+    pub y: u16,
+    pub width: u16,
+    pub height: u16,
+    pub is_focused: bool,
+}
+
 // Plugin information for inspector
 #[derive(Debug, Clone, rkyv::Archive, rkyv::Serialize, rkyv::Deserialize)]
 #[archive(check_bytes)]
@@ -201,6 +265,34 @@ pub struct PluginInspectorInfo {
 pub enum DaemonMessage {
     // Wrap existing session responses
     Session(SessionResponse),
+
+    // Tab state updates
+    TabCreated {
+        tab: TabInfo,
+    },
+    TabClosed {
+        tab_id: u64,
+    },
+    TabSwitched {
+        tab_id: u64,
+    },
+    TabListResponse {
+        tabs: alloc::vec::Vec<TabInfo>,
+    },
+
+    // Pane state updates
+    PaneCreated {
+        pane: PaneInfo,
+    },
+    PaneClosed {
+        pane_id: u64,
+    },
+    PaneFocused {
+        pane_id: u64,
+    },
+    PaneLayoutUpdate {
+        panes: alloc::vec::Vec<PaneInfo>,
+    },
 
     // Remote UI Commands
     DrawOverlay {
