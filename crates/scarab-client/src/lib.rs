@@ -9,6 +9,7 @@ pub mod integration;
 pub mod ipc;
 pub mod rendering;
 pub mod scripting;
+pub mod tutorial;
 
 #[cfg(feature = "plugin-inspector")]
 pub mod plugin_inspector;
@@ -26,6 +27,9 @@ pub use ui_stub::AdvancedUIPlugin;
 
 // Re-export scripting system
 pub use scripting::{ScriptingPlugin, ScriptManager, ScriptEvent, RuntimeContext};
+
+// Re-export tutorial system
+pub use tutorial::{TutorialPlugin, TutorialSystem, TutorialEvent, TutorialState};
 
 // Re-export plugin inspector (feature-gated)
 #[cfg(feature = "plugin-inspector")]
