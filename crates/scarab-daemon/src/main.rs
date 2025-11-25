@@ -88,12 +88,32 @@ async fn main() -> Result<()> {
     let writer = pair.master.take_writer()?;
 
     // 2. Initialize Shared Memory
-    let shmem = ShmemConf::new()
+    // Try to create new shared memory, or open existing if it already exists
+    let shmem = match ShmemConf::new()
         .size(std::mem::size_of::<SharedState>())
         .os_id(SHMEM_PATH)
-        .create()?;
-
-    println!("Created shared memory at: {}", SHMEM_PATH);
+        .create()
+    {
+        Ok(shmem) => {
+            println!("Created shared memory at: {}", SHMEM_PATH);
+            shmem
+        }
+        Err(_) => {
+            // Shared memory already exists, try to open it
+            println!("Shared memory already exists, attempting to open...");
+            match ShmemConf::new().os_id(SHMEM_PATH).open() {
+                Ok(shmem) => {
+                    println!("Opened existing shared memory at: {}", SHMEM_PATH);
+                    shmem
+                }
+                Err(e) => {
+                    eprintln!("Failed to open existing shared memory: {}", e);
+                    eprintln!("Try cleaning up with: ipcrm -M $(ipcs -m | grep scarab | awk '{{print $1}}')");
+                    return Err(e.into());
+                }
+            }
+        }
+    };
 
     // Initialize shared state with zeroed memory
     let shared_ptr = shmem.as_ptr() as *mut SharedState;
