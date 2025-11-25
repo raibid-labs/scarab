@@ -1,5 +1,5 @@
 use async_trait::async_trait;
-use scarab_plugin_api::{Plugin, PluginContext, PluginMetadata, Result};
+use scarab_plugin_api::{context::NotifyLevel, Plugin, PluginContext, PluginMetadata, Result};
 use scarab_protocol::ModalItem;
 
 pub struct SessionPlugin {
@@ -49,16 +49,16 @@ impl Plugin for SessionPlugin {
         match id {
             "session.new_tab" => {
                 log::info!("Creating new tab");
-                ctx.notify("New Tab created (mock)");
+                ctx.notify_info("New Tab", "Tab created (mock implementation)");
                 // TODO: Actual implementation
             }
             "session.close_tab" => {
                 log::info!("Closing tab");
-                ctx.notify("Tab closed (mock)");
+                ctx.notify_info("Close Tab", "Tab closed (mock implementation)");
             }
             "session.detach" => {
                 log::info!("Detaching session");
-                ctx.notify("Detaching...");
+                ctx.notify_info("Detach", "Detaching from session...");
             }
             _ => {}
         }

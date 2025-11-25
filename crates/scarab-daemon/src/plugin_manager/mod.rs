@@ -2,8 +2,11 @@
 
 use crate::ipc::ClientRegistry;
 use scarab_plugin_api::{
-    delight, types::RemoteCommand, Achievement, Action, Plugin, PluginConfig, PluginContext,
-    PluginDiscovery, PluginError, PluginInfo, PluginMood, Result,
+    context::{LogLevel, NotifyLevel},
+    delight,
+    types::RemoteCommand,
+    Achievement, Action, Plugin, PluginConfig, PluginContext, PluginDiscovery, PluginError,
+    PluginInfo, PluginMood, Result,
 };
 use scarab_protocol::DaemonMessage;
 use std::{
@@ -172,6 +175,26 @@ impl PluginManager {
         }
     }
 
+    /// Convert plugin-api LogLevel to protocol LogLevel
+    fn convert_log_level(level: LogLevel) -> scarab_protocol::LogLevel {
+        match level {
+            LogLevel::Error => scarab_protocol::LogLevel::Error,
+            LogLevel::Warn => scarab_protocol::LogLevel::Warn,
+            LogLevel::Info => scarab_protocol::LogLevel::Info,
+            LogLevel::Debug => scarab_protocol::LogLevel::Debug,
+        }
+    }
+
+    /// Convert plugin-api NotifyLevel to protocol NotifyLevel
+    fn convert_notify_level(level: NotifyLevel) -> scarab_protocol::NotifyLevel {
+        match level {
+            NotifyLevel::Error => scarab_protocol::NotifyLevel::Error,
+            NotifyLevel::Warning => scarab_protocol::NotifyLevel::Warning,
+            NotifyLevel::Info => scarab_protocol::NotifyLevel::Info,
+            NotifyLevel::Success => scarab_protocol::NotifyLevel::Success,
+        }
+    }
+
     /// Process any pending commands queued by plugins
     async fn process_pending_commands(&self) {
         let commands = {
@@ -207,6 +230,30 @@ impl PluginManager {
                 RemoteCommand::ShowModal { title, items } => {
                     self.client_registry
                         .broadcast(DaemonMessage::ShowModal { title, items })
+                        .await;
+                }
+                RemoteCommand::PluginLog {
+                    plugin_name,
+                    level,
+                    message,
+                } => {
+                    // Broadcast plugin log to all clients
+                    self.client_registry
+                        .broadcast(DaemonMessage::PluginLog {
+                            plugin_name: plugin_name.into(),
+                            level: Self::convert_log_level(level),
+                            message: message.into(),
+                        })
+                        .await;
+                }
+                RemoteCommand::PluginNotify { title, body, level } => {
+                    // Broadcast notification to all clients
+                    self.client_registry
+                        .broadcast(DaemonMessage::PluginNotification {
+                            title: title.into(),
+                            body: body.into(),
+                            level: Self::convert_notify_level(level),
+                        })
                         .await;
                 }
             }

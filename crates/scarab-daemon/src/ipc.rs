@@ -642,7 +642,7 @@ async fn handle_message(
                     .await?;
             }
         }
-        // Session commands are already handled above, but add catch-all for completeness
+        // Session commands and internal messages - already handled elsewhere
         ControlMessage::SessionCreate { .. }
         | ControlMessage::SessionDelete { .. }
         | ControlMessage::SessionList
@@ -650,6 +650,11 @@ async fn handle_message(
         | ControlMessage::SessionDetach { .. }
         | ControlMessage::SessionRename { .. } => {
             // Already handled by handle_session_command
+        }
+        ControlMessage::PluginLog { .. }
+        | ControlMessage::PluginNotify { .. } => {
+            // These are internal messages sent BY plugins, not received FROM clients
+            log::warn!("Received internal-only message from client {}", client_id);
         }
     }
 

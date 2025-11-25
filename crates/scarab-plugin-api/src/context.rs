@@ -161,21 +161,58 @@ impl PluginContext {
         self.state.lock().data.get(key).cloned()
     }
 
-    /// Log a message (to be implemented with actual logging)
+    /// Log a message with the integrated logging system
+    ///
+    /// Messages are sent to both the Rust logging infrastructure (using the `log` crate)
+    /// and queued as a remote command to be forwarded to connected clients for display.
     pub fn log(&self, level: LogLevel, message: &str) {
-        // TODO: Integrate with actual logging system
+        // Use Rust's standard logging macros for local logging
         match level {
-            LogLevel::Error => eprintln!("[{}] ERROR: {}", self.logger_name, message),
-            LogLevel::Warn => eprintln!("[{}] WARN: {}", self.logger_name, message),
-            LogLevel::Info => println!("[{}] INFO: {}", self.logger_name, message),
-            LogLevel::Debug => println!("[{}] DEBUG: {}", self.logger_name, message),
+            LogLevel::Error => log::error!("[{}] {}", self.logger_name, message),
+            LogLevel::Warn => log::warn!("[{}] {}", self.logger_name, message),
+            LogLevel::Info => log::info!("[{}] {}", self.logger_name, message),
+            LogLevel::Debug => log::debug!("[{}] {}", self.logger_name, message),
         }
+
+        // Queue a remote command to send the log to clients
+        self.queue_command(RemoteCommand::PluginLog {
+            plugin_name: self.logger_name.clone(),
+            level,
+            message: message.to_string(),
+        });
     }
 
-    /// Send notification to user (placeholder)
-    pub fn notify(&self, message: &str) {
-        // TODO: Implement actual notification system
-        println!("[NOTIFICATION] {}", message);
+    /// Send a notification to the user
+    ///
+    /// Notifications are displayed as UI overlays in the client with auto-dismiss after 5 seconds.
+    /// The notification level determines the visual styling (color, icon, etc.).
+    pub fn notify(&self, title: &str, body: &str, level: NotifyLevel) {
+        // Queue notification as a remote command
+        self.queue_command(RemoteCommand::PluginNotify {
+            title: title.to_string(),
+            body: body.to_string(),
+            level,
+        });
+    }
+
+    /// Convenience method to send an info notification
+    pub fn notify_info(&self, title: &str, body: &str) {
+        self.notify(title, body, NotifyLevel::Info);
+    }
+
+    /// Convenience method to send a success notification
+    pub fn notify_success(&self, title: &str, body: &str) {
+        self.notify(title, body, NotifyLevel::Success);
+    }
+
+    /// Convenience method to send a warning notification
+    pub fn notify_warning(&self, title: &str, body: &str) {
+        self.notify(title, body, NotifyLevel::Warning);
+    }
+
+    /// Convenience method to send an error notification
+    pub fn notify_error(&self, title: &str, body: &str) {
+        self.notify(title, body, NotifyLevel::Error);
     }
 }
 
@@ -186,6 +223,15 @@ pub enum LogLevel {
     Warn,
     Info,
     Debug,
+}
+
+/// Notification severity levels
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+pub enum NotifyLevel {
+    Error,
+    Warning,
+    Info,
+    Success,
 }
 
 /// Plugin-specific configuration data

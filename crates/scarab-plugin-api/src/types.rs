@@ -20,6 +20,16 @@ pub enum RemoteCommand {
         title: String,
         items: Vec<ModalItem>,
     },
+    PluginLog {
+        plugin_name: String,
+        level: crate::context::LogLevel,
+        message: String,
+    },
+    PluginNotify {
+        title: String,
+        body: String,
+        level: crate::context::NotifyLevel,
+    },
 }
 
 /// Action that a plugin hook can return

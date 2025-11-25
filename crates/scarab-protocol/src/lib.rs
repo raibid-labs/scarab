@@ -50,6 +50,26 @@ pub struct SharedState {
 unsafe impl Pod for SharedState {}
 unsafe impl Zeroable for SharedState {}
 
+// Log levels for plugin logging
+#[derive(Debug, Clone, Copy, PartialEq, Eq, rkyv::Archive, rkyv::Serialize, rkyv::Deserialize)]
+#[archive(check_bytes)]
+pub enum LogLevel {
+    Error,
+    Warn,
+    Info,
+    Debug,
+}
+
+// Notification severity levels
+#[derive(Debug, Clone, Copy, PartialEq, Eq, rkyv::Archive, rkyv::Serialize, rkyv::Deserialize)]
+#[archive(check_bytes)]
+pub enum NotifyLevel {
+    Error,
+    Warning,
+    Info,
+    Success,
+}
+
 // Control messages (Sent via Socket/Pipe, not ShMem)
 // Using rkyv for zero-copy serialization
 #[derive(Debug, Clone, rkyv::Archive, rkyv::Serialize, rkyv::Deserialize)]
@@ -106,6 +126,18 @@ pub enum ControlMessage {
     },
     PluginReload {
         name: alloc::string::String,
+    },
+
+    // Plugin logging and notifications (sent from daemon to client)
+    PluginLog {
+        plugin_name: alloc::string::String,
+        level: LogLevel,
+        message: alloc::string::String,
+    },
+    PluginNotify {
+        title: alloc::string::String,
+        body: alloc::string::String,
+        level: NotifyLevel,
     },
 }
 
@@ -198,6 +230,18 @@ pub enum DaemonMessage {
     PluginError {
         name: alloc::string::String,
         error: alloc::string::String,
+    },
+
+    // Plugin logging and notifications
+    PluginLog {
+        plugin_name: alloc::string::String,
+        level: LogLevel,
+        message: alloc::string::String,
+    },
+    PluginNotification {
+        title: alloc::string::String,
+        body: alloc::string::String,
+        level: NotifyLevel,
     },
 }
 
