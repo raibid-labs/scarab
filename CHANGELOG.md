@@ -6,6 +6,27 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+## [0.1.0-alpha.2] - 2025-11-25
+
+### Added
+- Plugin Inspector IPC handlers for full daemon-UI communication (#7, #9)
+  - LoadPlugin: Dynamically load plugins from file paths
+  - PluginListRequest: Retrieve list of all loaded plugins
+  - PluginEnable/Disable: Toggle plugin state in real-time
+  - PluginReload: Hot-reload plugins from disk
+- Bidirectional IPC communication (unicast and broadcast)
+- Plugin status change broadcasts to all connected clients
+- Public Plugin Manager API for IPC integration
+
+### Changed
+- Made PluginManager fields and methods public for IPC access
+- Enhanced error handling and logging in plugin operations
+
+### Fixed
+- All TODO comments in ipc.rs (lines 332-385) resolved
+- Plugin inspector UI can now communicate with daemon
+- Thread-safe plugin state management
+
 
 ### Planned
 - Plugin marketplace web interface
