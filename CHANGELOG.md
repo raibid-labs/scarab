@@ -7,6 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.0-alpha.4] - 2025-11-24
+
+### Added
+- Grid position calculation utilities (#8, #11)
+  - `grid_to_pixel()` - Convert grid coordinates to Bevy pixel positions
+  - `grid_to_pixel_with_renderer()` - Grid-to-pixel with TextRenderer metrics
+  - `pixel_to_grid()` - Reverse pixel-to-grid conversion with bounds checking
+  - `grid_cell_bounds()` - Calculate bounding rectangle for grid cells
+  - `grid_cell_center()` - Get center point of grid cells
+  - `grid_region_bounds()` - Calculate bounds for multi-cell regions
+- New `grid_utils` module in scarab-client UI subsystem
+- 6 comprehensive unit tests for coordinate conversions
+
+### Changed
+- Visual selection system now uses `grid_to_pixel()` for accurate positioning
+- Integrated TextRenderer metrics for coordinate calculations
+- Centralized coordinate conversion logic
+
+### Fixed
+- Resolved TODO in visual_selection.rs (line 348)
+- Resolved TODOs in link_hints.rs (coordinate calculations)
+- Improved accuracy of UI element positioning in Bevy's centered coordinate system
+
 ## [0.1.0-alpha.3] - 2025-11-24
 
 ### Added
