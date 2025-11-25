@@ -206,6 +206,193 @@ status:
 # Plugin Development Commands
 # ============================================
 
+# Hot-reload development mode for a plugin
+dev-mode plugin_name:
+    #!/usr/bin/env bash
+    echo "🔄 Starting dev mode for {{plugin_name}}"
+    echo "   Watching: plugins/{{plugin_name}}"
+    echo "   Press Ctrl+C to stop"
+
+    # Check if cargo-watch is installed
+    if ! command -v cargo-watch &> /dev/null; then
+        echo "Error: cargo-watch not found. Install with: cargo install cargo-watch"
+        exit 1
+    fi
+
+    # Build plugin initially
+    just plugin-build {{plugin_name}}
+
+    # Watch for changes and rebuild
+    cargo watch -w plugins/{{plugin_name}} \
+        -s "just plugin-build {{plugin_name}}" \
+        -s "just reload-plugin {{plugin_name}}"
+
+# Create new plugin from template
+plugin-new plugin_name type="frontend":
+    #!/usr/bin/env bash
+    mkdir -p plugins/{{plugin_name}}
+
+    if [ "{{type}}" = "frontend" ]; then
+        cat > plugins/{{plugin_name}}/{{plugin_name}}.fsx << 'EOF'
+module {{plugin_name}}
+
+open Scarab.PluginApi
+
+[<Plugin>]
+let metadata = {
+    Name = "{{plugin_name}}"
+    Version = "0.1.0"
+    Description = "TODO: Add description"
+    Author = "Your Name"
+}
+
+[<OnLoad>]
+let onLoad (ctx: PluginContext) =
+    ctx.Log Info "{{plugin_name}} loaded!"
+    async { return Ok () }
+
+[<OnKeyPress>]
+let onKeyPress (ctx: PluginContext) (key: KeyEvent) =
+    // TODO: Handle key presses
+    async { return Continue }
+EOF
+    else
+        cat > plugins/{{plugin_name}}/{{plugin_name}}.fsx << 'EOF'
+module {{plugin_name}}
+
+open Scarab.PluginApi
+
+[<Plugin>]
+let metadata = {
+    Name = "{{plugin_name}}"
+    Version = "0.1.0"
+    Description = "TODO: Add description"
+    Author = "Your Name"
+}
+
+[<OnLoad>]
+let onLoad (ctx: PluginContext) =
+    ctx.Log Info "{{plugin_name}} loaded!"
+    async { return Ok () }
+
+[<OnOutput>]
+let onOutput (ctx: PluginContext) (text: string) =
+    // TODO: Process terminal output
+    async { return Continue }
+EOF
+    fi
+
+    # Create manifest
+    cat > plugins/{{plugin_name}}/plugin.toml << 'EOF'
+[plugin]
+name = "{{plugin_name}}"
+version = "0.1.0"
+runtime = "{{type}}"
+
+[plugin.metadata]
+description = "TODO: Add description"
+author = "Your Name"
+license = "MIT"
+
+[hooks]
+# List enabled hooks (uncomment as needed)
+# on_load = true
+# on_output = true
+# on_input = true
+# on_resize = true
+# on_key_press = true
+EOF
+
+    # Create README
+    cat > plugins/{{plugin_name}}/README.md << 'EOF'
+# {{plugin_name}}
+
+TODO: Add description
+
+## Installation
+
+```bash
+just plugin-build {{plugin_name}}
+```
+
+## Configuration
+
+Add to your `~/.config/scarab/config.toml`:
+
+```toml
+[[plugins]]
+name = "{{plugin_name}}"
+enabled = true
+```
+
+## Usage
+
+TODO: Add usage instructions
+
+## Development
+
+```bash
+just dev-mode {{plugin_name}}
+```
+EOF
+
+    echo "✅ Created new {{type}} plugin: {{plugin_name}}"
+    echo "   Location: plugins/{{plugin_name}}"
+    echo "   Next steps:"
+    echo "     1. Edit plugins/{{plugin_name}}/{{plugin_name}}.fsx"
+    echo "     2. Run: just dev-mode {{plugin_name}}"
+
+# Build plugin to .fzb bytecode
+plugin-build plugin_name:
+    #!/usr/bin/env bash
+    if [ ! -d "plugins/{{plugin_name}}" ]; then
+        echo "Error: Plugin not found: plugins/{{plugin_name}}"
+        exit 1
+    fi
+
+    echo "🔨 Building plugin: {{plugin_name}}"
+
+    # For now, just copy the .fsx file as we're setting up the infrastructure
+    # In the future, this will use fusabi-frontend to compile to .fzb
+    if [ -f "plugins/{{plugin_name}}/{{plugin_name}}.fsx" ]; then
+        echo "   Source: plugins/{{plugin_name}}/{{plugin_name}}.fsx"
+        echo "   Note: Fusabi compilation infrastructure is being developed"
+        echo "   For now, .fsx files will be interpreted by the frontend"
+    else
+        echo "Error: Source file not found: plugins/{{plugin_name}}/{{plugin_name}}.fsx"
+        exit 1
+    fi
+
+# Test plugin
+plugin-test plugin_name:
+    #!/usr/bin/env bash
+    echo "🧪 Testing plugin: {{plugin_name}}"
+    cargo test -p scarab-plugin-api -- {{plugin_name}}
+
+# Reload plugin in running daemon
+reload-plugin plugin_name:
+    #!/usr/bin/env bash
+    if pgrep scarab-daemon > /dev/null; then
+        echo "🔄 Reloading plugin: {{plugin_name}}"
+        # Send SIGUSR1 to daemon to reload plugins
+        pkill -SIGUSR1 scarab-daemon
+        echo "✅ Plugin reloaded"
+    else
+        echo "⚠️  Daemon not running"
+    fi
+
+# Package plugin for distribution
+plugin-package plugin_name:
+    #!/usr/bin/env bash
+    just plugin-build {{plugin_name}}
+    mkdir -p dist/plugins
+    tar -czf dist/plugins/{{plugin_name}}.tar.gz \
+        -C plugins/{{plugin_name}} \
+        {{plugin_name}}.fsx \
+        plugin.toml \
+        README.md
+    echo "📦 Package created: dist/plugins/{{plugin_name}}.tar.gz"
+
 # Build a single Fusabi plugin (.fsx -> .fzb)
 plugin-build file:
     #!/usr/bin/env bash
@@ -250,75 +437,34 @@ plugin-test:
 plugin-ci: plugin-validate-all plugin-test
     @echo "Plugin CI checks complete"
 
-# Create a new plugin from template
-plugin-new name:
-    #!/usr/bin/env bash
-    PLUGIN_NAME="{{name}}"
-    PLUGIN_FILE="examples/fusabi/${PLUGIN_NAME}.fsx"
-
-    if [ -f "$PLUGIN_FILE" ]; then
-        echo "Error: Plugin already exists: $PLUGIN_FILE"
-        exit 1
-    fi
-
-    echo "Creating new plugin: $PLUGIN_NAME"
-    mkdir -p examples/fusabi
-
-    cat > "$PLUGIN_FILE" << 'PLUGINEOF'
-    // Plugin initialization
-    let on_load (ctx: PluginContext) =
-        printfn "Plugin loaded!"
-        Ok ()
-
-    // Handle terminal output
-    let on_output (line: string) (ctx: PluginContext) =
-        // Process output line
-        Continue
-
-    // Handle user input
-    let on_input (input: byte[]) (ctx: PluginContext) =
-        // Process input
-        Continue
-
-    // Export plugin metadata
-    let metadata = {
-        name = "{{name}}"
-        version = "0.1.0"
-        description = "A new Fusabi plugin for Scarab"
-        author = "Your Name"
-    }
-    PLUGINEOF
-
-    # Add metadata header
-    sed -i '1i// @name {{name}}\n// @version 0.1.0\n// @description A new Fusabi plugin for Scarab\n// @author Your Name\n// @api-version 0.1.0\n// @min-scarab-version 0.1.0\n' "$PLUGIN_FILE"
-
-    echo "Created: $PLUGIN_FILE"
-    echo "Edit the file and run: just plugin-build $PLUGIN_FILE"
-
 # Show plugin development status
 plugin-status:
     @echo "Fusabi Plugin Development Status"
     @echo "================================="
     @echo ""
     @echo "Example Plugins:"
-    @find examples/fusabi -name "*.fsx" -type f | wc -l | xargs echo "  .fsx files:"
+    @find examples/fusabi -name "*.fsx" -type f 2>/dev/null | wc -l | xargs echo "  .fsx files:"
     @find examples/fusabi -name "*.fzb" -type f 2>/dev/null | wc -l | xargs echo "  .fzb files:"
+    @echo ""
+    @find plugins -name "*.fsx" -type f 2>/dev/null | wc -l | xargs echo "  plugins/ .fsx files:"
     @echo ""
     @echo "Plugin API Version: 0.1.0"
     @echo ""
     @echo "Available Commands:"
-    @echo "  just plugin-build FILE      - Build single plugin"
+    @echo "  just dev-mode NAME          - Hot reload dev server"
+    @echo "  just plugin-new NAME TYPE   - Create new plugin"
+    @echo "  just plugin-build NAME      - Build plugin"
+    @echo "  just plugin-test NAME       - Test plugin"
+    @echo "  just plugin-package NAME    - Package plugin"
     @echo "  just plugin-build-all       - Build all plugins"
-    @echo "  just plugin-validate FILE   - Validate single plugin"
     @echo "  just plugin-validate-all    - Validate all plugins"
-    @echo "  just plugin-watch           - Watch and rebuild on changes"
-    @echo "  just plugin-test            - Test plugin loading"
-    @echo "  just plugin-new NAME        - Create new plugin from template"
+    @echo "  just plugin-watch           - Watch and rebuild"
 
 # Clean plugin build artifacts
 plugin-clean:
     #!/usr/bin/env bash
     echo "Cleaning plugin build artifacts..."
-    find examples/fusabi -name "*.fzb" -type f -delete
-    find examples/fusabi-config -name "*.fzb" -type f -delete
+    find examples/fusabi -name "*.fzb" -type f -delete 2>/dev/null || true
+    find examples/fusabi-config -name "*.fzb" -type f -delete 2>/dev/null || true
+    find plugins -name "*.fzb" -type f -delete 2>/dev/null || true
     echo "Done"
