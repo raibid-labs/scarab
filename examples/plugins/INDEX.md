@@ -38,6 +38,7 @@ This directory contains comprehensive examples for developing Scarab plugins usi
 | Plugin | LOC | Description | Key Concepts |
 |--------|-----|-------------|--------------|
 | **[session-manager.fsx](session-manager.fsx)** | ~260 | Advanced session management | Client attach/detach, persistent state, complex UI, file I/O |
+| **[scarab-atuin.fsx](scarab-atuin.fsx)** | ~450 | Atuin shell history integration | External tool integration, JSON parsing, modal search UI, real-time filtering |
 
 ## Plugin Complexity Matrix
 
@@ -52,7 +53,7 @@ External Procs  │ git-status.fsx
       ↓         │
 State + Time    │ notification-monitor.fsx
       ↓         │
-Full Featured   │ session-manager.fsx
+Full Featured   │ session-manager.fsx, scarab-atuin.fsx
 ```
 
 ## Hooks Demonstrated
@@ -62,13 +63,13 @@ Full Featured   │ session-manager.fsx
 | **on_load** | All plugins |
 | **on_unload** | All plugins (cleanup) |
 | **on_output** | output-filter.fsx |
-| **on_input** | custom-keybind.fsx, session-manager.fsx |
+| **on_input** | custom-keybind.fsx, session-manager.fsx, scarab-atuin.fsx |
 | **on_pre_command** | git-status.fsx, notification-monitor.fsx |
-| **on_post_command** | git-status.fsx, notification-monitor.fsx |
+| **on_post_command** | git-status.fsx, notification-monitor.fsx, scarab-atuin.fsx |
 | **on_resize** | git-status.fsx, session-manager.fsx |
 | **on_attach** | session-manager.fsx |
 | **on_detach** | session-manager.fsx |
-| **on_remote_command** | custom-keybind.fsx, git-status.fsx, notification-monitor.fsx, session-manager.fsx |
+| **on_remote_command** | custom-keybind.fsx, git-status.fsx, notification-monitor.fsx, session-manager.fsx, scarab-atuin.fsx |
 
 ## Features Demonstrated
 
@@ -85,34 +86,38 @@ Full Featured   │ session-manager.fsx
 
 ### Input/Output Handling
 - [x] Output interception (output-filter.fsx)
-- [x] Input interception (custom-keybind.fsx)
-- [x] Input modification (custom-keybind.fsx)
+- [x] Input interception (custom-keybind.fsx, scarab-atuin.fsx)
+- [x] Input modification (custom-keybind.fsx, scarab-atuin.fsx)
 - [x] Regex pattern matching (output-filter.fsx)
 
 ### UI Components
 - [x] Drawing overlays (all visual plugins)
 - [x] Clearing overlays (all visual plugins)
-- [x] Showing modals (custom-keybind.fsx, session-manager.fsx)
+- [x] Showing modals (custom-keybind.fsx, session-manager.fsx, scarab-atuin.fsx)
 - [x] Command palette integration (most plugins)
-- [x] User notifications (notification-monitor.fsx)
+- [x] User notifications (notification-monitor.fsx, scarab-atuin.fsx)
 
 ### State Management
-- [x] Simple mutable state (output-filter.fsx)
+- [x] Simple mutable state (output-filter.fsx, scarab-atuin.fsx)
 - [x] Dictionary tracking (notification-monitor.fsx)
 - [x] Persistent state (session-manager.fsx)
 - [x] Configuration reading (all plugins)
 
 ### External Integration
-- [x] Running shell commands (git-status.fsx)
+- [x] Running shell commands (git-status.fsx, scarab-atuin.fsx)
 - [x] Environment variable access (hello-plugin.fsx)
 - [x] File I/O (session-manager.fsx)
 - [x] Time tracking (notification-monitor.fsx)
+- [x] JSON parsing (scarab-atuin.fsx)
+- [x] External tool integration (scarab-atuin.fsx)
 
 ### Advanced Patterns
 - [x] Command duration tracking (notification-monitor.fsx)
 - [x] Client lifecycle management (session-manager.fsx)
 - [x] Color coding and themes (session-manager.fsx)
 - [x] Error handling (all plugins)
+- [x] Real-time search filtering (scarab-atuin.fsx)
+- [x] Graceful degradation (scarab-atuin.fsx)
 
 ## Learning Path
 
@@ -133,8 +138,39 @@ Full Featured   │ session-manager.fsx
 
 ### Level 4: Advanced Features
 1. Study **session-manager.fsx** for complex state
-2. Implement persistent storage
-3. Build a full-featured plugin for your workflow
+2. Study **scarab-atuin.fsx** for external tool integration
+3. Implement persistent storage
+4. Build a full-featured plugin for your workflow
+
+## Real-World Plugin Examples
+
+### scarab-atuin.fsx - Shell History Integration
+
+This production-quality plugin demonstrates:
+- **Tool detection**: Check if external tools are installed
+- **JSON parsing**: Parse structured output from external commands
+- **Modal search UI**: Interactive search with real-time filtering
+- **Keyboard navigation**: Arrow keys, Enter, Escape handling
+- **Command insertion**: Insert selected text into terminal
+- **Error handling**: Graceful degradation when tool unavailable
+- **Configuration**: Multiple config options
+- **Command palette**: Integration with Scarab's command system
+
+Key features:
+- Integrates Atuin shell history tool
+- Ctrl+R opens search modal
+- Real-time search filtering
+- Arrow key navigation
+- Enter to select and insert command
+- Auto-sync support (optional)
+- Statistics display
+
+Perfect for learning:
+- How to integrate external CLI tools
+- Building interactive search interfaces
+- Parsing and displaying external data
+- User-friendly error messages
+- Production plugin patterns
 
 ## Plugin Ideas to Try
 
@@ -149,12 +185,15 @@ Full Featured   │ session-manager.fsx
 - [ ] **ssh-helper.fsx** - Detect SSH connections and show hostname
 - [ ] **clipboard-manager.fsx** - Advanced clipboard history
 - [ ] **auto-suggestions.fsx** - Command completion suggestions
+- [x] **atuin-integration.fsx** - Integrate Atuin shell history (scarab-atuin.fsx)
 
 ### Advanced
 - [ ] **multiplexer.fsx** - Full terminal multiplexer
 - [ ] **recording-plugin.fsx** - Record and replay terminal sessions
 - [ ] **collaboration.fsx** - Share terminal with others
 - [ ] **ai-assistant.fsx** - Integrate with AI for command help
+- [ ] **fzf-integration.fsx** - Integrate fzf fuzzy finder
+- [ ] **zoxide-integration.fsx** - Smart directory jumping
 
 ## Testing Checklist
 
@@ -167,6 +206,8 @@ When developing plugins, test:
 - [ ] Cleanup happens on unload
 - [ ] No memory leaks with long-running sessions
 - [ ] Error messages are helpful
+- [ ] External tool failures handled gracefully
+- [ ] Search and filtering work smoothly
 
 ## Contributing
 
@@ -184,6 +225,7 @@ To contribute new examples:
 - **Scarab Docs**: /docs/
 - **Plugin API Source**: /crates/scarab-plugin-api/
 - **Core Plugins**: /crates/scarab-{palette,nav,platform}/
+- **Atuin**: https://github.com/atuinsh/atuin
 
 ## License
 
