@@ -17,16 +17,15 @@ pub mod fusabi_adapter;
 use fusabi_adapter::{FusabiBytecodePlugin, FusabiScriptPlugin};
 
 /// Plugin wrapper with failure tracking and personality
-struct ManagedPlugin {
+pub struct ManagedPlugin {
     /// The actual plugin instance
-    plugin: Box<dyn Plugin>,
+    pub plugin: Box<dyn Plugin>,
     /// Plugin configuration (retained for future use in hot-reload)
-    #[allow(dead_code)]
-    config: PluginConfig,
+    pub config: PluginConfig,
     /// Number of consecutive failures
-    failure_count: u32,
+    pub failure_count: u32,
     /// Whether plugin is currently enabled
-    enabled: bool,
+    pub enabled: bool,
     /// Maximum failures before auto-disable
     max_failures: u32,
     /// Total successful hook executions
@@ -118,11 +117,11 @@ impl ManagedPlugin {
 /// Plugin manager for loading, managing, and dispatching to plugins
 pub struct PluginManager {
     /// Loaded plugins
-    plugins: Vec<ManagedPlugin>,
+    pub plugins: Vec<ManagedPlugin>,
     /// Plugin discovery
     discovery: PluginDiscovery,
     /// Hook execution timeout (milliseconds)
-    hook_timeout: Duration,
+    pub hook_timeout: Duration,
     /// Plugin context
     context: Arc<PluginContext>,
     /// Registry for sending commands to clients
@@ -215,7 +214,7 @@ impl PluginManager {
     }
 
     /// Refresh aggregated command list from all plugins
-    fn refresh_commands(&self) {
+    pub fn refresh_commands(&self) {
         let mut all_commands = Vec::new();
         for managed in &self.plugins {
             if managed.enabled {
@@ -308,7 +307,7 @@ impl PluginManager {
     }
 
     /// Load a single plugin from configuration
-    async fn load_plugin_from_config(&mut self, config: PluginConfig) -> Result<()> {
+    pub async fn load_plugin_from_config(&mut self, config: PluginConfig) -> Result<()> {
         let path = config.expanded_path();
 
         log::debug!("📦 Loading plugin: {} from {:?}", config.name, path);

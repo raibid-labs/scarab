@@ -2,7 +2,7 @@ use crate::plugin_manager::PluginManager;
 use crate::session::{handle_session_command, SessionManager};
 use anyhow::{Context, Result};
 use portable_pty::PtySize;
-use scarab_protocol::{ControlMessage, DaemonMessage, MAX_CLIENTS, MAX_MESSAGE_SIZE, SOCKET_PATH};
+use scarab_protocol::{ControlMessage, DaemonMessage, PluginInspectorInfo, MAX_CLIENTS, MAX_MESSAGE_SIZE, SOCKET_PATH};
 use std::collections::HashMap;
 use std::path::Path;
 use std::sync::Arc;
@@ -304,6 +304,7 @@ async fn handle_client(
             &pty_handle,
             &session_manager,
             &plugin_manager,
+            &client_registry,
             client_id,
         )
         .await
@@ -322,6 +323,7 @@ async fn handle_message(
     pty_handle: &PtyHandle,
     session_manager: &Arc<SessionManager>,
     plugin_manager: &Arc<Mutex<PluginManager>>,
+    client_registry: &ClientRegistry,
     client_id: u64,
 ) -> Result<()> {
     // Try to handle as session command first
@@ -329,14 +331,17 @@ async fn handle_message(
         handle_session_command(msg.clone(), session_manager, client_id).await
     {
         log::info!("Session command response: {:?}", response);
-        // TODO: Send response back to client (requires bidirectional communication)
+        // Send response back to client
+        client_registry
+            .send(client_id, DaemonMessage::Session(response))
+            .await?;
         return Ok(());
     }
 
     // Handle non-session commands
     match msg {
         ControlMessage::Resize { cols, rows } => {
-            println!("Client {} resize: {}x{}", client_id, cols, rows);
+            log::info!("Client {} resize: {}x{}", client_id, cols, rows);
             pty_handle.resize(cols, rows).await?;
         }
         ControlMessage::Input { data } => {
@@ -347,43 +352,295 @@ async fn handle_message(
             pty_handle.write_input(&data).await?;
         }
         ControlMessage::LoadPlugin { path } => {
-            println!("Client {} loading plugin: {}", client_id, path);
-            // TODO: Implement plugin loading
-            eprintln!("Plugin loading not yet implemented");
+            log::info!("Client {} loading plugin: {}", client_id, path);
+
+            let path_str = path.to_string();
+            let plugin_manager = plugin_manager.clone();
+
+            // Load plugin asynchronously
+            match std::path::PathBuf::from(&path_str).canonicalize() {
+                Ok(abs_path) => {
+                    let mut pm = plugin_manager.lock().await;
+
+                    // Create minimal plugin config
+                    let config = scarab_plugin_api::PluginConfig {
+                        name: abs_path
+                            .file_stem()
+                            .and_then(|s| s.to_str())
+                            .unwrap_or("unknown")
+                            .to_string(),
+                        path: abs_path.clone(),
+                        enabled: true,
+                        config: Default::default(),
+                    };
+
+                    let plugin_name = config.name.clone(); // Clone name before moving config
+
+                    // Load the plugin
+                    match pm.load_plugin_from_config(config).await {
+                        Ok(_) => {
+                            log::info!("Successfully loaded plugin from: {:?}", abs_path);
+
+                            // Send updated plugin list to all clients
+                            let plugins = pm.list_plugins();
+                            let plugin_infos: Vec<PluginInspectorInfo> = plugins
+                                .into_iter()
+                                .map(|p| PluginInspectorInfo {
+                                    name: p.name.clone().into(),
+                                    version: p.version.clone().into(),
+                                    description: p.description.clone().into(),
+                                    author: p.author.clone().into(),
+                                    homepage: p.homepage.clone().map(|s| s.into()),
+                                    api_version: p.api_version.clone().into(),
+                                    min_scarab_version: p.min_scarab_version.clone().into(),
+                                    enabled: p.enabled,
+                                    failure_count: p.failure_count,
+                                })
+                                .collect();
+
+                            client_registry
+                                .broadcast(DaemonMessage::PluginList { plugins: plugin_infos })
+                                .await;
+                        }
+                        Err(e) => {
+                            log::error!("Failed to load plugin: {}", e);
+                            client_registry
+                                .send(
+                                    client_id,
+                                    DaemonMessage::PluginError {
+                                        name: plugin_name.into(),
+                                        error: format!("Failed to load plugin: {}", e).into(),
+                                    },
+                                )
+                                .await?;
+                        }
+                    }
+                }
+                Err(e) => {
+                    log::error!("Invalid plugin path '{}': {}", path_str, e);
+                    client_registry
+                        .send(
+                            client_id,
+                            DaemonMessage::PluginError {
+                                name: path_str.clone().into(),
+                                error: format!("Invalid path: {}", e).into(),
+                            },
+                        )
+                        .await?;
+                }
+            }
         }
         ControlMessage::Ping { timestamp } => {
-            println!("Client {} ping: {}", client_id, timestamp);
+            log::debug!("Client {} ping: {}", client_id, timestamp);
             // Could respond with pong if bidirectional communication is needed
         }
         ControlMessage::Disconnect { client_id: id } => {
-            println!("Client {} requesting disconnect", id);
+            log::info!("Client {} requesting disconnect", id);
             // Client will disconnect when this function returns
         }
         ControlMessage::CommandSelected { id } => {
-            println!("Client {} selected command: {}", client_id, id);
+            log::info!("Client {} selected command: {}", client_id, id);
             let mut pm = plugin_manager.lock().await;
             if let Err(e) = pm.dispatch_remote_command(&id).await {
-                eprintln!("Failed to dispatch remote command: {}", e);
+                log::error!("Failed to dispatch remote command: {}", e);
             }
         }
         ControlMessage::PluginListRequest => {
-            println!("Client {} requesting plugin list", client_id);
-            // TODO: Send plugin list back to client (requires bidirectional communication)
+            log::info!("Client {} requesting plugin list", client_id);
+
+            let pm = plugin_manager.lock().await;
+            let plugins = pm.list_plugins();
+
+            // Convert to protocol-compatible format
+            let plugin_infos: Vec<PluginInspectorInfo> = plugins
+                .into_iter()
+                .map(|p| PluginInspectorInfo {
+                    name: p.name.clone().into(),
+                    version: p.version.clone().into(),
+                    description: p.description.clone().into(),
+                    author: p.author.clone().into(),
+                    homepage: p.homepage.clone().map(|s| s.into()),
+                    api_version: p.api_version.clone().into(),
+                    min_scarab_version: p.min_scarab_version.clone().into(),
+                    enabled: p.enabled,
+                    failure_count: p.failure_count,
+                })
+                .collect();
+
+            log::debug!("Sending plugin list with {} plugins", plugin_infos.len());
+
+            // Send response to requesting client
+            client_registry
+                .send(client_id, DaemonMessage::PluginList { plugins: plugin_infos })
+                .await?;
         }
         ControlMessage::PluginEnable { name } => {
-            println!("Client {} enabling plugin: {}", client_id, name);
-            // TODO: Implement plugin enable functionality
-            eprintln!("Plugin enable not yet implemented for: {}", name);
+            log::info!("Client {} enabling plugin: {}", client_id, name);
+
+            let mut pm = plugin_manager.lock().await;
+
+            // Find the plugin by name
+            if let Some(plugin) = pm.plugins.iter_mut().find(|p| p.plugin.metadata().name == name.as_str()) {
+                if plugin.enabled {
+                    log::warn!("Plugin '{}' is already enabled", name);
+                } else {
+                    plugin.enabled = true;
+                    plugin.failure_count = 0; // Reset failures on enable
+                    log::info!("Plugin '{}' enabled", name);
+
+                    // Refresh commands list since plugin is now active
+                    pm.refresh_commands();
+
+                    // Notify all clients of status change
+                    client_registry
+                        .broadcast(DaemonMessage::PluginStatusChanged {
+                            name: name.clone(),
+                            enabled: true,
+                        })
+                        .await;
+                }
+            } else {
+                log::error!("Plugin '{}' not found", name);
+                client_registry
+                    .send(
+                        client_id,
+                        DaemonMessage::PluginError {
+                            name: name.clone(),
+                            error: "Plugin not found".to_string().into(),
+                        },
+                    )
+                    .await?;
+            }
         }
         ControlMessage::PluginDisable { name } => {
-            println!("Client {} disabling plugin: {}", client_id, name);
-            // TODO: Implement plugin disable functionality
-            eprintln!("Plugin disable not yet implemented for: {}", name);
+            log::info!("Client {} disabling plugin: {}", client_id, name);
+
+            let mut pm = plugin_manager.lock().await;
+
+            // Find the plugin by name
+            if let Some(plugin) = pm.plugins.iter_mut().find(|p| p.plugin.metadata().name == name.as_str()) {
+                if !plugin.enabled {
+                    log::warn!("Plugin '{}' is already disabled", name);
+                } else {
+                    plugin.enabled = false;
+                    log::info!("Plugin '{}' disabled", name);
+
+                    // Refresh commands list since plugin is now inactive
+                    pm.refresh_commands();
+
+                    // Notify all clients of status change
+                    client_registry
+                        .broadcast(DaemonMessage::PluginStatusChanged {
+                            name: name.clone(),
+                            enabled: false,
+                        })
+                        .await;
+                }
+            } else {
+                log::error!("Plugin '{}' not found", name);
+                client_registry
+                    .send(
+                        client_id,
+                        DaemonMessage::PluginError {
+                            name: name.clone(),
+                            error: "Plugin not found".to_string().into(),
+                        },
+                    )
+                    .await?;
+            }
         }
         ControlMessage::PluginReload { name } => {
-            println!("Client {} reloading plugin: {}", client_id, name);
-            // TODO: Implement plugin reload functionality
-            eprintln!("Plugin reload not yet implemented for: {}", name);
+            log::info!("Client {} reloading plugin: {}", client_id, name);
+
+            let plugin_manager = plugin_manager.clone();
+            let mut pm = plugin_manager.lock().await;
+
+            // Find the plugin and get its config path
+            let plugin_config = pm.plugins.iter().find(|p| p.plugin.metadata().name == name.as_str())
+                .map(|p| p.config.clone());
+
+            if let Some(config) = plugin_config {
+                // Unload the plugin
+                let plugin_idx = pm.plugins.iter().position(|p| p.plugin.metadata().name == name.as_str());
+
+                if let Some(idx) = plugin_idx {
+                    let mut managed = pm.plugins.remove(idx); // Make it mutable
+
+                    log::debug!("Unloading plugin '{}'", name);
+
+                    // Call on_unload with timeout
+                    if let Err(e) = tokio::time::timeout(
+                        pm.hook_timeout,
+                        managed.plugin.on_unload()
+                    ).await {
+                        log::warn!("Plugin '{}' unload timed out: {:?}", name, e);
+                    }
+
+                    // Reload the plugin
+                    log::debug!("Reloading plugin '{}' from {:?}", name, config.path);
+
+                    match pm.load_plugin_from_config(config.clone()).await {
+                        Ok(_) => {
+                            log::info!("Successfully reloaded plugin '{}'", name);
+
+                            // Refresh commands
+                            pm.refresh_commands();
+
+                            // Send updated plugin list to all clients
+                            let plugins = pm.list_plugins();
+                            let plugin_infos: Vec<PluginInspectorInfo> = plugins
+                                .into_iter()
+                                .map(|p| PluginInspectorInfo {
+                                    name: p.name.clone().into(),
+                                    version: p.version.clone().into(),
+                                    description: p.description.clone().into(),
+                                    author: p.author.clone().into(),
+                                    homepage: p.homepage.clone().map(|s| s.into()),
+                                    api_version: p.api_version.clone().into(),
+                                    min_scarab_version: p.min_scarab_version.clone().into(),
+                                    enabled: p.enabled,
+                                    failure_count: p.failure_count,
+                                })
+                                .collect();
+
+                            client_registry
+                                .broadcast(DaemonMessage::PluginList { plugins: plugin_infos })
+                                .await;
+
+                            // Notify status change
+                            client_registry
+                                .broadcast(DaemonMessage::PluginStatusChanged {
+                                    name: name.clone(),
+                                    enabled: true,
+                                })
+                                .await;
+                        }
+                        Err(e) => {
+                            log::error!("Failed to reload plugin '{}': {}", name, e);
+                            client_registry
+                                .send(
+                                    client_id,
+                                    DaemonMessage::PluginError {
+                                        name: name.clone(),
+                                        error: format!("Reload failed: {}", e).into(),
+                                    },
+                                )
+                                .await?;
+                        }
+                    }
+                }
+            } else {
+                log::error!("Plugin '{}' not found", name);
+                client_registry
+                    .send(
+                        client_id,
+                        DaemonMessage::PluginError {
+                            name: name.clone(),
+                            error: "Plugin not found".to_string().into(),
+                        },
+                    )
+                    .await?;
+            }
         }
         // Session commands are already handled above, but add catch-all for completeness
         ControlMessage::SessionCreate { .. }
