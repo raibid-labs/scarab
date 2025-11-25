@@ -25,6 +25,57 @@
 
 ---
 
+## Visual Demos
+
+<div align="center">
+
+### Link Hints - Open URLs with Keyboard
+
+![Link Hints Demo](docs/assets/demos/link-hints-demo.gif)
+
+*Press Ctrl+Shift+O to highlight all links, then press the shown key to open*
+
+---
+
+### Command Palette - Quick Access to Everything
+
+![Command Palette](docs/assets/demos/command-palette.gif)
+
+*Press Ctrl+Shift+P for fuzzy searchable command palette*
+
+---
+
+### Plugin System - Extend with F#
+
+![Plugin Installation](docs/assets/demos/plugin-install.gif)
+
+*Write powerful plugins in Fusabi (F# for Rust) with hot-reload support*
+
+---
+
+### Real-Time Theme Switching
+
+![Theme Switch](docs/assets/demos/theme-switch.gif)
+
+*Switch themes instantly - no restart required*
+
+---
+
+### Watch Full Demos
+
+**Scarab in 2 Minutes** - Quick feature overview
+[▶ Watch on YouTube](#) | [📥 Download MP4](docs/videos/scarab-2min-demo.mp4)
+
+**Your First Plugin** - Step-by-step plugin creation
+[▶ Watch on YouTube](#) | [📥 Download MP4](docs/videos/first-plugin-tutorial.mp4)
+
+**Advanced Workflows** - Power user tips
+[▶ Watch on YouTube](#) | [📥 Download MP4](docs/videos/advanced-workflows.mp4)
+
+</div>
+
+---
+
 ## ⚠️ Alpha Software Warning
 
 **Scarab is currently in alpha (v0.1.0-alpha)**. While the core architecture is stable and functional, expect:
@@ -151,8 +202,24 @@ The client will:
 - Map shared memory for zero-copy rendering
 - Open Bevy window with terminal UI
 - Load client UI scripts from `~/.config/scarab/ui-scripts/`
+- **Launch interactive tutorial on first run** (press ESC to skip)
 
-### 3. Create Your First Plugin (5 minutes!)
+### 3. Interactive Tutorial
+
+On first launch, Scarab will guide you through an 8-step interactive tutorial:
+
+1. **Welcome** - Introduction to Scarab
+2. **Navigation** - Running commands
+3. **Scrollback** - Mouse wheel scrolling
+4. **Link Hints** - Keyboard-driven URL opening (Ctrl+Shift+O)
+5. **Command Palette** - Quick command access (Ctrl+Shift+P)
+6. **Plugins** - Plugin system overview
+7. **Configuration** - Customization basics
+8. **Completion** - Next steps
+
+**Replay anytime:** `scarab-client --tutorial`
+
+### 4. Create Your First Plugin (5 minutes!)
 
 Create `~/.config/scarab/plugins/hello.fsx`:
 
@@ -347,6 +414,11 @@ Plugin.Register {
 
 ## 📖 Documentation
 
+### Getting Started
+- **[Interactive Tutorial](docs/tutorials/01-getting-started.md)** - Get productive in 5 minutes
+- **[Customization Guide](docs/tutorials/02-customization.md)** - Themes, fonts, keybindings
+- **[Workflow Integration](docs/tutorials/03-workflows.md)** - Git, Docker, SSH workflows
+
 ### Project Documentation
 - **[ROADMAP.md](./ROADMAP.md)** - Strategic development roadmap (Phases 1-10)
 - **[CLAUDE.md](./CLAUDE.md)** - Architecture overview and build commands
@@ -448,6 +520,7 @@ cargo flamegraph -p scarab-daemon
 - ✅ Core plugins: nav, palette, session
 
 ### In Progress (Phase 5)
+- 🔄 Interactive tutorial and onboarding
 - 🔄 E2E testing with real daemon-client interaction
 - 🔄 UI polish and animations
 - 🔄 Documentation and examples
