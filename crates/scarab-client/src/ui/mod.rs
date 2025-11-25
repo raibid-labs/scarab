@@ -8,6 +8,9 @@ pub mod keybindings;
 pub mod leader_key;
 pub mod link_hints;
 pub mod overlays;
+pub mod scroll_indicator;
+pub mod scrollback_selection;
+pub mod search_overlay;
 pub mod visual_selection;
 
 pub use animations::{AnimationState, AnimationsPlugin, FadeAnimation};
@@ -17,6 +20,9 @@ pub use keybindings::{KeyBinding, KeyBindingConfig, KeybindingsPlugin};
 pub use leader_key::{LeaderKeyPlugin, LeaderKeyState};
 pub use link_hints::{LinkDetector, LinkHint, LinkHintsPlugin};
 pub use overlays::RemoteUiPlugin;
+pub use scroll_indicator::{ScrollIndicatorConfig, ScrollIndicatorPlugin};
+pub use scrollback_selection::{ScrollbackSelectionPlugin, ScrollbackSelectionState};
+pub use search_overlay::{SearchOverlayConfig, SearchOverlayPlugin};
 pub use visual_selection::{SelectionMode, SelectionRegion, VisualSelectionPlugin};
 
 use bevy::prelude::*;
@@ -34,6 +40,9 @@ impl Plugin for AdvancedUIPlugin {
             AnimationsPlugin,
             VisualSelectionPlugin,
             RemoteUiPlugin,
+            ScrollIndicatorPlugin,
+            ScrollbackSelectionPlugin,
+            SearchOverlayPlugin,
         ))
         .insert_resource(UIConfig::default());
     }

@@ -31,7 +31,7 @@ rkyv = { workspace = true }
 crossbeam = { workspace = true }
 regex = "1.10"
 fuzzy-matcher = "0.3"
-arboard = "3.3"  # Clipboard support for visual selection
+arboard = "3.3"
 
 # Profiling dependencies
 tracy-client = { workspace = true, optional = true }
