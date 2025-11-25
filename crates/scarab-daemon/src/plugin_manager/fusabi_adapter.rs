@@ -25,7 +25,7 @@ pub struct FusabiBytecodePlugin {
     metadata: PluginMetadata,
     bytecode: Vec<u8>,
     // Note: Vm contains Rc which is !Send, so we can't store it directly
-    // We'll recreate the VM on each hook call (acceptable for now)
+    // We use thread-local VM_CACHE for VM instances
 }
 
 impl std::fmt::Debug for FusabiBytecodePlugin {
@@ -61,19 +61,60 @@ impl FusabiBytecodePlugin {
         Ok(Self { metadata, bytecode })
     }
 
-    /// Execute bytecode in a new VM instance
-    fn execute_bytecode(&self) -> Result<()> {
-        let chunk = fusabi_vm::deserialize_chunk(&self.bytecode)
-            .map_err(|e| PluginError::LoadError(format!("Failed to deserialize chunk: {}", e)))?;
+    /// Call a hook function in the bytecode VM
+    ///
+    /// This function mirrors the implementation of FusabiScriptPlugin::call_hook_function()
+    /// but works with pre-compiled bytecode instead of parsing/compiling F# source.
+    ///
+    /// Returns Ok(None) if the function doesn't exist (not an error)
+    /// Returns Ok(Some(value)) if the function exists and was called successfully
+    fn call_hook_function(
+        &self,
+        function_name: &str,
+        args: &[Value],
+        _ctx: &PluginContext,
+    ) -> Result<Option<Value>> {
+        // Use thread-local VM to avoid Send issues
+        VM_CACHE.with(|cache| {
+            let mut cache = cache.borrow_mut();
 
-        let mut vm = Vm::new();
+            // Create a new VM if not cached
+            if cache.is_none() {
+                *cache = Some(Vm::new());
+            }
 
-        // Execute the chunk and get the result
-        let _result = vm
-            .execute(chunk)
-            .map_err(|e| PluginError::Other(anyhow::anyhow!("VM execution failed: {}", e)))?;
+            let vm = cache.as_mut().unwrap();
 
-        Ok(())
+            // Deserialize and execute the main bytecode chunk to populate globals
+            let chunk = fusabi_vm::deserialize_chunk(&self.bytecode)
+                .map_err(|e| PluginError::Other(anyhow::anyhow!("Deserialization failed: {}", e)))?;
+
+            vm.execute(chunk).map_err(|e| {
+                PluginError::Other(anyhow::anyhow!("Bytecode execution failed: {}", e))
+            })?;
+
+            // Check if the hook function exists in globals
+            if !vm.globals.contains_key(function_name) {
+                log::trace!(
+                    "Hook function '{}' not defined in bytecode plugin '{}'",
+                    function_name,
+                    self.metadata.name
+                );
+                return Ok(None);
+            }
+
+            // Get the function value from globals
+            let func_value = vm.globals.get(function_name)
+                .ok_or_else(|| PluginError::Other(anyhow::anyhow!("Function '{}' not found in globals", function_name)))?
+                .clone();
+
+            // Call the function with provided arguments
+            let result = vm.call_value(func_value, args).map_err(|e| {
+                PluginError::Other(anyhow::anyhow!("Hook execution failed: {}", e))
+            })?;
+
+            Ok(Some(result))
+        })
     }
 }
 
@@ -89,49 +130,150 @@ impl Plugin for FusabiBytecodePlugin {
             &format!("Loading Fusabi bytecode plugin: {}", self.metadata.name),
         );
 
-        // Execute the plugin bytecode
-        // TODO: Pass context to VM via host functions
-        // Note: For now, we just log. Actual execution requires proper host function setup.
-        log::debug!("Plugin bytecode loaded, {} bytes", self.bytecode.len());
+        // Execute the plugin bytecode and call on_load hook if defined
+        // Expected signature: let on_load = fun () -> ()
+        match self.call_hook_function("on_load", &[Value::Unit], ctx) {
+            Ok(Some(result)) => {
+                log::debug!(
+                    "Bytecode plugin '{}' on_load returned: {:?}",
+                    self.metadata.name,
+                    result
+                );
+            }
+            Ok(None) => {
+                log::trace!("Bytecode plugin '{}' has no on_load hook", self.metadata.name);
+            }
+            Err(e) => {
+                log::warn!(
+                    "Bytecode plugin '{}' on_load hook failed: {}",
+                    self.metadata.name,
+                    e
+                );
+                return Err(e);
+            }
+        }
 
+        log::debug!("Plugin bytecode loaded, {} bytes", self.bytecode.len());
         Ok(())
     }
 
-    async fn on_output(&mut self, _line: &str, _ctx: &PluginContext) -> Result<Action> {
-        // TODO: Call VM hook function
-        // let result = self.vm.call_function("on_output", &[Value::String(line.to_string())])?;
-        // Parse result into Action
+    async fn on_output(&mut self, line: &str, ctx: &PluginContext) -> Result<Action> {
+        // Call the on_output hook if defined
+        // Expected signature: let on_output = fun line -> bool (true = continue, false = suppress)
+        let args = vec![Value::Str(line.to_string())];
 
-        // For now, just pass through
-        log::trace!("Bytecode plugin '{}' processing output", self.metadata.name);
-        Ok(Action::Continue)
+        match self.call_hook_function("on_output", &args, ctx) {
+            Ok(Some(result)) => {
+                log::trace!(
+                    "Bytecode plugin '{}' on_output returned: {:?}",
+                    self.metadata.name,
+                    result
+                );
+
+                // Check if result indicates we should suppress output
+                match result {
+                    Value::Bool(false) => Ok(Action::Stop),
+                    _ => Ok(Action::Continue),
+                }
+            }
+            Ok(None) => {
+                log::trace!("Bytecode plugin '{}' processing output", self.metadata.name);
+                Ok(Action::Continue)
+            }
+            Err(e) => {
+                log::warn!(
+                    "Bytecode plugin '{}' on_output hook failed: {}",
+                    self.metadata.name,
+                    e
+                );
+                Ok(Action::Continue)
+            }
+        }
     }
 
-    async fn on_input(&mut self, input: &[u8], _ctx: &PluginContext) -> Result<Action> {
-        // TODO: Call VM hook function
-        log::trace!(
-            "Bytecode plugin '{}' processing input ({} bytes)",
-            self.metadata.name,
-            input.len()
-        );
-        Ok(Action::Continue)
+    async fn on_input(&mut self, input: &[u8], ctx: &PluginContext) -> Result<Action> {
+        // Call the on_input hook if defined
+        // Expected signature: let on_input = fun bytes_str -> bool
+        let input_str = String::from_utf8_lossy(input);
+        let args = vec![Value::Str(input_str.to_string())];
+
+        match self.call_hook_function("on_input", &args, ctx) {
+            Ok(Some(result)) => {
+                log::trace!(
+                    "Bytecode plugin '{}' on_input returned: {:?}",
+                    self.metadata.name,
+                    result
+                );
+
+                match result {
+                    Value::Bool(false) => Ok(Action::Stop),
+                    _ => Ok(Action::Continue),
+                }
+            }
+            Ok(None) => {
+                log::trace!(
+                    "Bytecode plugin '{}' processing input ({} bytes)",
+                    self.metadata.name,
+                    input.len()
+                );
+                Ok(Action::Continue)
+            }
+            Err(e) => {
+                log::warn!(
+                    "Bytecode plugin '{}' on_input hook failed: {}",
+                    self.metadata.name,
+                    e
+                );
+                Ok(Action::Continue)
+            }
+        }
     }
 
-    async fn on_resize(&mut self, cols: u16, rows: u16, _ctx: &PluginContext) -> Result<()> {
-        // TODO: Call VM hook function
-        log::trace!(
-            "Bytecode plugin '{}' handling resize: {}x{}",
-            self.metadata.name,
-            cols,
-            rows
-        );
+    async fn on_resize(&mut self, cols: u16, rows: u16, ctx: &PluginContext) -> Result<()> {
+        // Call the on_resize hook if defined
+        // Expected signature: let on_resize = fun cols rows -> ()
+        let args = vec![Value::Int(cols as i64), Value::Int(rows as i64)];
+
+        match self.call_hook_function("on_resize", &args, ctx) {
+            Ok(Some(result)) => {
+                log::trace!(
+                    "Bytecode plugin '{}' on_resize returned: {:?}",
+                    self.metadata.name,
+                    result
+                );
+            }
+            Ok(None) => {
+                log::trace!(
+                    "Bytecode plugin '{}' handling resize: {}x{}",
+                    self.metadata.name,
+                    cols,
+                    rows
+                );
+            }
+            Err(e) => {
+                log::warn!(
+                    "Bytecode plugin '{}' on_resize hook failed: {}",
+                    self.metadata.name,
+                    e
+                );
+            }
+        }
+
         Ok(())
     }
 
     async fn on_unload(&mut self) -> Result<()> {
         log::info!("Unloading Fusabi bytecode plugin: {}", self.metadata.name);
-        // TODO: Execute VM cleanup code
-        // self.vm.call_function("on_unload", &[])?;
+
+        // Clear VM cache to release resources
+        VM_CACHE.with(|cache| {
+            *cache.borrow_mut() = None;
+        });
+
+        // Note: We can't call the on_unload hook here because we don't have access to ctx
+        // The Plugin trait's on_unload doesn't provide a context parameter
+        // This matches the behavior of FusabiScriptPlugin
+
         Ok(())
     }
 }
