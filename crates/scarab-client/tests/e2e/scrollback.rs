@@ -14,7 +14,7 @@ use std::time::Duration;
 fn test_large_output() -> Result<()> {
     println!("\n=== Test: Large Output (Scrollback) ===");
 
-    let harness = E2ETestHarness::new()?;
+    let mut harness = E2ETestHarness::new()?;
 
     thread::sleep(Duration::from_secs(1));
 
@@ -60,7 +60,7 @@ fn test_large_output() -> Result<()> {
 fn test_continuous_output() -> Result<()> {
     println!("\n=== Test: Continuous Output ===");
 
-    let harness = E2ETestHarness::new()?;
+    let mut harness = E2ETestHarness::new()?;
 
     thread::sleep(Duration::from_secs(1));
 
@@ -90,7 +90,7 @@ fn test_continuous_output() -> Result<()> {
 fn test_scrollback_persistence() -> Result<()> {
     println!("\n=== Test: Scrollback Persistence ===");
 
-    let harness = E2ETestHarness::new()?;
+    let mut harness = E2ETestHarness::new()?;
 
     thread::sleep(Duration::from_secs(1));
 
@@ -123,7 +123,7 @@ fn test_scrollback_persistence() -> Result<()> {
 fn test_rapid_updates() -> Result<()> {
     println!("\n=== Test: Rapid Updates ===");
 
-    let harness = E2ETestHarness::new()?;
+    let mut harness = E2ETestHarness::new()?;
 
     thread::sleep(Duration::from_secs(1));
 
@@ -159,7 +159,7 @@ fn test_rapid_updates() -> Result<()> {
 fn test_line_wrapping() -> Result<()> {
     println!("\n=== Test: Line Wrapping ===");
 
-    let harness = E2ETestHarness::new()?;
+    let mut harness = E2ETestHarness::new()?;
 
     thread::sleep(Duration::from_secs(1));
 
@@ -181,7 +181,7 @@ fn test_line_wrapping() -> Result<()> {
 fn test_partial_line_updates() -> Result<()> {
     println!("\n=== Test: Partial Line Updates ===");
 
-    let harness = E2ETestHarness::new()?;
+    let mut harness = E2ETestHarness::new()?;
 
     thread::sleep(Duration::from_secs(1));
 

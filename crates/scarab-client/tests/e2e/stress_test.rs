@@ -174,7 +174,7 @@ fn test_memory_stability() -> Result<()> {
 fn test_rapid_input_stress() -> Result<()> {
     println!("\n=== Test: Rapid Input Stress ===");
 
-    let harness = E2ETestHarness::new()?;
+    let mut harness = E2ETestHarness::new()?;
 
     thread::sleep(Duration::from_secs(1));
 
@@ -207,7 +207,7 @@ fn test_rapid_input_stress() -> Result<()> {
 fn test_concurrent_commands() -> Result<()> {
     println!("\n=== Test: Concurrent Commands ===");
 
-    let harness = E2ETestHarness::new()?;
+    let mut harness = E2ETestHarness::new()?;
 
     thread::sleep(Duration::from_secs(1));
 
@@ -246,7 +246,7 @@ fn test_concurrent_commands() -> Result<()> {
 fn test_resize_stress() -> Result<()> {
     println!("\n=== Test: Resize Stress ===");
 
-    let harness = E2ETestHarness::new()?;
+    let mut harness = E2ETestHarness::new()?;
 
     thread::sleep(Duration::from_secs(1));
 

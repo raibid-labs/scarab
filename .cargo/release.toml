@@ -1,0 +1,103 @@
+# cargo-release configuration for Scarab workspace
+# https://github.com/crate-ci/cargo-release/blob/master/docs/reference.md
+
+# Workspace-level settings
+[workspace]
+allow-branch = ["main"]
+# All crates share the same version
+consolidate-commits = true
+# Create a single tag for the entire workspace
+tag-name = "v{{version}}"
+# Push changes and tags automatically
+push = false  # Set to true when ready for automated releases
+
+# Pre-release checks
+pre-release-commit-message = "chore: Release {{crate_name}} version {{version}}"
+pre-release-replacements = [
+  { file = "VERSION", search = ".*", replace = "{{version}}" },
+  { file = "CHANGELOG.md", search = "## \\[Unreleased\\]", replace = "## [Unreleased]\n\n## [{{version}}] - {{date}}", exactly = 1 },
+]
+
+# Post-release
+post-release-commit-message = "chore: Prepare for next development iteration"
+
+# Don't publish to crates.io yet (remove this when ready)
+publish = false
+
+# Enable all features during pre-release verification
+pre-release-hook = ["cargo", "test", "--workspace", "--all-features"]
+
+# Optional: run additional checks
+# pre-release-hook = ["./scripts/pre-release-check.sh"]
+
+# Tag message
+tag-message = "Release Scarab {{version}}\n\nChanges in this release:\n- See CHANGELOG.md for details"
+
+# Git push options
+push-options = []
+
+# Sign tags and commits (optional, requires GPG setup)
+sign-commit = false
+sign-tag = false
+
+# Individual crate configurations
+# All crates inherit workspace settings but can override if needed
+
+[[package]]
+name = "scarab-protocol"
+# Protocol crate releases first (no dependencies on other scarab crates for external users)
+
+[[package]]
+name = "scarab-plugin-api"
+# Plugin API released second (depends on protocol)
+
+[[package]]
+name = "scarab-platform"
+# Platform abstraction layer
+
+[[package]]
+name = "scarab-config"
+# Configuration system
+
+[[package]]
+name = "scarab-nav"
+# Navigation system (depends on plugin-api, protocol)
+
+[[package]]
+name = "scarab-session"
+# Session management (depends on plugin-api, protocol)
+
+[[package]]
+name = "scarab-palette"
+# Palette management (depends on plugin-api, protocol)
+
+[[package]]
+name = "scarab-plugin-compiler"
+# Plugin compiler tool
+
+[[package]]
+name = "scarab-daemon"
+# Daemon binary (depends on most crates)
+
+[[package]]
+name = "scarab-client"
+# Client binary (depends on most crates)
+
+# Version bump settings
+# Use these with: cargo release [major|minor|patch|version <version>]
+
+# For pre-releases:
+# cargo release --version 0.2.0-alpha.1
+# cargo release --version 0.2.0-beta.1
+# cargo release --version 0.2.0-rc.1
+
+# For stable releases:
+# cargo release patch   (0.1.0 -> 0.1.1)
+# cargo release minor   (0.1.0 -> 0.2.0)
+# cargo release major   (0.1.0 -> 1.0.0)
+
+# Dry run (always recommended first):
+# cargo release --workspace --dry-run
+
+# Execute release:
+# cargo release --workspace --execute

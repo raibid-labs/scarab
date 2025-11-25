@@ -16,7 +16,7 @@ use std::time::Duration;
 fn test_basic_text_input() -> Result<()> {
     println!("\n=== Test: Basic Text Input ===");
 
-    let harness = E2ETestHarness::new()?;
+    let mut harness = E2ETestHarness::new()?;
 
     thread::sleep(Duration::from_secs(1));
 
@@ -34,7 +34,7 @@ fn test_basic_text_input() -> Result<()> {
 fn test_control_sequences() -> Result<()> {
     println!("\n=== Test: Control Sequences ===");
 
-    let harness = E2ETestHarness::new()?;
+    let mut harness = E2ETestHarness::new()?;
 
     thread::sleep(Duration::from_secs(1));
 
@@ -61,7 +61,7 @@ fn test_control_sequences() -> Result<()> {
 fn test_ctrl_d_eof() -> Result<()> {
     println!("\n=== Test: Ctrl+D (EOF) ===");
 
-    let harness = E2ETestHarness::new()?;
+    let mut harness = E2ETestHarness::new()?;
 
     thread::sleep(Duration::from_secs(1));
 
@@ -91,7 +91,7 @@ fn test_ctrl_d_eof() -> Result<()> {
 fn test_arrow_keys() -> Result<()> {
     println!("\n=== Test: Arrow Keys ===");
 
-    let harness = E2ETestHarness::new()?;
+    let mut harness = E2ETestHarness::new()?;
 
     thread::sleep(Duration::from_secs(1));
 
@@ -131,7 +131,7 @@ fn test_arrow_keys() -> Result<()> {
 fn test_tab_completion() -> Result<()> {
     println!("\n=== Test: Tab Completion ===");
 
-    let harness = E2ETestHarness::new()?;
+    let mut harness = E2ETestHarness::new()?;
 
     thread::sleep(Duration::from_secs(1));
 
@@ -162,7 +162,7 @@ fn test_tab_completion() -> Result<()> {
 fn test_special_characters() -> Result<()> {
     println!("\n=== Test: Special Characters ===");
 
-    let harness = E2ETestHarness::new()?;
+    let mut harness = E2ETestHarness::new()?;
 
     thread::sleep(Duration::from_secs(1));
 
@@ -197,7 +197,7 @@ fn test_special_characters() -> Result<()> {
 fn test_escape_sequences() -> Result<()> {
     println!("\n=== Test: Escape Sequences ===");
 
-    let harness = E2ETestHarness::new()?;
+    let mut harness = E2ETestHarness::new()?;
 
     thread::sleep(Duration::from_secs(1));
 
@@ -219,7 +219,7 @@ fn test_escape_sequences() -> Result<()> {
 fn test_unicode_input() -> Result<()> {
     println!("\n=== Test: Unicode Input ===");
 
-    let harness = E2ETestHarness::new()?;
+    let mut harness = E2ETestHarness::new()?;
 
     thread::sleep(Duration::from_secs(1));
 
@@ -243,7 +243,7 @@ fn test_unicode_input() -> Result<()> {
 fn test_rapid_input() -> Result<()> {
     println!("\n=== Test: Rapid Input ===");
 
-    let harness = E2ETestHarness::new()?;
+    let mut harness = E2ETestHarness::new()?;
 
     thread::sleep(Duration::from_secs(1));
 
@@ -273,7 +273,7 @@ fn test_rapid_input() -> Result<()> {
 fn test_ctrl_l_clear() -> Result<()> {
     println!("\n=== Test: Ctrl+L (Clear Screen) ===");
 
-    let harness = E2ETestHarness::new()?;
+    let mut harness = E2ETestHarness::new()?;
 
     thread::sleep(Duration::from_secs(1));
 

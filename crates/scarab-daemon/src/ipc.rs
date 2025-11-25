@@ -366,6 +366,25 @@ async fn handle_message(
                 eprintln!("Failed to dispatch remote command: {}", e);
             }
         }
+        ControlMessage::PluginListRequest => {
+            println!("Client {} requesting plugin list", client_id);
+            // TODO: Send plugin list back to client (requires bidirectional communication)
+        }
+        ControlMessage::PluginEnable { name } => {
+            println!("Client {} enabling plugin: {}", client_id, name);
+            // TODO: Implement plugin enable functionality
+            eprintln!("Plugin enable not yet implemented for: {}", name);
+        }
+        ControlMessage::PluginDisable { name } => {
+            println!("Client {} disabling plugin: {}", client_id, name);
+            // TODO: Implement plugin disable functionality
+            eprintln!("Plugin disable not yet implemented for: {}", name);
+        }
+        ControlMessage::PluginReload { name } => {
+            println!("Client {} reloading plugin: {}", client_id, name);
+            // TODO: Implement plugin reload functionality
+            eprintln!("Plugin reload not yet implemented for: {}", name);
+        }
         // Session commands are already handled above, but add catch-all for completeness
         ControlMessage::SessionCreate { .. }
         | ControlMessage::SessionDelete { .. }

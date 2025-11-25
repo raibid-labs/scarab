@@ -263,15 +263,15 @@ fn test_ensure_default_config() {
 }
 
 #[test]
-fn test_error_help_text() {
-    let err = ConfigError::InvalidFontSize(100.0);
-    let help = err.help_text();
-    assert!(help.contains("6.0 to 72.0"));
-    assert!(help.contains("Suggestion"));
+fn test_error_messages() {
+    let err = ConfigError::InvalidFontSize("100.0".to_string());
+    let error_msg = format!("{}", err);
+    assert!(error_msg.contains("Invalid font size"));
 
     let err = ConfigError::InvalidColor("GGGGGG".to_string());
-    let help = err.help_text();
-    assert!(help.contains("#RRGGBB"));
+    let error_msg = format!("{}", err);
+    assert!(error_msg.contains("Invalid color"));
+    assert!(error_msg.contains("GGGGGG"));
 }
 
 #[test]

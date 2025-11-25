@@ -12,6 +12,15 @@ members = [
     "crates/scarab-session",
 ]
 
+[workspace.package]
+version = "0.1.0-alpha.1"
+authors = ["Scarab Team <team@raibid-labs.com>"]
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/raibid-labs/scarab"
+homepage = "https://github.com/raibid-labs/scarab"
+edition = "2021"
+rust-version = "1.75"
+
 [workspace.dependencies]
 # Official Fusabi dependencies (from crates.io)
 fusabi-vm = { version = "0.5.0", features = ["serde"] }

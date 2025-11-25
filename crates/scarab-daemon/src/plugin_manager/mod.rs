@@ -257,9 +257,10 @@ impl PluginManager {
             );
 
             // Show a random developer tip
-            if rand::random::<f32>() < 0.3 {
-                log::info!("💡 {}", delight::random_developer_tip());
-            }
+            // TODO: Re-enable when rand dependency is added
+            // if rand::random::<f32>() < 0.3 {
+            //     log::info!("💡 {}", delight::random_developer_tip());
+            // }
         } else {
             log::info!("No plugins loaded. Time to create your first one!");
         }

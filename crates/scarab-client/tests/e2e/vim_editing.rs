@@ -26,7 +26,7 @@ fn test_vim_basic_editing() -> Result<()> {
         return Ok(());
     }
 
-    let harness = E2ETestHarness::new()?;
+    let mut harness = E2ETestHarness::new()?;
 
     thread::sleep(Duration::from_secs(1));
 
@@ -89,7 +89,7 @@ fn test_vim_quit_without_saving() -> Result<()> {
         return Ok(());
     }
 
-    let harness = E2ETestHarness::new()?;
+    let mut harness = E2ETestHarness::new()?;
 
     thread::sleep(Duration::from_secs(1));
 
@@ -135,7 +135,7 @@ fn test_vim_navigation() -> Result<()> {
         return Ok(());
     }
 
-    let harness = E2ETestHarness::new()?;
+    let mut harness = E2ETestHarness::new()?;
 
     thread::sleep(Duration::from_secs(1));
 
@@ -189,7 +189,7 @@ fn test_vim_search() -> Result<()> {
         return Ok(());
     }
 
-    let harness = E2ETestHarness::new()?;
+    let mut harness = E2ETestHarness::new()?;
 
     thread::sleep(Duration::from_secs(1));
 

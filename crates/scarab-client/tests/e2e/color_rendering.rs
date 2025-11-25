@@ -21,7 +21,7 @@ const DEFAULT_BG: u32 = 0x000000FF; // Black
 fn test_basic_ansi_colors() -> Result<()> {
     println!("\n=== Test: Basic ANSI Colors ===");
 
-    let harness = E2ETestHarness::new()?;
+    let mut harness = E2ETestHarness::new()?;
 
     thread::sleep(Duration::from_secs(1));
 
@@ -67,7 +67,7 @@ fn test_basic_ansi_colors() -> Result<()> {
 fn test_ls_colors() -> Result<()> {
     println!("\n=== Test: ls --color Output ===");
 
-    let harness = E2ETestHarness::new()?;
+    let mut harness = E2ETestHarness::new()?;
 
     thread::sleep(Duration::from_secs(1));
 
@@ -108,7 +108,7 @@ fn test_ls_colors() -> Result<()> {
 fn test_multiple_colors() -> Result<()> {
     println!("\n=== Test: Multiple Colors ===");
 
-    let harness = E2ETestHarness::new()?;
+    let mut harness = E2ETestHarness::new()?;
 
     thread::sleep(Duration::from_secs(1));
 
@@ -131,7 +131,7 @@ fn test_multiple_colors() -> Result<()> {
 fn test_background_colors() -> Result<()> {
     println!("\n=== Test: Background Colors ===");
 
-    let harness = E2ETestHarness::new()?;
+    let mut harness = E2ETestHarness::new()?;
 
     thread::sleep(Duration::from_secs(1));
 
@@ -152,7 +152,7 @@ fn test_background_colors() -> Result<()> {
 fn test_bold_attribute() -> Result<()> {
     println!("\n=== Test: Bold Attribute ===");
 
-    let harness = E2ETestHarness::new()?;
+    let mut harness = E2ETestHarness::new()?;
 
     thread::sleep(Duration::from_secs(1));
 
@@ -187,7 +187,7 @@ fn test_bold_attribute() -> Result<()> {
 fn test_color_reset() -> Result<()> {
     println!("\n=== Test: Color Reset ===");
 
-    let harness = E2ETestHarness::new()?;
+    let mut harness = E2ETestHarness::new()?;
 
     thread::sleep(Duration::from_secs(1));
 
@@ -208,7 +208,7 @@ fn test_color_reset() -> Result<()> {
 fn test_256_color_mode() -> Result<()> {
     println!("\n=== Test: 256 Color Mode ===");
 
-    let harness = E2ETestHarness::new()?;
+    let mut harness = E2ETestHarness::new()?;
 
     thread::sleep(Duration::from_secs(1));
 
@@ -229,7 +229,7 @@ fn test_256_color_mode() -> Result<()> {
 fn test_truecolor_mode() -> Result<()> {
     println!("\n=== Test: Truecolor Mode (24-bit RGB) ===");
 
-    let harness = E2ETestHarness::new()?;
+    let mut harness = E2ETestHarness::new()?;
 
     thread::sleep(Duration::from_secs(1));
 

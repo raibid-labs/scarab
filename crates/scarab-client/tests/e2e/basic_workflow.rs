@@ -85,7 +85,7 @@ fn test_pwd_command() -> Result<()> {
 fn test_environment_variables() -> Result<()> {
     println!("\n=== Test: Environment Variables ===");
 
-    let harness = E2ETestHarness::new()?;
+    let mut harness = E2ETestHarness::new()?;
 
     thread::sleep(Duration::from_secs(1));
 
@@ -106,7 +106,7 @@ fn test_environment_variables() -> Result<()> {
 fn test_multiline_input() -> Result<()> {
     println!("\n=== Test: Multiline Input ===");
 
-    let harness = E2ETestHarness::new()?;
+    let mut harness = E2ETestHarness::new()?;
 
     thread::sleep(Duration::from_secs(1));
 
@@ -129,7 +129,7 @@ fn test_multiline_input() -> Result<()> {
 fn test_clear_screen() -> Result<()> {
     println!("\n=== Test: Clear Screen ===");
 
-    let harness = E2ETestHarness::new()?;
+    let mut harness = E2ETestHarness::new()?;
 
     thread::sleep(Duration::from_secs(1));
 
@@ -160,7 +160,7 @@ fn test_clear_screen() -> Result<()> {
 fn test_backspace_handling() -> Result<()> {
     println!("\n=== Test: Backspace Handling ===");
 
-    let harness = E2ETestHarness::new()?;
+    let mut harness = E2ETestHarness::new()?;
 
     thread::sleep(Duration::from_secs(1));
 

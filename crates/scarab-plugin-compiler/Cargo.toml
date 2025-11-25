@@ -1,10 +1,12 @@
 [package]
 name = "scarab-plugin-compiler"
-version = "0.1.0"
-edition = "2021"
-authors = ["Scarab Team"]
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
 description = "Fusabi plugin compiler for Scarab terminal emulator"
-license = "MIT OR Apache-2.0"
 
 [[bin]]
 name = "scarab-plugin-compiler"
