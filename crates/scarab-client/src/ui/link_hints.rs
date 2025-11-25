@@ -2,10 +2,12 @@
 // Detects links in terminal output and provides keyboard shortcuts
 
 use crate::integration::SharedMemoryReader;
+use crate::rendering::text::TextRenderer;
+use crate::ui::grid_utils::grid_to_pixel;
 use bevy::input::keyboard::KeyCode;
 use bevy::prelude::*;
 use regex::Regex;
-use scarab_protocol::SharedState;
+use scarab_protocol::{SharedState, GRID_HEIGHT, GRID_WIDTH};
 
 /// Plugin for link hint functionality
 pub struct LinkHintsPlugin;
@@ -28,11 +30,13 @@ impl Plugin for LinkHintsPlugin {
     }
 }
 
-/// Detected link in terminal output
+/// Detected link in terminal output with grid position
 #[derive(Component, Clone, Debug)]
 pub struct LinkHint {
     pub url: String,
     pub position: Vec2,
+    pub grid_col: u16,
+    pub grid_row: u16,
     pub hint_key: String,
     pub link_type: LinkType,
 }
@@ -69,30 +73,41 @@ impl Default for LinkDetector {
 }
 
 impl LinkDetector {
-    /// Detect all links in text content
-    pub fn detect(&self, text: &str) -> Vec<(String, LinkType)> {
+    /// Detect all links in text content with their grid positions
+    pub fn detect_with_positions(&self, text: &str) -> Vec<(String, LinkType, usize, usize)> {
         let mut links = Vec::new();
 
-        // Detect URLs
-        for cap in self.url_regex.find_iter(text) {
-            links.push((cap.as_str().to_string(), LinkType::Url));
-        }
+        // Split text into lines and track positions
+        for (row, line) in text.lines().enumerate() {
+            // Detect URLs
+            for m in self.url_regex.find_iter(line) {
+                links.push((m.as_str().to_string(), LinkType::Url, m.start(), row));
+            }
 
-        // Detect file paths (with basic validation)
-        for cap in self.filepath_regex.find_iter(text) {
-            let path = cap.as_str();
-            // Filter out very short or unlikely paths
-            if path.len() > 3 && (path.contains('/') || path.contains('.')) {
-                links.push((path.to_string(), LinkType::FilePath));
+            // Detect file paths (with basic validation)
+            for m in self.filepath_regex.find_iter(line) {
+                let path = m.as_str();
+                // Filter out very short or unlikely paths
+                if path.len() > 3 && (path.contains('/') || path.contains('.')) {
+                    links.push((path.to_string(), LinkType::FilePath, m.start(), row));
+                }
+            }
+
+            // Detect emails
+            for m in self.email_regex.find_iter(line) {
+                links.push((m.as_str().to_string(), LinkType::Email, m.start(), row));
             }
         }
 
-        // Detect emails
-        for cap in self.email_regex.find_iter(text) {
-            links.push((cap.as_str().to_string(), LinkType::Email));
-        }
-
         links
+    }
+
+    /// Detect all links in text content (legacy API without positions)
+    pub fn detect(&self, text: &str) -> Vec<(String, LinkType)> {
+        self.detect_with_positions(text)
+            .into_iter()
+            .map(|(url, link_type, _, _)| (url, link_type))
+            .collect()
     }
 
     /// Generate hint keys (aa, ab, ac, ..., ba, bb, ...)
@@ -149,12 +164,13 @@ fn extract_terminal_text(state_reader: &SharedMemoryReader) -> String {
     }
 }
 
-/// Detect links in terminal grid
+/// Detect links in terminal grid with accurate pixel positioning
 fn detect_links_system(
     detector: Res<LinkDetector>,
     mut state: ResMut<LinkHintsState>,
     keyboard: Res<ButtonInput<KeyCode>>,
     state_reader: Res<SharedMemoryReader>,
+    renderer: Res<TextRenderer>,
 ) {
     // Toggle link hints with Ctrl+K
     if keyboard.just_pressed(KeyCode::ControlLeft) && keyboard.pressed(KeyCode::KeyK) {
@@ -163,19 +179,30 @@ fn detect_links_system(
         if state.active {
             // Get actual terminal text from SharedState
             let terminal_text = extract_terminal_text(&state_reader);
-            let detected_links = detector.detect(&terminal_text);
 
+            // Detect links with their grid positions
+            let detected_links = detector.detect_with_positions(&terminal_text);
             let hint_keys = LinkDetector::generate_hint_keys(detected_links.len());
+
+            // Get cell dimensions from renderer for accurate positioning
+            let cell_width = renderer.cell_width;
+            let cell_height = renderer.cell_height;
 
             state.hints = detected_links
                 .into_iter()
                 .zip(hint_keys)
-                .enumerate()
-                .map(|(i, ((url, link_type), hint_key))| LinkHint {
-                    url,
-                    position: Vec2::new(100.0, 100.0 + i as f32 * 20.0), // TODO: Calculate from grid position
-                    hint_key,
-                    link_type,
+                .map(|((url, link_type, col, row), hint_key)| {
+                    // Convert grid coordinates to pixel position using grid_to_pixel
+                    let position = grid_to_pixel(col as u16, row as u16, cell_width, cell_height);
+
+                    LinkHint {
+                        url,
+                        position,
+                        grid_col: col as u16,
+                        grid_row: row as u16,
+                        hint_key,
+                        link_type,
+                    }
                 })
                 .collect();
 
@@ -286,39 +313,161 @@ fn activate_link_system(mut events: EventReader<LinkActivatedEvent>) {
         match event.link.link_type {
             LinkType::Url => {
                 info!("Opening URL: {}", event.link.url);
-                // Open URL in browser using xdg-open (Linux), open (macOS), or start (Windows)
-                #[cfg(target_os = "linux")]
-                {
-                    std::process::Command::new("xdg-open")
-                        .arg(&event.link.url)
-                        .spawn()
-                        .ok();
-                }
-                #[cfg(target_os = "macos")]
-                {
-                    std::process::Command::new("open")
-                        .arg(&event.link.url)
-                        .spawn()
-                        .ok();
-                }
-                #[cfg(target_os = "windows")]
-                {
-                    std::process::Command::new("cmd")
-                        .args(&["/C", "start", &event.link.url])
-                        .spawn()
-                        .ok();
+                if let Err(e) = open_url(&event.link.url) {
+                    error!("Failed to open URL: {}", e);
                 }
             }
             LinkType::FilePath => {
                 info!("Opening file: {}", event.link.url);
-                // TODO: Open file in default editor or with $EDITOR
+                if let Err(e) = open_file(&event.link.url) {
+                    error!("Failed to open file: {}", e);
+                }
             }
             LinkType::Email => {
                 info!("Opening email: {}", event.link.url);
-                // TODO: Open email client
+                if let Err(e) = open_email(&event.link.url) {
+                    error!("Failed to open email client: {}", e);
+                }
             }
         }
     }
+}
+
+/// Open a URL in the default browser using platform-specific commands
+fn open_url(url: &str) -> Result<(), String> {
+    info!("Attempting to open URL in browser: {}", url);
+
+    // Ensure URL has protocol
+    let full_url = if url.starts_with("www.") {
+        format!("https://{}", url)
+    } else {
+        url.to_string()
+    };
+
+    #[cfg(target_os = "linux")]
+    let result = std::process::Command::new("xdg-open")
+        .arg(&full_url)
+        .spawn()
+        .map_err(|e| format!("Failed to launch xdg-open: {}. Make sure xdg-utils is installed.", e));
+
+    #[cfg(target_os = "macos")]
+    let result = std::process::Command::new("open")
+        .arg(&full_url)
+        .spawn()
+        .map_err(|e| format!("Failed to launch open command: {}", e));
+
+    #[cfg(target_os = "windows")]
+    let result = std::process::Command::new("cmd")
+        .args(&["/C", "start", "", &full_url])
+        .spawn()
+        .map_err(|e| format!("Failed to launch cmd: {}", e));
+
+    #[cfg(not(any(target_os = "linux", target_os = "macos", target_os = "windows")))]
+    let result = Err("Unsupported platform for opening URLs".to_string());
+
+    result.map(|_| {
+        info!("Successfully launched browser for URL: {}", full_url);
+    })
+}
+
+/// Open a file in the default editor or application
+fn open_file(path: &str) -> Result<(), String> {
+    info!("Attempting to open file: {}", path);
+
+    // Expand ~ to home directory
+    let expanded_path = if path.starts_with('~') {
+        if let Ok(home) = std::env::var("HOME") {
+            path.replacen('~', &home, 1)
+        } else {
+            path.to_string()
+        }
+    } else {
+        path.to_string()
+    };
+
+    // Check if file exists
+    if !std::path::Path::new(&expanded_path).exists() {
+        return Err(format!("File does not exist: {}", expanded_path));
+    }
+
+    // Try $EDITOR first for text files, then fall back to system default
+    if let Ok(editor) = std::env::var("EDITOR") {
+        info!("Opening file with $EDITOR ({}): {}", editor, expanded_path);
+
+        let result = std::process::Command::new(&editor)
+            .arg(&expanded_path)
+            .spawn()
+            .map_err(|e| format!("Failed to launch editor '{}': {}", editor, e));
+
+        if result.is_ok() {
+            return result.map(|_| ());
+        } else {
+            warn!("Failed to open with $EDITOR, falling back to system default");
+        }
+    }
+
+    // Fall back to platform-specific open commands
+    #[cfg(target_os = "linux")]
+    let result = std::process::Command::new("xdg-open")
+        .arg(&expanded_path)
+        .spawn()
+        .map_err(|e| format!("Failed to launch xdg-open: {}. Make sure xdg-utils is installed.", e));
+
+    #[cfg(target_os = "macos")]
+    let result = std::process::Command::new("open")
+        .arg(&expanded_path)
+        .spawn()
+        .map_err(|e| format!("Failed to launch open command: {}", e));
+
+    #[cfg(target_os = "windows")]
+    let result = std::process::Command::new("cmd")
+        .args(&["/C", "start", "", &expanded_path])
+        .spawn()
+        .map_err(|e| format!("Failed to launch cmd: {}", e));
+
+    #[cfg(not(any(target_os = "linux", target_os = "macos", target_os = "windows")))]
+    let result = Err("Unsupported platform for opening files".to_string());
+
+    result.map(|_| {
+        info!("Successfully opened file: {}", expanded_path);
+    })
+}
+
+/// Open email client with mailto: link
+fn open_email(email: &str) -> Result<(), String> {
+    info!("Attempting to open email client for: {}", email);
+
+    // Construct mailto: URL
+    let mailto_url = if email.starts_with("mailto:") {
+        email.to_string()
+    } else {
+        format!("mailto:{}", email)
+    };
+
+    #[cfg(target_os = "linux")]
+    let result = std::process::Command::new("xdg-open")
+        .arg(&mailto_url)
+        .spawn()
+        .map_err(|e| format!("Failed to launch xdg-open: {}. Make sure xdg-utils is installed.", e));
+
+    #[cfg(target_os = "macos")]
+    let result = std::process::Command::new("open")
+        .arg(&mailto_url)
+        .spawn()
+        .map_err(|e| format!("Failed to launch open command: {}", e));
+
+    #[cfg(target_os = "windows")]
+    let result = std::process::Command::new("cmd")
+        .args(&["/C", "start", "", &mailto_url])
+        .spawn()
+        .map_err(|e| format!("Failed to launch cmd: {}", e));
+
+    #[cfg(not(any(target_os = "linux", target_os = "macos", target_os = "windows")))]
+    let result = Err("Unsupported platform for opening email client".to_string());
+
+    result.map(|_| {
+        info!("Successfully opened email client for: {}", mailto_url);
+    })
 }
 
 /// Convert KeyCode to character (a-z)
@@ -390,5 +539,26 @@ mod tests {
         assert_eq!(keys[25], "z");
         assert_eq!(keys[26], "aa");
         assert_eq!(keys[27], "ab");
+    }
+
+    #[test]
+    fn test_detect_with_positions() {
+        let detector = LinkDetector::default();
+        let text = "Line 1: https://example.com\nLine 2: test@email.com";
+        let links = detector.detect_with_positions(text);
+
+        // Should find URL on line 0 (row 0)
+        let url_link = links.iter().find(|(url, _, _, _)| url.contains("example.com"));
+        assert!(url_link.is_some());
+        let (_, _, col, row) = url_link.unwrap();
+        assert_eq!(*row, 0);
+        assert_eq!(*col, 8); // Position after "Line 1: "
+
+        // Should find email on line 1 (row 1)
+        let email_link = links.iter().find(|(url, _, _, _)| url.contains("test@email.com"));
+        assert!(email_link.is_some());
+        let (_, _, col, row) = email_link.unwrap();
+        assert_eq!(*row, 1);
+        assert_eq!(*col, 8); // Position after "Line 2: "
     }
 }

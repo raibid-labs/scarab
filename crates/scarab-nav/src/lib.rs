@@ -51,6 +51,43 @@ impl NavigationPlugin {
         }
         labels
     }
+
+    /// Open a URL in the default browser using platform-specific commands
+    fn open_url(url: &str) -> std::result::Result<(), String> {
+        log::info!("Attempting to open URL: {}", url);
+
+        #[cfg(target_os = "linux")]
+        let result = std::process::Command::new("xdg-open")
+            .arg(url)
+            .spawn()
+            .map_err(|e| format!("Failed to launch xdg-open: {}", e));
+
+        #[cfg(target_os = "macos")]
+        let result = std::process::Command::new("open")
+            .arg(url)
+            .spawn()
+            .map_err(|e| format!("Failed to launch open: {}", e));
+
+        #[cfg(target_os = "windows")]
+        let result = std::process::Command::new("cmd")
+            .args(&["/C", "start", "", url])
+            .spawn()
+            .map_err(|e| format!("Failed to launch cmd: {}", e));
+
+        #[cfg(not(any(target_os = "linux", target_os = "macos", target_os = "windows")))]
+        let result = Err("Unsupported platform for opening URLs".to_string());
+
+        match result {
+            Ok(_) => {
+                log::info!("Successfully launched browser for URL: {}", url);
+                Ok(())
+            }
+            Err(e) => {
+                log::error!("Failed to open URL {}: {}", url, e);
+                Err(e)
+            }
+        }
+    }
 }
 
 #[async_trait]
@@ -137,9 +174,17 @@ impl Plugin for NavigationPlugin {
                 for hint in &state.hints {
                     if hint.label == s {
                         log::info!("Opening URL: {}", hint.url);
-                        // TODO: Open URL command
-                        // For now, just print/notify
-                        ctx.notify(&format!("Opening: {}", hint.url));
+
+                        // Open URL in default browser
+                        match Self::open_url(&hint.url) {
+                            Ok(_) => {
+                                ctx.notify(&format!("Opened: {}", hint.url));
+                            }
+                            Err(e) => {
+                                ctx.notify(&format!("Failed to open URL: {}", e));
+                                log::error!("Error opening URL {}: {}", hint.url, e);
+                            }
+                        }
 
                         state.active = false;
                         ctx.queue_command(RemoteCommand::ClearOverlays { id: None });
