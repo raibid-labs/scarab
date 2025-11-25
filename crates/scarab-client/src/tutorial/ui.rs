@@ -12,7 +12,6 @@ impl TutorialUI {
     pub fn render_step(
         tutorial: &TutorialSystem,
         step: &TutorialStep,
-        _gizmos: &mut Gizmos,
     ) {
         // In a real implementation, this would render to the Bevy UI
         // For now, we'll print to console for demo purposes

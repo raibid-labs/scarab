@@ -28,13 +28,25 @@ install PREFIX="~/.local":
     echo "Building release binaries..."
     cargo build --release
 
+    # Detect cargo target directory (check both local and ~/.cargo/target)
+    if [ -f "target/release/scarab-daemon" ]; then
+        TARGET_DIR="target/release"
+    elif [ -f "$HOME/.cargo/target/release/scarab-daemon" ]; then
+        TARGET_DIR="$HOME/.cargo/target/release"
+    else
+        echo "Error: Could not find release binaries"
+        exit 1
+    fi
+
+    echo "Found binaries in: $TARGET_DIR"
+
     # Create bin directory if it doesn't exist
     mkdir -p "$BIN_DIR"
 
     # Install binaries
     echo "Installing binaries..."
-    cp target/release/scarab-daemon "$BIN_DIR/"
-    cp target/release/scarab-client "$BIN_DIR/"
+    cp "$TARGET_DIR/scarab-daemon" "$BIN_DIR/"
+    cp "$TARGET_DIR/scarab-client" "$BIN_DIR/"
 
     # Create scarab symlink to client
     ln -sf "$BIN_DIR/scarab-client" "$BIN_DIR/scarab"
@@ -45,8 +57,8 @@ install PREFIX="~/.local":
     chmod +x "$BIN_DIR/scarab"
 
     # Install plugin compiler if it exists
-    if [ -f "target/release/scarab-plugin-compiler" ]; then
-        cp target/release/scarab-plugin-compiler "$BIN_DIR/"
+    if [ -f "$TARGET_DIR/scarab-plugin-compiler" ]; then
+        cp "$TARGET_DIR/scarab-plugin-compiler" "$BIN_DIR/"
         chmod +x "$BIN_DIR/scarab-plugin-compiler"
         echo "✓ scarab-plugin-compiler → $BIN_DIR/scarab-plugin-compiler"
     fi

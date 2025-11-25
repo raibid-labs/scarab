@@ -280,13 +280,12 @@ fn update_tutorial_state(
 /// System to render tutorial overlay
 fn render_tutorial_overlay(
     tutorial: Res<TutorialSystem>,
-    mut gizmos: Gizmos,
     // We'll use UI components from ui.rs module
 ) {
     if let Some(step) = tutorial.get_current_step() {
         // Tutorial UI rendering happens in ui.rs
         // This is just a marker system
-        TutorialUI::render_step(&tutorial, step, &mut gizmos);
+        TutorialUI::render_step(&tutorial, step);
     }
 }
 

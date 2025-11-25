@@ -5021,6 +5021,7 @@ dependencies = [
  "scarab-config",
  "scarab-protocol",
  "serde",
+ "serde_json",
  "shared_memory",
  "tempfile",
  "tokio",
