@@ -13,6 +13,80 @@ build:
 build-release:
     cargo build --release
 
+# Install binaries to ~/.local/bin (or custom prefix)
+install PREFIX="~/.local":
+    #!/usr/bin/env bash
+    set -e
+
+    # Expand tilde
+    PREFIX_EXPANDED="${PREFIX/#\~/$HOME}"
+    BIN_DIR="$PREFIX_EXPANDED/bin"
+
+    echo "🪲 Installing Scarab Terminal to $BIN_DIR"
+
+    # Build release binaries
+    echo "Building release binaries..."
+    cargo build --release
+
+    # Create bin directory if it doesn't exist
+    mkdir -p "$BIN_DIR"
+
+    # Install binaries
+    echo "Installing binaries..."
+    cp target/release/scarab-daemon "$BIN_DIR/"
+    cp target/release/scarab-client "$BIN_DIR/"
+
+    # Create scarab symlink to client
+    ln -sf "$BIN_DIR/scarab-client" "$BIN_DIR/scarab"
+
+    # Make executable
+    chmod +x "$BIN_DIR/scarab-daemon"
+    chmod +x "$BIN_DIR/scarab-client"
+    chmod +x "$BIN_DIR/scarab"
+
+    # Install plugin compiler if it exists
+    if [ -f "target/release/scarab-plugin-compiler" ]; then
+        cp target/release/scarab-plugin-compiler "$BIN_DIR/"
+        chmod +x "$BIN_DIR/scarab-plugin-compiler"
+        echo "✓ scarab-plugin-compiler → $BIN_DIR/scarab-plugin-compiler"
+    fi
+
+    echo "✓ scarab-daemon → $BIN_DIR/scarab-daemon"
+    echo "✓ scarab-client → $BIN_DIR/scarab-client"
+    echo "✓ scarab → $BIN_DIR/scarab (symlink to scarab-client)"
+    echo ""
+    echo "Installation complete! 🎉"
+    echo ""
+    echo "Make sure $BIN_DIR is in your PATH:"
+    echo "  export PATH=\"$BIN_DIR:\$PATH\""
+    echo ""
+    echo "To start using Scarab:"
+    echo "  1. Start the daemon: scarab-daemon &"
+    echo "  2. Launch the client: scarab"
+    echo ""
+    echo "Or use the quick start: just run"
+
+# Uninstall binaries from ~/.local/bin (or custom prefix)
+uninstall PREFIX="~/.local":
+    #!/usr/bin/env bash
+
+    # Expand tilde
+    PREFIX_EXPANDED="${PREFIX/#\~/$HOME}"
+    BIN_DIR="$PREFIX_EXPANDED/bin"
+
+    echo "🪲 Uninstalling Scarab Terminal from $BIN_DIR"
+
+    # Remove binaries
+    rm -f "$BIN_DIR/scarab-daemon"
+    rm -f "$BIN_DIR/scarab-client"
+    rm -f "$BIN_DIR/scarab"
+    rm -f "$BIN_DIR/scarab-plugin-compiler"
+
+    echo "✓ Uninstalled from $BIN_DIR"
+    echo ""
+    echo "Note: Config files remain in ~/.config/scarab"
+    echo "To remove config: rm -rf ~/.config/scarab"
+
 # Run both daemon and client in parallel (main development command)
 run: daemon client
 
