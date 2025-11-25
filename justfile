@@ -18,8 +18,11 @@ install PREFIX="~/.local":
     #!/usr/bin/env bash
     set -e
 
+    # Use just's variable expansion
+    PREFIX_VALUE="{{PREFIX}}"
+
     # Expand tilde
-    PREFIX_EXPANDED="${PREFIX/#\~/$HOME}"
+    PREFIX_EXPANDED="${PREFIX_VALUE/#\~/$HOME}"
     BIN_DIR="$PREFIX_EXPANDED/bin"
 
     echo "🪲 Installing Scarab Terminal to $BIN_DIR"
@@ -82,8 +85,11 @@ install PREFIX="~/.local":
 uninstall PREFIX="~/.local":
     #!/usr/bin/env bash
 
+    # Use just's variable expansion
+    PREFIX_VALUE="{{PREFIX}}"
+
     # Expand tilde
-    PREFIX_EXPANDED="${PREFIX/#\~/$HOME}"
+    PREFIX_EXPANDED="${PREFIX_VALUE/#\~/$HOME}"
     BIN_DIR="$PREFIX_EXPANDED/bin"
 
     echo "🪲 Uninstalling Scarab Terminal from $BIN_DIR"
