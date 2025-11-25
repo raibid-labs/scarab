@@ -6,6 +6,26 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+
+## [0.1.0-alpha.3] - 2025-11-24
+
+### Added
+- URL and file opening functionality (#6, #10)
+  - `open_url()` - Platform-specific browser launching (xdg-open/open/cmd)
+  - `open_file()` - Smart file handling with $EDITOR support and ~ expansion
+  - `open_email()` - Email client integration with mailto: URLs
+  - Navigation plugin URL opening method for daemon context
+- Auto-prefix URLs with https:// when only www. prefix present
+- File existence validation before opening
+
+### Changed
+- Updated link hints activation system to dispatch to appropriate handlers
+- Enhanced error logging in link opening operations
+
+### Fixed
+- Resolved TODOs in link_hints.rs (lines 310-444)
+- Resolved TODO in scarab-nav (line 140)
+
 ## [0.1.0-alpha.2] - 2025-11-25
 
 ### Added
