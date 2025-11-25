@@ -35,7 +35,7 @@ impl Plugin for ScriptingPlugin {
     fn build(&self, app: &mut App) {
         app.add_plugins(ScriptingSystemPlugin)
             .add_event::<ScriptEvent>()
-            .add_systems(Startup, initialize_scripting)
+            .add_systems(Startup, (context::initialize_context, initialize_scripting))
             .add_systems(
                 Update,
                 (
