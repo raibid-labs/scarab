@@ -81,6 +81,14 @@ pub enum ConfigError {
     /// Invalid line height
     #[error("Invalid line height: {0}")]
     InvalidLineHeight(String),
+
+    /// Fusabi compilation error
+    #[error("Fusabi compilation error: {0}")]
+    FusabiCompileError(String),
+
+    /// Fusabi runtime error
+    #[error("Fusabi runtime error: {0}")]
+    FusabiRuntimeError(String),
 }
 
 /// Result type alias

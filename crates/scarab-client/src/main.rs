@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 use scarab_client::integration::{IntegrationPlugin, SharedMemWrapper, SharedMemoryReader};
 use scarab_client::{AdvancedUIPlugin, ScriptingPlugin, ScrollbackPlugin};
-use scarab_config::ConfigLoader;
+use scarab_config::{ConfigLoader, FusabiConfigLoader};
 use scarab_protocol::{SharedState, SHMEM_PATH};
 use shared_memory::ShmemConf;
 use std::sync::Arc;
@@ -13,18 +13,25 @@ use ipc::IpcPlugin;
 use scarab_client::PluginInspectorPlugin;
 
 fn main() {
-    // Load Configuration
+    // Load Configuration (Fusabi-based)
     let home_dir = std::env::var("HOME").unwrap_or_else(|_| ".".to_string());
-    let config_path = std::path::PathBuf::from(&home_dir).join(".config/scarab/config.toml");
+    let fusabi_config_path = std::path::PathBuf::from(&home_dir)
+        .join(".config/scarab/config.fsx");
+    let toml_config_path = std::path::PathBuf::from(&home_dir)
+        .join(".config/scarab/config.toml");
 
-    let config = if config_path.exists() {
-        println!("Loading config from: {}", config_path.display());
-        ConfigLoader::from_file(&config_path).expect("Failed to load config")
+    let config = if fusabi_config_path.exists() {
+        println!("Loading Fusabi config from: {}", fusabi_config_path.display());
+        FusabiConfigLoader::from_file(&fusabi_config_path)
+            .expect("Failed to load Fusabi config")
+    } else if toml_config_path.exists() {
+        println!("⚠️  Loading legacy TOML config from: {}", toml_config_path.display());
+        println!("💡 Consider migrating to Fusabi config: {}", fusabi_config_path.display());
+        ConfigLoader::from_file(&toml_config_path)
+            .expect("Failed to load TOML config")
     } else {
-        println!(
-            "No config found at {}, using defaults",
-            config_path.display()
-        );
+        println!("No config found (tried .fsx and .toml), using defaults");
+        println!("Create {} to customize your terminal", fusabi_config_path.display());
         scarab_config::ScarabConfig::default()
     };
 

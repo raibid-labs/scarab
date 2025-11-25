@@ -24,18 +24,23 @@ async fn main() -> Result<()> {
     env_logger::init();
     println!("Starting Scarab Daemon...");
 
-    // 0. Load Configuration
+    // 0. Load Configuration (Fusabi-based)
     let home_dir = std::env::var("HOME").unwrap_or_else(|_| ".".to_string());
-    let config_path = std::path::PathBuf::from(&home_dir).join(".config/scarab/config.toml");
+    let fusabi_config_path = std::path::PathBuf::from(&home_dir)
+        .join(".config/scarab/config.fsx");
+    let toml_config_path = std::path::PathBuf::from(&home_dir)
+        .join(".config/scarab/config.toml");
 
-    let config = if config_path.exists() {
-        println!("Loading config from: {}", config_path.display());
-        ConfigLoader::from_file(&config_path)?
+    let config = if fusabi_config_path.exists() {
+        println!("Loading Fusabi config from: {}", fusabi_config_path.display());
+        scarab_config::FusabiConfigLoader::from_file(&fusabi_config_path)?
+    } else if toml_config_path.exists() {
+        println!("⚠️  Loading legacy TOML config from: {}", toml_config_path.display());
+        println!("💡 Consider migrating to Fusabi config: {}", fusabi_config_path.display());
+        ConfigLoader::from_file(&toml_config_path)?
     } else {
-        println!(
-            "No config found at {}, using defaults",
-            config_path.display()
-        );
+        println!("No config found (tried .fsx and .toml), using defaults");
+        println!("Create {} to customize your terminal", fusabi_config_path.display());
         scarab_config::ScarabConfig::default()
     };
 
