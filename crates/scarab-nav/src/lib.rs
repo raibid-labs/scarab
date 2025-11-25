@@ -178,10 +178,10 @@ impl Plugin for NavigationPlugin {
                         // Open URL in default browser
                         match Self::open_url(&hint.url) {
                             Ok(_) => {
-                                ctx.notify(&format!("Opened: {}", hint.url));
+                                ctx.notify_success("URL Opened", &format!("Opened: {}", hint.url));
                             }
                             Err(e) => {
-                                ctx.notify(&format!("Failed to open URL: {}", e));
+                                ctx.notify_error("URL Open Failed", &format!("Failed to open URL: {}", e));
                                 log::error!("Error opening URL {}: {}", hint.url, e);
                             }
                         }
