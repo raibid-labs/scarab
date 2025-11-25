@@ -78,7 +78,13 @@ async fn main() -> Result<()> {
 
     // Use configured shell or fallback to bash
     let shell = &config.terminal.default_shell;
-    let cmd = CommandBuilder::new(shell);
+    let mut cmd = CommandBuilder::new(shell);
+
+    // Set the working directory to user's home
+    if let Ok(home) = std::env::var("HOME") {
+        cmd.cwd(home);
+    }
+
     let _child = pair.slave.spawn_command(cmd)?;
     println!(
         "Spawned shell: {} ({}x{})",

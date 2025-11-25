@@ -76,15 +76,23 @@ fn main() {
 
     let mut app = App::new();
 
-    app.add_plugins(DefaultPlugins.set(WindowPlugin {
-            primary_window: Some(Window {
-                title: "Scarab Terminal".into(),
-                resolution: (window_width, window_height).into(),
-                window_theme: Some(bevy::window::WindowTheme::Dark),
+    app.add_plugins(
+        DefaultPlugins
+            .set(WindowPlugin {
+                primary_window: Some(Window {
+                    title: "Scarab Terminal".into(),
+                    resolution: (window_width, window_height).into(),
+                    window_theme: Some(bevy::window::WindowTheme::Dark),
+                    ..default()
+                }),
+                ..default()
+            })
+            .set(bevy::log::LogPlugin {
+                level: bevy::log::Level::INFO,
+                filter: "wgpu=error,bevy_render::view::window=error,bevy_ecs=info".into(),
                 ..default()
             }),
-            ..default()
-        }))
+    )
         .add_plugins(IpcPlugin) // Add IPC support
         .add_plugins(ScrollbackPlugin) // Add scrollback buffer management
         .add_plugins(AdvancedUIPlugin) // Add advanced UI features (includes search, indicators)
