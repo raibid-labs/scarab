@@ -304,117 +304,124 @@ dev-mode plugin_name:
 # Create new plugin from template
 plugin-new plugin_name type="frontend":
     #!/usr/bin/env bash
-    mkdir -p plugins/{{plugin_name}}
+    set -e
 
-    if [ "{{type}}" = "frontend" ]; then
-        cat > plugins/{{plugin_name}}/{{plugin_name}}.fsx << 'EOF'
-module {{plugin_name}}
+    PLUGIN_NAME="{{plugin_name}}"
+    PLUGIN_TYPE="{{type}}"
 
-open Scarab.PluginApi
+    mkdir -p "plugins/$PLUGIN_NAME"
 
-[<Plugin>]
-let metadata = {
-    Name = "{{plugin_name}}"
-    Version = "0.1.0"
-    Description = "TODO: Add description"
-    Author = "Your Name"
-}
+    if [ "$PLUGIN_TYPE" = "frontend" ]; then
+        cat > "plugins/$PLUGIN_NAME/$PLUGIN_NAME.fsx" <<-'FSHARP_EOF'
+        	module PLUGIN_NAME_PLACEHOLDER
 
-[<OnLoad>]
-let onLoad (ctx: PluginContext) =
-    ctx.Log Info "{{plugin_name}} loaded!"
-    async { return Ok () }
+        	open Scarab.PluginApi
 
-[<OnKeyPress>]
-let onKeyPress (ctx: PluginContext) (key: KeyEvent) =
-    // TODO: Handle key presses
-    async { return Continue }
-EOF
+        	[<Plugin>]
+        	let metadata = {
+        	    Name = "PLUGIN_NAME_PLACEHOLDER"
+        	    Version = "0.1.0"
+        	    Description = "TODO: Add description"
+        	    Author = "Your Name"
+        	}
+
+        	[<OnLoad>]
+        	let onLoad (ctx: PluginContext) =
+        	    ctx.Log Info "PLUGIN_NAME_PLACEHOLDER loaded!"
+        	    async { return Ok () }
+
+        	[<OnKeyPress>]
+        	let onKeyPress (ctx: PluginContext) (key: KeyEvent) =
+        	    // TODO: Handle key presses
+        	    async { return Continue }
+        	FSHARP_EOF
+        sed -i "s/PLUGIN_NAME_PLACEHOLDER/$PLUGIN_NAME/g" "plugins/$PLUGIN_NAME/$PLUGIN_NAME.fsx"
     else
-        cat > plugins/{{plugin_name}}/{{plugin_name}}.fsx << 'EOF'
-module {{plugin_name}}
+        cat > "plugins/$PLUGIN_NAME/$PLUGIN_NAME.fsx" <<-'FSHARP_EOF'
+        	module PLUGIN_NAME_PLACEHOLDER
 
-open Scarab.PluginApi
+        	open Scarab.PluginApi
 
-[<Plugin>]
-let metadata = {
-    Name = "{{plugin_name}}"
-    Version = "0.1.0"
-    Description = "TODO: Add description"
-    Author = "Your Name"
-}
+        	[<Plugin>]
+        	let metadata = {
+        	    Name = "PLUGIN_NAME_PLACEHOLDER"
+        	    Version = "0.1.0"
+        	    Description = "TODO: Add description"
+        	    Author = "Your Name"
+        	}
 
-[<OnLoad>]
-let onLoad (ctx: PluginContext) =
-    ctx.Log Info "{{plugin_name}} loaded!"
-    async { return Ok () }
+        	[<OnLoad>]
+        	let onLoad (ctx: PluginContext) =
+        	    ctx.Log Info "PLUGIN_NAME_PLACEHOLDER loaded!"
+        	    async { return Ok () }
 
-[<OnOutput>]
-let onOutput (ctx: PluginContext) (text: string) =
-    // TODO: Process terminal output
-    async { return Continue }
-EOF
+        	[<OnOutput>]
+        	let onOutput (ctx: PluginContext) (text: string) =
+        	    // TODO: Process terminal output
+        	    async { return Continue }
+        	FSHARP_EOF
+        sed -i "s/PLUGIN_NAME_PLACEHOLDER/$PLUGIN_NAME/g" "plugins/$PLUGIN_NAME/$PLUGIN_NAME.fsx"
     fi
 
     # Create manifest
-    cat > plugins/{{plugin_name}}/plugin.toml << 'EOF'
-[plugin]
-name = "{{plugin_name}}"
-version = "0.1.0"
-runtime = "{{type}}"
+    cat > "plugins/$PLUGIN_NAME/plugin.toml" <<-TOML_EOF
+    [plugin]
+    name = "$PLUGIN_NAME"
+    version = "0.1.0"
+    runtime = "$PLUGIN_TYPE"
 
-[plugin.metadata]
-description = "TODO: Add description"
-author = "Your Name"
-license = "MIT"
+    [plugin.metadata]
+    description = "TODO: Add description"
+    author = "Your Name"
+    license = "MIT"
 
-[hooks]
-# List enabled hooks (uncomment as needed)
-# on_load = true
-# on_output = true
-# on_input = true
-# on_resize = true
-# on_key_press = true
-EOF
+    [hooks]
+    # List enabled hooks (uncomment as needed)
+    # on_load = true
+    # on_output = true
+    # on_input = true
+    # on_resize = true
+    # on_key_press = true
+    TOML_EOF
 
     # Create README
-    cat > plugins/{{plugin_name}}/README.md << 'EOF'
-# {{plugin_name}}
+    cat > "plugins/$PLUGIN_NAME/README.md" <<-README_EOF
+    # $PLUGIN_NAME
 
-TODO: Add description
+    TODO: Add description
 
-## Installation
+    ## Installation
 
-```bash
-just plugin-build {{plugin_name}}
-```
+    \`\`\`bash
+    just plugin-build $PLUGIN_NAME
+    \`\`\`
 
-## Configuration
+    ## Configuration
 
-Add to your `~/.config/scarab/config.toml`:
+    Add to your \`~/.config/scarab/config.toml\`:
 
-```toml
-[[plugins]]
-name = "{{plugin_name}}"
-enabled = true
-```
+    \`\`\`toml
+    [[plugins]]
+    name = "$PLUGIN_NAME"
+    enabled = true
+    \`\`\`
 
-## Usage
+    ## Usage
 
-TODO: Add usage instructions
+    TODO: Add usage instructions
 
-## Development
+    ## Development
 
-```bash
-just dev-mode {{plugin_name}}
-```
-EOF
+    \`\`\`bash
+    just dev-mode $PLUGIN_NAME
+    \`\`\`
+    README_EOF
 
-    echo "✅ Created new {{type}} plugin: {{plugin_name}}"
-    echo "   Location: plugins/{{plugin_name}}"
+    echo "✅ Created new $PLUGIN_TYPE plugin: $PLUGIN_NAME"
+    echo "   Location: plugins/$PLUGIN_NAME"
     echo "   Next steps:"
-    echo "     1. Edit plugins/{{plugin_name}}/{{plugin_name}}.fsx"
-    echo "     2. Run: just dev-mode {{plugin_name}}"
+    echo "     1. Edit plugins/$PLUGIN_NAME/$PLUGIN_NAME.fsx"
+    echo "     2. Run: just dev-mode $PLUGIN_NAME"
 
 # Build plugin to .fzb bytecode
 plugin-build plugin_name:
@@ -468,7 +475,7 @@ plugin-package plugin_name:
     echo "📦 Package created: dist/plugins/{{plugin_name}}.tar.gz"
 
 # Build a single Fusabi plugin (.fsx -> .fzb)
-plugin-build file:
+plugin-build-from-file file:
     #!/usr/bin/env bash
     echo "Building plugin: {{file}}"
     ./scripts/build-plugin.sh "{{file}}"
@@ -502,13 +509,13 @@ plugin-watch:
     cargo watch -w examples/fusabi -s "just plugin-build-all"
 
 # Test plugin loading in daemon
-plugin-test:
+plugin-test-loading:
     #!/usr/bin/env bash
     echo "Testing plugin loading..."
     cargo test -p scarab-daemon plugin -- --nocapture
 
 # Run plugin CI checks (validate + test)
-plugin-ci: plugin-validate-all plugin-test
+plugin-ci: plugin-validate-all plugin-test-loading
     @echo "Plugin CI checks complete"
 
 # Show plugin development status
