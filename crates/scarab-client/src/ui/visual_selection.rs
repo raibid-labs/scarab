@@ -2,6 +2,8 @@
 // Allows users to select text using keyboard
 
 use crate::integration::SharedMemoryReader;
+use crate::rendering::text::TextRenderer;
+use crate::ui::grid_utils::grid_to_pixel;
 use arboard::Clipboard;
 use bevy::input::keyboard::KeyCode;
 use bevy::prelude::*;
@@ -335,6 +337,7 @@ fn render_selection_system(
     mut commands: Commands,
     state: Res<SelectionState>,
     existing_overlays: Query<Entity, With<SelectionOverlay>>,
+    renderer: Res<TextRenderer>,
 ) {
     // Remove existing overlays
     for entity in existing_overlays.iter() {
@@ -345,10 +348,9 @@ fn render_selection_system(
         return;
     }
 
-    // TODO: Calculate actual pixel positions from grid coordinates
-    // This requires access to font metrics from TextRenderer
-    let cell_width = 8.0;
-    let cell_height = 16.0;
+    // Get actual cell dimensions from TextRenderer
+    let cell_width = renderer.cell_width;
+    let cell_height = renderer.cell_height;
 
     let mut region = state.region.clone();
     region.normalize();
@@ -369,19 +371,20 @@ fn render_selection_system(
                     (GRID_WIDTH - 1) as u16
                 };
 
+                // Calculate pixel position using grid_to_pixel
+                let position = grid_to_pixel(start_x, y, cell_width, cell_height);
+                let width = (end_x - start_x + 1) as f32 * cell_width;
+
                 commands.spawn((
                     SelectionOverlay,
                     Sprite {
                         color: Color::srgba(0.3, 0.5, 1.0, 0.3),
-                        custom_size: Some(Vec2::new(
-                            (end_x - start_x + 1) as f32 * cell_width,
-                            cell_height,
-                        )),
+                        custom_size: Some(Vec2::new(width, cell_height)),
                         ..default()
                     },
                     Transform::from_xyz(
-                        start_x as f32 * cell_width,
-                        -(y as f32 * cell_height),
+                        position.x + width / 2.0, // Sprite anchor is center
+                        position.y - cell_height / 2.0,
                         10.0,
                     ),
                 ));
@@ -391,33 +394,42 @@ fn render_selection_system(
         SelectionMode::Line => {
             // Render line-wise selection (full lines)
             for y in region.start_y..=region.end_y {
+                // Calculate pixel position for start of line
+                let position = grid_to_pixel(0, y, cell_width, cell_height);
+                let width = GRID_WIDTH as f32 * cell_width;
+
                 commands.spawn((
                     SelectionOverlay,
                     Sprite {
                         color: Color::srgba(0.3, 0.5, 1.0, 0.3),
-                        custom_size: Some(Vec2::new(GRID_WIDTH as f32 * cell_width, cell_height)),
+                        custom_size: Some(Vec2::new(width, cell_height)),
                         ..default()
                     },
-                    Transform::from_xyz(0.0, -(y as f32 * cell_height), 10.0),
+                    Transform::from_xyz(
+                        position.x + width / 2.0, // Sprite anchor is center
+                        position.y - cell_height / 2.0,
+                        10.0,
+                    ),
                 ));
             }
         }
 
         SelectionMode::Block => {
             // Render block-wise selection (rectangular)
+            let position = grid_to_pixel(region.start_x, region.start_y, cell_width, cell_height);
+            let width = (region.end_x - region.start_x + 1) as f32 * cell_width;
+            let height = (region.end_y - region.start_y + 1) as f32 * cell_height;
+
             commands.spawn((
                 SelectionOverlay,
                 Sprite {
                     color: Color::srgba(0.3, 0.5, 1.0, 0.3),
-                    custom_size: Some(Vec2::new(
-                        (region.end_x - region.start_x + 1) as f32 * cell_width,
-                        (region.end_y - region.start_y + 1) as f32 * cell_height,
-                    )),
+                    custom_size: Some(Vec2::new(width, height)),
                     ..default()
                 },
                 Transform::from_xyz(
-                    region.start_x as f32 * cell_width,
-                    -(region.start_y as f32 * cell_height),
+                    position.x + width / 2.0, // Sprite anchor is center
+                    position.y - height / 2.0,
                     10.0,
                 ),
             ));
