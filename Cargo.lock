@@ -5003,7 +5003,7 @@ dependencies = [
 
 [[package]]
 name = "scarab-client"
-version = "0.1.0-alpha.7"
+version = "0.1.0-alpha.13"
 dependencies = [
  "anyhow",
  "arboard",
@@ -5030,7 +5030,7 @@ dependencies = [
 
 [[package]]
 name = "scarab-config"
-version = "0.1.0-alpha.7"
+version = "0.1.0-alpha.13"
 dependencies = [
  "anyhow",
  "bevy_ecs",
@@ -5050,7 +5050,7 @@ dependencies = [
 
 [[package]]
 name = "scarab-daemon"
-version = "0.1.0-alpha.7"
+version = "0.1.0-alpha.13"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -5086,7 +5086,7 @@ dependencies = [
 
 [[package]]
 name = "scarab-nav"
-version = "0.1.0-alpha.7"
+version = "0.1.0-alpha.13"
 dependencies = [
  "async-trait",
  "log",
@@ -5097,7 +5097,7 @@ dependencies = [
 
 [[package]]
 name = "scarab-palette"
-version = "0.1.0-alpha.7"
+version = "0.1.0-alpha.13"
 dependencies = [
  "async-trait",
  "log",
@@ -5107,7 +5107,7 @@ dependencies = [
 
 [[package]]
 name = "scarab-platform"
-version = "0.1.0-alpha.7"
+version = "0.1.0-alpha.13"
 dependencies = [
  "anyhow",
  "cocoa",
@@ -5124,7 +5124,7 @@ dependencies = [
 
 [[package]]
 name = "scarab-plugin-api"
-version = "0.1.0-alpha.7"
+version = "0.1.0-alpha.13"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -5142,7 +5142,7 @@ dependencies = [
 
 [[package]]
 name = "scarab-plugin-compiler"
-version = "0.1.0-alpha.7"
+version = "0.1.0-alpha.13"
 dependencies = [
  "anyhow",
  "bincode",
@@ -5155,7 +5155,7 @@ dependencies = [
 
 [[package]]
 name = "scarab-protocol"
-version = "0.1.0-alpha.7"
+version = "0.1.0-alpha.13"
 dependencies = [
  "bytemuck",
  "rkyv",
@@ -5164,7 +5164,7 @@ dependencies = [
 
 [[package]]
 name = "scarab-session"
-version = "0.1.0-alpha.7"
+version = "0.1.0-alpha.13"
 dependencies = [
  "async-trait",
  "log",
