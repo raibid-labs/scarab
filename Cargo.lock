@@ -500,6 +500,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "bevy-fusabi"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "bevy",
+ "fusabi-frontend",
+ "fusabi-vm",
+ "serde",
+ "thiserror 1.0.69",
+ "tracing",
+]
+
+[[package]]
 name = "bevy_a11y"
 version = "0.15.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5486,6 +5499,8 @@ name = "scarab-config"
 version = "0.1.0-alpha.13"
 dependencies = [
  "anyhow",
+ "bevy",
+ "bevy-fusabi",
  "bevy_ecs",
  "dirs",
  "fusabi-frontend",

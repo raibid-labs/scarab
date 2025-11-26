@@ -2,6 +2,7 @@
 //! - .fsx script loading
 //! - Direct host function integration
 //! - Type-safe configuration structs
+//! - Bevy plugin for asset-based hot-reloading
 
 pub mod config;
 pub mod error;
@@ -10,6 +11,7 @@ pub mod loader;
 pub mod validation;
 pub mod watcher;
 pub mod registry;
+pub mod plugin;
 
 pub use config::{
     ScarabConfig, TerminalConfig, FontConfig, ColorConfig, ColorPalette,
@@ -21,6 +23,7 @@ pub use loader::ConfigLoader;
 pub use validation::ConfigValidator;
 pub use watcher::ConfigWatcher;
 pub use registry::{RegistryManager, PluginFilter};
+pub use plugin::{ScarabConfigPlugin, ConfigHandle};
 
 pub mod prelude {
     pub use crate::config::*;
@@ -30,4 +33,5 @@ pub mod prelude {
     pub use crate::validation::*;
     pub use crate::watcher::*;
     pub use crate::registry::*;
+    pub use crate::plugin::*;
 }

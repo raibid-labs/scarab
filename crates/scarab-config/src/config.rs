@@ -1,11 +1,11 @@
 //! Core configuration structures
 
+use bevy::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
 /// Root configuration structure
-#[derive(Debug, Clone, Deserialize, Serialize)]
-#[cfg_attr(feature = "bevy", derive(bevy_ecs::system::Resource))]
+#[derive(Debug, Clone, Deserialize, Serialize, Resource)]
 #[serde(default)]
 pub struct ScarabConfig {
     pub terminal: TerminalConfig,

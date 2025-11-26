@@ -2,6 +2,8 @@ use bevy::prelude::*;
 use scarab_client::integration::{IntegrationPlugin, SharedMemWrapper, SharedMemoryReader};
 use scarab_client::{AdvancedUIPlugin, ScriptingPlugin, ScrollbackPlugin};
 use scarab_config::{ConfigLoader, FusabiConfigLoader};
+// Uncomment to enable hot-reloading config via bevy-fusabi:
+// use scarab_config::ScarabConfigPlugin;
 use scarab_protocol::{SharedState, SHMEM_PATH};
 use shared_memory::ShmemConf;
 use std::sync::Arc;
@@ -99,7 +101,9 @@ fn main() {
         .add_plugins(ScriptingPlugin) // Add client-side scripting
         .add_plugins(IntegrationPlugin) // Add text rendering
         .insert_resource(reader)
-        .insert_resource(config) // Make config available to all systems
+        .insert_resource(config) // Make initial config available (will be updated by plugin)
+        // NOTE: Uncomment the following line to enable hot-reloading config via bevy-fusabi
+        // .add_plugins(ScarabConfigPlugin::new("config.fsx"))
         .add_systems(Startup, setup);
 
     // Conditionally add plugin inspector
