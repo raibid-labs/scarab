@@ -19,6 +19,8 @@ path = "src/main.rs"
 [dependencies]
 scarab-protocol = { path = "../scarab-protocol" }
 scarab-config = { path = "../scarab-config" }
+scarab-plugin-api = { path = "../scarab-plugin-api" }
+scarab-nav-protocol = { version = "0.1.0", path = "../../../scarab-nav-protocol/crates/scarab-nav-protocol" }
 fusabi-frontend = { workspace = true }
 bevy = { workspace = true }
 bevy_egui = { version = "0.31", optional = true }
@@ -34,6 +36,7 @@ regex = "1.10"
 fuzzy-matcher = "0.3"
 arboard = "3.3"
 image = "0.25"
+prost = "0.12"
 
 # Profiling dependencies
 tracy-client = { workspace = true, optional = true }

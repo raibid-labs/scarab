@@ -78,6 +78,18 @@ pub enum SplitDirection {
     Vertical,
 }
 
+// Menu action types from plugin API
+#[derive(Debug, Clone, rkyv::Archive, rkyv::Serialize, rkyv::Deserialize)]
+#[archive(check_bytes)]
+pub enum MenuActionType {
+    Command {
+        command: alloc::string::String,
+    },
+    Remote {
+        id: alloc::string::String,
+    },
+}
+
 // Control messages (Sent via Socket/Pipe, not ShMem)
 // Using rkyv for zero-copy serialization
 #[derive(Debug, Clone, rkyv::Archive, rkyv::Serialize, rkyv::Deserialize)]
@@ -169,6 +181,15 @@ pub enum ControlMessage {
         name: alloc::string::String,
     },
 
+    // Plugin menu commands
+    PluginMenuRequest {
+        plugin_name: alloc::string::String,
+    },
+    PluginMenuExecute {
+        plugin_name: alloc::string::String,
+        action: MenuActionType,
+    },
+
     // Plugin logging and notifications (sent from daemon to client)
     PluginLog {
         plugin_name: alloc::string::String,
@@ -244,7 +265,7 @@ pub struct PaneInfo {
     pub is_focused: bool,
 }
 
-// Plugin information for inspector
+// Plugin information for inspector and dock display
 #[derive(Debug, Clone, rkyv::Archive, rkyv::Serialize, rkyv::Deserialize)]
 #[archive(check_bytes)]
 pub struct PluginInspectorInfo {
@@ -257,6 +278,10 @@ pub struct PluginInspectorInfo {
     pub min_scarab_version: alloc::string::String,
     pub enabled: bool,
     pub failure_count: u32,
+    /// Plugin emoji for visual display (e.g., "🦠")
+    pub emoji: Option<alloc::string::String>,
+    /// Plugin color as hex code (e.g., "#FF5733")
+    pub color: Option<alloc::string::String>,
 }
 
 // Messages sent from Daemon to Client (Remote UI & Responses)
@@ -334,6 +359,16 @@ pub enum DaemonMessage {
         title: alloc::string::String,
         body: alloc::string::String,
         level: NotifyLevel,
+    },
+
+    // Plugin menu response
+    PluginMenuResponse {
+        plugin_name: alloc::string::String,
+        menu_json: alloc::string::String, // Serialized Vec<MenuItem>
+    },
+    PluginMenuError {
+        plugin_name: alloc::string::String,
+        error: alloc::string::String,
     },
 }
 

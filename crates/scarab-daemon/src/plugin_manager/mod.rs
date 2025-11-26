@@ -48,7 +48,7 @@ impl ManagedPlugin {
     }
 
     /// Record a failure and potentially disable the plugin
-    fn record_failure(&mut self) {
+    pub fn record_failure(&mut self) {
         self.failure_count += 1;
         if self.failure_count >= self.max_failures {
             let mood = PluginMood::from_failure_count(
@@ -81,7 +81,7 @@ impl ManagedPlugin {
     }
 
     /// Record successful execution
-    fn record_success(&mut self) {
+    pub fn record_success(&mut self) {
         self.failure_count = 0;
         self.success_count += 1;
 
@@ -126,7 +126,7 @@ pub struct PluginManager {
     /// Hook execution timeout (milliseconds)
     pub hook_timeout: Duration,
     /// Plugin context
-    context: Arc<PluginContext>,
+    pub context: Arc<PluginContext>,
     /// Registry for sending commands to clients
     client_registry: ClientRegistry,
     /// Total number of plugins ever loaded (for achievements)
@@ -196,7 +196,7 @@ impl PluginManager {
     }
 
     /// Process any pending commands queued by plugins
-    async fn process_pending_commands(&self) {
+    pub async fn process_pending_commands(&self) {
         let commands = {
             let mut cmds = self.context.commands.lock();
             std::mem::take(&mut *cmds)

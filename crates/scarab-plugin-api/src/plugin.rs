@@ -3,6 +3,7 @@
 use crate::{
     context::PluginContext,
     error::Result,
+    menu::MenuItem,
     types::{Action, ModalItem},
 };
 use async_trait::async_trait;
@@ -15,6 +16,29 @@ use async_trait::async_trait;
 pub trait Plugin: Send + Sync {
     /// Get plugin metadata
     fn metadata(&self) -> &PluginMetadata;
+
+    /// Get the menu items for this plugin's dock menu
+    ///
+    /// This defines the menu that appears when the plugin is activated from the dock.
+    /// Return an empty Vec if the plugin has no menu.
+    ///
+    /// # Example
+    ///
+    /// ```rust,ignore
+    /// use scarab_plugin_api::menu::{MenuItem, MenuAction};
+    ///
+    /// fn get_menu(&self) -> Vec<MenuItem> {
+    ///     vec![
+    ///         MenuItem::new("Chat", MenuAction::remote("open_chat"))
+    ///             .with_icon("💬"),
+    ///         MenuItem::new("Settings", MenuAction::remote("settings"))
+    ///             .with_icon("⚙️"),
+    ///     ]
+    /// }
+    /// ```
+    fn get_menu(&self) -> Vec<MenuItem> {
+        Vec::new()
+    }
 
     /// Get list of commands provided by this plugin
     fn get_commands(&self) -> Vec<ModalItem> {
@@ -80,6 +104,8 @@ pub trait Plugin: Send + Sync {
     }
 
     /// Hook called when a remote command is selected/triggered by the client
+    ///
+    /// This is called when a user selects a menu item with `MenuAction::Remote(id)`.
     async fn on_remote_command(&mut self, _id: &str, _ctx: &PluginContext) -> Result<()> {
         Ok(())
     }

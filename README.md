@@ -115,6 +115,7 @@ Built for developers who want a **modern, hackable terminal** with native script
   - **Client-side** (`.fsx` scripts): Hot-reloadable UI plugins via `fusabi-frontend`
   - **Daemon-side** (`.fzb` bytecode): High-performance compiled plugins via `fusabi-vm`
 - ✅ **Rich Plugin API**: 10+ hooks (output, input, resize, pre/post command, remote commands)
+- ✅ **Plugin Dock & Menus**: Visual plugin bar with keyboard-navigable menus
 - ✅ **Remote UI Protocol**: Daemon plugins can control client UI (overlays, modals, commands)
 - ✅ **Example Plugins**:
   - `scarab-nav`: Link hints and keyboard navigation
@@ -344,8 +345,9 @@ Plugins can hook into various terminal lifecycle events:
 | `OnDetach` | Daemon | Called when a client disconnects |
 | `OnPreCommand` | Daemon | Called before shell command execution |
 | `OnPostCommand` | Daemon | Called after shell command completes |
-| `OnRemoteCommand` | Daemon | Handle commands from client UI (command palette) |
+| `OnRemoteCommand` | Daemon | Handle commands from client UI (command palette, menus) |
 | `GetCommands` | Daemon | Provide commands for client command palette |
+| `GetMenu` | Daemon | Define plugin menu for the Plugin Dock |
 
 ### Example: Git Status Plugin
 
@@ -424,6 +426,7 @@ Plugin.Register {
 - **[CLAUDE.md](./CLAUDE.md)** - Architecture overview and build commands
 - **[IMPLEMENTATION_SUMMARY.md](./IMPLEMENTATION_SUMMARY.md)** - Technical implementation details
 - **[MIGRATION_GUIDE.md](./MIGRATION_GUIDE.md)** - Bevy 0.15 migration guide
+- **[docs/PLUGIN_DOCK_IMPLEMENTATION.md](./docs/PLUGIN_DOCK_IMPLEMENTATION.md)** - Plugin Dock & Menu system
 
 ### Plugin Development
 - **[examples/plugins/](./examples/plugins/)** - Example plugins with detailed comments

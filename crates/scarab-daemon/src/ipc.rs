@@ -2,7 +2,7 @@ use crate::plugin_manager::PluginManager;
 use crate::session::{handle_session_command, SessionManager};
 use anyhow::{Context, Result};
 use portable_pty::PtySize;
-use scarab_protocol::{ControlMessage, DaemonMessage, PluginInspectorInfo, MAX_CLIENTS, MAX_MESSAGE_SIZE, SOCKET_PATH};
+use scarab_protocol::{ControlMessage, DaemonMessage, MenuActionType, PluginInspectorInfo, MAX_CLIENTS, MAX_MESSAGE_SIZE, SOCKET_PATH};
 use std::collections::HashMap;
 use std::path::Path;
 use std::sync::Arc;
@@ -395,6 +395,8 @@ async fn handle_message(
                                     min_scarab_version: p.min_scarab_version.clone().into(),
                                     enabled: p.enabled,
                                     failure_count: p.failure_count,
+                                    emoji: p.emoji.clone().map(|s| s.into()),
+                                    color: p.color.clone().map(|s| s.into()),
                                 })
                                 .collect();
 
@@ -464,6 +466,8 @@ async fn handle_message(
                     min_scarab_version: p.min_scarab_version.clone().into(),
                     enabled: p.enabled,
                     failure_count: p.failure_count,
+                    emoji: p.emoji.clone().map(|s| s.into()),
+                    color: p.color.clone().map(|s| s.into()),
                 })
                 .collect();
 
@@ -473,6 +477,148 @@ async fn handle_message(
             client_registry
                 .send(client_id, DaemonMessage::PluginList { plugins: plugin_infos })
                 .await?;
+        }
+        ControlMessage::PluginMenuRequest { plugin_name } => {
+            log::info!("Client {} requesting menu for plugin: {}", client_id, plugin_name);
+
+            let pm = plugin_manager.lock().await;
+
+            // Find the plugin by name
+            if let Some(managed) = pm.plugins.iter().find(|p| p.plugin.metadata().name == plugin_name.as_str()) {
+                // Get the menu from the plugin
+                let menu = managed.plugin.get_menu();
+
+                // Serialize the menu to JSON
+                match serde_json::to_string(&menu) {
+                    Ok(menu_json) => {
+                        log::debug!("Sending menu for plugin '{}' ({} items)", plugin_name, menu.len());
+                        client_registry
+                            .send(
+                                client_id,
+                                DaemonMessage::PluginMenuResponse {
+                                    plugin_name: plugin_name.clone(),
+                                    menu_json: menu_json.into(),
+                                },
+                            )
+                            .await?;
+                    }
+                    Err(e) => {
+                        log::error!("Failed to serialize menu for plugin '{}': {}", plugin_name, e);
+                        client_registry
+                            .send(
+                                client_id,
+                                DaemonMessage::PluginMenuError {
+                                    plugin_name: plugin_name.clone(),
+                                    error: format!("Failed to serialize menu: {}", e).into(),
+                                },
+                            )
+                            .await?;
+                    }
+                }
+            } else {
+                log::error!("Plugin '{}' not found", plugin_name);
+                client_registry
+                    .send(
+                        client_id,
+                        DaemonMessage::PluginMenuError {
+                            plugin_name: plugin_name.clone(),
+                            error: "Plugin not found".to_string().into(),
+                        },
+                    )
+                    .await?;
+            }
+        }
+        ControlMessage::PluginMenuExecute { plugin_name, action } => {
+            log::info!("Client {} executing menu action for plugin: {}", client_id, plugin_name);
+
+            match action {
+                MenuActionType::Command { command } => {
+                    log::info!("Executing command from plugin menu: {}", command);
+                    // Send command to PTY
+                    let mut cmd_bytes = command.into_bytes();
+                    cmd_bytes.push(b'\r'); // Add carriage return
+                    pty_handle.write_input(&cmd_bytes).await?;
+                }
+                MenuActionType::Remote { id } => {
+                    log::info!("Dispatching remote command '{}' to plugin '{}'", id, plugin_name);
+
+                    let mut pm = plugin_manager.lock().await;
+                    
+                    // Extract context and timeout before mutable borrow
+                    let ctx = pm.context.clone();
+                    let timeout_duration = pm.hook_timeout;
+
+                    // Find the plugin by name
+                    if let Some(managed) = pm.plugins.iter_mut().find(|p| p.plugin.metadata().name == plugin_name.as_str()) {
+                        if !managed.enabled {
+                            log::warn!("Plugin '{}' is disabled, skipping remote command", plugin_name);
+                            client_registry
+                                .send(
+                                    client_id,
+                                    DaemonMessage::PluginError {
+                                        name: plugin_name.clone(),
+                                        error: "Plugin is disabled".to_string().into(),
+                                    },
+                                )
+                                .await?;
+                        } else {
+                            // Call the plugin's on_remote_command hook with timeout
+                            let result = tokio::time::timeout(
+                                timeout_duration,
+                                managed.plugin.on_remote_command(&id, &ctx),
+                            )
+                            .await;
+
+                            match result {
+                                Ok(Ok(_)) => {
+                                    managed.record_success();
+                                    log::info!("Remote command '{}' executed successfully on plugin '{}'", id, plugin_name);
+                                }
+                                Ok(Err(e)) => {
+                                    log::error!("Plugin '{}' remote command '{}' failed: {}", plugin_name, id, e);
+                                    managed.record_failure();
+                                    client_registry
+                                        .send(
+                                            client_id,
+                                            DaemonMessage::PluginError {
+                                                name: plugin_name.clone(),
+                                                error: format!("Remote command failed: {}", e).into(),
+                                            },
+                                        )
+                                        .await?;
+                                }
+                                Err(_) => {
+                                    log::error!("Plugin '{}' remote command '{}' timed out", plugin_name, id);
+                                    managed.record_failure();
+                                    client_registry
+                                        .send(
+                                            client_id,
+                                            DaemonMessage::PluginError {
+                                                name: plugin_name.clone(),
+                                                error: "Remote command timed out".to_string().into(),
+                                            },
+                                        )
+                                        .await?;
+                                }
+                            }
+
+                            // Process any pending commands from the plugin
+                            pm.process_pending_commands().await;
+                        }
+                    } else {
+                        log::error!("Plugin '{}' not found", plugin_name);
+                        client_registry
+                            .send(
+                                client_id,
+                                DaemonMessage::PluginError {
+                                    name: plugin_name.clone(),
+                                    error: "Plugin not found".to_string().into(),
+                                },
+                            )
+                            .await?;
+                    }
+                }
+            }
         }
         ControlMessage::PluginEnable { name } => {
             log::info!("Client {} enabling plugin: {}", client_id, name);
@@ -600,6 +746,8 @@ async fn handle_message(
                                     min_scarab_version: p.min_scarab_version.clone().into(),
                                     enabled: p.enabled,
                                     failure_count: p.failure_count,
+                                    emoji: p.emoji.clone().map(|s| s.into()),
+                                    color: p.color.clone().map(|s| s.into()),
                                 })
                                 .collect();
 

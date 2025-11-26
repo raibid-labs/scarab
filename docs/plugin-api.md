@@ -20,9 +20,12 @@ The main trait that all plugins must implement.
 #[async_trait]
 pub trait Plugin: Send + Sync {
     fn metadata(&self) -> &PluginMetadata;
-    
+
     /// Get list of commands provided by this plugin
     fn get_commands(&self) -> Vec<ModalItem> { Vec::new() }
+
+    /// Get the menu for this plugin (shown in Plugin Dock)
+    fn get_menu(&self) -> Vec<MenuItem> { Vec::new() }
 
     async fn on_load(&mut self, ctx: &mut PluginContext) -> Result<()>;
     async fn on_unload(&mut self) -> Result<()>;
@@ -33,7 +36,7 @@ pub trait Plugin: Send + Sync {
     async fn on_resize(&mut self, cols: u16, rows: u16, ctx: &PluginContext) -> Result<()>;
     async fn on_attach(&mut self, client_id: u64, ctx: &PluginContext) -> Result<()>;
     async fn on_detach(&mut self, client_id: u64, ctx: &PluginContext) -> Result<()>;
-    
+
     /// Hook called when a remote command is selected/triggered by the client
     async fn on_remote_command(&mut self, id: &str, ctx: &PluginContext) -> Result<()> { Ok(()) }
 }
@@ -623,8 +626,76 @@ async fn on_output(&mut self, line: &str, ctx: &PluginContext) -> Result<Action>
 }
 ```
 
+## Plugin Menu System
+
+### MenuItem
+
+Define menu items for the Plugin Dock menu system.
+
+```rust
+pub struct MenuItem {
+    pub label: String,
+    pub icon: Option<String>,
+    pub action: MenuAction,
+    pub shortcut: Option<String>,
+}
+```
+
+**Builder Methods:**
+
+```rust
+impl MenuItem {
+    pub fn new(label: impl Into<String>, action: MenuAction) -> Self;
+    pub fn with_icon(self, icon: impl Into<String>) -> Self;
+    pub fn with_shortcut(self, shortcut: impl Into<String>) -> Self;
+}
+```
+
+### MenuAction
+
+Actions that can be triggered from plugin menus.
+
+```rust
+pub enum MenuAction {
+    /// Execute a terminal command
+    Command(String),
+    /// Trigger a remote command callback
+    Remote(String),
+    /// Open a submenu
+    SubMenu(Vec<MenuItem>),
+}
+```
+
+**Example Menu:**
+
+```rust
+fn get_menu(&self) -> Vec<MenuItem> {
+    vec![
+        MenuItem::new("🚀 Quick Action", MenuAction::Remote("action1".into()))
+            .with_shortcut("Ctrl+A"),
+
+        MenuItem::new("📂 Tools", MenuAction::SubMenu(vec![
+            MenuItem::new("Run Tests", MenuAction::Command("cargo test".into())),
+            MenuItem::new("Format Code", MenuAction::Command("cargo fmt".into())),
+        ])),
+
+        MenuItem::new("⚙️ Settings", MenuAction::Remote("settings".into())),
+    ]
+}
+
+async fn on_remote_command(&mut self, id: &str, ctx: &PluginContext) -> Result<()> {
+    match id {
+        "action1" => { /* handle quick action */ },
+        "settings" => { /* open settings */ },
+        _ => {}
+    }
+    Ok(())
+}
+```
+
 ## See Also
 
 - [Plugin Development Guide](plugin-development-guide.md)
+- [Plugin Dock Implementation](PLUGIN_DOCK_IMPLEMENTATION.md)
 - [Example Plugins](../examples/)
 - [Scarab Documentation](README.md)

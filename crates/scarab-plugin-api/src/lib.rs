@@ -7,6 +7,7 @@ pub mod config;
 pub mod context;
 pub mod delight;
 pub mod error;
+pub mod menu;
 pub mod plugin;
 pub mod types;
 
@@ -14,6 +15,7 @@ pub use config::{PluginConfig, PluginDiscovery};
 pub use context::PluginContext;
 pub use delight::{Achievement, PluginMood};
 pub use error::{PluginError, Result};
+pub use menu::{MenuAction, MenuItem};
 pub use plugin::{Plugin, PluginMetadata};
 pub use types::{Action, HookType, PluginInfo};
 
