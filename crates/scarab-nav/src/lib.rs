@@ -272,9 +272,11 @@ impl Plugin for NavigationPlugin {
                 // Partial match check? If buffer doesn't match start of any label, reset or cancel.
                 let has_prefix = state.hints.iter().any(|h| h.label.starts_with(&state.input_buffer));
                 if !has_prefix {
-                    // Invalid input, maybe clear buffer but keep active? Or just cancel?
-                    // Let's reset buffer for retry
+                    // Invalid input, deactivate and pass through to terminal
+                    state.active = false;
                     state.input_buffer.clear();
+                    ctx.queue_command(RemoteCommand::ClearOverlays { id: None });
+                    return Ok(Action::Continue);
                 }
             }
 

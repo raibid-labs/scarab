@@ -85,6 +85,9 @@ async fn main() -> Result<()> {
         cmd.cwd(home);
     }
 
+    // Set environment variable for Navigation Protocol
+    cmd.env("SCARAB_NAV_SOCKET", "/tmp/scarab-nav.sock");
+
     let _child = pair.slave.spawn_command(cmd)?;
     println!(
         "Spawned shell: {} ({}x{})",
