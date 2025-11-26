@@ -23,6 +23,7 @@ dirs = "5.0"
 thiserror = "1.0"
 tracing = "0.1"
 fusabi-frontend = { workspace = true }
+fusabi-vm = { workspace = true }
 
 # Registry dependencies
 reqwest = { version = "0.12", features = ["json"], optional = true }

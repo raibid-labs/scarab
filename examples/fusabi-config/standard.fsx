@@ -1,46 +1,45 @@
 // Standard Scarab Configuration Example
-// This shows common configuration options
 //
 // Usage: Copy to ~/.config/scarab/config.fsx
-// Note: This is a FUTURE feature - Fusabi config DSL not yet implemented
 
-open Scarab.Config
-open Scarab.Themes
-open Scarab.Plugins
+let terminal = {
+    DefaultShell = "/bin/zsh";
+    ScrollbackLines = 10000;
+    AltScreen = true;
+    ScrollMultiplier = 3.0;
+    AutoScroll = true;
+    Columns = 120;
+    Rows = 40
+}
 
-let config =
-    ScarabConfig.create()
-        // Terminal settings
-        |> withTerminal {
-            shell = "/bin/zsh"              // Shell to run (default: $SHELL)
-            columns = 120u16                // Terminal width in characters
-            rows = 40u16                    // Terminal height in characters
-            scrollback = 10000u             // Number of lines to keep in scrollback
-            altScreen = true                // Enable alternate screen buffer
-            scrollMultiplier = 3.0f         // Mouse wheel scroll speed
-            autoScroll = true               // Auto-scroll on new output
-        }
+let font = {
+    Family = "JetBrains Mono";
+    Size = 14.0;
+    LineHeight = 1.2;
+    Fallback = ("Fira Code", "Hack", "monospace");
+    BoldIsBright = true;
+    UseThinStrokes = false
+}
 
-        // Font configuration
-        |> withFont {
-            family = "JetBrains Mono"       // Primary font family
-            size = 14.0f                    // Font size in points
-            lineHeight = 1.2f               // Line height multiplier
-            fallback = [                    // Fallback fonts
-                "Fira Code"
-                "Hack"
-                "monospace"
-            ]
-        }
+let colors = {
+    Theme = "dracula";
+    Opacity = 0.95;
+    DimOpacity = 0.7
+}
 
-        // Color scheme
-        |> withTheme (gruvboxDark())
+let ui = {
+    LinkHints = true;
+    CommandPalette = true;
+    Animations = true;
+    SmoothScroll = true;
+    ShowTabs = true;
+    CursorBlink = true
+}
 
-        // Built-in plugins
-        |> withPlugins [
-            gitPrompt()                     // Git branch in prompt
-            urlHighlighter()                // Highlight and click URLs
-        ]
-
-// Export configuration
-Scarab.export config
+// Return the full configuration object
+{
+    terminal = terminal;
+    font = font;
+    colors = colors;
+    ui = ui
+}

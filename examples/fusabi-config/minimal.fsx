@@ -1,17 +1,24 @@
 // Minimal Scarab Configuration Example
-// This demonstrates the simplest possible Fusabi config
 //
 // Usage: Copy to ~/.config/scarab/config.fsx
-// Note: This is a FUTURE feature - Fusabi config DSL not yet implemented
 
-open Scarab.Config
-open Scarab.Themes
+// Define terminal settings
+let terminal = {
+    DefaultShell = "/bin/bash";
+    ScrollbackLines = 5000;
+    Columns = 100;
+    Rows = 30
+}
 
-// Create a minimal config with just a theme
-let config =
-    ScarabConfig.create()
-        |> withTheme (gruvboxDark())
+// Define font settings
+let font = {
+    Family = "Monospace";
+    Size = 12.0
+}
 
-// Export the configuration
-// This makes it available to the Scarab runtime
-Scarab.export config
+// Return the configuration record
+// Only defined sections are overridden; others use defaults.
+{
+    terminal = terminal;
+    font = font
+}

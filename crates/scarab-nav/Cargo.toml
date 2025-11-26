@@ -14,3 +14,6 @@ scarab-protocol = { path = "../scarab-protocol" }
 regex = "1.10"
 async-trait = "0.1"
 log = "0.4"
+tokio = { workspace = true, features = ["full"] }
+prost = "0.12"
+scarab-nav-protocol = { version = "0.1.0", path = "../../../scarab-nav-protocol/crates/scarab-nav-protocol" }

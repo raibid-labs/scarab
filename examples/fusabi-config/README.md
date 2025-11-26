@@ -1,185 +1,102 @@
 # Fusabi Configuration Examples
 
-This directory contains example Fusabi configuration files for Scarab terminal emulator.
+This directory contains example Fusabi configuration files (`.fsx`) for the Scarab terminal emulator.
 
-**IMPORTANT**: These are examples of **future functionality**. The Fusabi config DSL is not yet implemented. See [FUSABI_CONFIG.md](../../FUSABI_CONFIG.md) for the roadmap.
+**Status**: ✅ **Implemented**. You can use `~/.config/scarab/config.fsx`.
 
-## Current Configuration (TOML)
+## Configuration Syntax
 
-Scarab currently uses TOML for configuration. See `crates/scarab-config/examples/` for working TOML examples.
+Scarab uses the **Fusabi** language (an F# dialect) for configuration. The configuration file must evaluate to a **record** containing the configuration sections you wish to override.
 
-**Example: ~/.config/scarab/config.toml**
-```toml
-[terminal]
-default_shell = "/bin/zsh"
-columns = 120
-rows = 40
-scrollback_lines = 10000
+### Basic Structure
 
-[font]
-family = "JetBrains Mono"
-size = 14.0
-line_height = 1.2
+```fsharp
+// ~/.config/scarab/config.fsx
+
+// Define sections using F# record syntax
+let terminal = {
+    DefaultShell = "/bin/zsh";
+    ScrollbackLines = 10000;
+    AltScreen = true
+}
+
+let font = {
+    Family = "JetBrains Mono";
+    Size = 14.0
+}
+
+// Return the configuration object at the end of the script
+{
+    terminal = terminal;
+    font = font
+}
 ```
-
-## Future Fusabi Configuration
-
-When the Fusabi config DSL is implemented, you'll be able to write `~/.config/scarab/config.fsx` instead.
 
 ### Example Files
 
 | File | Description |
 |------|-------------|
-| `minimal.fsx` | Simplest possible config - just sets a theme |
-| `standard.fsx` | Common configuration options (terminal, font, plugins) |
-| `advanced.fsx` | Advanced features: custom plugins, keybindings, dynamic config |
-| `custom-theme.fsx` | Theme creation and customization examples |
+| `minimal.fsx` | Simplest possible config |
+| `standard.fsx` | Common configuration options (terminal, font, colors) |
 
-### Quick Start (Future)
+### Quick Start
 
-1. **Install Fusabi runtime** (when available):
+1. **Copy example to config directory**:
    ```bash
-   cargo install fusabi-cli
-   ```
-
-2. **Copy example to config directory**:
-   ```bash
+   mkdir -p ~/.config/scarab
    cp examples/fusabi-config/standard.fsx ~/.config/scarab/config.fsx
    ```
 
-3. **Edit the config**:
+2. **Edit the config**:
    ```bash
    $EDITOR ~/.config/scarab/config.fsx
    ```
 
-4. **Restart Scarab** (or wait for hot-reload):
-   ```bash
-   scarab-client
-   ```
+3. **Restart Scarab**:
+   The new configuration will be loaded on startup.
 
-## Configuration Features (Planned)
+## Available Configuration Sections
 
-### Type-Safe Configuration
-Fusabi's F# type system catches configuration errors at compile-time:
-```fsharp
-// Error: Type mismatch - columns expects u16, not string
-|> withTerminal { columns = "invalid" }  // ❌ Won't compile
-```
+All sections are optional. If omitted, defaults are used.
 
-### Programmatic Configuration
-Use the full power of F# for dynamic config:
-```fsharp
-// Conditional configuration based on hostname
-let config =
-    if Environment.MachineName = "workstation" then
-        ScarabConfig.create() |> withTerminal { columns = 180u16 }
-    else
-        ScarabConfig.create() |> withTerminal { columns = 120u16 }
-```
+- **terminal**: Shell, scrollback, dimensions
+- **font**: Family, size, line height, fallbacks
+- **colors**: Theme, custom colors, opacity, palette
+- **ui**: Link hints, animations, tabs, cursor style
+- **keybindings**: Leader key, shortcuts
+- **plugins**: Enabled plugins
+- **sessions**: Auto-save, restore settings
 
-### Composable Modules
-Import and extend configurations:
-```fsharp
-open MyThemes
-open MyPlugins
-
-let config =
-    ScarabConfig.create()
-        |> withTheme myCustomDarkTheme
-        |> withPlugins workPlugins
-```
-
-### Hot-Reload
-Changes to `.fsx` files reload without restarting Scarab:
-- Edit `config.fsx`
-- Save the file
-- Scarab automatically applies changes
-- No need to restart terminal
-
-## Learning Resources
-
-- **Fusabi Language**: https://github.com/fusabi-lang/fusabi
-- **F# Syntax**: https://learn.microsoft.com/en-us/dotnet/fsharp/
-- **Scarab Config Roadmap**: [FUSABI_CONFIG.md](../../FUSABI_CONFIG.md)
-- **Scarab Docs**: [docs/](../../docs/)
-
-## Migration from TOML
-
-Your existing `config.toml` will continue to work after Fusabi config is implemented. Migration is optional:
-
-```fsharp
-// Before (TOML):
-// [terminal]
-// columns = 120
-// rows = 40
-
-// After (Fusabi):
-|> withTerminal {
-    columns = 120u16
-    rows = 40u16
-}
-```
+See `standard.fsx` for a comprehensive list of fields.
 
 ## Comparison with WezTerm (Lua Config)
 
 ### WezTerm (Lua)
 ```lua
-local wezterm = require 'wezterm'
 local config = {}
-
 config.font = wezterm.font 'JetBrains Mono'
 config.font_size = 14.0
-config.color_scheme = 'Gruvbox Dark'
-
 return config
 ```
 
 ### Scarab (Fusabi)
 ```fsharp
-open Scarab.Config
-open Scarab.Themes
-
-let config =
-    ScarabConfig.create()
-        |> withFont {
-            family = "JetBrains Mono"
-            size = 14.0f
-        }
-        |> withTheme (gruvboxDark())
-
-Scarab.export config
+let font = {
+    Family = "JetBrains Mono";
+    Size = 14.0
+}
+{ font = font }
 ```
 
 **Advantages of Fusabi:**
-- **Type safety**: Catch errors at compile-time
-- **Performance**: Compiles to bytecode (faster than Lua)
-- **Functional**: F# semantics reduce bugs
-- **Same language**: Config and plugins use Fusabi
-
-## Contributing Themes and Plugins
-
-Once Fusabi config is implemented, you can contribute your themes and plugins:
-
-1. Create `my-theme.fsx` or `my-plugin.fsx`
-2. Test locally in `~/.config/scarab/`
-3. Submit PR to `scarab/community-plugins/`
-4. Community users can import: `open Community.MyTheme`
+- **Type safety**: Catch errors at compile-time (e.g., assigning string to integer field)
+- **Performance**: Compiles to bytecode
+- **Consistent**: Same language for config and plugins
 
 ## Implementation Status
 
-See [FUSABI_CONFIG.md](../../FUSABI_CONFIG.md) for detailed roadmap:
+- ✅ **Phase 1**: TOML config integration (Legacy)
+- ✅ **Phase 2**: Fusabi config loader (Active)
+- 📅 **Phase 3**: Advanced DSL and Host Functions (Planned)
 
-- ✅ **Phase 1**: TOML config integration (current)
-- 🔄 **Phase 2**: Fusabi config DSL (next)
-- 📅 **Phase 3**: Pure Fusabi runtime (future)
-
-## Help and Support
-
-- **Issues**: https://github.com/raibid-labs/scarab/issues
-- **Discussions**: https://github.com/raibid-labs/scarab/discussions
-- **Discord**: (coming soon)
-
----
-
-**Last Updated**: 2025-01-23
-**Fusabi Config Status**: Planned (not yet implemented)
+Scarab will automatically prefer `config.fsx` if present. If not, it falls back to defaults (or `config.toml` if supported).
