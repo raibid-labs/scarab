@@ -47,9 +47,8 @@ puffin = { workspace = true, optional = true }
 profiling = { workspace = true, optional = true }
 
 [dev-dependencies]
-tempfile = "3.8"
-criterion = { workspace = true }
-proptest = "1.4"
+tokio-test = "0.4"
+mimic = { path = "../../../mimic", features = ["sixel"] }
 
 [features]
 default = []
