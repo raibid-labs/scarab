@@ -1,3 +1,4 @@
+use crate::rendering::text::TextRenderer;
 use anyhow::{Context, Result};
 use bevy::prelude::*;
 use scarab_protocol::{
@@ -293,16 +294,32 @@ pub fn handle_character_input(
 pub fn handle_window_resize(
     mut resize_events: EventReader<bevy::window::WindowResized>,
     ipc: Res<IpcChannel>,
+    renderer: Option<Res<TextRenderer>>,
 ) {
     for event in resize_events.read() {
         // Calculate terminal rows/cols from window size
-        // Assuming 8x16 character cell size (this should be configurable)
-        let cols = (event.width / 8.0) as u16;
-        let rows = (event.height / 16.0) as u16;
+        let (cell_width, cell_height) = if let Some(renderer) = &renderer {
+            (renderer.cell_width, renderer.cell_height)
+        } else {
+            // Fallback if renderer not ready
+            (8.0, 16.0)
+        };
+
+        // Ensure dimensions are valid
+        if cell_width <= 0.0 || cell_height <= 0.0 {
+            continue;
+        }
+
+        let cols = (event.width / cell_width).floor() as u16;
+        let rows = (event.height / cell_height).floor() as u16;
+
+        // Clamp to protocol limits
+        let cols = cols.min(scarab_protocol::GRID_WIDTH as u16);
+        let rows = rows.min(scarab_protocol::GRID_HEIGHT as u16);
 
         println!(
-            "Window resized: {}x{} -> {}x{} chars",
-            event.width, event.height, cols, rows
+            "Window resized: {}x{} -> {}x{} chars (cell: {}x{})",
+            event.width, event.height, cols, rows, cell_width, cell_height
         );
 
         ipc.send(ControlMessage::Resize { cols, rows });

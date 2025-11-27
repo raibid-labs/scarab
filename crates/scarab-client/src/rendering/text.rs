@@ -163,6 +163,9 @@ pub fn generate_terminal_mesh(
     // Get UVs for white pixel (for solid backgrounds)
     let white_uv_rect = renderer.atlas.get_white_pixel_uv();
 
+    let mut glyph_attempts = 0;
+    let mut glyph_success = 0;
+
     // Iterate through all cells
     for (idx, cell) in state.cells.iter().enumerate() {
         // Skip if not dirty (optimization)
@@ -195,8 +198,8 @@ pub fn generate_terminal_mesh(
 
         // Foreground glyph
         if cell.char_codepoint != 0 && cell.char_codepoint != 32 {
-            // Space character, skip rendering
-            let _ = render_glyph(
+            glyph_attempts += 1;
+            if render_glyph(
                 cell,
                 renderer,
                 &mut positions,
@@ -206,8 +209,14 @@ pub fn generate_terminal_mesh(
                 &mut vertex_index,
                 x,
                 y,
-            );
+            ).is_some() {
+                glyph_success += 1;
+            }
         }
+    }
+    
+    if glyph_attempts > 0 {
+        info!("Mesh generation: {}/{} glyphs rendered successfully", glyph_success, glyph_attempts);
     }
 
     // Update atlas texture if dirty

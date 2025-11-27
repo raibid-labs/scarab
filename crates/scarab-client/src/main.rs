@@ -131,6 +131,7 @@ fn setup(mut commands: Commands) {
                 width: 2000.0,
                 height: 2000.0,
             },
+            far: 2000.0,
             ..OrthographicProjection::default_3d()
         },
         Transform::from_xyz(0.0, 0.0, 1000.0).looking_at(Vec3::ZERO, Vec3::Y),
