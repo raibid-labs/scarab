@@ -160,6 +160,9 @@ pub fn generate_terminal_mesh(
 
     let mut vertex_index = 0u32;
 
+    // Get UVs for white pixel (for solid backgrounds)
+    let white_uv_rect = renderer.atlas.get_white_pixel_uv();
+
     // Iterate through all cells
     for (idx, cell) in state.cells.iter().enumerate() {
         // Skip if not dirty (optimization)
@@ -186,6 +189,7 @@ pub fn generate_terminal_mesh(
                 renderer.cell_width,
                 renderer.cell_height,
                 cell.bg,
+                white_uv_rect,
             );
         }
 
@@ -236,6 +240,7 @@ fn add_background_quad(
     width: f32,
     height: f32,
     bg_color: u32,
+    uv_rect: [f32; 4],
 ) {
     let bg = color::from_rgba(bg_color);
     let color_array = bg.to_srgba().to_f32_array();
@@ -248,8 +253,13 @@ fn add_background_quad(
         [x, y - height, 0.0],
     ]);
 
-    // UVs don't matter for solid color
-    uvs.extend_from_slice(&[[0.0, 0.0], [1.0, 0.0], [1.0, 1.0], [0.0, 1.0]]);
+    // Use provided UV rect (likely white pixel for solid color)
+    uvs.extend_from_slice(&[
+        [uv_rect[0], uv_rect[1]],
+        [uv_rect[2], uv_rect[1]],
+        [uv_rect[2], uv_rect[3]],
+        [uv_rect[0], uv_rect[3]],
+    ]);
 
     // All vertices have same background color
     for _ in 0..4 {
@@ -388,6 +398,9 @@ fn render_glyph(
 
     *vertex_index += 4;
 
+    // Get UVs for white pixel (for lines)
+    let white_uv_rect = renderer.atlas.get_white_pixel_uv();
+
     // Handle underline
     if attrs.underline {
         add_underline_quad(
@@ -401,6 +414,7 @@ fn render_glyph(
             renderer.cell_width,
             1.0,
             cell.fg,
+            white_uv_rect,
         );
     }
 
@@ -417,6 +431,7 @@ fn render_glyph(
             renderer.cell_width,
             1.0,
             cell.fg,
+            white_uv_rect,
         );
     }
 
@@ -435,6 +450,7 @@ fn add_underline_quad(
     width: f32,
     height: f32,
     color_u32: u32,
+    uv_rect: [f32; 4],
 ) {
     let color = color::from_rgba(color_u32);
     let color_array = color.to_srgba().to_f32_array();
@@ -446,7 +462,12 @@ fn add_underline_quad(
         [x, y - height, 0.15],
     ]);
 
-    uvs.extend_from_slice(&[[0.0, 0.0], [1.0, 0.0], [1.0, 1.0], [0.0, 1.0]]);
+    uvs.extend_from_slice(&[
+        [uv_rect[0], uv_rect[1]],
+        [uv_rect[2], uv_rect[1]],
+        [uv_rect[2], uv_rect[3]],
+        [uv_rect[0], uv_rect[3]],
+    ]);
 
     for _ in 0..4 {
         colors.push(color_array);

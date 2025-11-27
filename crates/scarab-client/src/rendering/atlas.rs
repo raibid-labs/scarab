@@ -98,7 +98,7 @@ impl GlyphAtlas {
 
         let texture = images.add(image);
 
-        Self {
+        let mut atlas = Self {
             texture,
             glyph_positions: HashMap::new(),
             current_x: GLYPH_PADDING,
@@ -106,7 +106,37 @@ impl GlyphAtlas {
             current_row_height: 0,
             texture_data: vec![0; (ATLAS_SIZE * ATLAS_SIZE * 4) as usize],
             dirty: false,
-        }
+        };
+
+        // Reserve white pixel for solid colors
+        atlas.reserve_white_pixel();
+        
+        atlas
+    }
+
+    /// Reserve a white pixel at (0, 0) for solid color rendering
+    fn reserve_white_pixel(&mut self) {
+        // Set (0, 0) to white
+        let idx = 0;
+        self.texture_data[idx] = 255;
+        self.texture_data[idx + 1] = 255;
+        self.texture_data[idx + 2] = 255;
+        self.texture_data[idx + 3] = 255;
+        self.dirty = true;
+    }
+
+    /// Get UV coordinates for the white pixel
+    pub fn get_white_pixel_uv(&self) -> [f32; 4] {
+        let atlas_size = ATLAS_SIZE as f32;
+        // Target the center of the top-left pixel (0,0)
+        // Use a small offset to ensure we sample the white pixel
+        let half_pixel = 0.5 / atlas_size;
+        [
+            half_pixel,
+            half_pixel,
+            half_pixel,
+            half_pixel,
+        ]
     }
 
     /// Get or cache a glyph in the atlas
@@ -267,6 +297,7 @@ impl GlyphAtlas {
         self.current_y = GLYPH_PADDING;
         self.current_row_height = 0;
         self.texture_data.fill(0);
+        self.reserve_white_pixel();
         self.dirty = true;
     }
 
