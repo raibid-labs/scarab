@@ -1,4 +1,6 @@
 use bevy::prelude::*;
+use bevy::core_pipeline::tonemapping::Tonemapping;
+use bevy::render::camera::{OrthographicProjection, ScalingMode};
 use scarab_client::integration::{IntegrationPlugin, SharedMemWrapper, SharedMemoryReader};
 use scarab_client::{AdvancedUIPlugin, ScriptingPlugin, ScrollbackPlugin};
 use scarab_config::{ConfigLoader, FusabiConfigLoader};
@@ -117,8 +119,18 @@ fn main() {
 }
 
 fn setup(mut commands: Commands) {
-    // Bevy 0.15 uses Camera2d component, Camera2dBundle is deprecated
-    commands.spawn(Camera2d::default());
+    // Use 3D camera to render 3D meshes (terminal grid)
+    // Position camera to look at the terminal grid centered at origin
+    // Use orthographic projection for 2D-like rendering without perspective
+    commands.spawn((
+        Camera3d::default(),
+        OrthographicProjection {
+            scaling_mode: ScalingMode::WindowSize,
+            ..OrthographicProjection::default_3d()
+        },
+        Transform::from_xyz(0.0, 0.0, 1000.0).looking_at(Vec3::ZERO, Vec3::Y),
+        Tonemapping::None, // Disable tonemapping for simple 2D rendering
+    ));
     // IntegrationPlugin handles spawning the TerminalGridEntity
     println!("Scarab Client Initialized with shared memory reader, IPC, scrollback, and scripting.");
 }
