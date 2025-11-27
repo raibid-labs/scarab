@@ -122,10 +122,15 @@ fn setup(mut commands: Commands) {
     // Use 3D camera to render 3D meshes (terminal grid)
     // Position camera to look at the terminal grid centered at origin
     // Use orthographic projection for 2D-like rendering without perspective
+    // The terminal grid spans roughly -840 to +840 in X and Y, so we need
+    // a large enough view area. Use Fixed mode with sufficient size.
     commands.spawn((
         Camera3d::default(),
         OrthographicProjection {
-            scaling_mode: ScalingMode::WindowSize,
+            scaling_mode: ScalingMode::Fixed {
+                width: 2000.0,
+                height: 2000.0,
+            },
             ..OrthographicProjection::default_3d()
         },
         Transform::from_xyz(0.0, 0.0, 1000.0).looking_at(Vec3::ZERO, Vec3::Y),

@@ -102,7 +102,7 @@ fn sync_terminal_state_system(mut state_reader: ResMut<SharedMemoryReader>) {
 
         if current_seq != state_reader.last_sequence {
             // State has been updated by daemon
-            trace!(
+            info!(
                 "Terminal state updated: seq {} -> {}, cursor ({}, {})",
                 state_reader.last_sequence,
                 current_seq,
@@ -129,6 +129,7 @@ fn update_terminal_rendering_system(
         // Check if state changed
         let current_seq = state.sequence_number;
         if current_seq != terminal_mesh.last_sequence {
+            info!("Mesh update triggered: seq {} -> {}", terminal_mesh.last_sequence, current_seq);
             terminal_mesh.dirty_region.mark_full_redraw();
             terminal_mesh.last_sequence = current_seq;
         }
@@ -138,6 +139,7 @@ fn update_terminal_rendering_system(
             continue;
         }
 
+        info!("Generating mesh...");
         // Generate new mesh from terminal state
         let new_mesh = generate_terminal_mesh(
             state,
@@ -146,9 +148,15 @@ fn update_terminal_rendering_system(
             &mut images,
         );
 
+        info!("Mesh generated with {} vertices",
+            new_mesh.attribute(Mesh::ATTRIBUTE_POSITION).map_or(0, |a| a.len()));
+
         // Update mesh asset
         if let Some(mesh) = meshes.get_mut(&terminal_mesh.mesh_handle) {
             *mesh = new_mesh;
+            info!("Mesh updated successfully");
+        } else {
+            warn!("Failed to get mesh handle!");
         }
 
         // Clear dirty region
