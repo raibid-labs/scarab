@@ -63,9 +63,11 @@ fn setup_terminal_rendering(
     let atlas_texture = renderer.atlas.texture.clone();
 
     // Create mesh for terminal grid
+    // Use MAIN_WORLD | RENDER_WORLD so we can access it from both
     let mesh_handle = meshes.add(Mesh::new(
         bevy::render::mesh::PrimitiveTopology::TriangleList,
-        bevy::render::render_asset::RenderAssetUsages::RENDER_WORLD,
+        bevy::render::render_asset::RenderAssetUsages::MAIN_WORLD
+            | bevy::render::render_asset::RenderAssetUsages::RENDER_WORLD,
     ));
 
     // Create material that uses the glyph atlas

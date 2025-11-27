@@ -210,9 +210,10 @@ pub fn generate_terminal_mesh(
     renderer.atlas.update_texture(images);
 
     // Build mesh
+    // Use MAIN_WORLD | RENDER_WORLD so the mesh can be accessed from update systems
     let mut mesh = Mesh::new(
         PrimitiveTopology::TriangleList,
-        RenderAssetUsages::RENDER_WORLD,
+        RenderAssetUsages::MAIN_WORLD | RenderAssetUsages::RENDER_WORLD,
     );
 
     mesh.insert_attribute(Mesh::ATTRIBUTE_POSITION, positions);
