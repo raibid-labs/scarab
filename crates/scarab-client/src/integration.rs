@@ -39,7 +39,12 @@ impl Plugin for IntegrationPlugin {
         app.add_systems(Startup, setup_terminal_rendering)
             .add_systems(
                 Update,
-                (sync_terminal_state_system, update_terminal_rendering_system).chain(),
+                (
+                    sync_terminal_state_system,
+                    update_terminal_rendering_system,
+                    update_grid_position_system,
+                )
+                    .chain(),
             );
     }
 }
@@ -47,6 +52,39 @@ impl Plugin for IntegrationPlugin {
 /// Marker component for the terminal grid entity
 #[derive(Component)]
 pub struct TerminalGridEntity;
+
+/// Align the terminal grid to the top-left of the window
+fn update_grid_position_system(
+    mut query: Query<&mut Transform, With<TerminalGridEntity>>,
+    window_query: Query<&Window, With<bevy::window::PrimaryWindow>>,
+    renderer: Option<Res<TextRenderer>>, // Use Option to avoid panic if not ready
+) {
+    let Ok(window) = window_query.get_single() else {
+        return;
+    };
+    
+    // Only update if renderer is ready (though positioning is mostly window dependent)
+    let Some(_renderer) = renderer else {
+        return;
+    };
+
+    for mut transform in query.iter_mut() {
+        // Camera (Orthographic, WindowSize) has (0,0) at center.
+        // Top-Left is (-width/2, +height/2).
+        // Our mesh is generated with (0,0) as the top-left of the first character.
+        // So we simply translate the entity to the top-left of the window.
+        
+        let x = -window.width() / 2.0;
+        let y = window.height() / 2.0;
+        
+        // Only update if changed to avoid unnecessary dirty flags
+        if transform.translation.x != x || transform.translation.y != y {
+            transform.translation.x = x;
+            transform.translation.y = y;
+            // Z stays at 0.0
+        }
+    }
+}
 
 /// Setup the terminal rendering pipeline
 fn setup_terminal_rendering(

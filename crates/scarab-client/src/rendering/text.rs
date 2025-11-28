@@ -151,13 +151,6 @@ pub fn generate_terminal_mesh(
     let mut colors = Vec::new();
     let mut indices = Vec::new();
 
-    let grid_width = GRID_WIDTH as f32;
-    let grid_height = GRID_HEIGHT as f32;
-
-    // Calculate screen positioning (center grid)
-    let start_x = -(grid_width * renderer.cell_width) / 2.0;
-    let start_y = (grid_height * renderer.cell_height) / 2.0;
-
     let mut vertex_index = 0u32;
 
     // Get UVs for white pixel (for solid backgrounds)
@@ -176,8 +169,10 @@ pub fn generate_terminal_mesh(
         let row = idx / GRID_WIDTH;
         let col = idx % GRID_WIDTH;
 
-        let x = start_x + (col as f32 * renderer.cell_width);
-        let y = start_y - (row as f32 * renderer.cell_height);
+        // Position cells relative to origin (0,0) at top-left
+        // Y extends downwards (negative)
+        let x = col as f32 * renderer.cell_width;
+        let y = -(row as f32 * renderer.cell_height);
 
         // Background quad
         if cell.bg != 0 {
