@@ -56,6 +56,9 @@ pub struct TerminalState {
     /// Current cursor position (0-indexed)
     cursor_x: u16,
     cursor_y: u16,
+    /// Current terminal dimensions
+    cols: u16,
+    rows: u16,
     /// Current text attributes
     attrs: TextAttributes,
     /// Scrollback buffer (stores lines that scrolled off the top)
@@ -75,12 +78,23 @@ impl TerminalState {
             parser: Parser::new(),
             cursor_x: 0,
             cursor_y: 0,
+            cols: GRID_WIDTH as u16,
+            rows: GRID_HEIGHT as u16,
             attrs: TextAttributes::default(),
             scrollback: VecDeque::with_capacity(SCROLLBACK_SIZE),
             sequence_counter,
             saved_cursor: (0, 0),
             saved_attrs: TextAttributes::default(),
         }
+    }
+
+    /// Update terminal dimensions
+    pub fn resize(&mut self, cols: u16, rows: u16) {
+        self.cols = cols.min(GRID_WIDTH as u16);
+        self.rows = rows.min(GRID_HEIGHT as u16);
+        self.cursor_x = self.cursor_x.min(self.cols.saturating_sub(1));
+        self.cursor_y = self.cursor_y.min(self.rows.saturating_sub(1));
+        self.mark_dirty();
     }
 
     /// Process PTY output through the VTE parser
@@ -111,17 +125,19 @@ impl TerminalState {
 
     /// Write a character at the current cursor position
     fn write_char(&mut self, c: char) {
-        if self.cursor_x >= GRID_WIDTH as u16 {
+        if self.cursor_x >= self.cols {
             // Handle line wrapping
             self.cursor_x = 0;
             self.cursor_y += 1;
         }
 
-        if self.cursor_y >= GRID_HEIGHT as u16 {
+        if self.cursor_y >= self.rows {
             // Scroll up
             self.scroll_up(1);
         }
 
+        // Map logical (col, row) to physical grid index
+        // We use fixed GRID_WIDTH for memory layout to avoid fragmentation
         let index = (self.cursor_y as usize * GRID_WIDTH) + self.cursor_x as usize;
 
         unsafe {
@@ -147,12 +163,12 @@ impl TerminalState {
 
             // Save scrolled lines to scrollback buffer
             for i in 0..lines {
-                if i >= GRID_HEIGHT {
+                if i >= self.rows as usize {
                     break;
                 }
-                let mut line = Vec::with_capacity(GRID_WIDTH);
-                for x in 0..GRID_WIDTH {
-                    let idx = i * GRID_WIDTH + x;
+                let mut line = Vec::with_capacity(self.cols as usize);
+                for x in 0..self.cols {
+                    let idx = i * GRID_WIDTH + x as usize; // Physical index
                     line.push(state.cells[idx]);
                 }
                 self.scrollback.push_back(line);
@@ -164,8 +180,10 @@ impl TerminalState {
             }
 
             // Shift grid content up
-            for y in 0..(GRID_HEIGHT - lines) {
-                for x in 0..GRID_WIDTH {
+            // We need to be careful here. We are shifting logical rows.
+            // But physically they are spaced by GRID_WIDTH.
+            for y in 0..(self.rows as usize - lines) {
+                for x in 0..self.cols as usize {
                     let src_idx = (y + lines) * GRID_WIDTH + x;
                     let dst_idx = y * GRID_WIDTH + x;
                     state.cells[dst_idx] = state.cells[src_idx];
@@ -173,8 +191,8 @@ impl TerminalState {
             }
 
             // Clear the bottom lines
-            for y in (GRID_HEIGHT - lines)..GRID_HEIGHT {
-                for x in 0..GRID_WIDTH {
+            for y in (self.rows as usize - lines)..self.rows as usize {
+                for x in 0..self.cols as usize {
                     let idx = y * GRID_WIDTH + x;
                     state.cells[idx] = Cell {
                         char_codepoint: 0,
@@ -199,14 +217,18 @@ impl TerminalState {
     fn clear_screen(&mut self) {
         unsafe {
             let state = &mut *self.shared_ptr;
-            for cell in state.cells.iter_mut() {
-                *cell = Cell {
-                    char_codepoint: 0,
-                    fg: DEFAULT_FG,
-                    bg: DEFAULT_BG,
-                    flags: 0,
-                    _padding: [0; 3],
-                };
+            // Only clear visible area
+            for y in 0..self.rows as usize {
+                for x in 0..self.cols as usize {
+                    let idx = y * GRID_WIDTH + x;
+                    state.cells[idx] = Cell {
+                        char_codepoint: 0,
+                        fg: DEFAULT_FG,
+                        bg: DEFAULT_BG,
+                        flags: 0,
+                        _padding: [0; 3],
+                    };
+                }
             }
         }
         self.cursor_x = 0;
@@ -217,7 +239,7 @@ impl TerminalState {
     fn clear_to_eol(&mut self) {
         unsafe {
             let state = &mut *self.shared_ptr;
-            for x in self.cursor_x as usize..GRID_WIDTH {
+            for x in self.cursor_x as usize..self.cols as usize {
                 let idx = self.cursor_y as usize * GRID_WIDTH + x;
                 state.cells[idx] = Cell {
                     char_codepoint: 0,
@@ -347,12 +369,12 @@ impl Perform for TerminalState {
             'B' => {
                 // Cursor Down
                 let n = params.get(0).copied().unwrap_or(1).max(1) as u16;
-                self.cursor_y = (self.cursor_y + n).min(GRID_HEIGHT as u16 - 1);
+                self.cursor_y = (self.cursor_y + n).min(self.rows - 1);
             }
             'C' => {
                 // Cursor Forward
                 let n = params.get(0).copied().unwrap_or(1).max(1) as u16;
-                self.cursor_x = (self.cursor_x + n).min(GRID_WIDTH as u16 - 1);
+                self.cursor_x = (self.cursor_x + n).min(self.cols - 1);
             }
             'D' => {
                 // Cursor Back
@@ -363,8 +385,8 @@ impl Perform for TerminalState {
                 // Cursor Position
                 let row = params.get(0).copied().unwrap_or(1).max(1) as u16 - 1;
                 let col = params.get(1).copied().unwrap_or(1).max(1) as u16 - 1;
-                self.cursor_y = row.min(GRID_HEIGHT as u16 - 1);
-                self.cursor_x = col.min(GRID_WIDTH as u16 - 1);
+                self.cursor_y = row.min(self.rows - 1);
+                self.cursor_x = col.min(self.cols - 1);
             }
             'J' => {
                 // Erase in Display
@@ -373,8 +395,8 @@ impl Perform for TerminalState {
                     0 => {
                         // Clear from cursor to end of screen
                         self.clear_to_eol();
-                        for y in (self.cursor_y as usize + 1)..GRID_HEIGHT {
-                            for x in 0..GRID_WIDTH {
+                        for y in (self.cursor_y as usize + 1)..self.rows as usize {
+                            for x in 0..self.cols as usize {
                                 unsafe {
                                     let state = &mut *self.shared_ptr;
                                     let idx = y * GRID_WIDTH + x;
@@ -386,7 +408,7 @@ impl Perform for TerminalState {
                     1 => {
                         // Clear from cursor to beginning of screen
                         for y in 0..self.cursor_y as usize {
-                            for x in 0..GRID_WIDTH {
+                            for x in 0..self.cols as usize {
                                 unsafe {
                                     let state = &mut *self.shared_ptr;
                                     let idx = y * GRID_WIDTH + x;
@@ -421,7 +443,7 @@ impl Perform for TerminalState {
                         // Clear entire line
                         unsafe {
                             let state = &mut *self.shared_ptr;
-                            for x in 0..GRID_WIDTH {
+                            for x in 0..self.cols as usize {
                                 let idx = self.cursor_y as usize * GRID_WIDTH + x;
                                 state.cells[idx] = Cell::default();
                             }

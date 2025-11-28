@@ -296,9 +296,14 @@ async fn main() -> Result<()> {
             // Handle resize events from IPC
             Some(pty_size) = resize_rx.recv() => {
                 println!("Resizing PTY to {}x{}", pty_size.cols, pty_size.rows);
+                
+                // Resize PTY
                 if let Err(e) = pair.master.resize(pty_size) {
                     eprintln!("Failed to resize PTY: {}", e);
                 }
+                
+                // Resize internal VTE state
+                terminal_state.resize(pty_size.cols, pty_size.rows);
             }
         }
     }
