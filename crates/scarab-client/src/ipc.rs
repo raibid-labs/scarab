@@ -310,8 +310,8 @@ pub fn handle_window_resize(
             continue;
         }
 
-        let cols = (event.width / cell_width).floor() as u16;
-        let rows = (event.height / cell_height).floor() as u16;
+        let cols: u16 = (event.width / cell_width).floor() as u16;
+        let rows: u16 = (event.height / cell_height).floor() as u16;
 
         // Clamp to protocol limits
         let cols = cols.min(scarab_protocol::GRID_WIDTH as u16);

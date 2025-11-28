@@ -10,8 +10,7 @@ use scarab_protocol::{SharedState, SHMEM_PATH};
 use shared_memory::ShmemConf;
 use std::sync::Arc;
 
-mod ipc;
-use ipc::IpcPlugin;
+use scarab_client::ipc::IpcPlugin;
 
 #[cfg(feature = "plugin-inspector")]
 use scarab_client::PluginInspectorPlugin;
