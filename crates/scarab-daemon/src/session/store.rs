@@ -2,16 +2,15 @@ use super::{Session, SessionId};
 use anyhow::{Context, Result};
 use rusqlite::{params, Connection, OptionalExtension};
 use std::path::PathBuf;
+use std::sync::Mutex;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 /// SQLite-based session persistence
+/// Keeps a persistent connection to the database.
 pub struct SessionStore {
     db_path: PathBuf,
+    conn: Mutex<Connection>,
 }
-
-// Explicitly mark SessionStore as Send since Connection is not Send
-// but we never send connections across threads (only the path)
-unsafe impl Send for SessionStore {}
 
 impl SessionStore {
     /// Create a new session store with database at given path
@@ -21,22 +20,27 @@ impl SessionStore {
             std::fs::create_dir_all(parent).context("Failed to create database directory")?;
         }
 
-        let store = Self { db_path };
+        let conn = Connection::open(&db_path).context("Failed to open database connection")?;
+        
+        // Enable WAL mode for better concurrency/performance
+        conn.pragma_update(None, "journal_mode", "WAL").ok();
+        conn.pragma_update(None, "synchronous", "NORMAL").ok();
+
+        let store = Self { 
+            db_path: db_path.clone(), 
+            conn: Mutex::new(conn) 
+        };
 
         // Initialize database schema
         store.init_schema()?;
 
+        log::info!("Session database initialized at: {:?}", db_path);
         Ok(store)
-    }
-
-    /// Get database connection
-    fn connect(&self) -> Result<Connection> {
-        Connection::open(&self.db_path).context("Failed to open database connection")
     }
 
     /// Initialize database schema
     fn init_schema(&self) -> Result<()> {
-        let conn = self.connect()?;
+        let conn = self.conn.lock().map_err(|_| anyhow::anyhow!("Database lock poisoned"))?;
 
         conn.execute(
             "CREATE TABLE IF NOT EXISTS sessions (
@@ -56,13 +60,12 @@ impl SessionStore {
             [],
         )?;
 
-        log::info!("Session database initialized at: {:?}", self.db_path);
         Ok(())
     }
 
     /// Save a session to the database
     pub fn save_session(&self, session: &Session) -> Result<()> {
-        let conn = self.connect()?;
+        let conn = self.conn.lock().map_err(|_| anyhow::anyhow!("Database lock poisoned"))?;
 
         let created_at = session
             .created_at
@@ -97,7 +100,7 @@ impl SessionStore {
 
     /// Load all sessions from the database
     pub fn load_sessions(&self) -> Result<Vec<Session>> {
-        let conn = self.connect()?;
+        let conn = self.conn.lock().map_err(|_| anyhow::anyhow!("Database lock poisoned"))?;
 
         let mut stmt = conn.prepare(
             "SELECT id, name, created_at, last_attached FROM sessions ORDER BY last_attached DESC",
@@ -126,7 +129,7 @@ impl SessionStore {
 
     /// Delete a session from the database
     pub fn delete_session(&self, id: &SessionId) -> Result<()> {
-        let conn = self.connect()?;
+        let conn = self.conn.lock().map_err(|_| anyhow::anyhow!("Database lock poisoned"))?;
 
         conn.execute("DELETE FROM sessions WHERE id = ?1", params![id])?;
 
@@ -136,7 +139,7 @@ impl SessionStore {
 
     /// Update last attached timestamp
     pub fn update_last_attached(&self, id: &SessionId) -> Result<()> {
-        let conn = self.connect()?;
+        let conn = self.conn.lock().map_err(|_| anyhow::anyhow!("Database lock poisoned"))?;
 
         let now = SystemTime::now()
             .duration_since(UNIX_EPOCH)
@@ -153,7 +156,7 @@ impl SessionStore {
 
     /// Rename a session
     pub fn rename_session(&self, id: &SessionId, new_name: &str) -> Result<()> {
-        let conn = self.connect()?;
+        let conn = self.conn.lock().map_err(|_| anyhow::anyhow!("Database lock poisoned"))?;
 
         conn.execute(
             "UPDATE sessions SET name = ?1 WHERE id = ?2",
@@ -167,7 +170,7 @@ impl SessionStore {
     /// Get session by ID - Public API for session restoration
     #[allow(dead_code)]
     pub fn get_session(&self, id: &SessionId) -> Result<Option<Session>> {
-        let conn = self.connect()?;
+        let conn = self.conn.lock().map_err(|_| anyhow::anyhow!("Database lock poisoned"))?;
 
         let result = conn
             .query_row(
@@ -197,7 +200,7 @@ impl SessionStore {
     /// Get session count - Public API for statistics
     #[allow(dead_code)]
     pub fn session_count(&self) -> Result<usize> {
-        let conn = self.connect()?;
+        let conn = self.conn.lock().map_err(|_| anyhow::anyhow!("Database lock poisoned"))?;
 
         let count: i64 = conn.query_row("SELECT COUNT(*) FROM sessions", [], |row| row.get(0))?;
 

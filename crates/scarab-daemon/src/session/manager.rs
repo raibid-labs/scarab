@@ -3,7 +3,7 @@ use anyhow::{bail, Result};
 use parking_lot::RwLock;
 use portable_pty::{CommandBuilder, NativePtySystem, PtySize, PtySystem};
 use std::collections::{HashMap, HashSet};
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 use std::time::{SystemTime, UNIX_EPOCH};
 use uuid::Uuid;
 
@@ -12,8 +12,10 @@ pub struct Session {
     pub id: SessionId,
     pub name: String,
     /// PTY master for reading/writing terminal data (public API for VTE integration)
+    /// Wrapped in Arc<Mutex<Option<...>>> to ensure Sync. 
+    /// MasterPty is Send, Mutex makes it Sync.
     #[allow(dead_code)]
-    pub pty_master: Arc<RwLock<Option<Box<dyn portable_pty::MasterPty + Send + Sync>>>>,
+    pub pty_master: Arc<Mutex<Option<Box<dyn portable_pty::MasterPty + Send>>>>,
     pub grid_state: Arc<RwLock<GridState>>,
     pub created_at: SystemTime,
     pub last_attached: Arc<RwLock<SystemTime>>,
@@ -38,9 +40,10 @@ impl Session {
         let cmd = CommandBuilder::new("bash");
         let _child = pair.slave.spawn_command(cmd)?;
 
-        // Extract master and slave separately to avoid partial move
-        let master: Box<dyn portable_pty::MasterPty + Send + Sync> =
-            unsafe { std::mem::transmute(pair.master) };
+        // NativePtySystem::openpty returns MasterPty which is Send on supported platforms.
+        // We box it and specify the trait object requires Send.
+        // We no longer use unsafe transmute to force Sync. We use Mutex instead.
+        let master: Box<dyn portable_pty::MasterPty + Send> = pair.master;
         let _slave = pair.slave;
         // Slave is dropped here, released in parent process
 
@@ -50,7 +53,7 @@ impl Session {
         Ok(Self {
             id,
             name,
-            pty_master: Arc::new(RwLock::new(Some(master))),
+            pty_master: Arc::new(Mutex::new(Some(master))),
             grid_state: Arc::new(RwLock::new(GridState::new(cols, rows))),
             created_at: now,
             last_attached: Arc::new(RwLock::new(now)),
@@ -68,7 +71,7 @@ impl Session {
         Self {
             id,
             name,
-            pty_master: Arc::new(RwLock::new(None)),
+            pty_master: Arc::new(Mutex::new(None)),
             grid_state: Arc::new(RwLock::new(GridState::new(80, 24))),
             created_at,
             last_attached: Arc::new(RwLock::new(last_attached)),
@@ -102,7 +105,8 @@ impl Session {
     /// Resize the PTY (public API for client resize events)
     #[allow(dead_code)]
     pub fn resize(&self, cols: u16, rows: u16) -> Result<()> {
-        if let Some(ref master) = *self.pty_master.read() {
+        // Acquire lock on master PTY
+        if let Some(ref master) = *self.pty_master.lock().unwrap() {
             master.resize(PtySize {
                 rows,
                 cols,
@@ -121,7 +125,7 @@ impl Session {
     #[allow(dead_code)]
     pub fn pty_master(
         &self,
-    ) -> Arc<RwLock<Option<Box<dyn portable_pty::MasterPty + Send + Sync>>>> {
+    ) -> Arc<Mutex<Option<Box<dyn portable_pty::MasterPty + Send>>>> {
         Arc::clone(&self.pty_master)
     }
 }
