@@ -162,7 +162,15 @@ impl GlyphAtlas {
             flags: CacheKeyFlags::empty(),
         };
 
-        let image = swash_cache.get_image(font_system, cache_key).as_ref()?;
+        let image = swash_cache.get_image(font_system, cache_key).as_ref();
+
+        if image.is_none() {
+            warn!("swash_cache.get_image returned None for glyph_id: {}, font_id: {:?}",
+                  glyph_key.glyph_id, glyph_key.font_id);
+            return None;
+        }
+
+        let image = image.unwrap();
 
         // Check if we have space in the atlas
         let glyph_width = image.placement.width as u32;
