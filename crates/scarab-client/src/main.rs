@@ -117,22 +117,34 @@ fn main() {
     app.run();
 }
 
-fn setup(mut commands: Commands) {
-    // Use 3D camera to render 3D meshes (terminal grid)
-    // Position camera to look at the terminal grid centered at origin
-    // Use orthographic projection for 2D-like rendering without perspective
-    // Use WindowSize scaling mode so 1 unit = 1 pixel, matching typical 2D/UI coordinate systems
+fn setup(mut commands: Commands, windows: Query<&Window, With<bevy::window::PrimaryWindow>>) {
+    // Use 2D camera for terminal rendering (terminal is 2D, not 3D!)
+    println!("Camera setup: Using Camera2d for 2D terminal rendering");
+
+    // Get window dimensions to set up proper viewport
+    let (width, height) = if let Ok(window) = windows.get_single() {
+        (window.width(), window.height())
+    } else {
+        (800.0, 600.0)
+    };
+
+    // Camera2d defaults to center origin. We want top-left origin.
+    // Move camera so that (0,0) is at top-left of screen
     commands.spawn((
-        Camera3d::default(),
-        OrthographicProjection {
-            scaling_mode: ScalingMode::WindowSize(1.0),
-            near: -1000.0,
-            far: 2000.0,
-            ..OrthographicProjection::default_3d()
+        Camera2d,
+        Camera {
+            clear_color: ClearColorConfig::Custom(Color::srgb(0.0, 0.0, 0.0)), // Black background
+            ..default()
         },
-        Transform::from_xyz(0.0, 0.0, 1000.0).looking_at(Vec3::ZERO, Vec3::Y),
-        Tonemapping::None, // Disable tonemapping for simple 2D rendering
+        OrthographicProjection {
+            // Standard 2D: viewport goes from (0,0) at top-left to (width, height) at bottom-right
+            // But Camera2d has Y pointing up, so we need negative Y
+            viewport_origin: Vec2::new(0.0, 0.0),
+            scaling_mode: ScalingMode::WindowSize(1.0),
+            ..OrthographicProjection::default_2d()
+        },
+        Transform::from_xyz(width / 2.0, -height / 2.0, 0.0),
     ));
-    // IntegrationPlugin handles spawning the TerminalGridEntity
+
     println!("Scarab Client Initialized with shared memory reader, IPC, scrollback, and scripting.");
 }

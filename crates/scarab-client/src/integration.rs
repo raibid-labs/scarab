@@ -3,7 +3,8 @@
 
 use crate::rendering::config::FontConfig;
 use crate::rendering::text::{generate_terminal_mesh, TerminalMesh, TextRenderer};
-use bevy::pbr::MeshMaterial3d;
+use bevy::sprite::MeshMaterial2d;
+use bevy::render::mesh::Mesh2d;
 use bevy::prelude::*;
 use scarab_protocol::{SharedState, GRID_HEIGHT, GRID_WIDTH};
 use shared_memory::Shmem;
@@ -69,19 +70,24 @@ fn update_grid_position_system(
     };
 
     for mut transform in query.iter_mut() {
-        // Camera (Orthographic, WindowSize) has (0,0) at center.
-        // Top-Left is (-width/2, +height/2).
-        // Our mesh is generated with (0,0) as the top-left of the first character.
-        // So we simply translate the entity to the top-left of the window.
-        
-        let x = -window.width() / 2.0;
-        let y = window.height() / 2.0;
-        
+        // With ScalingMode::WindowSize and camera at (width/2, -height/2, 1000) looking at (width/2, -height/2, 0),
+        // the camera viewport shows world coordinates from (0, 0) to (width, -height).
+        // Our mesh is generated with local coordinates (0, 0) to (width, -height).
+        // So the entity should stay at (0, 0, 0) - no translation needed!
+
+        let x = 0.0;
+        let y = 0.0;
+
         // Only update if changed to avoid unnecessary dirty flags
         if transform.translation.x != x || transform.translation.y != y {
+            info!("Grid position update: ({:.2}, {:.2}, {:.2}) -> ({:.2}, {:.2}, {:.2})",
+                  transform.translation.x, transform.translation.y, transform.translation.z,
+                  x, y, transform.translation.z);
             transform.translation.x = x;
             transform.translation.y = y;
             // Z stays at 0.0
+        } else {
+            info!("Grid already at correct position: ({:.2}, {:.2}, {:.2})", x, y, transform.translation.z);
         }
     }
 }
@@ -91,42 +97,86 @@ fn setup_terminal_rendering(
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
     mut images: ResMut<Assets<Image>>,
-    mut materials: ResMut<Assets<StandardMaterial>>,
+    mut materials: ResMut<Assets<ColorMaterial>>,
+    ipc: Option<Res<crate::ipc::IpcChannel>>,
+    window_query: Query<&Window, With<bevy::window::PrimaryWindow>>,
 ) {
     // Create text renderer
     let font_config = FontConfig::default();
+
+    // Extract cell dimensions before moving font_config
+    let cell_width = font_config.size * 0.6;
+    let cell_height = font_config.size * 1.2;
+
     let mut renderer = TextRenderer::new(font_config, &mut images);
     renderer.update_metrics();
 
     let atlas_texture = renderer.atlas.texture.clone();
 
-    // Create mesh for terminal grid
-    // Use MAIN_WORLD | RENDER_WORLD so we can access it from both
-    let mesh_handle = meshes.add(Mesh::new(
+    // Create initial empty mesh (will be populated with terminal content)
+    let initial_mesh = Mesh::new(
         bevy::render::mesh::PrimitiveTopology::TriangleList,
         bevy::render::render_asset::RenderAssetUsages::MAIN_WORLD
             | bevy::render::render_asset::RenderAssetUsages::RENDER_WORLD,
-    ));
+    );
 
-    // Create material that uses the glyph atlas
-    let material = materials.add(StandardMaterial {
-        base_color_texture: Some(atlas_texture),
-        unlit: true,
-        alpha_mode: AlphaMode::Blend,
+    let mesh_handle = meshes.add(initial_mesh);
+
+    // Create material for 2D rendering with ColorMaterial
+    let material = materials.add(ColorMaterial {
+        color: Color::WHITE,
+        texture: Some(atlas_texture.clone()),
         ..default()
     });
 
+    info!("Created ColorMaterial with atlas texture: {:?}", atlas_texture);
+
+    // Calculate terminal dimensions from window size
+    let (cols, rows) = if let Ok(window) = window_query.get_single() {
+        let width = window.width();
+        let height = window.height();
+        let cols = ((width / cell_width).floor() as u16)
+            .min(scarab_protocol::GRID_WIDTH as u16)
+            .max(80);
+        let rows = ((height / cell_height).floor() as u16)
+            .min(scarab_protocol::GRID_HEIGHT as u16)
+            .max(24);
+
+        info!("Window: {}x{} pixels, Terminal: {}x{} cells, Cell: {:.2}x{:.2} pixels",
+              width, height, cols, rows, cell_width, cell_height);
+        info!("Grid will span: {:.2}x{:.2} pixels",
+              cols as f32 * cell_width, rows as f32 * cell_height);
+
+        (cols, rows)
+    } else {
+        (80, 24) // Fallback
+    };
+
     // Spawn terminal grid entity (Bevy 0.15 API)
+    // Position grid at origin - it will naturally render from (0,0) to (width, -height)
+    info!("Spawning terminal grid entity at (0, 0, 0)");
+    info!("Grid extends from (0, 0) to ({:.2}, {:.2})",
+          cols as f32 * cell_width, -(rows as f32 * cell_height));
+
+    // Spawn 2D mesh entity (Bevy 0.15 2D API)
     commands.spawn((
         TerminalGridEntity,
         TerminalMesh::new(mesh_handle.clone()),
-        Mesh3d(mesh_handle),
-        MeshMaterial3d(material),
-        Transform::from_xyz(0.0, 0.0, 0.0),
+        Mesh2d(mesh_handle),
+        MeshMaterial2d(material),
+        Transform::default(),
     ));
+
+    info!("Spawned 2D terminal grid entity");
 
     // Insert renderer as resource
     commands.insert_resource(renderer);
+
+    // Send initial window resize to daemon so PTY knows the terminal size
+    if let Some(ipc) = ipc {
+        info!("Sending initial resize to daemon: {}x{}", cols, rows);
+        ipc.send(scarab_protocol::ControlMessage::Resize { cols, rows });
+    }
 
     info!("Terminal rendering pipeline initialized");
 }
@@ -166,20 +216,22 @@ fn update_terminal_rendering_system(
     let state = unsafe { &*(state_reader.shmem.0.as_ptr() as *const SharedState) };
 
     for mut terminal_mesh in query.iter_mut() {
-        // Check if state changed
+        // Check if state changed OR if this is the first render (last_sequence == 0 but we haven't rendered yet)
         let current_seq = state.sequence_number;
+        let is_first_render = terminal_mesh.last_sequence == 0 && terminal_mesh.dirty_region.is_full_redraw();
+
         if current_seq != terminal_mesh.last_sequence {
             info!("Mesh update triggered: seq {} -> {}", terminal_mesh.last_sequence, current_seq);
             terminal_mesh.dirty_region.mark_full_redraw();
             terminal_mesh.last_sequence = current_seq;
         }
 
-        // Skip if nothing to update
-        if terminal_mesh.dirty_region.is_empty() {
+        // Skip if nothing to update UNLESS this is the first render
+        if !is_first_render && terminal_mesh.dirty_region.is_empty() {
             continue;
         }
 
-        info!("Generating mesh...");
+        info!("Generating mesh... (first_render: {})", is_first_render);
         // Generate new mesh from terminal state
         let new_mesh = generate_terminal_mesh(
             state,
@@ -191,13 +243,9 @@ fn update_terminal_rendering_system(
         info!("Mesh generated with {} vertices",
             new_mesh.attribute(Mesh::ATTRIBUTE_POSITION).map_or(0, |a| a.len()));
 
-        // Update mesh asset
-        if let Some(mesh) = meshes.get_mut(&terminal_mesh.mesh_handle) {
-            *mesh = new_mesh;
-            info!("Mesh updated successfully");
-        } else {
-            warn!("Failed to get mesh handle!");
-        }
+        // Update mesh asset using insert (proper way for Bevy 0.15+)
+        meshes.insert(&terminal_mesh.mesh_handle, new_mesh);
+        info!("Mesh updated successfully via insert");
 
         // Clear dirty region
         terminal_mesh.dirty_region.clear();
