@@ -322,15 +322,18 @@ impl Perform for TerminalState {
             0x09 => {
                 // Tab (move to next tab stop, typically 8 spaces)
                 self.cursor_x = ((self.cursor_x / 8) + 1) * 8;
-                if self.cursor_x >= GRID_WIDTH as u16 {
+                if self.cursor_x >= self.cols {
                     self.cursor_x = 0;
                     self.cursor_y += 1;
+                    if self.cursor_y >= self.rows {
+                        self.scroll_up(1);
+                    }
                 }
             }
             0x0A => {
                 // Line Feed
                 self.cursor_y += 1;
-                if self.cursor_y >= GRID_HEIGHT as u16 {
+                if self.cursor_y >= self.rows {
                     self.scroll_up(1);
                 }
             }
