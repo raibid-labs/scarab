@@ -24,7 +24,23 @@ pub struct TextRenderer {
 impl TextRenderer {
     /// Create a new text renderer
     pub fn new(config: FontConfig, images: &mut ResMut<Assets<Image>>) -> Self {
-        let font_system = FontSystem::new();
+        let mut font_system = FontSystem::new();
+
+        // Load system fonts - this is CRITICAL or no text will render!
+        let font_db = font_system.db_mut();
+        font_db.load_system_fonts();
+
+        let face_count = font_db.faces().count();
+        info!("Loaded {} font faces from system", face_count);
+
+        if face_count == 0 {
+            error!("CRITICAL: No fonts loaded! Text rendering will fail!");
+            error!("This might be a fontconfig issue or no fonts installed on system");
+        }
+
+        // Try to get some family names for debugging
+        info!("Font database initialized with {} faces", face_count);
+
         let swash_cache = SwashCache::new();
         let atlas = GlyphAtlas::new(images);
 
@@ -59,12 +75,18 @@ impl TextRenderer {
         buffer.set_text(&mut self.font_system, "M", Attrs::new(), Shaping::Advanced);
 
         // Get actual glyph dimensions
+        let mut found = false;
         for run in buffer.layout_runs() {
             for glyph in run.glyphs {
                 self.cell_width = glyph.w;
                 self.cell_height = self.config.size * self.config.line_height;
-                return;
+                found = true;
+                break;
             }
+        }
+
+        if !found {
+            warn!("update_metrics: No glyphs found for 'M', using fallback dimensions");
         }
     }
 }
@@ -106,6 +128,10 @@ impl DirtyRegion {
 
     pub fn is_empty(&self) -> bool {
         !self.full_redraw && self.dirty_cells.is_empty()
+    }
+
+    pub fn is_full_redraw(&self) -> bool {
+        self.full_redraw
     }
 }
 
@@ -170,7 +196,8 @@ pub fn generate_terminal_mesh(
         let col = idx % GRID_WIDTH;
 
         // Position cells relative to origin (0,0) at top-left
-        // Y extends downwards (negative)
+        // Camera2d: Y points UP. Row 0 at top means highest Y value.
+        // So Y decreases as row increases: y = -row * cell_height
         let x = col as f32 * renderer.cell_width;
         let y = -(row as f32 * renderer.cell_height);
 
@@ -250,6 +277,10 @@ fn add_background_quad(
     let color_array = bg.to_srgba().to_f32_array();
 
     // Add four vertices (quad)
+    // Camera2d: Y points UP, so for a downward-extending quad from top edge y:
+    // top-left: (x, y)   top-right: (x+w, y)
+    // bot-left: (x, y+h) bot-right: (x+w, y+h)  <- Wait, this would extend UP!
+    // Actually we WANT y-height because our y is already negative for lower rows
     positions.extend_from_slice(&[
         [x, y, 0.0],
         [x + width, y, 0.0],
@@ -311,6 +342,9 @@ fn render_glyph(
         );
         let mut buffer = Buffer::new(&mut renderer.font_system, metrics);
 
+        // CRITICAL: Set buffer size or shaping won't work!
+        buffer.set_size(&mut renderer.font_system, 100.0, 100.0);
+
         // Build attrs with bold/italic
         let mut cosmic_attrs = Attrs::new();
 
@@ -328,8 +362,13 @@ fn render_glyph(
             Shaping::Advanced,
         );
 
+        // CRITICAL: Must shape the buffer before layout_runs() will work!
+        buffer.shape_until_scroll(&mut renderer.font_system, false);
+
         let mut key = None;
+        let mut run_count = 0;
         for run in buffer.layout_runs() {
+            run_count += 1;
             for glyph in run.glyphs {
                 // Create GlyphKey from glyph info (cosmic-text API changed)
                 key = Some(GlyphKey {
@@ -339,6 +378,9 @@ fn render_glyph(
                 });
                 break;
             }
+        }
+        if key.is_none() {
+            warn!("No glyph found for char '{}' (U+{:04X}), runs: {}", ch, ch as u32, run_count);
         }
         key
     };
@@ -370,6 +412,7 @@ fn render_glyph(
     let fg_array = fg.to_srgba().to_f32_array();
 
     // Add glyph quad
+    // Position is based on cell grid (x, y), but size is actual glyph dimensions
     let glyph_width = atlas_rect.width as f32;
     let glyph_height = atlas_rect.height as f32;
 
@@ -380,6 +423,7 @@ fn render_glyph(
         [x, y - glyph_height, 0.1],
     ]);
 
+    // Use normal UVs (no flip)
     uvs.extend_from_slice(&[
         [uv_rect[0], uv_rect[1]],
         [uv_rect[2], uv_rect[1]],
