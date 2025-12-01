@@ -48,7 +48,7 @@ profiling = { workspace = true, optional = true }
 
 [dev-dependencies]
 tokio-test = "0.4"
-mimic = { path = "../../../mimic", features = ["sixel"] }
+ratatui-testlib = { version = "0.1.0", features = ["sixel"] }
 
 [features]
 default = []

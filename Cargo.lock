@@ -3917,18 +3917,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6877bb514081ee2a7ff5ef9de3281f14a4dd4bceac4c09388074a6b5df8a139a"
 
 [[package]]
-name = "mimic"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "bitflags 2.10.0",
- "portable-pty",
- "termwiz",
- "thiserror 2.0.17",
- "vtparse 0.7.0",
-]
-
-[[package]]
 name = "minimal-lexical"
 version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5284,6 +5272,20 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "acbbbbea733ec66275512d0b9694f34102e7d5406fdbe2ad8d21b28dce92887c"
 
 [[package]]
+name = "ratatui-testlib"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "93d627139dd5c393766134ef7b76fc7e29ec22accb3e4c10f1ad1760ab47d1ba"
+dependencies = [
+ "anyhow",
+ "bitflags 2.10.0",
+ "portable-pty",
+ "termwiz",
+ "thiserror 2.0.17",
+ "vtparse 0.7.0",
+]
+
+[[package]]
 name = "rav1e"
 version = "0.8.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5768,11 +5770,11 @@ dependencies = [
  "fusabi-vm",
  "log",
  "lru",
- "mimic",
  "parking_lot",
  "portable-pty",
  "profiling",
  "puffin",
+ "ratatui-testlib",
  "rkyv",
  "rusqlite",
  "scarab-config",
