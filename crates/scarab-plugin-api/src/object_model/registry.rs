@@ -230,6 +230,35 @@ pub trait ObjectRegistry<T> {
     fn is_empty(&self) -> bool {
         self.len() == 0
     }
+
+    /// Get the parent handle of an object
+    ///
+    /// This enables navigation up the object hierarchy (e.g., Pane -> Tab -> Window).
+    ///
+    /// # Arguments
+    ///
+    /// * `handle` - The handle of the object whose parent to retrieve
+    ///
+    /// # Returns
+    ///
+    /// * `Ok(Some(handle))` - The parent object's handle
+    /// * `Ok(None)` - The object has no parent (e.g., Window is top-level)
+    /// * `Err(ObjectError)` - If the handle is invalid or not found
+    fn get_parent(&self, handle: &ObjectHandle) -> Result<Option<ObjectHandle>, ObjectError>;
+
+    /// Get the child handles of an object
+    ///
+    /// This enables navigation down the object hierarchy (e.g., Window -> Tabs -> Panes).
+    ///
+    /// # Arguments
+    ///
+    /// * `handle` - The handle of the object whose children to retrieve
+    ///
+    /// # Returns
+    ///
+    /// * `Ok(Vec<ObjectHandle>)` - A vector of child object handles (may be empty)
+    /// * `Err(ObjectError)` - If the handle is invalid or not found
+    fn get_children(&self, handle: &ObjectHandle) -> Result<Vec<ObjectHandle>, ObjectError>;
 }
 
 #[cfg(test)]
@@ -250,6 +279,8 @@ mod tests {
         objects: HashMap<u64, RegistryEntry<TestObject>>,
         next_id_counter: u64,
         generations: HashMap<u64, u32>,
+        parents: HashMap<u64, ObjectHandle>,
+        children: HashMap<u64, Vec<ObjectHandle>>,
     }
 
     impl TestRegistry {
@@ -258,7 +289,17 @@ mod tests {
                 objects: HashMap::new(),
                 next_id_counter: 1,
                 generations: HashMap::new(),
+                parents: HashMap::new(),
+                children: HashMap::new(),
             }
+        }
+
+        fn set_parent(&mut self, child: ObjectHandle, parent: ObjectHandle) {
+            self.parents.insert(child.id(), parent);
+            self.children
+                .entry(parent.id())
+                .or_insert_with(Vec::new)
+                .push(child);
         }
     }
 
@@ -333,6 +374,39 @@ mod tests {
 
         fn len(&self) -> usize {
             self.objects.len()
+        }
+
+        fn get_parent(&self, handle: &ObjectHandle) -> Result<Option<ObjectHandle>, ObjectError> {
+            let current_gen = self.current_generation(handle.id());
+            if !handle.is_valid(current_gen) {
+                return Err(ObjectError::stale_handle(*handle, current_gen));
+            }
+
+            if !self.objects.contains_key(&handle.id()) {
+                return Err(ObjectError::not_found(*handle));
+            }
+
+            Ok(self.parents.get(&handle.id()).copied())
+        }
+
+        fn get_children(
+            &self,
+            handle: &ObjectHandle,
+        ) -> Result<Vec<ObjectHandle>, ObjectError> {
+            let current_gen = self.current_generation(handle.id());
+            if !handle.is_valid(current_gen) {
+                return Err(ObjectError::stale_handle(*handle, current_gen));
+            }
+
+            if !self.objects.contains_key(&handle.id()) {
+                return Err(ObjectError::not_found(*handle));
+            }
+
+            Ok(self
+                .children
+                .get(&handle.id())
+                .cloned()
+                .unwrap_or_else(Vec::new))
         }
     }
 
@@ -520,5 +594,157 @@ mod tests {
 
         let obj = registry.get(handle).unwrap();
         assert_eq!(obj.value, 100);
+    }
+
+    #[test]
+    fn test_get_parent_none() {
+        let mut registry = TestRegistry::new();
+        let obj = TestObject {
+            name: "root".to_string(),
+            value: 1,
+        };
+
+        let handle = registry.register(obj);
+        let parent = registry.get_parent(&handle).unwrap();
+        assert!(parent.is_none());
+    }
+
+    #[test]
+    fn test_get_parent_some() {
+        let mut registry = TestRegistry::new();
+
+        let parent_obj = TestObject {
+            name: "parent".to_string(),
+            value: 1,
+        };
+        let child_obj = TestObject {
+            name: "child".to_string(),
+            value: 2,
+        };
+
+        let parent_handle = registry.register(parent_obj);
+        let child_handle = registry.register(child_obj);
+
+        registry.set_parent(child_handle, parent_handle);
+
+        let retrieved_parent = registry.get_parent(&child_handle).unwrap();
+        assert_eq!(retrieved_parent, Some(parent_handle));
+    }
+
+    #[test]
+    fn test_get_parent_stale_handle() {
+        let mut registry = TestRegistry::new();
+        let obj = TestObject {
+            name: "test".to_string(),
+            value: 42,
+        };
+
+        let handle = registry.register(obj);
+        registry.unregister(handle).unwrap();
+
+        let result = registry.get_parent(&handle);
+        assert!(matches!(result, Err(ObjectError::StaleHandle { .. })));
+    }
+
+    #[test]
+    fn test_get_children_empty() {
+        let mut registry = TestRegistry::new();
+        let obj = TestObject {
+            name: "leaf".to_string(),
+            value: 1,
+        };
+
+        let handle = registry.register(obj);
+        let children = registry.get_children(&handle).unwrap();
+        assert!(children.is_empty());
+    }
+
+    #[test]
+    fn test_get_children_multiple() {
+        let mut registry = TestRegistry::new();
+
+        let parent_obj = TestObject {
+            name: "parent".to_string(),
+            value: 1,
+        };
+        let child1_obj = TestObject {
+            name: "child1".to_string(),
+            value: 2,
+        };
+        let child2_obj = TestObject {
+            name: "child2".to_string(),
+            value: 3,
+        };
+
+        let parent_handle = registry.register(parent_obj);
+        let child1_handle = registry.register(child1_obj);
+        let child2_handle = registry.register(child2_obj);
+
+        registry.set_parent(child1_handle, parent_handle);
+        registry.set_parent(child2_handle, parent_handle);
+
+        let children = registry.get_children(&parent_handle).unwrap();
+        assert_eq!(children.len(), 2);
+        assert!(children.contains(&child1_handle));
+        assert!(children.contains(&child2_handle));
+    }
+
+    #[test]
+    fn test_get_children_stale_handle() {
+        let mut registry = TestRegistry::new();
+        let obj = TestObject {
+            name: "test".to_string(),
+            value: 42,
+        };
+
+        let handle = registry.register(obj);
+        registry.unregister(handle).unwrap();
+
+        let result = registry.get_children(&handle);
+        assert!(matches!(result, Err(ObjectError::StaleHandle { .. })));
+    }
+
+    #[test]
+    fn test_navigation_hierarchy() {
+        let mut registry = TestRegistry::new();
+
+        // Create a hierarchy: window -> tab -> pane
+        let window_handle = registry.register(TestObject {
+            name: "window".to_string(),
+            value: 1,
+        });
+        let tab_handle = registry.register(TestObject {
+            name: "tab".to_string(),
+            value: 2,
+        });
+        let pane_handle = registry.register(TestObject {
+            name: "pane".to_string(),
+            value: 3,
+        });
+
+        registry.set_parent(tab_handle, window_handle);
+        registry.set_parent(pane_handle, tab_handle);
+
+        // Navigate up from pane to tab
+        let pane_parent = registry.get_parent(&pane_handle).unwrap().unwrap();
+        assert_eq!(pane_parent, tab_handle);
+
+        // Navigate up from tab to window
+        let tab_parent = registry.get_parent(&tab_handle).unwrap().unwrap();
+        assert_eq!(tab_parent, window_handle);
+
+        // Window has no parent
+        let window_parent = registry.get_parent(&window_handle).unwrap();
+        assert!(window_parent.is_none());
+
+        // Navigate down from window to tab
+        let window_children = registry.get_children(&window_handle).unwrap();
+        assert_eq!(window_children.len(), 1);
+        assert_eq!(window_children[0], tab_handle);
+
+        // Navigate down from tab to pane
+        let tab_children = registry.get_children(&tab_handle).unwrap();
+        assert_eq!(tab_children.len(), 1);
+        assert_eq!(tab_children[0], pane_handle);
     }
 }
