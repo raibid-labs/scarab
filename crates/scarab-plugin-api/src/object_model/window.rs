@@ -1,11 +1,14 @@
 //! Window object proxy for Fusabi scripts
 
 use super::{ObjectError, ObjectHandle, ObjectRegistry, ObjectType, Result};
+use crate::status_bar::{RenderItem, StatusBarSide};
 
 /// Proxy for a terminal window
 #[derive(Debug, Clone)]
 pub struct WindowProxy {
     handle: ObjectHandle,
+    /// Pending status bar updates (stored for later IPC transmission)
+    pending_status: std::sync::Arc<std::sync::Mutex<Vec<(StatusBarSide, Vec<RenderItem>)>>>,
 }
 
 impl WindowProxy {
@@ -17,7 +20,10 @@ impl WindowProxy {
                 handle.object_type(),
             ));
         }
-        Ok(Self { handle })
+        Ok(Self {
+            handle,
+            pending_status: std::sync::Arc::new(std::sync::Mutex::new(Vec::new())),
+        })
     }
 
     pub fn handle(&self) -> ObjectHandle {
@@ -110,19 +116,77 @@ impl WindowProxy {
     }
 
     /// Set right status bar content
-    pub fn set_right_status(&self, _items: Vec<RenderItem>) -> Result<()> {
-        Err(ObjectError::method_not_found(
-            self.handle,
-            "set_right_status",
-        ))
+    ///
+    /// Stores the render items for later IPC transmission to the client.
+    /// The items will be sent to the UI when the next status update is triggered.
+    ///
+    /// # Arguments
+    ///
+    /// * `items` - Vector of RenderItem elements to display on the right side
+    ///
+    /// # Returns
+    ///
+    /// * `Ok(())` - Items stored successfully
+    /// * `Err(ObjectError)` - If storage fails
+    pub fn set_right_status(&self, items: Vec<RenderItem>) -> Result<()> {
+        let mut pending = self.pending_status.lock().map_err(|_| {
+            ObjectError::method_not_found(self.handle, "set_right_status: lock poisoned")
+        })?;
+        pending.push((StatusBarSide::Right, items));
+        Ok(())
     }
 
     /// Set left status bar content
-    pub fn set_left_status(&self, _items: Vec<RenderItem>) -> Result<()> {
-        Err(ObjectError::method_not_found(
-            self.handle,
-            "set_left_status",
-        ))
+    ///
+    /// Stores the render items for later IPC transmission to the client.
+    /// The items will be sent to the UI when the next status update is triggered.
+    ///
+    /// # Arguments
+    ///
+    /// * `items` - Vector of RenderItem elements to display on the left side
+    ///
+    /// # Returns
+    ///
+    /// * `Ok(())` - Items stored successfully
+    /// * `Err(ObjectError)` - If storage fails
+    pub fn set_left_status(&self, items: Vec<RenderItem>) -> Result<()> {
+        let mut pending = self.pending_status.lock().map_err(|_| {
+            ObjectError::method_not_found(self.handle, "set_left_status: lock poisoned")
+        })?;
+        pending.push((StatusBarSide::Left, items));
+        Ok(())
+    }
+
+    /// Clear all status bar content
+    ///
+    /// Clears both left and right status bar sections.
+    ///
+    /// # Returns
+    ///
+    /// * `Ok(())` - Status cleared successfully
+    /// * `Err(ObjectError)` - If clearing fails
+    pub fn clear_status(&self) -> Result<()> {
+        let mut pending = self.pending_status.lock().map_err(|_| {
+            ObjectError::method_not_found(self.handle, "clear_status: lock poisoned")
+        })?;
+        pending.push((StatusBarSide::Left, vec![]));
+        pending.push((StatusBarSide::Right, vec![]));
+        Ok(())
+    }
+
+    /// Drain pending status updates for IPC transmission
+    ///
+    /// Returns and clears all pending status updates that need to be sent to the client.
+    /// This is called internally by the daemon's IPC layer.
+    ///
+    /// # Returns
+    ///
+    /// Vector of (side, items) tuples representing pending updates
+    pub fn drain_pending_status(&self) -> Vec<(StatusBarSide, Vec<RenderItem>)> {
+        self.pending_status
+            .lock()
+            .map(|mut pending| pending.drain(..).collect())
+            .unwrap_or_default()
     }
 
     /// Show a toast notification
@@ -138,13 +202,6 @@ impl WindowProxy {
 // These will be defined in their respective modules
 use super::PaneProxy;
 use super::TabProxy;
-
-// Placeholder for RenderItem (will be in status_bar module later)
-#[derive(Debug, Clone)]
-pub enum RenderItem {
-    Text(String),
-    // More variants later
-}
 
 #[cfg(test)]
 mod tests {
@@ -183,7 +240,7 @@ mod tests {
         let handle = ObjectHandle::new(ObjectType::Window, 1, 0);
         let proxy = WindowProxy::new(handle).unwrap();
 
-        // All methods should return MethodNotFound errors
+        // Some methods should return MethodNotFound errors
         assert!(matches!(
             proxy.get_dimensions(),
             Err(ObjectError::MethodNotFound { .. })
@@ -193,17 +250,14 @@ mod tests {
             Err(ObjectError::MethodNotFound { .. })
         ));
         assert!(matches!(
-            proxy.set_right_status(vec![]),
-            Err(ObjectError::MethodNotFound { .. })
-        ));
-        assert!(matches!(
-            proxy.set_left_status(vec![]),
-            Err(ObjectError::MethodNotFound { .. })
-        ));
-        assert!(matches!(
             proxy.toast_notification("title", "message"),
             Err(ObjectError::MethodNotFound { .. })
         ));
+
+        // Status methods should now work
+        assert!(proxy.set_right_status(vec![]).is_ok());
+        assert!(proxy.set_left_status(vec![]).is_ok());
+        assert!(proxy.clear_status().is_ok());
     }
 
     #[test]
@@ -217,10 +271,41 @@ mod tests {
     }
 
     #[test]
-    fn test_render_item_creation() {
-        let item = RenderItem::Text("test".to_string());
-        match item {
-            RenderItem::Text(s) => assert_eq!(s, "test"),
+    fn test_status_bar_methods() {
+        let handle = ObjectHandle::new(ObjectType::Window, 1, 0);
+        let proxy = WindowProxy::new(handle).unwrap();
+
+        // Test setting left status
+        let left_items = vec![RenderItem::Text("Left".to_string())];
+        assert!(proxy.set_left_status(left_items).is_ok());
+
+        // Test setting right status
+        let right_items = vec![RenderItem::Text("Right".to_string())];
+        assert!(proxy.set_right_status(right_items).is_ok());
+
+        // Test draining pending status
+        let pending = proxy.drain_pending_status();
+        assert_eq!(pending.len(), 2);
+
+        // After draining, should be empty
+        let pending2 = proxy.drain_pending_status();
+        assert_eq!(pending2.len(), 0);
+    }
+
+    #[test]
+    fn test_status_bar_clear() {
+        let handle = ObjectHandle::new(ObjectType::Window, 1, 0);
+        let proxy = WindowProxy::new(handle).unwrap();
+
+        // Clear status should create two pending updates (left and right)
+        assert!(proxy.clear_status().is_ok());
+
+        let pending = proxy.drain_pending_status();
+        assert_eq!(pending.len(), 2);
+
+        // Both should have empty item vectors
+        for (_, items) in pending {
+            assert!(items.is_empty());
         }
     }
 

@@ -300,8 +300,8 @@ mod tests {
 
         let args = convert_event_message_to_args(&msg).unwrap();
         assert_eq!(args.event_type, EventType::Bell);
-        assert_eq!(args.window.unwrap().id, 1);
-        assert_eq!(args.pane.unwrap().id, 2);
+        assert_eq!(args.window.unwrap().id(), 1);
+        assert_eq!(args.pane.unwrap().id(), 2);
     }
 
     #[test]

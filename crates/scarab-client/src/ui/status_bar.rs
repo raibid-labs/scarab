@@ -6,6 +6,9 @@
 use bevy::prelude::*;
 use scarab_plugin_api::status_bar::{AnsiColor, RenderItem};
 use scarab_plugin_api::status_bar::Color as StatusColor;
+use scarab_protocol::{DaemonMessage, StatusBarSide as ProtocolStatusBarSide, StatusRenderItem};
+use std::sync::{Arc, Mutex};
+use tokio::sync::broadcast;
 
 /// Plugin for status bar functionality
 pub struct StatusBarPlugin;
@@ -13,10 +16,42 @@ pub struct StatusBarPlugin;
 impl Plugin for StatusBarPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<StatusBarState>()
+            .init_resource::<StatusUpdateTimer>()
+            .add_event::<StatusUpdateEvent>()
             .add_systems(Startup, setup_status_bar)
-            .add_systems(Update, update_status_bar_system);
+            .add_systems(
+                Update,
+                (
+                    receive_status_updates,
+                    trigger_status_update,
+                    update_status_bar_system,
+                )
+                    .chain(),
+            );
     }
 }
+
+/// Resource for daemon message receiver (for status bar IPC)
+#[derive(Resource)]
+pub struct DaemonMessageReceiver(pub Arc<Mutex<broadcast::Receiver<DaemonMessage>>>);
+
+/// Timer resource for triggering status updates
+#[derive(Resource)]
+pub struct StatusUpdateTimer {
+    pub timer: Timer,
+}
+
+impl Default for StatusUpdateTimer {
+    fn default() -> Self {
+        Self {
+            timer: Timer::from_seconds(0.1, TimerMode::Repeating), // 100ms interval
+        }
+    }
+}
+
+/// Event to trigger status bar updates
+#[derive(Event)]
+pub struct StatusUpdateEvent;
 
 /// Resource holding current status bar state
 ///
@@ -144,6 +179,98 @@ fn update_status_bar_system(
     // Clear dirty flags after rendering
     if status.left_dirty || status.right_dirty {
         status.clear_dirty();
+    }
+}
+
+/// System to receive status bar updates from daemon via IPC
+///
+/// Processes StatusBarUpdate messages from the daemon and updates the
+/// StatusBarState resource accordingly.
+fn receive_status_updates(
+    receiver: Option<Res<DaemonMessageReceiver>>,
+    mut status: ResMut<StatusBarState>,
+) {
+    let Some(receiver) = receiver else {
+        return;
+    };
+
+    let mut receiver = receiver.0.lock().unwrap();
+
+    // Process all available messages without blocking
+    loop {
+        match receiver.try_recv() {
+            Ok(DaemonMessage::StatusBarUpdate { window_id: _, side, items }) => {
+                // Convert protocol items to RenderItems
+                let render_items: Vec<RenderItem> = items
+                    .into_iter()
+                    .filter_map(convert_protocol_item_to_render_item)
+                    .collect();
+
+                // Update the appropriate side
+                match side {
+                    ProtocolStatusBarSide::Left => {
+                        status.set_left(render_items);
+                    }
+                    ProtocolStatusBarSide::Right => {
+                        status.set_right(render_items);
+                    }
+                }
+            }
+            Ok(_other_message) => {
+                // Other daemon messages - not status bar updates
+                // These are handled elsewhere
+            }
+            Err(broadcast::error::TryRecvError::Empty) => {
+                // No more messages available
+                break;
+            }
+            Err(broadcast::error::TryRecvError::Lagged(skipped)) => {
+                warn!("Status bar receiver lagged, skipped {} messages", skipped);
+                // Continue processing available messages
+            }
+            Err(broadcast::error::TryRecvError::Closed) => {
+                warn!("Daemon message channel closed");
+                break;
+            }
+        }
+    }
+}
+
+/// System to trigger status bar updates periodically
+///
+/// Dispatches StatusUpdateEvent at regular intervals (100ms) to allow
+/// plugins to update their status bar content.
+fn trigger_status_update(
+    time: Res<Time>,
+    mut timer: ResMut<StatusUpdateTimer>,
+    mut events: EventWriter<StatusUpdateEvent>,
+) {
+    timer.timer.tick(time.delta());
+
+    if timer.timer.just_finished() {
+        events.send(StatusUpdateEvent);
+    }
+}
+
+/// Convert protocol StatusRenderItem to plugin-api RenderItem
+///
+/// Maps the simplified IPC representation to the full RenderItem type.
+fn convert_protocol_item_to_render_item(item: StatusRenderItem) -> Option<RenderItem> {
+    match item {
+        StatusRenderItem::Text(s) => Some(RenderItem::Text(s)),
+        StatusRenderItem::Icon(icon) => Some(RenderItem::Icon(icon)),
+        StatusRenderItem::Foreground { r, g, b } => {
+            Some(RenderItem::Foreground(StatusColor::Rgb(r, g, b)))
+        }
+        StatusRenderItem::Background { r, g, b } => {
+            Some(RenderItem::Background(StatusColor::Rgb(r, g, b)))
+        }
+        StatusRenderItem::Bold => Some(RenderItem::Bold),
+        StatusRenderItem::Italic => Some(RenderItem::Italic),
+        StatusRenderItem::ResetAttributes => Some(RenderItem::ResetAttributes),
+        StatusRenderItem::Spacer => Some(RenderItem::Spacer),
+        StatusRenderItem::Padding(count) => Some(RenderItem::Padding(count)),
+        StatusRenderItem::Separator(sep) => Some(RenderItem::Separator(sep)),
     }
 }
 
@@ -416,5 +543,34 @@ mod tests {
         assert!(state.right_dirty);
         assert_eq!(state.left_items.len(), 0);
         assert_eq!(state.right_items.len(), 0);
+    }
+
+    #[test]
+    fn test_convert_protocol_item_to_render_item() {
+        // Test Text conversion
+        let item = StatusRenderItem::Text("Test".to_string());
+        let result = convert_protocol_item_to_render_item(item);
+        assert!(matches!(result, Some(RenderItem::Text(_))));
+
+        // Test Foreground conversion
+        let item = StatusRenderItem::Foreground { r: 255, g: 128, b: 64 };
+        let result = convert_protocol_item_to_render_item(item);
+        assert!(matches!(result, Some(RenderItem::Foreground(_))));
+
+        // Test Bold conversion
+        let item = StatusRenderItem::Bold;
+        let result = convert_protocol_item_to_render_item(item);
+        assert!(matches!(result, Some(RenderItem::Bold)));
+
+        // Test Padding conversion
+        let item = StatusRenderItem::Padding(3);
+        let result = convert_protocol_item_to_render_item(item);
+        assert!(matches!(result, Some(RenderItem::Padding(3))));
+    }
+
+    #[test]
+    fn test_status_update_timer() {
+        let timer = StatusUpdateTimer::default();
+        assert_eq!(timer.timer.duration().as_millis(), 100);
     }
 }
