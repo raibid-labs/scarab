@@ -6,7 +6,7 @@ use std::sync::Arc;
 /// VTE (Virtual Terminal Emulator) Parser Integration
 ///
 /// This module implements the VTE parser to handle ANSI escape sequences
-/// and update the SharedState grid with proper terminal emulation.
+/// and update terminal state with proper terminal emulation.
 ///
 /// Features:
 /// - Parse ANSI/VT100 escape sequences
@@ -15,6 +15,7 @@ use std::sync::Arc;
 /// - UTF-8 multibyte character handling
 /// - Scrollback buffer (10k lines)
 /// - Image protocol support (iTerm2)
+/// - Instance-based grid storage (for multiplexing)
 use vte::{Parser, Perform};
 
 /// Maximum scrollback buffer size (10,000 lines)
@@ -49,15 +50,121 @@ impl Default for TextAttributes {
     }
 }
 
+/// Local grid buffer for off-screen rendering
+///
+/// Each TerminalState owns its own Grid, enabling multiple panes
+/// to have independent terminal content. The active pane's Grid
+/// is "blitted" (copied) to SharedState for client rendering.
+#[derive(Clone)]
+pub struct Grid {
+    /// Cell data for the grid
+    pub cells: Vec<Cell>,
+    /// Number of columns
+    pub cols: u16,
+    /// Number of rows
+    pub rows: u16,
+}
+
+impl Grid {
+    /// Create a new grid with the specified dimensions
+    pub fn new(cols: u16, rows: u16) -> Self {
+        let size = cols as usize * rows as usize;
+        let cells = vec![
+            Cell {
+                char_codepoint: 0,
+                fg: DEFAULT_FG,
+                bg: DEFAULT_BG,
+                flags: 0,
+                _padding: [0; 3],
+            };
+            size
+        ];
+        Self { cells, cols, rows }
+    }
+
+    /// Resize the grid, preserving content where possible
+    pub fn resize(&mut self, new_cols: u16, new_rows: u16) {
+        let new_size = new_cols as usize * new_rows as usize;
+        let mut new_cells = vec![
+            Cell {
+                char_codepoint: 0,
+                fg: DEFAULT_FG,
+                bg: DEFAULT_BG,
+                flags: 0,
+                _padding: [0; 3],
+            };
+            new_size
+        ];
+
+        // Copy existing content
+        let copy_cols = self.cols.min(new_cols) as usize;
+        let copy_rows = self.rows.min(new_rows) as usize;
+
+        for y in 0..copy_rows {
+            for x in 0..copy_cols {
+                let old_idx = y * self.cols as usize + x;
+                let new_idx = y * new_cols as usize + x;
+                if old_idx < self.cells.len() && new_idx < new_cells.len() {
+                    new_cells[new_idx] = self.cells[old_idx];
+                }
+            }
+        }
+
+        self.cells = new_cells;
+        self.cols = new_cols;
+        self.rows = new_rows;
+    }
+
+    /// Clear the entire grid
+    pub fn clear(&mut self) {
+        for cell in &mut self.cells {
+            *cell = Cell {
+                char_codepoint: 0,
+                fg: DEFAULT_FG,
+                bg: DEFAULT_BG,
+                flags: 0,
+                _padding: [0; 3],
+            };
+        }
+    }
+
+    /// Get a cell at the given position (returns None if out of bounds)
+    #[inline]
+    pub fn get(&self, x: u16, y: u16) -> Option<&Cell> {
+        if x < self.cols && y < self.rows {
+            let idx = y as usize * self.cols as usize + x as usize;
+            self.cells.get(idx)
+        } else {
+            None
+        }
+    }
+
+    /// Get a mutable cell at the given position (returns None if out of bounds)
+    #[inline]
+    pub fn get_mut(&mut self, x: u16, y: u16) -> Option<&mut Cell> {
+        if x < self.cols && y < self.rows {
+            let idx = y as usize * self.cols as usize + x as usize;
+            self.cells.get_mut(idx)
+        } else {
+            None
+        }
+    }
+
+}
+
 /// Terminal state manager that implements the VTE Perform trait
+///
+/// Each TerminalState owns its own Grid for off-screen rendering,
+/// enabling multiplexing support where multiple panes can have
+/// independent terminal state.
 pub struct TerminalState {
-    /// Pointer to shared memory state
-    shared_ptr: *mut SharedState,
+    /// Local grid buffer (owned, not shared memory)
+    pub grid: Grid,
     /// VTE parser instance
     parser: Parser,
     /// Current cursor position (0-indexed)
-    cursor_x: u16,
-    cursor_y: u16,
+    pub cursor_x: u16,
+    pub cursor_y: u16,
     /// Current terminal dimensions
     cols: u16,
     rows: u16,
@@ -65,8 +172,6 @@ pub struct TerminalState {
     attrs: TextAttributes,
     /// Scrollback buffer (stores lines that scrolled off the top)
     scrollback: VecDeque<Vec<Cell>>,
-    /// Sequence counter for atomic updates
-    sequence_counter: Arc<AtomicU64>,
     /// Saved cursor position (for DECSC/DECRC)
     saved_cursor: (u16, u16),
     saved_attrs: TextAttributes,
@@ -75,22 +180,33 @@ pub struct TerminalState {
 }
 
 impl TerminalState {
-    /// Create a new terminal state manager
-    pub fn new(shared_ptr: *mut SharedState, sequence_counter: Arc<AtomicU64>) -> Self {
+    /// Create a new terminal state manager with local grid
+    ///
+    /// The grid is stored locally and can be blitted to shared memory
+    /// when this pane becomes active.
+    pub fn new(cols: u16, rows: u16) -> Self {
         Self {
-            shared_ptr,
+            grid: Grid::new(cols, rows),
             parser: Parser::new(),
             cursor_x: 0,
             cursor_y: 0,
-            cols: GRID_WIDTH as u16,
-            rows: GRID_HEIGHT as u16,
+            cols,
+            rows,
             attrs: TextAttributes::default(),
             scrollback: VecDeque::with_capacity(SCROLLBACK_SIZE),
-            sequence_counter,
             saved_cursor: (0, 0),
             saved_attrs: TextAttributes::default(),
             image_state: ImagePlacementState::new(),
         }
+    }
+
+    /// Create with legacy SharedState pointer (for backwards compatibility during migration)
+    #[deprecated(note = "Use new(cols, rows) instead - this is for migration only")]
+    pub fn new_legacy(shared_ptr: *mut SharedState, sequence_counter: Arc<AtomicU64>) -> Self {
+        let state = Self::new(GRID_WIDTH as u16, GRID_HEIGHT as u16);
+        // Initialize by blitting to shared memory immediately
+        state.blit_to_shm(shared_ptr, &sequence_counter);
+        state
     }
 
     /// Update terminal dimensions
@@ -99,10 +215,51 @@ impl TerminalState {
         self.rows = rows.min(GRID_HEIGHT as u16);
         self.cursor_x = self.cursor_x.min(self.cols.saturating_sub(1));
         self.cursor_y = self.cursor_y.min(self.rows.saturating_sub(1));
-        self.mark_dirty();
+        self.grid.resize(self.cols, self.rows);
+    }
+
+    /// Blit (copy) the local grid to shared memory
+    ///
+    /// This is called when this pane is active to update the client's view.
+    /// The sequence counter is incremented to signal to the client that
+    /// new data is available.
+    pub fn blit_to_shm(&self, shm: *mut SharedState, sequence_counter: &Arc<AtomicU64>) {
+        unsafe {
+            let state = &mut *shm;
+
+            // Copy cells from local grid to shared memory
+            // We need to map from local grid layout to SharedState's fixed GRID_WIDTH layout
+            for y in 0..self.rows.min(GRID_HEIGHT as u16) {
+                for x in 0..self.cols.min(GRID_WIDTH as u16) {
+                    let local_idx = y as usize * self.cols as usize + x as usize;
+                    let shm_idx = y as usize * GRID_WIDTH + x as usize;
+
+                    if local_idx < self.grid.cells.len() && shm_idx < state.cells.len() {
+                        state.cells[shm_idx] = self.grid.cells[local_idx];
+                    }
+                }
+            }
+
+            // Update cursor position
+            state.cursor_x = self.cursor_x;
+            state.cursor_y = self.cursor_y;
+
+            // Mark dirty and increment sequence number
+            state.dirty_flag = 1;
+            let new_seq = sequence_counter.fetch_add(1, Ordering::SeqCst) + 1;
+            state.sequence_number = new_seq;
+        }
+    }
+
+    /// Get dimensions
+    pub fn dimensions(&self) -> (u16, u16) {
+        (self.cols, self.rows)
     }
 
     /// Process PTY output through the VTE parser
+    ///
+    /// Updates the local grid - call blit_to_shm() after processing
+    /// to copy the grid to shared memory for the client.
     pub fn process_output(&mut self, data: &[u8]) {
         // Take ownership of the parser temporarily to satisfy borrow checker
         let mut parser = std::mem::replace(&mut self.parser, vte::Parser::new());
@@ -113,19 +270,6 @@ impl TerminalState {
 
         // Restore the parser
         self.parser = parser;
-        self.mark_dirty();
-    }
-
-    /// Mark shared state as dirty and increment sequence number
-    fn mark_dirty(&mut self) {
-        unsafe {
-            let state = &mut *self.shared_ptr;
-            state.dirty_flag = 1;
-            state.cursor_x = self.cursor_x;
-            state.cursor_y = self.cursor_y;
-            let new_seq = self.sequence_counter.fetch_add(1, Ordering::SeqCst) + 1;
-            state.sequence_number = new_seq;
-        }
     }
 
     /// Write a character at the current cursor position
@@ -141,21 +285,15 @@ impl TerminalState {
             self.scroll_up(1);
         }
 
-        // Map logical (col, row) to physical grid index
-        // We use fixed GRID_WIDTH for memory layout to avoid fragmentation
-        let index = (self.cursor_y as usize * GRID_WIDTH) + self.cursor_x as usize;
-
-        unsafe {
-            let state = &mut *self.shared_ptr;
-            if index < state.cells.len() {
-                state.cells[index] = Cell {
-                    char_codepoint: c as u32,
-                    fg: self.attrs.fg,
-                    bg: self.attrs.bg,
-                    flags: self.attrs.flags,
-                    _padding: [0; 3],
-                };
-            }
+        // Write to local grid
+        if let Some(cell) = self.grid.get_mut(self.cursor_x, self.cursor_y) {
+            *cell = Cell {
+                char_codepoint: c as u32,
+                fg: self.attrs.fg,
+                bg: self.attrs.bg,
+                flags: self.attrs.flags,
+                _padding: [0; 3],
+            };
         }
 
         self.cursor_x += 1;
@@ -163,43 +301,46 @@ impl TerminalState {
 
     /// Scroll the screen up by n lines
     fn scroll_up(&mut self, lines: usize) {
-        unsafe {
-            let state = &mut *self.shared_ptr;
+        let cols = self.cols as usize;
+        let rows = self.rows as usize;
 
-            // Save scrolled lines to scrollback buffer
-            for i in 0..lines {
-                if i >= self.rows as usize {
-                    break;
-                }
-                let mut line = Vec::with_capacity(self.cols as usize);
-                for x in 0..self.cols {
-                    let idx = i * GRID_WIDTH + x as usize; // Physical index
-                    line.push(state.cells[idx]);
-                }
-                self.scrollback.push_back(line);
-
-                // Limit scrollback buffer size
-                if self.scrollback.len() > SCROLLBACK_SIZE {
-                    self.scrollback.pop_front();
+        // Save scrolled lines to scrollback buffer
+        for i in 0..lines {
+            if i >= rows {
+                break;
+            }
+            let mut line = Vec::with_capacity(cols);
+            for x in 0..cols {
+                let idx = i * cols + x;
+                if idx < self.grid.cells.len() {
+                    line.push(self.grid.cells[idx]);
                 }
             }
+            self.scrollback.push_back(line);
 
-            // Shift grid content up
-            // We need to be careful here. We are shifting logical rows.
-            // But physically they are spaced by GRID_WIDTH.
-            for y in 0..(self.rows as usize - lines) {
-                for x in 0..self.cols as usize {
-                    let src_idx = (y + lines) * GRID_WIDTH + x;
-                    let dst_idx = y * GRID_WIDTH + x;
-                    state.cells[dst_idx] = state.cells[src_idx];
+            // Limit scrollback buffer size
+            if self.scrollback.len() > SCROLLBACK_SIZE {
+                self.scrollback.pop_front();
+            }
+        }
+
+        // Shift grid content up
+        for y in 0..(rows.saturating_sub(lines)) {
+            for x in 0..cols {
+                let src_idx = (y + lines) * cols + x;
+                let dst_idx = y * cols + x;
+                if src_idx < self.grid.cells.len() && dst_idx < self.grid.cells.len() {
+                    self.grid.cells[dst_idx] = self.grid.cells[src_idx];
                 }
             }
+        }
 
-            // Clear the bottom lines
-            for y in (self.rows as usize - lines)..self.rows as usize {
-                for x in 0..self.cols as usize {
-                    let idx = y * GRID_WIDTH + x;
-                    state.cells[idx] = Cell {
+        // Clear the bottom lines
+        for y in (rows.saturating_sub(lines))..rows {
+            for x in 0..cols {
+                let idx = y * cols + x;
+                if idx < self.grid.cells.len() {
+                    self.grid.cells[idx] = Cell {
                         char_codepoint: 0,
                         fg: DEFAULT_FG,
                         bg: DEFAULT_BG,
@@ -208,13 +349,13 @@ impl TerminalState {
                     };
                 }
             }
+        }
 
-            // Adjust cursor position
-            if self.cursor_y >= lines as u16 {
-                self.cursor_y -= lines as u16;
-            } else {
-                self.cursor_y = 0;
-            }
+        // Adjust cursor position
+        if self.cursor_y >= lines as u16 {
+            self.cursor_y -= lines as u16;
+        } else {
+            self.cursor_y = 0;
         }
 
         // Update image positions when scrolling
@@ -223,22 +364,7 @@ impl TerminalState {
 
     /// Clear the screen
     fn clear_screen(&mut self) {
-        unsafe {
-            let state = &mut *self.shared_ptr;
-            // Only clear visible area
-            for y in 0..self.rows as usize {
-                for x in 0..self.cols as usize {
-                    let idx = y * GRID_WIDTH + x;
-                    state.cells[idx] = Cell {
-                        char_codepoint: 0,
-                        fg: DEFAULT_FG,
-                        bg: DEFAULT_BG,
-                        flags: 0,
-                        _padding: [0; 3],
-                    };
-                }
-            }
-        }
+        self.grid.clear();
         self.cursor_x = 0;
         self.cursor_y = 0;
 
@@ -248,11 +374,11 @@ impl TerminalState {
 
     /// Clear from cursor to end of line
     fn clear_to_eol(&mut self) {
-        unsafe {
-            let state = &mut *self.shared_ptr;
-            for x in self.cursor_x as usize..self.cols as usize {
-                let idx = self.cursor_y as usize * GRID_WIDTH + x;
-                state.cells[idx] = Cell {
+        let cols = self.cols as usize;
+        for x in self.cursor_x as usize..cols {
+            let idx = self.cursor_y as usize * cols + x;
+            if idx < self.grid.cells.len() {
+                self.grid.cells[idx] = Cell {
                     char_codepoint: 0,
                     fg: DEFAULT_FG,
                     bg: DEFAULT_BG,
@@ -463,16 +589,16 @@ impl Perform for TerminalState {
             'J' => {
                 // Erase in Display
                 let n = params.get(0).copied().unwrap_or(0);
+                let cols = self.cols as usize;
                 match n {
                     0 => {
                         // Clear from cursor to end of screen
                         self.clear_to_eol();
                         for y in (self.cursor_y as usize + 1)..self.rows as usize {
-                            for x in 0..self.cols as usize {
-                                unsafe {
-                                    let state = &mut *self.shared_ptr;
-                                    let idx = y * GRID_WIDTH + x;
-                                    state.cells[idx] = Cell::default();
+                            for x in 0..cols {
+                                let idx = y * cols + x;
+                                if idx < self.grid.cells.len() {
+                                    self.grid.cells[idx] = Cell::default();
                                 }
                             }
                         }
@@ -480,11 +606,10 @@ impl Perform for TerminalState {
                     1 => {
                         // Clear from cursor to beginning of screen
                         for y in 0..self.cursor_y as usize {
-                            for x in 0..self.cols as usize {
-                                unsafe {
-                                    let state = &mut *self.shared_ptr;
-                                    let idx = y * GRID_WIDTH + x;
-                                    state.cells[idx] = Cell::default();
+                            for x in 0..cols {
+                                let idx = y * cols + x;
+                                if idx < self.grid.cells.len() {
+                                    self.grid.cells[idx] = Cell::default();
                                 }
                             }
                         }
@@ -499,25 +624,24 @@ impl Perform for TerminalState {
             'K' => {
                 // Erase in Line
                 let n = params.get(0).copied().unwrap_or(0);
+                let cols = self.cols as usize;
                 match n {
                     0 => self.clear_to_eol(),
                     1 => {
                         // Clear from beginning of line to cursor
-                        unsafe {
-                            let state = &mut *self.shared_ptr;
-                            for x in 0..=self.cursor_x as usize {
-                                let idx = self.cursor_y as usize * GRID_WIDTH + x;
-                                state.cells[idx] = Cell::default();
+                        for x in 0..=self.cursor_x as usize {
+                            let idx = self.cursor_y as usize * cols + x;
+                            if idx < self.grid.cells.len() {
+                                self.grid.cells[idx] = Cell::default();
                             }
                         }
                     }
                     2 => {
                         // Clear entire line
-                        unsafe {
-                            let state = &mut *self.shared_ptr;
-                            for x in 0..self.cols as usize {
-                                let idx = self.cursor_y as usize * GRID_WIDTH + x;
-                                state.cells[idx] = Cell::default();
+                        for x in 0..cols {
+                            let idx = self.cursor_y as usize * cols + x;
+                            if idx < self.grid.cells.len() {
+                                self.grid.cells[idx] = Cell::default();
                             }
                         }
                     }

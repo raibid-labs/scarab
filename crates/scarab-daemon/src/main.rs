@@ -1,17 +1,16 @@
 use anyhow::Result;
-use portable_pty::{CommandBuilder, NativePtySystem, PtySize, PtySystem};
+use portable_pty::PtySize;
 use scarab_config::ConfigLoader;
 use scarab_protocol::{SharedState, SHMEM_PATH};
 use shared_memory::ShmemConf;
 use std::io::Read;
 use std::sync::atomic::AtomicU64;
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 use tokio::sync::mpsc;
 
 use scarab_daemon::ipc::{ClientRegistry, IpcServer, PtyHandle};
 use scarab_daemon::plugin_manager::PluginManager;
 use scarab_daemon::session::SessionManager;
-use scarab_daemon::vte;
 
 use scarab_plugin_api::context::PluginSharedState;
 use scarab_plugin_api::PluginContext;
@@ -67,39 +66,12 @@ async fn main() -> Result<()> {
         );
     }
 
-    // 2. Setup PTY System (legacy - will be per-session)
-    let pty_system = NativePtySystem::default();
-    let pair = pty_system.openpty(PtySize {
-        rows: config.terminal.rows,
-        cols: config.terminal.columns,
-        pixel_width: 0,
-        pixel_height: 0,
-    })?;
-
-    // Use configured shell or fallback to bash
-    let shell = &config.terminal.default_shell;
-    let mut cmd = CommandBuilder::new(shell);
-
-    // Set the working directory to user's home
-    if let Ok(home) = std::env::var("HOME") {
-        cmd.cwd(home);
-    }
-
-    // Set environment variable for Navigation Protocol
-    cmd.env("SCARAB_NAV_SOCKET", "/tmp/scarab-nav.sock");
-
-    let _child = pair.slave.spawn_command(cmd)?;
+    // PTY is now managed per-pane by SessionManager
+    // The active pane's PTY master is accessed via session_manager.get_default_session()
     println!(
-        "Spawned shell: {} ({}x{})",
-        shell, config.terminal.columns, config.terminal.rows
+        "Terminal configuration: {}x{} (shell: {})",
+        config.terminal.columns, config.terminal.rows, config.terminal.default_shell
     );
-
-    // Important: Release slave handle in parent process
-    drop(pair.slave);
-
-    let reader = pair.master.try_clone_reader()?;
-    let reader = Arc::new(Mutex::new(reader));
-    let writer = pair.master.take_writer()?;
 
     // 2. Initialize Shared Memory
     // Try to create new shared memory, or open existing if it already exists
@@ -137,10 +109,10 @@ async fn main() -> Result<()> {
 
     let sequence_counter = Arc::new(AtomicU64::new(0));
 
-    // Initialize VTE parser
-    let mut terminal_state = vte::TerminalState::new(shared_ptr, sequence_counter.clone());
-    println!("VTE Parser: Active");
-    println!("Scrollback buffer: 10,000 lines");
+    // VTE parser is now per-pane (inside TerminalState owned by each Pane)
+    // The active pane's terminal state is blitted to shared memory
+    println!("VTE Parser: Per-pane (multiplexing enabled)");
+    println!("Scrollback buffer: 10,000 lines per pane");
 
     // 3. Setup IPC Control Channel with channels for thread safety
     let (resize_tx, mut resize_rx) = mpsc::channel::<PtySize>(32);
@@ -207,7 +179,8 @@ async fn main() -> Result<()> {
     });
 
     // Spawn PTY writer task to handle input from IPC
-    let mut writer = writer;
+    // Routes input to the active pane's PTY
+    let sm_writer = session_manager.clone();
     let pm_input = plugin_manager.clone();
     tokio::spawn(async move {
         use std::io::Write;
@@ -228,29 +201,62 @@ async fn main() -> Result<()> {
                 continue; // Input consumed by plugin
             }
 
-            if let Err(e) = writer.write_all(&processed_data) {
-                eprintln!("PTY write error: {}", e);
-                break;
-            }
-            if let Err(e) = writer.flush() {
-                eprintln!("PTY flush error: {}", e);
-                break;
+            // Route input to the active pane's PTY writer
+            if let Some(session) = sm_writer.get_default_session() {
+                if let Some(writer_arc) = session.get_active_pty_writer() {
+                    let mut writer_lock = writer_arc.lock().unwrap();
+                    if let Some(ref mut writer) = *writer_lock {
+                        if let Err(e) = writer.write_all(&processed_data) {
+                            eprintln!("PTY write error: {}", e);
+                            continue;
+                        }
+                        if let Err(e) = writer.flush() {
+                            eprintln!("PTY flush error: {}", e);
+                            continue;
+                        }
+                    }
+                }
             }
         }
     });
 
     println!("Daemon initialized. Listening for input...");
 
-    // 4. Main Loop with PTY reading and resize handling
+    // 4. Main Loop - Compositor Architecture
+    // Reads from active pane's PTY, updates its TerminalState, blits to SharedState
     loop {
+        // Get the active pane from session manager
+        let active_pane = session_manager
+            .get_default_session()
+            .and_then(|s| s.get_active_pane());
+
+        if active_pane.is_none() {
+            // No active pane - wait a bit and retry
+            tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
+            continue;
+        }
+
+        let active_pane = active_pane.unwrap();
+        let pty_master_arc = active_pane.pty_master();
+        let terminal_state_arc = active_pane.terminal_state();
+
         tokio::select! {
-            // Handle PTY output
+            // Handle PTY output from active pane
             read_result = tokio::task::spawn_blocking({
-                let reader_clone = Arc::clone(&reader);
+                let pty_arc = Arc::clone(&pty_master_arc);
                 move || {
                     let mut buf = [0u8; 4096];
-                    let mut reader_lock = reader_clone.lock().unwrap();
-                    reader_lock.read(&mut buf).map(|n| (n, buf))
+                    let pty_lock = pty_arc.lock().unwrap();
+                    if let Some(ref master) = *pty_lock {
+                        // Try to clone reader for non-blocking read
+                        match master.try_clone_reader() {
+                            Ok(mut reader) => reader.read(&mut buf).map(|n| (n, buf)),
+                            Err(e) => Err(std::io::Error::new(std::io::ErrorKind::Other, e.to_string()))
+                        }
+                    } else {
+                        // No PTY - return 0 bytes (EOF-like)
+                        Ok((0, buf))
+                    }
                 }
             }) => {
                 match read_result? {
@@ -276,41 +282,51 @@ async fn main() -> Result<()> {
                             }
                         };
 
-                        // Process output through VTE parser
-                        // This will:
-                        // 1. Parse ANSI escape sequences
-                        // 2. Update grid cells with proper colors and attributes
-                        // 3. Handle cursor positioning
-                        // 4. Manage scrollback buffer
-                        // 5. Atomically update shared state
-                        terminal_state.process_output(processed_data.as_bytes());
+                        // Process output through the pane's VTE parser
+                        // This updates the pane's local grid
+                        {
+                            let mut terminal_state = terminal_state_arc.write();
+                            terminal_state.process_output(processed_data.as_bytes());
+
+                            // Blit (copy) the pane's grid to shared memory
+                            terminal_state.blit_to_shm(shared_ptr, &sequence_counter);
+                        }
                     }
-                    Ok(_) => break, // EOF
+                    Ok(_) => {
+                        // EOF - pane's shell exited
+                        // For now, just wait - in future, could close the pane
+                        tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
+                    }
                     Err(e) => {
                         eprintln!("PTY Error: {}", e);
-                        break;
+                        tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
                     }
                 }
             }
 
             // Handle resize events from IPC
             Some(pty_size) = resize_rx.recv() => {
-                println!("Resizing PTY to {}x{}", pty_size.cols, pty_size.rows);
-                
-                // Resize PTY
-                if let Err(e) = pair.master.resize(pty_size) {
-                    eprintln!("Failed to resize PTY: {}", e);
+                println!("Resizing active pane to {}x{}", pty_size.cols, pty_size.rows);
+
+                // Resize the active pane (both PTY and terminal state)
+                if let Err(e) = active_pane.resize(pty_size.cols, pty_size.rows) {
+                    eprintln!("Failed to resize pane: {}", e);
                 }
-                
-                // Resize internal VTE state
-                terminal_state.resize(pty_size.cols, pty_size.rows);
+
+                // Blit updated state to shared memory
+                {
+                    let terminal_state = terminal_state_arc.read();
+                    terminal_state.blit_to_shm(shared_ptr, &sequence_counter);
+                }
             }
         }
     }
 
     // Cleanup shared memory
-    drop(shmem);
-    println!("Daemon shutting down...");
-
-    Ok(())
+    #[allow(unreachable_code)]
+    {
+        drop(shmem);
+        println!("Daemon shutting down...");
+        Ok(())
+    }
 }

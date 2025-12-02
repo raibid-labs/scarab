@@ -1,4 +1,4 @@
-use super::GridState;
+use crate::vte::TerminalState;
 use anyhow::Result;
 use parking_lot::RwLock;
 use portable_pty::{CommandBuilder, NativePtySystem, PtySize, PtySystem};
@@ -33,21 +33,24 @@ impl Rect {
     }
 }
 
-/// A single terminal pane with its own PTY and grid state
+/// A single terminal pane with its own PTY and terminal state
 ///
 /// Each pane represents an independent terminal instance that can be
 /// displayed as part of a tab's layout. The pane owns:
 /// - A PTY master for I/O with the shell process
-/// - A GridState for terminal cell data
+/// - A PTY writer for sending input to the shell
+/// - A TerminalState with its own Grid for VTE parsing
 /// - A viewport defining its position within the parent layout
 pub struct Pane {
     pub id: PaneId,
-    /// PTY master for reading/writing terminal data
+    /// PTY master for reading terminal output
     /// Wrapped in Arc<Mutex<Option<...>>> to ensure Sync.
     /// MasterPty is Send, Mutex makes it Sync.
     pub pty_master: Arc<Mutex<Option<Box<dyn portable_pty::MasterPty + Send>>>>,
-    /// Grid state for this pane's terminal content
-    pub grid_state: Arc<RwLock<GridState>>,
+    /// PTY writer for sending input to the shell
+    pub pty_writer: Arc<Mutex<Option<Box<dyn std::io::Write + Send>>>>,
+    /// Terminal state with its own grid (VTE parser + cell buffer)
+    pub terminal_state: Arc<RwLock<TerminalState>>,
     /// Position and size within the parent layout
     pub viewport: Rect,
     /// Shell command running in this pane
@@ -88,6 +91,9 @@ impl Pane {
         // Spawn shell in PTY
         let _child = pair.slave.spawn_command(cmd)?;
 
+        // Get the writer from the master before storing it
+        let writer = pair.master.take_writer()?;
+
         // NativePtySystem::openpty returns MasterPty which is Send on supported platforms.
         let master: Box<dyn portable_pty::MasterPty + Send> = pair.master;
 
@@ -97,7 +103,8 @@ impl Pane {
         Ok(Self {
             id,
             pty_master: Arc::new(Mutex::new(Some(master))),
-            grid_state: Arc::new(RwLock::new(GridState::new(cols, rows))),
+            pty_writer: Arc::new(Mutex::new(Some(writer))),
+            terminal_state: Arc::new(RwLock::new(TerminalState::new(cols, rows))),
             viewport: Rect::full(cols, rows),
             shell: shell.to_string(),
             cwd,
@@ -110,7 +117,8 @@ impl Pane {
         Self {
             id,
             pty_master: Arc::new(Mutex::new(None)),
-            grid_state: Arc::new(RwLock::new(GridState::new(cols, rows))),
+            pty_writer: Arc::new(Mutex::new(None)),
+            terminal_state: Arc::new(RwLock::new(TerminalState::new(cols, rows))),
             viewport: Rect::full(cols, rows),
             shell,
             cwd,
@@ -118,7 +126,7 @@ impl Pane {
         }
     }
 
-    /// Resize the pane's PTY and grid state
+    /// Resize the pane's PTY and terminal state
     pub fn resize(&self, cols: u16, rows: u16) -> Result<()> {
         // Resize PTY
         if let Some(ref master) = *self.pty_master.lock().unwrap() {
@@ -130,10 +138,9 @@ impl Pane {
             })?;
         }
 
-        // Update grid state dimensions
-        let mut state = self.grid_state.write();
-        state.cols = cols;
-        state.rows = rows;
+        // Resize terminal state (includes grid)
+        let mut state = self.terminal_state.write();
+        state.resize(cols, rows);
 
         Ok(())
     }
@@ -143,9 +150,14 @@ impl Pane {
         self.viewport = viewport;
     }
 
-    /// Get the PTY master for I/O operations
+    /// Get the PTY master for I/O operations (reading output)
     pub fn pty_master(&self) -> Arc<Mutex<Option<Box<dyn portable_pty::MasterPty + Send>>>> {
         Arc::clone(&self.pty_master)
+    }
+
+    /// Get the PTY writer for sending input to the shell
+    pub fn pty_writer(&self) -> Arc<Mutex<Option<Box<dyn std::io::Write + Send>>>> {
+        Arc::clone(&self.pty_writer)
     }
 
     /// Check if this pane has an active PTY
@@ -155,8 +167,19 @@ impl Pane {
 
     /// Get the pane's dimensions
     pub fn dimensions(&self) -> (u16, u16) {
-        let state = self.grid_state.read();
-        (state.cols, state.rows)
+        let state = self.terminal_state.read();
+        state.dimensions()
+    }
+
+    /// Process PTY output through this pane's terminal state
+    pub fn process_output(&self, data: &[u8]) {
+        let mut state = self.terminal_state.write();
+        state.process_output(data);
+    }
+
+    /// Get a reference to the terminal state for blitting
+    pub fn terminal_state(&self) -> &Arc<RwLock<TerminalState>> {
+        &self.terminal_state
     }
 }
 

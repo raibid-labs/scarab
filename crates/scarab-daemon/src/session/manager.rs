@@ -1,6 +1,6 @@
 use super::pane::{Pane, PaneId};
 use super::tab::{Tab, TabId, SplitDirection};
-use super::{ClientId, GridState, SessionId, SessionStore};
+use super::{ClientId, SessionId, SessionStore, TerminalState};
 use anyhow::{bail, Result};
 use parking_lot::RwLock;
 use std::collections::{HashMap, HashSet};
@@ -233,22 +233,27 @@ impl Session {
             .and_then(|tab| tab.get_active_pane())
     }
 
-    /// Get the active pane's grid state
-    pub fn get_active_grid_state(&self) -> Option<Arc<RwLock<GridState>>> {
-        self.get_active_pane().map(|pane| Arc::clone(&pane.grid_state))
+    /// Get the active pane's terminal state for VTE processing
+    pub fn get_active_terminal_state(&self) -> Option<Arc<RwLock<TerminalState>>> {
+        self.get_active_pane().map(|pane| Arc::clone(&pane.terminal_state))
     }
 
-    /// Get the active pane's PTY master for I/O
+    /// Get the active pane's PTY master for reading output
     pub fn get_active_pty_master(&self) -> Option<Arc<Mutex<Option<Box<dyn portable_pty::MasterPty + Send>>>>> {
         self.get_active_pane().map(|pane| pane.pty_master())
     }
 
+    /// Get the active pane's PTY writer for sending input
+    pub fn get_active_pty_writer(&self) -> Option<Arc<Mutex<Option<Box<dyn std::io::Write + Send>>>>> {
+        self.get_active_pane().map(|pane| pane.pty_writer())
+    }
+
     // ==================== Legacy Compatibility ====================
 
-    /// Get the grid state (returns active pane's grid state for compatibility)
-    pub fn grid_state(&self) -> Arc<RwLock<GridState>> {
-        self.get_active_grid_state()
-            .unwrap_or_else(|| Arc::new(RwLock::new(GridState::new(80, 24))))
+    /// Get the terminal state (returns active pane's terminal state for compatibility)
+    pub fn terminal_state(&self) -> Arc<RwLock<TerminalState>> {
+        self.get_active_terminal_state()
+            .unwrap_or_else(|| Arc::new(RwLock::new(TerminalState::new(80, 24))))
     }
 
     /// Get PTY master (returns active pane's PTY for compatibility)
@@ -600,8 +605,8 @@ mod tests {
         let pty = session.get_active_pty_master();
         assert!(pty.is_some());
 
-        // Get active pane's grid state
-        let grid = session.get_active_grid_state();
-        assert!(grid.is_some());
+        // Get active pane's terminal state
+        let terminal = session.get_active_terminal_state();
+        assert!(terminal.is_some());
     }
 }
