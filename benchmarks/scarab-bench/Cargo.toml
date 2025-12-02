@@ -1,0 +1,15 @@
+[package]
+name = "scarab-bench"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[dependencies]
+clap = { version = "4.4", features = ["derive"] }
+ratatui = "0.26"
+crossterm = "0.27"
+rand = "0.8"
+anyhow = "1.0"
+human_bytes = "0.4"
+sysinfo = "0.30"
+chrono = "0.4"
