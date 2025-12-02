@@ -206,6 +206,11 @@ impl CopyModeState {
         self.toggle_selection(SelectionMode::Block);
     }
 
+    /// Toggle word selection mode
+    pub fn toggle_word_selection(&mut self) {
+        self.toggle_selection(SelectionMode::Word);
+    }
+
     /// Get the selected text using a callback to retrieve line content
     ///
     /// The callback function should take a line number (y coordinate) and return
@@ -486,6 +491,175 @@ pub fn get_selection_bounds(selection: &Selection) -> (u16, i32, u16, i32) {
     let max_y = start.y.max(end.y);
 
     (min_x, min_y, max_x, max_y)
+}
+
+/// Find word boundaries at the given position in a line
+///
+/// Returns (start_x, end_x) representing the word boundaries.
+/// A word is defined as a sequence of alphanumeric characters or underscores.
+///
+/// # Arguments
+/// * `x` - The column position to search from
+/// * `line` - The line content
+///
+/// # Returns
+/// Tuple of (start_x, end_x) representing the word boundaries
+pub fn find_word_bounds(x: u16, line: &str) -> (u16, u16) {
+    let x_pos = x as usize;
+
+    if line.is_empty() || x_pos >= line.len() {
+        return (x, x);
+    }
+
+    let chars: Vec<char> = line.chars().collect();
+
+    // Check if current position is a word character
+    let is_word_char = |c: char| c.is_alphanumeric() || c == '_';
+
+    if x_pos >= chars.len() {
+        return (x, x);
+    }
+
+    let current_char = chars[x_pos];
+
+    // If not on a word character, just return the current position
+    if !is_word_char(current_char) {
+        return (x, x);
+    }
+
+    // Find start of word (move left)
+    let mut start = x_pos;
+    while start > 0 && is_word_char(chars[start - 1]) {
+        start -= 1;
+    }
+
+    // Find end of word (move right)
+    let mut end = x_pos;
+    while end < chars.len() - 1 && is_word_char(chars[end + 1]) {
+        end += 1;
+    }
+
+    (start as u16, end as u16)
+}
+
+// Re-export status bar types for use in indicator functions
+use crate::status_bar::{RenderItem, Color};
+
+/// Generate mode indicator render items for status bar integration
+///
+/// Creates a styled indicator showing the current copy mode state.
+/// Returns an empty vector if copy mode is not active.
+///
+/// # Arguments
+/// * `state` - The current copy mode state
+/// * `search_active` - Whether search is currently active
+///
+/// # Returns
+/// Vector of RenderItem elements for the status bar
+///
+/// # Example
+/// ```rust
+/// use scarab_plugin_api::copy_mode::{CopyModeState, copy_mode_indicator};
+///
+/// let mut state = CopyModeState::new();
+/// state.active = true;
+/// let items = copy_mode_indicator(&state, false);
+/// // Returns: [Background(orange), Foreground(dark), Bold, Text(" COPY "), ResetAttributes]
+/// ```
+pub fn copy_mode_indicator(state: &CopyModeState, search_active: bool) -> Vec<RenderItem> {
+    if !state.active {
+        return vec![];
+    }
+
+    let mode_text = if search_active {
+        "SEARCH"
+    } else {
+        match state.selection {
+            None => "COPY",
+            Some(_) => match state.selection_mode {
+                SelectionMode::None => "COPY",
+                SelectionMode::Cell => "VISUAL",
+                SelectionMode::Line => "V-LINE",
+                SelectionMode::Block => "V-BLOCK",
+                SelectionMode::Word => "V-WORD",
+            }
+        }
+    };
+
+    vec![
+        RenderItem::Background(Color::Rgb(255, 158, 100)), // Orange
+        RenderItem::Foreground(Color::Rgb(26, 27, 38)),    // Dark text
+        RenderItem::Bold,
+        RenderItem::Text(format!(" {} ", mode_text)),
+        RenderItem::ResetAttributes,
+    ]
+}
+
+/// Generate position indicator render items for status bar
+///
+/// Shows the current cursor position in "L{line},C{column}" format.
+/// Line and column numbers are 1-indexed for user display.
+///
+/// # Arguments
+/// * `state` - The current copy mode state
+///
+/// # Returns
+/// Vector of RenderItem elements for the status bar
+///
+/// # Example
+/// ```rust
+/// use scarab_plugin_api::copy_mode::{CopyModeState, CopyModeCursor, copy_mode_position_indicator};
+///
+/// let mut state = CopyModeState::new();
+/// state.active = true;
+/// state.cursor = CopyModeCursor::new(5, 10);
+/// let items = copy_mode_position_indicator(&state);
+/// // Returns: [Text(" L11,C6 ")]
+/// ```
+pub fn copy_mode_position_indicator(state: &CopyModeState) -> Vec<RenderItem> {
+    if !state.active {
+        return vec![];
+    }
+
+    vec![
+        RenderItem::Text(format!(" L{},C{} ", state.cursor.y + 1, state.cursor.x + 1)),
+    ]
+}
+
+/// Generate search match count indicator for status bar
+///
+/// Shows the current match number and total count in "{current}/{total}" format.
+/// Returns empty vector if search is not active or there are no matches.
+///
+/// # Arguments
+/// * `search` - The current search state
+///
+/// # Returns
+/// Vector of RenderItem elements for the status bar
+///
+/// # Example
+/// ```rust
+/// use scarab_plugin_api::copy_mode::{SearchState, SearchMatch, CopyModeCursor, search_match_indicator};
+///
+/// let mut search = SearchState::new();
+/// search.active = true;
+/// search.matches = vec![
+///     SearchMatch::new(CopyModeCursor::new(0, 0), CopyModeCursor::new(5, 0)),
+///     SearchMatch::new(CopyModeCursor::new(0, 1), CopyModeCursor::new(5, 1)),
+/// ];
+/// search.current_match = Some(0);
+/// let items = search_match_indicator(&search);
+/// // Returns: [Text(" 1/2 ")]
+/// ```
+pub fn search_match_indicator(search: &SearchState) -> Vec<RenderItem> {
+    if !search.active || search.matches.is_empty() {
+        return vec![];
+    }
+
+    let current = search.current_match.map(|i| i + 1).unwrap_or(0);
+    vec![
+        RenderItem::Text(format!(" {}/{} ", current, search.matches.len())),
+    ]
 }
 
 #[cfg(test)]
@@ -907,6 +1081,20 @@ mod tests {
     }
 
     #[test]
+    fn test_toggle_word_selection() {
+        let mut state = CopyModeState::new();
+        state.cursor = CopyModeCursor::new(5, 5);
+
+        state.toggle_word_selection();
+        assert_eq!(state.selection_mode, SelectionMode::Word);
+        assert!(state.selection.is_some());
+
+        state.toggle_word_selection();
+        assert_eq!(state.selection_mode, SelectionMode::None);
+        assert!(state.selection.is_none());
+    }
+
+    #[test]
     fn test_get_selection_text_cell_single_line() {
         let mut state = CopyModeState::new();
         state.cursor = CopyModeCursor::new(5, 0);
@@ -1014,5 +1202,138 @@ mod tests {
         let selection = state.selection.as_ref().unwrap();
         assert_eq!(selection.anchor, CopyModeCursor::new(5, 5));
         assert_eq!(selection.active, CopyModeCursor::new(6, 6));
+    }
+
+    #[test]
+    fn test_find_word_bounds() {
+        let line = "Hello world, this is a test";
+
+        // Test word "Hello"
+        let (start, end) = find_word_bounds(2, line);
+        assert_eq!(start, 0);
+        assert_eq!(end, 4);
+
+        // Test word "world"
+        let (start, end) = find_word_bounds(6, line);
+        assert_eq!(start, 6);
+        assert_eq!(end, 10);
+
+        // Test word "test"
+        let (start, end) = find_word_bounds(24, line);
+        assert_eq!(start, 23);
+        assert_eq!(end, 26);
+
+        // Test on space (non-word character)
+        let (start, end) = find_word_bounds(5, line);
+        assert_eq!(start, 5);
+        assert_eq!(end, 5);
+    }
+
+    #[test]
+    fn test_find_word_bounds_empty_line() {
+        let line = "";
+        let (start, end) = find_word_bounds(0, line);
+        assert_eq!(start, 0);
+        assert_eq!(end, 0);
+    }
+
+    #[test]
+    fn test_find_word_bounds_with_underscores() {
+        let line = "hello_world test_case";
+
+        // Test word with underscore
+        let (start, end) = find_word_bounds(6, line);
+        assert_eq!(start, 0);
+        assert_eq!(end, 10); // "hello_world"
+    }
+
+    #[test]
+    fn test_copy_mode_indicator() {
+        let mut state = CopyModeState::new();
+
+        // Inactive state
+        let items = copy_mode_indicator(&state, false);
+        assert_eq!(items.len(), 0);
+
+        // Active copy mode
+        state.active = true;
+        let items = copy_mode_indicator(&state, false);
+        assert!(items.len() > 0);
+        match &items[3] {
+            RenderItem::Text(s) => assert_eq!(s, " COPY "),
+            _ => panic!("Expected text item"),
+        }
+
+        // Visual mode
+        state.selection = Some(Selection::at_point(CopyModeCursor::new(0, 0)));
+        state.selection_mode = SelectionMode::Cell;
+        let items = copy_mode_indicator(&state, false);
+        match &items[3] {
+            RenderItem::Text(s) => assert_eq!(s, " VISUAL "),
+            _ => panic!("Expected text item"),
+        }
+
+        // Line mode
+        state.selection_mode = SelectionMode::Line;
+        let items = copy_mode_indicator(&state, false);
+        match &items[3] {
+            RenderItem::Text(s) => assert_eq!(s, " V-LINE "),
+            _ => panic!("Expected text item"),
+        }
+
+        // Search mode
+        let items = copy_mode_indicator(&state, true);
+        match &items[3] {
+            RenderItem::Text(s) => assert_eq!(s, " SEARCH "),
+            _ => panic!("Expected text item"),
+        }
+    }
+
+    #[test]
+    fn test_copy_mode_position_indicator() {
+        let mut state = CopyModeState::new();
+
+        // Inactive state
+        let items = copy_mode_position_indicator(&state);
+        assert_eq!(items.len(), 0);
+
+        // Active with cursor position
+        state.active = true;
+        state.cursor = CopyModeCursor::new(5, 10);
+        let items = copy_mode_position_indicator(&state);
+        assert_eq!(items.len(), 1);
+        match &items[0] {
+            RenderItem::Text(s) => assert_eq!(s, " L11,C6 "),
+            _ => panic!("Expected text item"),
+        }
+    }
+
+    #[test]
+    fn test_search_match_indicator() {
+        let mut search = SearchState::new();
+
+        // Inactive search
+        let items = search_match_indicator(&search);
+        assert_eq!(items.len(), 0);
+
+        // Active search with no matches
+        search.active = true;
+        let items = search_match_indicator(&search);
+        assert_eq!(items.len(), 0);
+
+        // Active search with matches
+        search.matches = vec![
+            SearchMatch::new(CopyModeCursor::new(0, 0), CopyModeCursor::new(5, 0)),
+            SearchMatch::new(CopyModeCursor::new(0, 1), CopyModeCursor::new(5, 1)),
+            SearchMatch::new(CopyModeCursor::new(0, 2), CopyModeCursor::new(5, 2)),
+        ];
+        search.current_match = Some(1);
+
+        let items = search_match_indicator(&search);
+        assert_eq!(items.len(), 1);
+        match &items[0] {
+            RenderItem::Text(s) => assert_eq!(s, " 2/3 "),
+            _ => panic!("Expected text item"),
+        }
     }
 }

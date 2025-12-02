@@ -4,8 +4,12 @@
 //! providing systems and resources for vim-like keyboard navigation and selection.
 
 use bevy::prelude::*;
-use scarab_plugin_api::copy_mode::{find_matches, get_selection_bounds, CopyModeState, SearchDirection, SearchState, SelectionMode};
+use scarab_plugin_api::copy_mode::{
+    copy_mode_indicator, copy_mode_position_indicator, find_matches, get_selection_bounds,
+    search_match_indicator, CopyModeState, SearchDirection, SearchState, SelectionMode,
+};
 use scarab_plugin_api::key_tables::CopyModeAction;
+use scarab_plugin_api::status_bar::RenderItem;
 
 /// Bevy plugin for copy mode functionality
 pub struct CopyModePlugin;
@@ -16,6 +20,7 @@ impl Plugin for CopyModePlugin {
             .init_resource::<CopyModeSearchResource>()
             .init_resource::<TerminalDimensions>()
             .add_event::<CopyModeActionEvent>()
+            .add_event::<CopyModeIndicatorEvent>()
             .add_systems(Startup, spawn_copy_mode_cursor)
             .add_systems(
                 Update,
@@ -25,6 +30,7 @@ impl Plugin for CopyModePlugin {
                     update_cursor_position,
                     render_selection_highlights,
                     render_search_highlights,
+                    update_mode_indicator,
                 )
                     .chain()
                     .run_if(copy_mode_active),
@@ -142,6 +148,20 @@ pub struct SearchHighlight {
 pub struct CopyModeActionEvent {
     /// The action to perform
     pub action: CopyModeAction,
+}
+
+/// Event for copy mode indicator updates
+///
+/// This event is emitted whenever the copy mode state changes and
+/// the status bar indicators need to be updated.
+#[derive(Event, Clone, Debug)]
+pub struct CopyModeIndicatorEvent {
+    /// Mode indicator items (e.g., "COPY", "VISUAL")
+    pub mode_items: Vec<RenderItem>,
+    /// Position indicator items (e.g., "L10,C5")
+    pub position_items: Vec<RenderItem>,
+    /// Search match indicator items (e.g., "2/5")
+    pub match_items: Vec<RenderItem>,
 }
 
 /// Run condition that checks if copy mode is active
@@ -358,6 +378,33 @@ pub fn render_search_highlights(
     }
 }
 
+/// System that updates the mode indicator for the status bar
+///
+/// This system generates indicator events whenever the copy mode state changes.
+/// The events can be consumed by the status bar system to update the display.
+pub fn update_mode_indicator(
+    copy_mode_state: Res<CopyModeStateResource>,
+    search_state: Res<CopyModeSearchResource>,
+    mut indicator_events: EventWriter<CopyModeIndicatorEvent>,
+) {
+    // Only emit indicator events if copy mode is active
+    if !copy_mode_state.is_active() {
+        return;
+    }
+
+    // Generate indicator items using the plugin API functions
+    let mode_items = copy_mode_indicator(&copy_mode_state.state, search_state.is_active());
+    let position_items = copy_mode_position_indicator(&copy_mode_state.state);
+    let match_items = search_match_indicator(&search_state.state);
+
+    // Emit the indicator event
+    indicator_events.send(CopyModeIndicatorEvent {
+        mode_items,
+        position_items,
+        match_items,
+    });
+}
+
 /// System that handles copy mode action events
 pub fn handle_copy_mode_actions(
     mut events: EventReader<CopyModeActionEvent>,
@@ -563,5 +610,18 @@ mod tests {
         };
 
         assert!(matches!(event.action, CopyModeAction::MoveLeft));
+    }
+
+    #[test]
+    fn test_copy_mode_indicator_event() {
+        let event = CopyModeIndicatorEvent {
+            mode_items: vec![RenderItem::Text("COPY".to_string())],
+            position_items: vec![RenderItem::Text("L1,C1".to_string())],
+            match_items: vec![],
+        };
+
+        assert_eq!(event.mode_items.len(), 1);
+        assert_eq!(event.position_items.len(), 1);
+        assert_eq!(event.match_items.len(), 0);
     }
 }
