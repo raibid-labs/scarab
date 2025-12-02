@@ -95,14 +95,21 @@ fn handle_mouse_input(
     windows: Query<&Window>,
     mut commands: Commands,
     ipc: Option<Res<MouseIpcSender>>,
+    metrics: Option<Res<TerminalMetrics>>,
 ) {
     let window = windows.single();
     let Some(cursor_pos) = window.cursor_position() else {
         return;
     };
 
-    // Convert window coordinates to terminal grid coordinates
-    let grid_pos = screen_to_grid(cursor_pos, window.width(), window.height());
+    // Convert window coordinates to terminal grid coordinates using actual metrics
+    let grid_pos = if let Some(metrics) = &metrics {
+        let (col, row) = metrics.screen_to_grid(cursor_pos.x, cursor_pos.y);
+        Position::new(col, row)
+    } else {
+        // Fallback to hardcoded values if metrics not available
+        screen_to_grid(cursor_pos, window.width(), window.height())
+    };
 
     let ipc_ref = ipc.as_ref().map(|r| r.0.as_ref());
 
@@ -126,7 +133,7 @@ fn handle_mouse_input(
 
     // Handle middle mouse button (paste)
     if mouse_button.just_pressed(bevy::input::mouse::MouseButton::Middle) {
-        handle_middle_click(&mut plugin_state, grid_pos);
+        handle_middle_click(&mut plugin_state, grid_pos, ipc_ref);
     }
 }
 
@@ -304,7 +311,11 @@ fn handle_right_click(
 }
 
 /// Handle middle mouse button click (paste from primary selection on Linux)
-fn handle_middle_click(plugin_state: &mut MousePluginState, pos: Position) {
+fn handle_middle_click(
+    plugin_state: &mut MousePluginState,
+    pos: Position,
+    ipc: Option<&dyn IpcSender>,
+) {
     let state = plugin_state.shared_state.lock();
 
     if state.mode == MouseMode::Normal {
@@ -318,10 +329,14 @@ fn handle_middle_click(plugin_state: &mut MousePluginState, pos: Position) {
                 Ok(text) => {
                     if !text.is_empty() {
                         log::info!("Pasting {} characters from primary selection", text.len());
-                        // TODO: Send text to terminal via IPC
-                        // This would require access to the IpcSender which isn't available in this function
-                        // For now, just log the paste operation
-                        log::debug!("Primary selection paste text: {:?}", text);
+                        // Send text to terminal via IPC
+                        if let Some(ipc) = ipc {
+                            ipc.send(ControlMessage::Input {
+                                data: text.into_bytes(),
+                            });
+                        } else {
+                            log::warn!("IPC not available, cannot paste to terminal");
+                        }
                     } else {
                         log::debug!("Primary selection is empty");
                     }
@@ -335,6 +350,7 @@ fn handle_middle_click(plugin_state: &mut MousePluginState, pos: Position) {
         // On other platforms, middle-click paste is not a standard behavior
         #[cfg(not(target_os = "linux"))]
         {
+            let _ = ipc; // Suppress unused warning
             log::debug!("Middle-click paste is Linux-specific (X11 primary selection)");
         }
     }
@@ -426,13 +442,21 @@ fn handle_scroll(
     windows: Query<&Window>,
     ipc: Option<Res<MouseIpcSender>>,
     mut scrollback_events: EventWriter<ScrollbackScrollEvent>,
+    metrics: Option<Res<TerminalMetrics>>,
 ) {
     let window = windows.single();
     let Some(cursor_pos) = window.cursor_position() else {
         return;
     };
 
-    let grid_pos = screen_to_grid(cursor_pos, window.width(), window.height());
+    // Convert window coordinates to terminal grid coordinates using actual metrics
+    let grid_pos = if let Some(metrics) = &metrics {
+        let (col, row) = metrics.screen_to_grid(cursor_pos.x, cursor_pos.y);
+        Position::new(col, row)
+    } else {
+        // Fallback to hardcoded values if metrics not available
+        screen_to_grid(cursor_pos, window.width(), window.height())
+    };
 
     let ipc_ref = ipc.as_ref().map(|r| r.0.as_ref());
 
@@ -628,9 +652,12 @@ fn handle_context_menu_input(
 }
 
 /// Convert screen coordinates to terminal grid coordinates
+///
+/// NOTE: This is a fallback function with hardcoded dimensions.
+/// The main systems now use TerminalMetrics::screen_to_grid() when available.
 fn screen_to_grid(cursor_pos: Vec2, window_width: f32, window_height: f32) -> Position {
-    // TODO: Use actual font metrics and terminal dimensions
-    // This is a placeholder calculation
+    // Fallback: assume default terminal dimensions
+    // This is only used when TerminalMetrics resource is not available
     let cols = 80;
     let rows = 24;
 
