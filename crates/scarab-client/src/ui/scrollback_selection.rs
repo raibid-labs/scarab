@@ -78,10 +78,16 @@ fn handle_mouse_selection(
     mut selection: ResMut<ScrollbackSelectionState>,
     scrollback: Res<ScrollbackBuffer>,
     scrollback_state: Res<ScrollbackState>,
+    renderer: Option<Res<crate::rendering::text::TextRenderer>>,
 ) {
     if !scrollback_state.is_scrolled {
         return; // Only handle mouse selection when in scrollback view
     }
+
+    // Need renderer for coordinate conversion
+    let Some(renderer) = renderer else {
+        return;
+    };
 
     let window = windows.single();
 
@@ -89,23 +95,39 @@ fn handle_mouse_selection(
     if mouse_buttons.just_pressed(MouseButton::Left) {
         if let Some(cursor_pos) = window.cursor_position() {
             // Convert cursor position to scrollback line/column
-            // This would need proper coordinate conversion based on renderer
-            // For now, this is a placeholder
-            let line = 0; // TODO: Convert cursor_pos to scrollback line
-            let col = 0; // TODO: Convert cursor_pos to column
+            if let Some((grid_col, grid_row)) = cursor_to_scrollback_coords(
+                cursor_pos,
+                &scrollback,
+                renderer.cell_width,
+                renderer.cell_height,
+                window.width(),
+                window.height(),
+            ) {
+                let line = grid_row;
+                let col = grid_col as u16;
 
-            selection.start_scrollback_selection(line, col, SelectionMode::Character);
-            debug!("Started scrollback selection at line {}, col {}", line, col);
+                selection.start_scrollback_selection(line, col, SelectionMode::Character);
+                debug!("Started scrollback selection at line {}, col {}", line, col);
+            }
         }
     }
 
     // Update selection while dragging
     if mouse_buttons.pressed(MouseButton::Left) && selection.active {
         if let Some(cursor_pos) = window.cursor_position() {
-            let line = 0; // TODO: Convert cursor_pos to scrollback line
-            let col = 0; // TODO: Convert cursor_pos to column
+            if let Some((grid_col, grid_row)) = cursor_to_scrollback_coords(
+                cursor_pos,
+                &scrollback,
+                renderer.cell_width,
+                renderer.cell_height,
+                window.width(),
+                window.height(),
+            ) {
+                let line = grid_row;
+                let col = grid_col as u16;
 
-            selection.update_scrollback_selection(line, col);
+                selection.update_scrollback_selection(line, col);
+            }
         }
     }
 
@@ -113,6 +135,85 @@ fn handle_mouse_selection(
     if mouse_buttons.just_released(MouseButton::Left) && selection.active {
         debug!("Ended scrollback selection");
     }
+}
+
+/// Convert cursor position to scrollback buffer coordinates
+///
+/// # Arguments
+/// * `cursor_pos` - Window cursor position (origin bottom-left, Y up)
+/// * `scrollback` - Scrollback buffer containing scroll offset
+/// * `cell_width` - Width of a single cell in pixels
+/// * `cell_height` - Height of a single cell in pixels
+/// * `window_width` - Window width in pixels
+/// * `window_height` - Window height in pixels
+///
+/// # Returns
+/// Option<(col, line)> where line is absolute scrollback buffer index
+fn cursor_to_scrollback_coords(
+    cursor_pos: Vec2,
+    scrollback: &ScrollbackBuffer,
+    cell_width: f32,
+    cell_height: f32,
+    window_width: f32,
+    window_height: f32,
+) -> Option<(usize, usize)> {
+    use scarab_protocol::{GRID_WIDTH, GRID_HEIGHT};
+
+    // Convert window coordinates to Bevy screen space
+    // Bevy cursor position is relative to bottom-left, Y up
+    // We need to convert to centered coordinate system used by grid rendering
+    let grid_width = GRID_WIDTH as f32;
+    let grid_height = GRID_HEIGHT as f32;
+
+    // Calculate grid pixel dimensions
+    let grid_pixel_width = grid_width * cell_width;
+    let grid_pixel_height = grid_height * cell_height;
+
+    // Grid is centered in window, calculate start position
+    let grid_start_x = (window_width - grid_pixel_width) / 2.0;
+    let grid_start_y = (window_height - grid_pixel_height) / 2.0;
+
+    // Convert cursor to grid-relative coordinates
+    let grid_rel_x = cursor_pos.x - grid_start_x;
+    let grid_rel_y = cursor_pos.y - grid_start_y;
+
+    // Check if cursor is within grid bounds
+    if grid_rel_x < 0.0 || grid_rel_x > grid_pixel_width ||
+       grid_rel_y < 0.0 || grid_rel_y > grid_pixel_height {
+        return None;
+    }
+
+    // Convert to grid coordinates (column, visible row)
+    let col = (grid_rel_x / cell_width).floor() as usize;
+    let visible_row = (grid_rel_y / cell_height).floor() as usize;
+
+    // Clamp to grid bounds
+    let col = col.min(GRID_WIDTH - 1);
+    let visible_row = visible_row.min(GRID_HEIGHT - 1);
+
+    // Convert visible row to scrollback buffer line index
+    // scroll_offset = 0 means at bottom (live view)
+    // scroll_offset > 0 means scrolled up by that many lines
+    let scroll_offset = scrollback.scroll_offset();
+    let total_lines = scrollback.line_count();
+
+    // Calculate absolute line in scrollback buffer
+    // When scrolled, visible_row 0 corresponds to (total_lines - scroll_offset)
+    let scrollback_line = if scroll_offset > 0 {
+        // In scrollback: map visible row to buffer line
+        total_lines.saturating_sub(scroll_offset).saturating_add(visible_row)
+    } else {
+        // At bottom (live view): should not happen since we only call this when scrolled
+        // but handle it anyway by mapping to most recent lines
+        total_lines.saturating_sub(GRID_HEIGHT).saturating_add(visible_row)
+    };
+
+    // Ensure line is within scrollback buffer bounds
+    if scrollback_line >= total_lines {
+        return None;
+    }
+
+    Some((col, scrollback_line))
 }
 
 /// System to copy scrollback selection to clipboard

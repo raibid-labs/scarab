@@ -17,7 +17,7 @@ pub mod mode;
 pub mod selection;
 pub mod types;
 
-pub use bevy_plugin::MousePlugin as BevyMousePlugin;
+pub use bevy_plugin::{IpcSender, MouseIpcSender, MousePlugin as BevyMousePlugin};
 pub use types::{ClickType, MouseButton, MouseEvent, MouseMode, Position};
 
 use async_trait::async_trait;

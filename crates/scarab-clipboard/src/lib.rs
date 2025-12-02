@@ -3,7 +3,10 @@
 //! Provides comprehensive copy/paste functionality with support for:
 //! - Multiple selection modes (character, word, line, block)
 //! - Cross-platform clipboard integration via arboard
-//! - X11 primary selection support
+//! - Full X11/Wayland primary selection support (Linux)
+//!   - Text selection automatically copies to PRIMARY
+//!   - Middle-click paste from PRIMARY selection
+//!   - Separate PRIMARY and CLIPBOARD selections maintained
 //! - Paste confirmation for large/multiline content
 //! - Bracket paste mode for shell safety
 
@@ -231,6 +234,15 @@ impl ClipboardPlugin {
                     &format!("Copied {} characters", text.len()),
                 );
 
+                // On Linux, also copy to primary selection when copying to standard clipboard
+                // This ensures both clipboards stay in sync (traditional terminal behavior)
+                #[cfg(target_os = "linux")]
+                if clipboard_type == ClipboardType::Standard {
+                    if let Err(e) = clipboard_mgr.copy(&text, ClipboardType::Primary) {
+                        log::warn!("Failed to sync to primary selection: {}", e);
+                    }
+                }
+
                 // Clear selection after copy
                 state.selection.clear();
             }
@@ -350,6 +362,36 @@ impl ClipboardPlugin {
         log::info!("Started {:?} selection at ({}, {})", mode, cursor_x, cursor_y);
     }
 
+    /// Automatically copy selection to X11 primary selection (on Linux)
+    /// This implements traditional X11 terminal behavior where selection = copy
+    #[cfg(target_os = "linux")]
+    fn auto_copy_to_primary(&self, ctx: &PluginContext, state: &PluginState) {
+        if !state.selection.has_selection() {
+            return;
+        }
+
+        let text = self.extract_selection_text(
+            ctx,
+            &state.selection.region,
+            state.selection.mode,
+        );
+
+        if !text.is_empty() {
+            let mut clipboard_mgr = self.clipboard_manager.lock();
+            if let Err(e) = clipboard_mgr.copy(&text, ClipboardType::Primary) {
+                log::warn!("Failed to auto-copy to primary selection: {}", e);
+            } else {
+                log::debug!("Auto-copied {} characters to primary selection", text.len());
+            }
+        }
+    }
+
+    /// No-op on non-Linux platforms
+    #[cfg(not(target_os = "linux"))]
+    fn auto_copy_to_primary(&self, _ctx: &PluginContext, _state: &PluginState) {
+        // Primary selection is Linux-specific
+    }
+
     /// Handle keybindings
     fn handle_keybinding(
         &self,
@@ -370,7 +412,7 @@ impl ClipboardPlugin {
 
         // Ctrl+Shift+L (Copy entire line) - 0x0C with modifiers
         if input == [0x0C] {
-            let (cursor_x, cursor_y) = ctx.get_cursor();
+            let (_cursor_x, cursor_y) = ctx.get_cursor();
             let (cols, _) = ctx.get_size();
 
             state.selection.start(0, cursor_y, SelectionMode::Line);
@@ -410,6 +452,9 @@ impl ClipboardPlugin {
 
             // 'y' - Yank (copy) and exit selection
             if input == [b'y'] {
+                // Auto-copy to primary selection on Linux before copying to standard clipboard
+                self.auto_copy_to_primary(ctx, &state);
+
                 let result = self.handle_copy(ctx, &mut state, ClipboardType::Standard);
                 ctx.queue_command(RemoteCommand::ClearOverlays { id: Some(1000) });
                 return result;
@@ -497,7 +542,7 @@ impl Plugin for ClipboardPlugin {
             }
 
             "clipboard.copy_line" => {
-                let (cursor_x, cursor_y) = ctx.get_cursor();
+                let (_cursor_x, cursor_y) = ctx.get_cursor();
                 let (cols, _) = ctx.get_size();
 
                 state.selection.start(0, cursor_y, SelectionMode::Line);

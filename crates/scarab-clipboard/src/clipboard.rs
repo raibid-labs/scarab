@@ -1,14 +1,48 @@
 //! Clipboard manager module for cross-platform clipboard operations
+//!
+//! This module provides a unified interface for clipboard operations across platforms,
+//! with special support for X11 primary selection on Linux.
+//!
+//! # X11 Primary Selection (Linux)
+//!
+//! On Linux/X11, there are traditionally two separate clipboard buffers:
+//! - **CLIPBOARD**: Standard clipboard used by Ctrl+C/Ctrl+V (explicit copy/paste)
+//! - **PRIMARY**: Automatically filled on text selection, pasted with middle-click
+//!
+//! This implementation uses arboard's Linux-specific extensions to properly handle
+//! both selections, providing traditional terminal behavior where selecting text
+//! automatically makes it available for middle-click paste.
 
 use arboard::Clipboard;
 use std::fmt;
 
+#[cfg(target_os = "linux")]
+use arboard::{ClearExtLinux, GetExtLinux, LinuxClipboardKind, SetExtLinux};
+
 /// Clipboard type selection
+///
+/// On most platforms, only the Standard clipboard is available.
+/// On Linux (X11/Wayland), the Primary selection provides traditional
+/// terminal behavior where text selection automatically populates a
+/// separate clipboard buffer.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ClipboardType {
-    /// Standard system clipboard (Ctrl+C/V)
+    /// Standard system clipboard (Ctrl+C/Ctrl+V)
+    ///
+    /// This is the clipboard used by explicit copy/paste operations
+    /// across all platforms (Windows, macOS, Linux).
     Standard,
-    /// X11 primary selection (select = copy, middle-click = paste)
+
+    /// X11/Wayland primary selection (Linux only)
+    ///
+    /// Automatically populated when text is selected.
+    /// Pasted with middle mouse button click.
+    /// This is a separate clipboard from Standard on Linux.
+    ///
+    /// # Platform Support
+    /// - **X11**: Fully supported via ICCCM primary selection
+    /// - **Wayland**: Supported on compositors implementing primary selection protocol v2+
+    /// - **Other platforms**: Not available (Linux-only feature)
     #[cfg(target_os = "linux")]
     Primary,
 }
@@ -76,13 +110,13 @@ impl ClipboardManager {
 
             #[cfg(target_os = "linux")]
             ClipboardType::Primary => {
-                // On Linux, arboard supports primary selection via the Selection type
-                // For now, we'll fall back to standard clipboard
-                // TODO: Implement proper X11 primary selection support
+                // Use arboard's Linux-specific API for primary selection
                 clipboard
-                    .set_text(text)
+                    .set()
+                    .clipboard(LinuxClipboardKind::Primary)
+                    .text(text)
                     .map_err(|e| format!("Failed to copy to primary selection: {}", e))?;
-                log::warn!("Primary selection not yet implemented, copied to standard clipboard");
+                log::debug!("Copied {} bytes to X11 primary selection", text.len());
             }
         }
 
@@ -103,9 +137,11 @@ impl ClipboardManager {
 
             #[cfg(target_os = "linux")]
             ClipboardType::Primary => {
-                // TODO: Implement proper X11 primary selection support
+                // Use arboard's Linux-specific API for primary selection
                 clipboard
-                    .get_text()
+                    .get()
+                    .clipboard(LinuxClipboardKind::Primary)
+                    .text()
                     .map_err(|e| format!("Failed to paste from primary selection: {}", e))
             }
         }
@@ -127,16 +163,34 @@ impl ClipboardManager {
         self.clipboard.is_some()
     }
 
-    /// Clear clipboard contents
+    /// Clear clipboard contents (standard clipboard only)
     pub fn clear(&mut self) -> Result<(), String> {
+        self.clear_clipboard(ClipboardType::Standard)
+    }
+
+    /// Clear specific clipboard type
+    pub fn clear_clipboard(&mut self, clipboard_type: ClipboardType) -> Result<(), String> {
         let clipboard = self
             .clipboard
             .as_mut()
             .ok_or_else(|| "Clipboard not initialized".to_string())?;
 
-        clipboard
-            .clear()
-            .map_err(|e| format!("Failed to clear clipboard: {}", e))
+        match clipboard_type {
+            ClipboardType::Standard => {
+                clipboard
+                    .clear()
+                    .map_err(|e| format!("Failed to clear clipboard: {}", e))
+            }
+
+            #[cfg(target_os = "linux")]
+            ClipboardType::Primary => {
+                // Use arboard's Linux-specific API for primary selection
+                clipboard
+                    .clear_with()
+                    .clipboard(LinuxClipboardKind::Primary)
+                    .map_err(|e| format!("Failed to clear primary selection: {}", e))
+            }
+        }
     }
 }
 

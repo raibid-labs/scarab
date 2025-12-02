@@ -41,10 +41,16 @@ pub struct SecurityConfig {
     pub require_checksum: bool,
     /// Require GPG signature verification
     pub require_signature: bool,
-    /// Trusted GPG key IDs
+    /// Trusted GPG key fingerprints (full 40-character hex strings)
     pub trusted_keys: Vec<String>,
     /// Allow unsigned plugins (dangerous!)
     pub allow_unsigned: bool,
+    /// Path to additional keyring file (OpenPGP format)
+    pub keyring_path: Option<PathBuf>,
+    /// Require signatures from specific key IDs only
+    pub require_key_match: bool,
+    /// Maximum allowed signature age in days (0 = no limit)
+    pub max_signature_age_days: u64,
 }
 
 impl Default for SecurityConfig {
@@ -54,6 +60,9 @@ impl Default for SecurityConfig {
             require_signature: false,
             trusted_keys: Vec::new(),
             allow_unsigned: true, // For initial development
+            keyring_path: None,
+            require_key_match: true,
+            max_signature_age_days: 365, // 1 year default
         }
     }
 }

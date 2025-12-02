@@ -12,7 +12,18 @@ use crate::{
 };
 use bevy::prelude::*;
 use parking_lot::Mutex;
+use scarab_protocol::ControlMessage;
 use std::sync::Arc;
+
+/// Trait for sending IPC messages to the daemon
+/// This trait should be implemented by the IpcChannel in scarab-client
+pub trait IpcSender: Send + Sync {
+    fn send(&self, msg: ControlMessage);
+}
+
+/// Wrapper resource for IPC sender to allow dynamic dispatch
+#[derive(Resource)]
+pub struct MouseIpcSender(pub Arc<dyn IpcSender>);
 
 /// Bevy plugin for mouse support
 pub struct MousePlugin {
@@ -69,6 +80,7 @@ fn handle_mouse_input(
     mouse_button: Res<ButtonInput<bevy::input::mouse::MouseButton>>,
     windows: Query<&Window>,
     mut commands: Commands,
+    ipc: Option<Res<MouseIpcSender>>,
 ) {
     let window = windows.single();
     let Some(cursor_pos) = window.cursor_position() else {
@@ -79,9 +91,11 @@ fn handle_mouse_input(
     // TODO: This needs actual font metrics from the terminal renderer
     let grid_pos = screen_to_grid(cursor_pos, window.width(), window.height());
 
+    let ipc_ref = ipc.as_ref().map(|r| r.0.as_ref());
+
     // Handle left mouse button
     if mouse_button.just_pressed(bevy::input::mouse::MouseButton::Left) {
-        handle_left_click(&mut plugin_state, grid_pos);
+        handle_left_click(&mut plugin_state, grid_pos, ipc_ref);
     }
 
     if mouse_button.pressed(bevy::input::mouse::MouseButton::Left) {
@@ -89,12 +103,12 @@ fn handle_mouse_input(
     }
 
     if mouse_button.just_released(bevy::input::mouse::MouseButton::Left) {
-        handle_left_release(&mut plugin_state, grid_pos);
+        handle_left_release(&mut plugin_state, grid_pos, ipc_ref);
     }
 
     // Handle right mouse button (context menu)
     if mouse_button.just_pressed(bevy::input::mouse::MouseButton::Right) {
-        handle_right_click(&mut plugin_state, grid_pos, &mut commands);
+        handle_right_click(&mut plugin_state, grid_pos, &mut commands, ipc_ref);
     }
 
     // Handle middle mouse button (paste)
@@ -104,7 +118,11 @@ fn handle_mouse_input(
 }
 
 /// Handle left mouse button click
-fn handle_left_click(plugin_state: &mut MousePluginState, pos: Position) {
+fn handle_left_click(
+    plugin_state: &mut MousePluginState,
+    pos: Position,
+    ipc: Option<&dyn IpcSender>,
+) {
     let mut state = plugin_state.shared_state.lock();
 
     // Close context menu if open
@@ -132,7 +150,11 @@ fn handle_left_click(plugin_state: &mut MousePluginState, pos: Position) {
             // Forward to application
             if let Some(seq) = generate_mouse_sequence(&event) {
                 log::debug!("Sending mouse event to application: {:?}", seq);
-                // TODO: Send to daemon via IPC
+                if let Some(ipc) = ipc {
+                    ipc.send(ControlMessage::Input { data: seq });
+                } else {
+                    log::warn!("IPC not available, cannot send mouse event to daemon");
+                }
             }
         }
         MouseMode::Normal => {
@@ -153,7 +175,11 @@ fn handle_left_click(plugin_state: &mut MousePluginState, pos: Position) {
                         // Send cursor position to terminal
                         let seq = generate_cursor_position_sequence(pos);
                         log::debug!("Positioning cursor at {:?}: {:?}", pos, seq);
-                        // TODO: Send to daemon via IPC
+                        if let Some(ipc) = ipc {
+                            ipc.send(ControlMessage::Input { data: seq });
+                        } else {
+                            log::warn!("IPC not available, cannot send cursor position to daemon");
+                        }
                     }
                 }
                 ClickType::Double => {
@@ -189,7 +215,11 @@ fn handle_left_drag(plugin_state: &mut MousePluginState, pos: Position) {
 }
 
 /// Handle left mouse button release
-fn handle_left_release(plugin_state: &mut MousePluginState, pos: Position) {
+fn handle_left_release(
+    plugin_state: &mut MousePluginState,
+    pos: Position,
+    ipc: Option<&dyn IpcSender>,
+) {
     plugin_state.drag_start = None;
     plugin_state.is_dragging = false;
 
@@ -204,7 +234,11 @@ fn handle_left_release(plugin_state: &mut MousePluginState, pos: Position) {
 
         if let Some(seq) = generate_mouse_sequence(&event) {
             log::debug!("Sending mouse release to application: {:?}", seq);
-            // TODO: Send to daemon via IPC
+            if let Some(ipc) = ipc {
+                ipc.send(ControlMessage::Input { data: seq });
+            } else {
+                log::warn!("IPC not available, cannot send mouse release to daemon");
+            }
         }
     }
 }
@@ -214,6 +248,7 @@ fn handle_right_click(
     plugin_state: &mut MousePluginState,
     pos: Position,
     _commands: &mut Commands,
+    ipc: Option<&dyn IpcSender>,
 ) {
     let mut state = plugin_state.shared_state.lock();
 
@@ -246,7 +281,11 @@ fn handle_right_click(
 
         if let Some(seq) = generate_mouse_sequence(&event) {
             log::debug!("Sending right click to application: {:?}", seq);
-            // TODO: Send to daemon via IPC
+            if let Some(ipc) = ipc {
+                ipc.send(ControlMessage::Input { data: seq });
+            } else {
+                log::warn!("IPC not available, cannot send right click to daemon");
+            }
         }
     }
 }
@@ -345,6 +384,7 @@ fn handle_scroll(
     plugin_state: Res<MousePluginState>,
     mut scroll_events: EventReader<bevy::input::mouse::MouseWheel>,
     windows: Query<&Window>,
+    ipc: Option<Res<MouseIpcSender>>,
 ) {
     let window = windows.single();
     let Some(cursor_pos) = window.cursor_position() else {
@@ -352,6 +392,8 @@ fn handle_scroll(
     };
 
     let grid_pos = screen_to_grid(cursor_pos, window.width(), window.height());
+
+    let ipc_ref = ipc.as_ref().map(|r| r.0.as_ref());
 
     for event in scroll_events.read() {
         let state = plugin_state.shared_state.lock();
@@ -373,14 +415,18 @@ fn handle_scroll(
             MouseMode::Application => {
                 if let Some(seq) = generate_mouse_sequence(&mouse_event) {
                     log::debug!("Sending scroll to application: {:?}", seq);
-                    // TODO: Send to daemon via IPC
+                    if let Some(ipc) = ipc_ref {
+                        ipc.send(ControlMessage::Input { data: seq });
+                    } else {
+                        log::warn!("IPC not available, cannot send scroll to daemon");
+                    }
                 }
             }
             MouseMode::Normal => {
                 // Scroll scrollback buffer
                 let lines = (event.y.abs() * 3.0) as i32;
                 log::debug!("Scrolling {} lines", lines);
-                // TODO: Send scroll command to daemon
+                // TODO: Send scroll command to daemon (needs scrollback protocol)
             }
         }
     }

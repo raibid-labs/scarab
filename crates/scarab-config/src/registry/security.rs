@@ -4,6 +4,13 @@ use super::types::{PluginEntry, SecurityConfig};
 use crate::error::{ConfigError, Result};
 use sha2::{Digest, Sha256};
 
+#[cfg(feature = "registry")]
+use sequoia_openpgp as openpgp;
+#[cfg(feature = "registry")]
+use std::time::{SystemTime, UNIX_EPOCH};
+#[cfg(feature = "registry")]
+use base64::{engine::general_purpose::STANDARD as BASE64_STANDARD, Engine};
+
 /// Plugin security verifier
 pub struct PluginVerifier {
     config: SecurityConfig,
@@ -63,24 +70,155 @@ impl PluginVerifier {
 
     /// Verify GPG signature
     ///
-    /// NOTE: This is a placeholder implementation. In production, this should:
-    /// 1. Use a GPG library (e.g., sequoia-pgp or gpgme)
-    /// 2. Verify the detached signature against the content
-    /// 3. Check the signing key against trusted_keys
-    /// 4. Validate key expiration and revocation
+    /// Verifies a detached GPG signature against the provided content using sequoia-openpgp.
+    ///
+    /// The signature should be base64-encoded ASCII-armored OpenPGP signature.
+    ///
+    /// This implementation:
+    /// 1. Decodes the base64 signature
+    /// 2. Parses the OpenPGP signature
+    /// 3. Verifies the signature against the content
+    /// 4. Checks the signing key against trusted_keys (if require_key_match is true)
+    /// 5. Validates signature age
+    /// 6. Checks key expiration and revocation
+    #[cfg(feature = "registry")]
+    fn verify_signature(&self, content: &[u8], signature_b64: &str) -> Result<()> {
+        use openpgp::policy::StandardPolicy;
+
+        // Check if we have trusted keys configured
+        if self.config.trusted_keys.is_empty() && self.config.keyring_path.is_none() {
+            return Err(ConfigError::SecurityError(
+                "GPG signature verification enabled but no trusted keys or keyring configured".to_string(),
+            ));
+        }
+
+        // Decode base64 signature
+        let signature_bytes = BASE64_STANDARD.decode(signature_b64).map_err(|e| {
+            ConfigError::SecurityError(format!("Invalid base64 signature: {}", e))
+        })?;
+
+        // Load trusted certificates
+        let certs = self.load_trusted_certs()?;
+
+        if certs.is_empty() {
+            return Err(ConfigError::SecurityError(
+                "No valid trusted certificates found for verification".to_string(),
+            ));
+        }
+
+        // Use the standard policy (RFC 4880)
+        let policy = StandardPolicy::new();
+
+        // Verify the signature using sequoia's verification API
+        let helper = VerificationHelperImpl {
+            certs,
+            config: &self.config,
+            good_signatures: Vec::new(),
+        };
+
+        match Self::verify_detached_signature(helper, &policy, content, &signature_bytes) {
+            Ok(fingerprints) => {
+                tracing::info!("Successfully verified signature(s) from key(s): {:?}", fingerprints);
+                Ok(())
+            }
+            Err(e) => Err(ConfigError::SecurityError(format!(
+                "Signature verification failed: {}",
+                e
+            ))),
+        }
+    }
+
+    /// Fallback when registry feature is not enabled
+    #[cfg(not(feature = "registry"))]
     fn verify_signature(&self, _content: &[u8], _signature: &str) -> Result<()> {
-        // TODO: Implement GPG signature verification
-        // For now, just check if we have trusted keys configured
-        if self.config.trusted_keys.is_empty() {
-            tracing::warn!("GPG signature verification requested but no trusted keys configured");
+        Err(ConfigError::SecurityError(
+            "GPG signature verification requires 'registry' feature to be enabled".to_string(),
+        ))
+    }
+
+    /// Load trusted certificates from configuration
+    #[cfg(feature = "registry")]
+    fn load_trusted_certs(&self) -> Result<Vec<openpgp::Cert>> {
+        use openpgp::parse::Parse;
+        use std::fs;
+
+        let mut certs = Vec::new();
+
+        // Load from keyring file if specified
+        if let Some(keyring_path) = &self.config.keyring_path {
+            if keyring_path.exists() {
+                let keyring_data = fs::read(keyring_path).map_err(|e| {
+                    ConfigError::SecurityError(format!(
+                        "Failed to read keyring file {}: {}",
+                        keyring_path.display(),
+                        e
+                    ))
+                })?;
+
+                // Parse all certificates from keyring
+                let parsed_certs = openpgp::Cert::from_bytes(&keyring_data).map_err(|e| {
+                    ConfigError::SecurityError(format!(
+                        "Failed to parse keyring file: {}",
+                        e
+                    ))
+                })?;
+
+                certs.push(parsed_certs);
+            } else {
+                tracing::warn!(
+                    "Keyring file not found: {}",
+                    keyring_path.display()
+                );
+            }
         }
 
-        // Placeholder: accept all signatures for now
-        if !self.config.allow_unsigned {
-            tracing::warn!("GPG signature verification not yet implemented, skipping");
+        // TODO: Load individual certificates from trusted_keys fingerprints
+        // For now, we rely on keyring_path. In a full implementation, you would:
+        // 1. Query a keyserver for each fingerprint
+        // 2. Or maintain a local certificate cache
+        // 3. Or embed certificates directly in the config
+
+        if certs.is_empty() && !self.config.trusted_keys.is_empty() {
+            tracing::warn!(
+                "Trusted key fingerprints configured but no keyring provided. \
+                 Use 'keyring_path' to specify a file containing trusted public keys."
+            );
         }
 
-        Ok(())
+        Ok(certs)
+    }
+
+    /// Verify detached signature using sequoia-openpgp
+    #[cfg(feature = "registry")]
+    fn verify_detached_signature(
+        helper: VerificationHelperImpl,
+        policy: &openpgp::policy::StandardPolicy,
+        content: &[u8],
+        signature_bytes: &[u8],
+    ) -> std::result::Result<Vec<String>, String> {
+        use openpgp::parse::Parse;
+        use openpgp::parse::stream::DetachedVerifierBuilder;
+
+        // Create a detached verifier with the helper
+        let mut verifier = DetachedVerifierBuilder::from_bytes(signature_bytes)
+            .map_err(|e| format!("Failed to parse signature: {}", e))?
+            .with_policy(policy, None, helper)
+            .map_err(|e| format!("Failed to initialize verifier: {}", e))?;
+
+        // Verify the content
+        verifier
+            .verify_bytes(content)
+            .map_err(|e| format!("Failed to verify content: {}", e))?;
+
+        // Get the helper back and check results
+        let helper_ref = verifier.into_helper();
+
+        // Return the collected good signatures
+        if !helper_ref.good_signatures.is_empty() {
+            return Ok(helper_ref.good_signatures.clone());
+        }
+
+        Err("No valid signatures found".to_string())
     }
 
     /// Compute SHA256 checksum of content
@@ -122,6 +260,107 @@ pub enum PluginFormat {
     FusabiSource,
 }
 
+/// Verification helper implementation for sequoia-openpgp
+#[cfg(feature = "registry")]
+struct VerificationHelperImpl<'a> {
+    certs: Vec<openpgp::Cert>,
+    config: &'a SecurityConfig,
+    good_signatures: Vec<String>,
+}
+
+#[cfg(feature = "registry")]
+impl<'a> openpgp::parse::stream::VerificationHelper for VerificationHelperImpl<'a> {
+    fn get_certs(
+        &mut self,
+        _ids: &[openpgp::KeyHandle],
+    ) -> openpgp::Result<Vec<openpgp::Cert>> {
+        // Return all our trusted certificates
+        Ok(self.certs.clone())
+    }
+
+    fn check(
+        &mut self,
+        structure: openpgp::parse::stream::MessageStructure,
+    ) -> openpgp::Result<()> {
+        use openpgp::parse::stream::MessageLayer;
+
+        let mut good_sigs = Vec::new();
+
+        // Iterate through all layers in the message structure
+        for layer in structure.into_iter() {
+            match layer {
+                MessageLayer::SignatureGroup { results } => {
+                    // Check each signature result
+                    for result in results {
+                        match result {
+                            Ok(good_checksum) => {
+                                // Get the signing key fingerprint
+                                let ka = good_checksum.ka;
+                                let cert_fp = ka.cert().fingerprint().to_hex();
+
+                                // Validate signature age if configured
+                                if self.config.max_signature_age_days > 0 {
+                                    let sig = good_checksum.sig;
+                                    if let Some(sig_time) = sig.signature_creation_time() {
+                                        let now = SystemTime::now()
+                                            .duration_since(UNIX_EPOCH)
+                                            .map_err(|e| anyhow::anyhow!("System time error: {}", e))?
+                                            .as_secs();
+
+                                        let sig_timestamp = sig_time.duration_since(UNIX_EPOCH)
+                                            .map_err(|e| anyhow::anyhow!("Signature time error: {}", e))?
+                                            .as_secs();
+
+                                        let age_days = (now.saturating_sub(sig_timestamp)) / 86400;
+
+                                        if age_days > self.config.max_signature_age_days {
+                                            return Err(anyhow::anyhow!(
+                                                "Signature is too old: {} days (max: {} days)",
+                                                age_days,
+                                                self.config.max_signature_age_days
+                                            ));
+                                        }
+                                    }
+                                }
+
+                                // Check if the key is in our trusted list (if required)
+                                if self.config.require_key_match && !self.config.trusted_keys.is_empty() {
+                                    let is_trusted = self.config.trusted_keys.iter().any(|trusted_fp| {
+                                        cert_fp.to_lowercase() == trusted_fp.to_lowercase()
+                                            || cert_fp.to_lowercase().ends_with(&trusted_fp.to_lowercase())
+                                    });
+
+                                    if !is_trusted {
+                                        return Err(anyhow::anyhow!(
+                                            "Signature from untrusted key: {}",
+                                            cert_fp
+                                        ));
+                                    }
+                                }
+
+                                tracing::debug!("Valid signature from: {}", cert_fp);
+                                good_sigs.push(cert_fp);
+                            }
+                            Err(e) => {
+                                tracing::warn!("Bad signature: {}", e);
+                                return Err(anyhow::anyhow!("Invalid signature: {}", e));
+                            }
+                        }
+                    }
+                }
+                _ => {}
+            }
+        }
+
+        if good_sigs.is_empty() {
+            return Err(anyhow::anyhow!("No valid signatures found"));
+        }
+
+        self.good_signatures = good_sigs;
+        Ok(())
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -145,6 +384,9 @@ mod tests {
             require_signature: false,
             trusted_keys: vec![],
             allow_unsigned: true,
+            keyring_path: None,
+            require_key_match: true,
+            max_signature_age_days: 365,
         };
 
         let verifier = PluginVerifier::new(config);
@@ -162,6 +404,9 @@ mod tests {
             require_signature: false,
             trusted_keys: vec![],
             allow_unsigned: true,
+            keyring_path: None,
+            require_key_match: true,
+            max_signature_age_days: 365,
         };
 
         let verifier = PluginVerifier::new(config);
@@ -170,6 +415,80 @@ mod tests {
 
         let entry = create_test_entry(wrong_checksum);
         assert!(verifier.verify(content, &entry, "1.0.0").is_err());
+    }
+
+    #[test]
+    fn test_signature_required_but_missing() {
+        let config = SecurityConfig {
+            require_checksum: false,
+            require_signature: true,
+            trusted_keys: vec![],
+            allow_unsigned: false,
+            keyring_path: None,
+            require_key_match: true,
+            max_signature_age_days: 365,
+        };
+
+        let verifier = PluginVerifier::new(config);
+        let content = b"test content";
+        let checksum = PluginVerifier::compute_checksum(content);
+
+        let entry = create_test_entry(&checksum);
+        let result = verifier.verify(content, &entry, "1.0.0");
+
+        assert!(result.is_err());
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("signature required"));
+    }
+
+    #[test]
+    fn test_unsigned_allowed() {
+        let config = SecurityConfig {
+            require_checksum: true,
+            require_signature: true,
+            trusted_keys: vec![],
+            allow_unsigned: true,
+            keyring_path: None,
+            require_key_match: true,
+            max_signature_age_days: 365,
+        };
+
+        let verifier = PluginVerifier::new(config);
+        let content = b"test content";
+        let checksum = PluginVerifier::compute_checksum(content);
+
+        let entry = create_test_entry(&checksum);
+        // Should succeed because allow_unsigned is true
+        assert!(verifier.verify(content, &entry, "1.0.0").is_ok());
+    }
+
+    #[cfg(feature = "registry")]
+    #[test]
+    fn test_gpg_verification_no_trusted_keys() {
+        let config = SecurityConfig {
+            require_checksum: false,
+            require_signature: true,
+            trusted_keys: vec![],
+            allow_unsigned: false,
+            keyring_path: None,
+            require_key_match: true,
+            max_signature_age_days: 365,
+        };
+
+        let verifier = PluginVerifier::new(config);
+        let content = b"test content";
+
+        // Any signature should fail if no trusted keys are configured
+        let fake_signature = BASE64_STANDARD.encode(b"fake signature data");
+        let result = verifier.verify_signature(content, &fake_signature);
+
+        assert!(result.is_err());
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("no trusted keys"));
     }
 
     #[test]
