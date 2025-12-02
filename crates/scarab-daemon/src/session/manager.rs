@@ -274,6 +274,14 @@ impl Session {
         Ok(())
     }
 
+    /// Get all panes across all tabs in this session
+    pub fn all_panes(&self) -> Vec<Arc<Pane>> {
+        let tabs = self.tabs.read();
+        tabs.values()
+            .flat_map(|tab| tab.panes().cloned())
+            .collect()
+    }
+
     // ==================== Client Management ====================
 
     /// Attach a client to this session

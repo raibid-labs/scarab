@@ -3,12 +3,12 @@ use portable_pty::PtySize;
 use scarab_config::ConfigLoader;
 use scarab_protocol::{SharedState, SHMEM_PATH};
 use shared_memory::ShmemConf;
-use std::io::Read;
-use std::sync::atomic::AtomicU64;
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
 use tokio::sync::mpsc;
 
 use scarab_daemon::ipc::{ClientRegistry, IpcServer, PtyHandle};
+use scarab_daemon::orchestrator::PaneOrchestrator;
 use scarab_daemon::plugin_manager::PluginManager;
 use scarab_daemon::session::SessionManager;
 
@@ -222,84 +222,41 @@ async fn main() -> Result<()> {
 
     println!("Daemon initialized. Listening for input...");
 
-    // 4. Main Loop - Compositor Architecture
-    // Reads from active pane's PTY, updates its TerminalState, blits to SharedState
+    // 4. Start the Pane Orchestrator
+    // This spawns parallel reader tasks for all panes
+    let orchestrator = PaneOrchestrator::new(session_manager.clone());
+    let _orchestrator_cmd = orchestrator.command_sender();
+
+    // Run orchestrator in background
+    tokio::spawn(async move {
+        orchestrator.run().await;
+    });
+
+    println!("Pane Orchestrator: Active (parallel PTY reading)");
+
+    // 5. Compositor Loop
+    // Blits the active pane's grid to SharedState at ~60fps
+    // PTY reading is handled by the orchestrator in parallel
+    let mut last_sequence = 0u64;
+    let compositor_interval = tokio::time::Duration::from_millis(16); // ~60fps
+
     loop {
-        // Get the active pane from session manager
-        let active_pane = session_manager
-            .get_default_session()
-            .and_then(|s| s.get_active_pane());
-
-        if active_pane.is_none() {
-            // No active pane - wait a bit and retry
-            tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
-            continue;
-        }
-
-        let active_pane = active_pane.unwrap();
-        let pty_master_arc = active_pane.pty_master();
-        let terminal_state_arc = active_pane.terminal_state();
-
         tokio::select! {
-            // Handle PTY output from active pane
-            read_result = tokio::task::spawn_blocking({
-                let pty_arc = Arc::clone(&pty_master_arc);
-                move || {
-                    let mut buf = [0u8; 4096];
-                    let pty_lock = pty_arc.lock().unwrap();
-                    if let Some(ref master) = *pty_lock {
-                        // Try to clone reader for non-blocking read
-                        match master.try_clone_reader() {
-                            Ok(mut reader) => reader.read(&mut buf).map(|n| (n, buf)),
-                            Err(e) => Err(std::io::Error::new(std::io::ErrorKind::Other, e.to_string()))
-                        }
-                    } else {
-                        // No PTY - return 0 bytes (EOF-like)
-                        Ok((0, buf))
-                    }
-                }
-            }) => {
-                match read_result? {
-                    Ok((n, buf)) if n > 0 => {
-                        let data = &buf[..n];
+            // Compositor tick - blit active pane to shared memory
+            _ = tokio::time::sleep(compositor_interval) => {
+                // Get the active pane from session manager
+                if let Some(session) = session_manager.get_default_session() {
+                    if let Some(active_pane) = session.get_active_pane() {
+                        let terminal_state_arc = active_pane.terminal_state();
+                        let terminal_state = terminal_state_arc.read();
 
-                        // Debug output (can be disabled in production)
-                        if cfg!(debug_assertions) {
-                            print!("{}", String::from_utf8_lossy(data));
-                        }
-
-                        // Process output through plugins first
-                        let data_str = String::from_utf8_lossy(data);
-
-                        let processed_data = {
-                            let mut pm = plugin_manager.lock().await;
-                            match pm.dispatch_output(&data_str).await {
-                                Ok(d) => d,
-                                Err(e) => {
-                                    eprintln!("Plugin dispatch error: {}", e);
-                                    data_str.to_string()
-                                }
-                            }
-                        };
-
-                        // Process output through the pane's VTE parser
-                        // This updates the pane's local grid
-                        {
-                            let mut terminal_state = terminal_state_arc.write();
-                            terminal_state.process_output(processed_data.as_bytes());
-
-                            // Blit (copy) the pane's grid to shared memory
+                        // Only blit if there's been a change (check sequence)
+                        // The orchestrator updates terminal state, we just blit
+                        let current_seq = sequence_counter.load(Ordering::SeqCst);
+                        if current_seq != last_sequence || last_sequence == 0 {
                             terminal_state.blit_to_shm(shared_ptr, &sequence_counter);
+                            last_sequence = sequence_counter.load(Ordering::SeqCst);
                         }
-                    }
-                    Ok(_) => {
-                        // EOF - pane's shell exited
-                        // For now, just wait - in future, could close the pane
-                        tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
-                    }
-                    Err(e) => {
-                        eprintln!("PTY Error: {}", e);
-                        tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
                     }
                 }
             }
@@ -309,14 +266,18 @@ async fn main() -> Result<()> {
                 println!("Resizing active pane to {}x{}", pty_size.cols, pty_size.rows);
 
                 // Resize the active pane (both PTY and terminal state)
-                if let Err(e) = active_pane.resize(pty_size.cols, pty_size.rows) {
-                    eprintln!("Failed to resize pane: {}", e);
-                }
+                if let Some(session) = session_manager.get_default_session() {
+                    if let Some(active_pane) = session.get_active_pane() {
+                        if let Err(e) = active_pane.resize(pty_size.cols, pty_size.rows) {
+                            eprintln!("Failed to resize pane: {}", e);
+                        }
 
-                // Blit updated state to shared memory
-                {
-                    let terminal_state = terminal_state_arc.read();
-                    terminal_state.blit_to_shm(shared_ptr, &sequence_counter);
+                        // Force blit after resize
+                        let terminal_state_arc = active_pane.terminal_state();
+                        let terminal_state = terminal_state_arc.read();
+                        terminal_state.blit_to_shm(shared_ptr, &sequence_counter);
+                        last_sequence = sequence_counter.load(Ordering::SeqCst);
+                    }
                 }
             }
         }
