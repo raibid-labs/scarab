@@ -110,6 +110,7 @@ pub enum KeyCode {
     Tab,
     Backspace,
     Space,
+    Slash,
 
     // Arrow keys
     Left,
@@ -331,6 +332,12 @@ pub enum CopyModeAction {
     ToggleSelection,
     ToggleLineSelection,
     ToggleBlockSelection,
+
+    // Search
+    SearchForward,
+    SearchBackward,
+    NextMatch,
+    PrevMatch,
 
     // Actions
     CopyAndExit,

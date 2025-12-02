@@ -4,7 +4,7 @@
 //! providing systems and resources for vim-like keyboard navigation and selection.
 
 use bevy::prelude::*;
-use scarab_plugin_api::copy_mode::{get_selection_bounds, CopyModeState, SearchState, SelectionMode};
+use scarab_plugin_api::copy_mode::{find_matches, get_selection_bounds, CopyModeState, SearchDirection, SearchState, SelectionMode};
 use scarab_plugin_api::key_tables::CopyModeAction;
 
 /// Bevy plugin for copy mode functionality
@@ -24,6 +24,7 @@ impl Plugin for CopyModePlugin {
                     update_cursor_visibility,
                     update_cursor_position,
                     render_selection_highlights,
+                    render_search_highlights,
                 )
                     .chain()
                     .run_if(copy_mode_active),
@@ -125,6 +126,15 @@ pub struct CopyModeCursorMarker;
 pub struct SelectionHighlight {
     /// The Y coordinate of this highlight
     pub y: i32,
+}
+
+/// Marker component for search highlight entities
+#[derive(Component)]
+pub struct SearchHighlight {
+    /// The Y coordinate of this highlight
+    pub y: i32,
+    /// Whether this is the currently selected match
+    pub is_current: bool,
 }
 
 /// Event for copy mode actions
@@ -300,10 +310,59 @@ pub fn render_selection_highlights(
     }
 }
 
+/// System that renders search match highlights
+pub fn render_search_highlights(
+    search_state: Res<CopyModeSearchResource>,
+    terminal_dims: Res<TerminalDimensions>,
+    mut commands: Commands,
+    existing_highlights: Query<Entity, With<SearchHighlight>>,
+) {
+    // Despawn all existing search highlights
+    for entity in existing_highlights.iter() {
+        commands.entity(entity).despawn();
+    }
+
+    // Render search matches if search is active and there are matches
+    if search_state.is_active() && !search_state.state.matches.is_empty() {
+        let current_match_idx = search_state.state.current_match;
+
+        for (idx, search_match) in search_state.state.matches.iter().enumerate() {
+            let is_current = Some(idx) == current_match_idx;
+            let start = search_match.start;
+            let end = search_match.end;
+
+            // Calculate width and position
+            let width = (end.x - start.x + 1) as f32 * terminal_dims.cell_width;
+            let pos = terminal_dims.logical_to_screen(start.x, start.y);
+
+            // Different colors for current match vs other matches
+            let color = if is_current {
+                Color::srgba(1.0, 0.5, 0.0, 0.5) // Orange for current match
+            } else {
+                Color::srgba(1.0, 1.0, 0.0, 0.3) // Yellow for other matches
+            };
+
+            commands.spawn((
+                SearchHighlight {
+                    y: start.y,
+                    is_current,
+                },
+                Sprite {
+                    color,
+                    custom_size: Some(Vec2::new(width, terminal_dims.cell_height)),
+                    ..default()
+                },
+                Transform::from_translation(pos + Vec3::new(width / 2.0, 0.0, 8.0)), // Z=8 to render under selection
+            ));
+        }
+    }
+}
+
 /// System that handles copy mode action events
 pub fn handle_copy_mode_actions(
     mut events: EventReader<CopyModeActionEvent>,
     mut copy_mode_state: ResMut<CopyModeStateResource>,
+    mut search_state: ResMut<CopyModeSearchResource>,
     terminal_dims: Res<TerminalDimensions>,
     // TODO: Add scrollback buffer resource for text extraction
     // TODO: Add clipboard context resource for copying
@@ -371,6 +430,48 @@ pub fn handle_copy_mode_actions(
                 state.toggle_block_selection();
             }
 
+            // Search actions
+            CopyModeAction::SearchForward => {
+                search_state.state.start_search(SearchDirection::Forward);
+                // TODO: Open search input UI
+                // For now, perform a demo search
+                let get_line = |_y: i32| Some("Example text with match".to_string());
+                let matches = find_matches(
+                    "match",
+                    get_line,
+                    terminal_dims.min_y,
+                    terminal_dims.max_y(),
+                );
+                search_state.state.update_query("match".to_string(), matches);
+            }
+            CopyModeAction::SearchBackward => {
+                search_state.state.start_search(SearchDirection::Backward);
+                // TODO: Open search input UI
+                // For now, perform a demo search
+                let get_line = |_y: i32| Some("Example text with match".to_string());
+                let matches = find_matches(
+                    "match",
+                    get_line,
+                    terminal_dims.min_y,
+                    terminal_dims.max_y(),
+                );
+                search_state.state.update_query("match".to_string(), matches);
+            }
+            CopyModeAction::NextMatch => {
+                search_state.state.next_match();
+                // Move cursor to current match if it exists
+                if let Some(current_match) = search_state.state.current() {
+                    state.cursor = current_match.start;
+                }
+            }
+            CopyModeAction::PrevMatch => {
+                search_state.state.prev_match();
+                // Move cursor to current match if it exists
+                if let Some(current_match) = search_state.state.current() {
+                    state.cursor = current_match.start;
+                }
+            }
+
             // Copy and exit actions
             CopyModeAction::CopyAndExit => {
                 // TODO: Extract text from scrollback buffer
@@ -385,11 +486,13 @@ pub fn handle_copy_mode_actions(
                 //     clipboard.set_text(text);
                 // }
 
-                // Exit copy mode
+                // Exit copy mode and clear search
                 state.deactivate();
+                search_state.state.deactivate();
             }
             CopyModeAction::Exit => {
                 state.deactivate();
+                search_state.state.deactivate();
             }
         }
     }

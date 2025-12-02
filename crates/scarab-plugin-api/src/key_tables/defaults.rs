@@ -18,6 +18,8 @@ use std::collections::HashMap;
 /// - g/G document movement
 /// - Ctrl+u/d half page movement
 /// - v/V/Ctrl+v selection modes
+/// - / and ? for search
+/// - n/N for next/previous match
 /// - y yank (copy), Escape/q exit
 pub fn default_copy_mode_table() -> KeyTable {
     let mut table = KeyTable::new("copy_mode");
@@ -142,6 +144,24 @@ pub fn default_copy_mode_table() -> KeyTable {
     table.bind(
         KeyCombo::ctrl(KeyCode::KeyV),
         KeyAction::CopyMode(CopyModeAction::ToggleBlockSelection),
+    );
+
+    // Search
+    table.bind(
+        KeyCombo::key(KeyCode::Slash), // /
+        KeyAction::CopyMode(CopyModeAction::SearchForward),
+    );
+    table.bind(
+        KeyCombo::shift(KeyCode::Slash), // ? (Shift+/)
+        KeyAction::CopyMode(CopyModeAction::SearchBackward),
+    );
+    table.bind(
+        KeyCombo::key(KeyCode::KeyN),
+        KeyAction::CopyMode(CopyModeAction::NextMatch),
+    );
+    table.bind(
+        KeyCombo::shift(KeyCode::KeyN), // N (Shift+n)
+        KeyAction::CopyMode(CopyModeAction::PrevMatch),
     );
 
     // Copy and exit
@@ -443,6 +463,31 @@ mod tests {
         assert!(matches!(
             y_action,
             Some(KeyAction::CopyMode(CopyModeAction::CopyAndExit))
+        ));
+
+        // Test search bindings
+        let slash_action = table.get(&KeyCombo::key(KeyCode::Slash));
+        assert!(matches!(
+            slash_action,
+            Some(KeyAction::CopyMode(CopyModeAction::SearchForward))
+        ));
+
+        let shift_slash_action = table.get(&KeyCombo::shift(KeyCode::Slash));
+        assert!(matches!(
+            shift_slash_action,
+            Some(KeyAction::CopyMode(CopyModeAction::SearchBackward))
+        ));
+
+        let n_action = table.get(&KeyCombo::key(KeyCode::KeyN));
+        assert!(matches!(
+            n_action,
+            Some(KeyAction::CopyMode(CopyModeAction::NextMatch))
+        ));
+
+        let shift_n_action = table.get(&KeyCombo::shift(KeyCode::KeyN));
+        assert!(matches!(
+            shift_n_action,
+            Some(KeyAction::CopyMode(CopyModeAction::PrevMatch))
         ));
     }
 

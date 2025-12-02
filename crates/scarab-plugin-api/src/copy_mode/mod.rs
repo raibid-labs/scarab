@@ -409,6 +409,56 @@ impl SearchMatch {
     }
 }
 
+/// Find all matches of a query string in the scrollback buffer
+///
+/// This function searches through the entire scrollback buffer for occurrences
+/// of the query string and returns a list of matches with their positions.
+///
+/// # Arguments
+/// * `query` - The search string (case-insensitive)
+/// * `get_line` - Callback to retrieve line content by y coordinate
+/// * `min_y` - Minimum y coordinate (top of scrollback)
+/// * `max_y` - Maximum y coordinate (bottom of screen)
+///
+/// # Returns
+/// Vector of SearchMatch structs representing each occurrence found
+pub fn find_matches<F>(query: &str, get_line: F, min_y: i32, max_y: i32) -> Vec<SearchMatch>
+where
+    F: Fn(i32) -> Option<String>,
+{
+    let mut matches = Vec::new();
+
+    if query.is_empty() {
+        return matches;
+    }
+
+    let query_lower = query.to_lowercase();
+
+    // Search through all lines in the buffer
+    for y in min_y..=max_y {
+        if let Some(line) = get_line(y) {
+            let line_lower = line.to_lowercase();
+
+            // Find all occurrences in this line
+            let mut start_pos = 0;
+            while let Some(match_pos) = line_lower[start_pos..].find(&query_lower) {
+                let absolute_pos = start_pos + match_pos;
+                let start = CopyModeCursor::new(absolute_pos as u16, y);
+                let end = CopyModeCursor::new(
+                    (absolute_pos + query.len() - 1) as u16,
+                    y,
+                );
+                matches.push(SearchMatch::new(start, end));
+
+                // Move past this match to find the next one
+                start_pos = absolute_pos + 1;
+            }
+        }
+    }
+
+    matches
+}
+
 /// Normalize a selection so that start comes before end
 ///
 /// Returns (start, end) where start.y < end.y, or if start.y == end.y, then start.x <= end.x
@@ -630,6 +680,47 @@ mod tests {
 
         search.prev_match();
         assert_eq!(search.current_match, None);
+    }
+
+    #[test]
+    fn test_find_matches() {
+        let get_line = |y: i32| match y {
+            0 => Some("Hello world, hello Rust!".to_string()),
+            1 => Some("Another HELLO here".to_string()),
+            2 => Some("No match on this line".to_string()),
+            _ => None,
+        };
+
+        let matches = find_matches("hello", get_line, 0, 2);
+
+        // Should find "Hello" (case-insensitive) and "hello" on line 0, and "HELLO" on line 1
+        assert_eq!(matches.len(), 3);
+
+        // First match: "Hello" at start of line 0
+        assert_eq!(matches[0].start, CopyModeCursor::new(0, 0));
+        assert_eq!(matches[0].end, CopyModeCursor::new(4, 0));
+
+        // Second match: "hello" at position 13 on line 0
+        assert_eq!(matches[1].start, CopyModeCursor::new(13, 0));
+        assert_eq!(matches[1].end, CopyModeCursor::new(17, 0));
+
+        // Third match: "HELLO" on line 1
+        assert_eq!(matches[2].start, CopyModeCursor::new(8, 1));
+        assert_eq!(matches[2].end, CopyModeCursor::new(12, 1));
+    }
+
+    #[test]
+    fn test_find_matches_empty_query() {
+        let get_line = |_y: i32| Some("Some text".to_string());
+        let matches = find_matches("", get_line, 0, 5);
+        assert_eq!(matches.len(), 0);
+    }
+
+    #[test]
+    fn test_find_matches_no_matches() {
+        let get_line = |_y: i32| Some("No matches here".to_string());
+        let matches = find_matches("xyz", get_line, 0, 5);
+        assert_eq!(matches.len(), 0);
     }
 
     #[test]
