@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 use bevy::render::camera::OrthographicProjection;
 use scarab_client::integration::{IntegrationPlugin, SharedMemWrapper, SharedMemoryReader};
-use scarab_client::{AdvancedUIPlugin, ScriptingPlugin, ScrollbackPlugin};
+use scarab_client::{AdvancedUIPlugin, ScriptingPlugin, ScrollbackPlugin, TutorialPlugin};
 use scarab_config::{ConfigLoader, FusabiConfigLoader};
 // Uncomment to enable hot-reloading config via bevy-fusabi:
 // use scarab_config::ScarabConfigPlugin;
@@ -100,6 +100,7 @@ fn main() {
         .add_plugins(AdvancedUIPlugin) // Add advanced UI features (includes search, indicators)
         .add_plugins(ScriptingPlugin) // Add client-side scripting
         .add_plugins(IntegrationPlugin) // Add text rendering
+        .add_plugins(TutorialPlugin) // Add interactive tutorial system
         .insert_resource(reader)
         .insert_resource(config) // Make initial config available (will be updated by plugin)
         // NOTE: Uncomment the following line to enable hot-reloading config via bevy-fusabi

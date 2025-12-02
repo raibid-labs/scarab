@@ -12,8 +12,16 @@ use crate::{
 };
 use bevy::prelude::*;
 use parking_lot::Mutex;
+use scarab_clipboard::{ClipboardManager, ClipboardType};
 use scarab_protocol::{ControlMessage, TerminalMetrics};
 use std::sync::Arc;
+
+/// Event emitted when scrollback buffer should be scrolled in normal mode
+#[derive(Event)]
+pub struct ScrollbackScrollEvent {
+    /// Number of lines to scroll (positive = up, negative = down)
+    pub lines: i32,
+}
 
 /// Trait for sending IPC messages to the daemon
 /// This trait should be implemented by the IpcChannel in scarab-client
@@ -45,7 +53,9 @@ impl Plugin for MousePlugin {
             click_detector: ClickDetector::new(),
             drag_start: None,
             is_dragging: false,
+            clipboard: Mutex::new(ClipboardManager::new()),
         })
+        .add_event::<ScrollbackScrollEvent>()
         .add_systems(
             Update,
             (
@@ -66,6 +76,7 @@ struct MousePluginState {
     click_detector: ClickDetector,
     drag_start: Option<Position>,
     is_dragging: bool,
+    clipboard: Mutex<ClipboardManager>,
 }
 
 /// Component for rendered selection overlay
@@ -292,13 +303,40 @@ fn handle_right_click(
     }
 }
 
-/// Handle middle mouse button click (paste)
+/// Handle middle mouse button click (paste from primary selection on Linux)
 fn handle_middle_click(plugin_state: &mut MousePluginState, pos: Position) {
     let state = plugin_state.shared_state.lock();
 
     if state.mode == MouseMode::Normal {
         log::info!("Middle click paste at {:?}", pos);
-        // TODO: Integrate with clipboard plugin for X11 primary selection
+
+        // On Linux, middle-click pastes from X11 primary selection
+        #[cfg(target_os = "linux")]
+        {
+            let mut clipboard_mgr = plugin_state.clipboard.lock();
+            match clipboard_mgr.paste(ClipboardType::Primary) {
+                Ok(text) => {
+                    if !text.is_empty() {
+                        log::info!("Pasting {} characters from primary selection", text.len());
+                        // TODO: Send text to terminal via IPC
+                        // This would require access to the IpcSender which isn't available in this function
+                        // For now, just log the paste operation
+                        log::debug!("Primary selection paste text: {:?}", text);
+                    } else {
+                        log::debug!("Primary selection is empty");
+                    }
+                }
+                Err(e) => {
+                    log::warn!("Failed to paste from primary selection: {}", e);
+                }
+            }
+        }
+
+        // On other platforms, middle-click paste is not a standard behavior
+        #[cfg(not(target_os = "linux"))]
+        {
+            log::debug!("Middle-click paste is Linux-specific (X11 primary selection)");
+        }
     }
 }
 
@@ -387,6 +425,7 @@ fn handle_scroll(
     mut scroll_events: EventReader<bevy::input::mouse::MouseWheel>,
     windows: Query<&Window>,
     ipc: Option<Res<MouseIpcSender>>,
+    mut scrollback_events: EventWriter<ScrollbackScrollEvent>,
 ) {
     let window = windows.single();
     let Some(cursor_pos) = window.cursor_position() else {
@@ -425,10 +464,10 @@ fn handle_scroll(
                 }
             }
             MouseMode::Normal => {
-                // Scroll scrollback buffer
-                let lines = (event.y.abs() * 3.0) as i32;
-                log::debug!("Scrolling {} lines", lines);
-                // TODO: Send scroll command to daemon (needs scrollback protocol)
+                // Emit scrollback event for scrollback system to handle
+                let lines = (event.y * 3.0) as i32; // Keep sign: positive = up, negative = down
+                log::debug!("Emitting scrollback scroll event: {} lines", lines);
+                scrollback_events.send(ScrollbackScrollEvent { lines });
             }
         }
     }

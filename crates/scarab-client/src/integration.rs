@@ -184,10 +184,14 @@ fn setup_terminal_rendering(
     commands.insert_resource(renderer);
 
     // Create and insert terminal metrics resource for mouse/input systems
-    // TODO: Uncomment when TerminalMetrics is defined
-    // let metrics = TerminalMetrics::new(font_size, line_height, cols, rows);
-    // commands.insert_resource(metrics);
-    // info!("Terminal metrics initialized: {:?}", metrics);
+    let metrics = scarab_protocol::TerminalMetrics {
+        cell_width,
+        cell_height,
+        columns: cols,
+        rows,
+    };
+    commands.insert_resource(metrics);
+    info!("Terminal metrics initialized: {:?}", metrics);
 
     // Send initial window resize to daemon so PTY knows the terminal size
     if let Some(ipc) = ipc {

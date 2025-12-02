@@ -7,8 +7,7 @@ use std::collections::VecDeque;
 use std::time::SystemTime;
 
 // Re-export the event from scarab_mouse for convenience
-// TODO: Uncomment when ScrollbackScrollEvent is available in scarab_mouse
-// pub use scarab_mouse::ScrollbackScrollEvent;
+pub use scarab_mouse::ScrollbackScrollEvent;
 
 /// Maximum number of lines to keep in scrollback (10,000 default)
 pub const DEFAULT_MAX_SCROLLBACK_LINES: usize = 10_000;
@@ -368,8 +367,6 @@ fn handle_mouse_scroll(
     }
 }
 
-// TODO: Uncomment when ScrollbackScrollEvent is defined in scarab_mouse
-/*
 /// System to handle scrollback scroll events from mouse plugin
 /// This handles the case where the mouse plugin emits ScrollbackScrollEvent in normal mode
 fn handle_scrollback_scroll_events(
@@ -390,7 +387,6 @@ fn handle_scrollback_scroll_events(
         state.is_scrolled = !scrollback.is_at_bottom();
     }
 }
-*/
 
 /// System to handle keyboard navigation
 fn handle_keyboard_scrolling(
@@ -478,8 +474,7 @@ impl Plugin for ScrollbackPlugin {
                 Update,
                 (
                     handle_mouse_scroll,
-                    // TODO: Uncomment when ScrollbackScrollEvent is available
-                    // handle_scrollback_scroll_events,
+                    handle_scrollback_scroll_events,
                     handle_keyboard_scrolling,
                     handle_search_navigation,
                 )

@@ -6474,6 +6474,7 @@ dependencies = [
  "bitflags 2.10.0",
  "log",
  "parking_lot",
+ "scarab-clipboard",
  "scarab-plugin-api",
  "scarab-protocol",
  "serde",

@@ -136,6 +136,56 @@ impl PluginVerifier {
         ))
     }
 
+    /// Filter certificates by matching fingerprints
+    #[cfg(feature = "registry")]
+    fn filter_certs_by_fingerprints(&self, certs: &[openpgp::Cert]) -> Result<Vec<openpgp::Cert>> {
+        use openpgp::Fingerprint;
+
+        let mut matched_certs = Vec::new();
+
+        // Parse all trusted fingerprints
+        let trusted_fps: Vec<Fingerprint> = self
+            .config
+            .trusted_keys
+            .iter()
+            .filter_map(|fp_str| {
+                let normalized = fp_str.trim().replace(" ", "").to_uppercase();
+                match normalized.parse::<Fingerprint>() {
+                    Ok(fp) => Some(fp),
+                    Err(e) => {
+                        tracing::warn!(
+                            "Failed to parse fingerprint '{}': {}",
+                            fp_str,
+                            e
+                        );
+                        None
+                    }
+                }
+            })
+            .collect();
+
+        if trusted_fps.is_empty() {
+            return Err(ConfigError::SecurityError(
+                "No valid fingerprints could be parsed from trusted_keys".to_string(),
+            ));
+        }
+
+        // Match certificates against trusted fingerprints
+        for cert in certs {
+            let cert_fp = cert.fingerprint();
+
+            if trusted_fps.iter().any(|trusted_fp| trusted_fp == &cert_fp) {
+                tracing::info!(
+                    "Matched certificate with fingerprint: {}",
+                    cert_fp.to_hex()
+                );
+                matched_certs.push(cert.clone());
+            }
+        }
+
+        Ok(matched_certs)
+    }
+
     /// Load trusted certificates from configuration
     #[cfg(feature = "registry")]
     fn load_trusted_certs(&self) -> Result<Vec<openpgp::Cert>> {
@@ -172,16 +222,32 @@ impl PluginVerifier {
             }
         }
 
-        // TODO: Load individual certificates from trusted_keys fingerprints
-        // For now, we rely on keyring_path. In a full implementation, you would:
-        // 1. Query a keyserver for each fingerprint
-        // 2. Or maintain a local certificate cache
-        // 3. Or embed certificates directly in the config
+        // Filter certificates by trusted fingerprints if specified
+        // This allows loading specific keys from the keyring rather than trusting all keys
+        if !self.config.trusted_keys.is_empty() {
+            let filtered_certs = self.filter_certs_by_fingerprints(&certs)?;
 
-        if certs.is_empty() && !self.config.trusted_keys.is_empty() {
+            if filtered_certs.is_empty() {
+                return Err(ConfigError::SecurityError(format!(
+                    "No certificates found matching trusted fingerprints: {:?}. \
+                     Ensure keyring_path contains the required public keys.",
+                    self.config.trusted_keys
+                )));
+            }
+
+            tracing::debug!(
+                "Filtered {} certificate(s) from keyring matching trusted fingerprints",
+                filtered_certs.len()
+            );
+
+            return Ok(filtered_certs);
+        }
+
+        // If no trusted_keys filter, but we have a keyring, warn about using all keys
+        if !certs.is_empty() && self.config.trusted_keys.is_empty() {
             tracing::warn!(
-                "Trusted key fingerprints configured but no keyring provided. \
-                 Use 'keyring_path' to specify a file containing trusted public keys."
+                "Using all certificates from keyring without fingerprint filtering. \
+                 Consider specifying 'trusted_keys' fingerprints for better security."
             );
         }
 
@@ -502,6 +568,102 @@ mod tests {
         let invalid_content = b"random content";
         let result = PluginVerifier::validate_plugin_format(invalid_content, "test.txt");
         assert!(result.is_err());
+    }
+
+    #[cfg(feature = "registry")]
+    #[test]
+    fn test_fingerprint_filtering() {
+        use openpgp::cert::CertBuilder;
+
+        // Generate a test certificate
+        let (cert, _) = CertBuilder::new()
+            .add_userid("Test User <test@example.com>")
+            .generate()
+            .expect("Failed to generate test certificate");
+
+        let fingerprint = cert.fingerprint().to_hex();
+        tracing::info!("Generated test cert with fingerprint: {}", fingerprint);
+
+        // Test with matching fingerprint
+        let config = SecurityConfig {
+            require_checksum: false,
+            require_signature: true,
+            trusted_keys: vec![fingerprint.clone()],
+            allow_unsigned: false,
+            keyring_path: None,
+            require_key_match: true,
+            max_signature_age_days: 365,
+        };
+
+        let verifier = PluginVerifier::new(config);
+        let filtered = verifier.filter_certs_by_fingerprints(&[cert.clone()]);
+        assert!(filtered.is_ok());
+        assert_eq!(filtered.unwrap().len(), 1);
+
+        // Test with non-matching fingerprint
+        let config_no_match = SecurityConfig {
+            require_checksum: false,
+            require_signature: true,
+            trusted_keys: vec!["0000000000000000000000000000000000000000".to_string()],
+            allow_unsigned: false,
+            keyring_path: None,
+            require_key_match: true,
+            max_signature_age_days: 365,
+        };
+
+        let verifier_no_match = PluginVerifier::new(config_no_match);
+        let filtered_empty = verifier_no_match.filter_certs_by_fingerprints(&[cert.clone()]);
+        assert!(filtered_empty.is_ok());
+        assert_eq!(filtered_empty.unwrap().len(), 0);
+
+        // Test with spaces in fingerprint (should normalize)
+        let fingerprint_spaced = format!(
+            "{} {} {} {} {}",
+            &fingerprint[0..8],
+            &fingerprint[8..16],
+            &fingerprint[16..24],
+            &fingerprint[24..32],
+            &fingerprint[32..40]
+        );
+
+        let config_spaced = SecurityConfig {
+            require_checksum: false,
+            require_signature: true,
+            trusted_keys: vec![fingerprint_spaced],
+            allow_unsigned: false,
+            keyring_path: None,
+            require_key_match: true,
+            max_signature_age_days: 365,
+        };
+
+        let verifier_spaced = PluginVerifier::new(config_spaced);
+        let filtered_spaced = verifier_spaced.filter_certs_by_fingerprints(&[cert]);
+        assert!(filtered_spaced.is_ok());
+        assert_eq!(filtered_spaced.unwrap().len(), 1);
+    }
+
+    #[cfg(feature = "registry")]
+    #[test]
+    fn test_invalid_fingerprint_parsing() {
+        let config = SecurityConfig {
+            require_checksum: false,
+            require_signature: true,
+            trusted_keys: vec!["invalid_fingerprint".to_string()],
+            allow_unsigned: false,
+            keyring_path: None,
+            require_key_match: true,
+            max_signature_age_days: 365,
+        };
+
+        let verifier = PluginVerifier::new(config);
+        let result = verifier.filter_certs_by_fingerprints(&[]);
+
+        // Should error because no valid fingerprints could be parsed
+        assert!(result.is_err());
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("No valid fingerprints"));
     }
 
     fn create_test_entry(checksum: &str) -> PluginEntry {

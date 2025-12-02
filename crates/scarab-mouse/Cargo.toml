@@ -11,6 +11,7 @@ description = "Mouse support and interaction plugin for Scarab terminal emulator
 [dependencies]
 scarab-plugin-api = { path = "../scarab-plugin-api" }
 scarab-protocol = { path = "../scarab-protocol", features = ["bevy"] }
+scarab-clipboard = { path = "../scarab-clipboard" }
 bevy = { workspace = true }
 async-trait = "0.1"
 log = "0.4"

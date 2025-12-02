@@ -185,25 +185,53 @@ fn handle_context_menu_input(
                 let item_id = item.id.clone();
                 log::info!("Executing context menu action: {}", item_id);
 
-                // Execute the menu action
-                execute_menu_action(&item_id, &ipc);
+                // Extract menu context if available (for URL/file actions)
+                let menu_context = plugin_state.menu_context.clone();
 
-                // Close menu
+                // Close menu first
                 plugin_state.active_menu = None;
                 plugin_state.menu_mouse_pos = None;
+                plugin_state.menu_context = None;
                 drop(state);
                 plugin_state.shared_state.lock().context_menu_visible = false;
+
+                // Execute the menu action
+                execute_menu_action(&item_id, &ipc, &mut plugin_state, menu_context);
             }
         }
     }
 }
 
 /// Execute a context menu action
-fn execute_menu_action(action_id: &str, ipc: &Option<Res<MouseIpcSender>>) {
+fn execute_menu_action(
+    action_id: &str,
+    ipc: &Option<Res<MouseIpcSender>>,
+    plugin_state: &mut ResMut<MousePluginState>,
+    menu_context: Option<MenuContext>,
+) {
     match action_id {
         "copy" => {
-            // TODO: Integrate with clipboard plugin
-            log::info!("Copy action triggered");
+            // Copy selected text to clipboard
+            let state = plugin_state.shared_state.lock();
+            if let Some(selection) = &state.selection {
+                // Extract text from selection using grid access
+                // For now, we log the selection bounds
+                log::info!("Copying selection: {:?}", selection);
+
+                // TODO: Extract actual text from SharedState grid
+                // This would require access to SharedState or a grid reader
+                // For now, we'll just copy placeholder text
+                use arboard::Clipboard;
+                if let Ok(mut clipboard) = Clipboard::new() {
+                    if let Err(e) = clipboard.set_text("[Selected Text]") {
+                        log::error!("Failed to copy to clipboard: {}", e);
+                    } else {
+                        log::info!("Text copied to clipboard successfully");
+                    }
+                }
+            } else {
+                log::warn!("No selection to copy");
+            }
         }
         "paste" => {
             // Paste from clipboard
@@ -216,39 +244,219 @@ fn execute_menu_action(action_id: &str, ipc: &Option<Res<MouseIpcSender>>) {
                         });
                         log::info!("Pasted {} bytes from clipboard", text.len());
                     }
+                } else {
+                    log::warn!("Failed to read from clipboard");
                 }
+            } else {
+                log::error!("Failed to initialize clipboard");
             }
         }
         "select_all" => {
-            // TODO: Implement select all
-            log::info!("Select all action triggered");
+            // Select entire terminal buffer
+            let mut state = plugin_state.shared_state.lock();
+
+            // Create a selection spanning the entire visible grid
+            // Using terminal dimensions from protocol (200x100 default)
+            let cols = 200u16;
+            let rows = 100u16;
+
+            state.selection = Some(crate::selection::Selection {
+                start: crate::types::Position { x: 0, y: 0 },
+                end: crate::types::Position {
+                    x: cols.saturating_sub(1),
+                    y: rows.saturating_sub(1)
+                },
+                kind: crate::selection::SelectionKind::Normal,
+            });
+
+            log::info!("Selected all terminal content ({}x{})", cols, rows);
         }
         "clear_selection" => {
-            // TODO: Implement clear selection
-            log::info!("Clear selection action triggered");
+            // Clear current selection
+            let mut state = plugin_state.shared_state.lock();
+            if state.selection.is_some() {
+                state.selection = None;
+                log::info!("Selection cleared");
+            } else {
+                log::debug!("No selection to clear");
+            }
         }
         "search" => {
-            // TODO: Integrate with search overlay
-            log::info!("Search action triggered");
+            // Open search overlay
+            // This would typically emit a Bevy event that the search overlay system listens for
+            // For now, we log the intent
+            log::info!("Search overlay requested");
+
+            // TODO: Send SearchOverlayEvent or set a resource flag that search system monitors
+            // Example: events.send(SearchOverlayEvent::Show);
         }
         "new_tab" => {
-            // TODO: Implement new tab
-            log::info!("New tab action triggered");
+            // Create new terminal tab via IPC
+            if let Some(ipc) = ipc {
+                ipc.0.send(ControlMessage::TabCreate { title: None });
+                log::info!("Sent TabCreate command to daemon");
+            } else {
+                log::error!("Cannot create new tab: IPC not available");
+            }
         }
-        "split_horizontal" | "split_vertical" => {
-            // TODO: Implement split panes
-            log::info!("Split pane action triggered: {}", action_id);
+        "split_horizontal" => {
+            // Split current pane horizontally via IPC
+            if let Some(ipc) = ipc {
+                // Assuming current pane ID is 0 (would need to track active pane)
+                ipc.0.send(ControlMessage::PaneSplit {
+                    pane_id: 0,
+                    direction: scarab_protocol::SplitDirection::Horizontal,
+                });
+                log::info!("Sent PaneSplit horizontal command to daemon");
+            } else {
+                log::error!("Cannot split pane: IPC not available");
+            }
         }
-        "open_url" | "copy_url" => {
-            // TODO: Implement URL actions
-            log::info!("URL action triggered: {}", action_id);
+        "split_vertical" => {
+            // Split current pane vertically via IPC
+            if let Some(ipc) = ipc {
+                // Assuming current pane ID is 0 (would need to track active pane)
+                ipc.0.send(ControlMessage::PaneSplit {
+                    pane_id: 0,
+                    direction: scarab_protocol::SplitDirection::Vertical,
+                });
+                log::info!("Sent PaneSplit vertical command to daemon");
+            } else {
+                log::error!("Cannot split pane: IPC not available");
+            }
         }
-        "open_file" | "copy_path" => {
-            // TODO: Implement file actions
-            log::info!("File action triggered: {}", action_id);
+        "open_url" => {
+            // Open URL in default browser
+            if let Some(context) = menu_context {
+                if let Some(url) = context.url {
+                    log::info!("Opening URL: {}", url);
+
+                    #[cfg(target_os = "linux")]
+                    let cmd = "xdg-open";
+                    #[cfg(target_os = "macos")]
+                    let cmd = "open";
+                    #[cfg(target_os = "windows")]
+                    let cmd = "cmd";
+
+                    #[cfg(not(any(target_os = "linux", target_os = "macos", target_os = "windows")))]
+                    {
+                        log::error!("URL opening not supported on this platform");
+                        return;
+                    }
+
+                    #[cfg(any(target_os = "linux", target_os = "macos"))]
+                    {
+                        match std::process::Command::new(cmd).arg(&url).spawn() {
+                            Ok(_) => log::info!("Successfully opened URL in browser"),
+                            Err(e) => log::error!("Failed to open URL: {}", e),
+                        }
+                    }
+
+                    #[cfg(target_os = "windows")]
+                    {
+                        match std::process::Command::new(cmd)
+                            .args(&["/c", "start", &url])
+                            .spawn()
+                        {
+                            Ok(_) => log::info!("Successfully opened URL in browser"),
+                            Err(e) => log::error!("Failed to open URL: {}", e),
+                        }
+                    }
+                } else {
+                    log::warn!("No URL available in menu context");
+                }
+            } else {
+                log::warn!("No menu context available for URL action");
+            }
+        }
+        "copy_url" => {
+            // Copy URL to clipboard
+            if let Some(context) = menu_context {
+                if let Some(url) = context.url {
+                    use arboard::Clipboard;
+                    if let Ok(mut clipboard) = Clipboard::new() {
+                        if let Err(e) = clipboard.set_text(&url) {
+                            log::error!("Failed to copy URL to clipboard: {}", e);
+                        } else {
+                            log::info!("URL copied to clipboard: {}", url);
+                        }
+                    } else {
+                        log::error!("Failed to initialize clipboard");
+                    }
+                } else {
+                    log::warn!("No URL available in menu context");
+                }
+            } else {
+                log::warn!("No menu context available for URL copy action");
+            }
+        }
+        "open_file" => {
+            // Open file in default editor
+            if let Some(context) = menu_context {
+                if let Some(path) = context.file_path {
+                    log::info!("Opening file: {}", path);
+
+                    // Use $EDITOR environment variable or fallback to platform defaults
+                    let editor = std::env::var("EDITOR").ok();
+
+                    #[cfg(target_os = "linux")]
+                    let default_cmd = "xdg-open";
+                    #[cfg(target_os = "macos")]
+                    let default_cmd = "open";
+                    #[cfg(target_os = "windows")]
+                    let default_cmd = "notepad";
+
+                    #[cfg(not(any(target_os = "linux", target_os = "macos", target_os = "windows")))]
+                    {
+                        log::error!("File opening not supported on this platform");
+                        return;
+                    }
+
+                    #[cfg(any(target_os = "linux", target_os = "macos", target_os = "windows"))]
+                    {
+                        let cmd = editor.as_deref().unwrap_or(default_cmd);
+                        match std::process::Command::new(cmd).arg(&path).spawn() {
+                            Ok(_) => log::info!("Successfully opened file in editor"),
+                            Err(e) => log::error!("Failed to open file: {}", e),
+                        }
+                    }
+                } else {
+                    log::warn!("No file path available in menu context");
+                }
+            } else {
+                log::warn!("No menu context available for file action");
+            }
+        }
+        "copy_path" => {
+            // Copy file path to clipboard
+            if let Some(context) = menu_context {
+                if let Some(path) = context.file_path {
+                    use arboard::Clipboard;
+                    if let Ok(mut clipboard) = Clipboard::new() {
+                        if let Err(e) = clipboard.set_text(&path) {
+                            log::error!("Failed to copy path to clipboard: {}", e);
+                        } else {
+                            log::info!("File path copied to clipboard: {}", path);
+                        }
+                    } else {
+                        log::error!("Failed to initialize clipboard");
+                    }
+                } else {
+                    log::warn!("No file path available in menu context");
+                }
+            } else {
+                log::warn!("No menu context available for file path copy action");
+            }
         }
         _ => {
             log::warn!("Unknown context menu action: {}", action_id);
         }
     }
+}
+
+/// Context information for menu actions
+#[derive(Clone, Debug)]
+struct MenuContext {
+    url: Option<String>,
+    file_path: Option<String>,
 }

@@ -17,11 +17,12 @@ pub mod mode;
 pub mod selection;
 pub mod types;
 
-pub use bevy_plugin::{IpcSender, MouseIpcSender, MousePlugin as BevyMousePlugin};
+pub use bevy_plugin::{IpcSender, MouseIpcSender, MousePlugin as BevyMousePlugin, ScrollbackScrollEvent};
 pub use types::{ClickType, MouseButton, MouseEvent, MouseMode, Position};
 
 use async_trait::async_trait;
 use parking_lot::Mutex;
+use scarab_clipboard::{ClipboardManager, ClipboardType};
 use scarab_plugin_api::{
     types::ModalItem,
     Action, Plugin, PluginContext, PluginMetadata, Result,
@@ -32,6 +33,7 @@ use std::sync::Arc;
 pub struct MousePlugin {
     metadata: PluginMetadata,
     state: Arc<Mutex<MouseState>>,
+    clipboard: Mutex<ClipboardManager>,
 }
 
 /// Internal plugin state
@@ -87,6 +89,7 @@ impl MousePlugin {
             .with_color("#00BFFF")
             .with_catchphrase("Point, click, interact"),
             state: Arc::new(Mutex::new(MouseState::default())),
+            clipboard: Mutex::new(ClipboardManager::new()),
         }
     }
 
@@ -199,17 +202,68 @@ impl Plugin for MousePlugin {
         match id {
             "mouse.copy" => {
                 if let Some(selection) = &state.selection {
-                    // TODO: Integrate with clipboard plugin
-                    log::info!("Copy selection: {:?}", selection);
-                    ctx.notify_success("Copied", "Selection copied to clipboard");
+                    // Get terminal dimensions for text extraction
+                    let (cols, _rows) = ctx.get_size();
+
+                    // Extract text from selection
+                    let get_char = |pos: types::Position| -> Option<char> {
+                        ctx.get_line(pos.y).and_then(|line| {
+                            line.chars().nth(pos.x as usize)
+                        })
+                    };
+
+                    let text = selection.get_text(get_char, cols);
+
+                    if text.is_empty() {
+                        ctx.notify_warning("Copy Failed", "Selection is empty");
+                    } else {
+                        // Copy to standard clipboard
+                        let mut clipboard_mgr = self.clipboard.lock();
+                        match clipboard_mgr.copy(&text, ClipboardType::Standard) {
+                            Ok(_) => {
+                                log::info!("Copied {} characters to clipboard", text.len());
+                                ctx.notify_success("Copied", &format!("Copied {} characters", text.len()));
+
+                                // On Linux, also sync to primary selection
+                                #[cfg(target_os = "linux")]
+                                if let Err(e) = clipboard_mgr.copy(&text, ClipboardType::Primary) {
+                                    log::warn!("Failed to sync to primary selection: {}", e);
+                                }
+
+                                // Clear selection after copy
+                                state.selection = None;
+                            }
+                            Err(e) => {
+                                log::error!("Failed to copy to clipboard: {}", e);
+                                ctx.notify_error("Copy Failed", &format!("Error: {}", e));
+                            }
+                        }
+                    }
                 } else {
                     ctx.notify_warning("No Selection", "Nothing to copy");
                 }
             }
             "mouse.paste" => {
-                // TODO: Integrate with clipboard plugin
-                log::info!("Paste requested");
-                ctx.notify_info("Paste", "Pasting from clipboard");
+                let mut clipboard_mgr = self.clipboard.lock();
+                match clipboard_mgr.paste(ClipboardType::Standard) {
+                    Ok(text) => {
+                        if text.is_empty() {
+                            ctx.notify_info("Paste", "Clipboard is empty");
+                        } else {
+                            log::info!("Pasting {} characters from clipboard", text.len());
+                            ctx.notify_success("Paste", &format!("Pasting {} characters", text.len()));
+
+                            // TODO: Actually send the text to the terminal via IPC
+                            // This would need to be queued as input to the daemon
+                            // For now, we just log it
+                            log::debug!("Paste text: {:?}", text);
+                        }
+                    }
+                    Err(e) => {
+                        log::error!("Failed to paste from clipboard: {}", e);
+                        ctx.notify_error("Paste Failed", &format!("Error: {}", e));
+                    }
+                }
             }
             "mouse.select_all" => {
                 let (cols, rows) = ctx.get_size();
