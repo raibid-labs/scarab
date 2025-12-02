@@ -641,9 +641,13 @@ mod tests {
         let color = parse_hex_color("#FFFFFF").unwrap();
         assert!((color.to_srgba().red - 1.0).abs() < 0.01);
 
+        // Colors without # prefix are also valid (lenient parsing)
+        let color = parse_hex_color("FF5733").unwrap();
+        assert!((color.to_srgba().red - 1.0).abs() < 0.01);
+
         // Invalid colors
-        assert!(parse_hex_color("FF5733").is_none()); // Missing #
         assert!(parse_hex_color("#FF57").is_none()); // Too short
+        assert!(parse_hex_color("FF57").is_none()); // Too short without #
         assert!(parse_hex_color("#GGGGGG").is_none()); // Invalid hex
     }
 

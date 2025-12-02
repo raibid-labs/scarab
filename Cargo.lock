@@ -6458,6 +6458,7 @@ dependencies = [
  "serde",
  "serde_json",
  "shared_memory",
+ "tempfile",
  "tokio",
  "tokio-test",
  "tracy-client",

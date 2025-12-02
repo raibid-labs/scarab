@@ -5,7 +5,7 @@ use std::sync::Arc;
 // Assuming standard public exports for now.
 use ratatui_testlib as mimic; 
 use scarab_daemon::vte::TerminalState;
-use scarab_protocol::SharedState;
+use scarab_protocol::{SharedState, GRID_WIDTH};
 
 #[test]
 fn test_vte_basic_text_rendering() {
@@ -30,21 +30,22 @@ fn test_vte_basic_text_rendering() {
     scarab_vte.process_output(input.as_bytes());
 
     // 3. Verify Scarab State
+    // cells is a flat array: cells[row * GRID_WIDTH + col]
     unsafe {
         let state = &*shared_ptr;
-        
-        // Check "Hello "
-        let cell_h = state.grid[0][0];
-        assert_eq!(char::from_u32(cell_h.c).unwrap(), 'H');
-        
-        // Check "Red" (should be red)
-        let cell_r = state.grid[0][6];
-        assert_eq!(char::from_u32(cell_r.c).unwrap(), 'R');
+
+        // Check "Hello " - row 0, col 0
+        let cell_h = state.cells[0 * GRID_WIDTH + 0];
+        assert_eq!(char::from_u32(cell_h.char_codepoint).unwrap(), 'H');
+
+        // Check "Red" (should be red) - row 0, col 6
+        let cell_r = state.cells[0 * GRID_WIDTH + 6];
+        assert_eq!(char::from_u32(cell_r.char_codepoint).unwrap(), 'R');
         assert_ne!(cell_r.fg, 0, "Red text should have non-zero foreground color");
-        
-        // Check " World" (should be default color)
-        let cell_w = state.grid[0][10];
-        assert_eq!(char::from_u32(cell_w.c).unwrap(), 'W');
+
+        // Check " World" (should be default color) - row 0, col 10
+        let cell_w = state.cells[0 * GRID_WIDTH + 10];
+        assert_eq!(char::from_u32(cell_w.char_codepoint).unwrap(), 'W');
         assert_eq!(cell_w.fg, 0, "World text should have default foreground color");
     }
 }
