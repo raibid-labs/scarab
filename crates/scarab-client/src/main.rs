@@ -1,6 +1,5 @@
 use bevy::prelude::*;
-use bevy::core_pipeline::tonemapping::Tonemapping;
-use bevy::render::camera::{OrthographicProjection, ScalingMode};
+use bevy::render::camera::OrthographicProjection;
 use scarab_client::integration::{IntegrationPlugin, SharedMemWrapper, SharedMemoryReader};
 use scarab_client::{AdvancedUIPlugin, ScriptingPlugin, ScrollbackPlugin};
 use scarab_config::{ConfigLoader, FusabiConfigLoader};
@@ -140,7 +139,6 @@ fn setup(mut commands: Commands, windows: Query<&Window, With<bevy::window::Prim
             // Standard 2D: viewport goes from (0,0) at top-left to (width, height) at bottom-right
             // But Camera2d has Y pointing up, so we need negative Y
             viewport_origin: Vec2::new(0.0, 0.0),
-            scaling_mode: ScalingMode::WindowSize(1.0),
             ..OrthographicProjection::default_2d()
         },
         Transform::from_xyz(width / 2.0, -height / 2.0, 0.0),
