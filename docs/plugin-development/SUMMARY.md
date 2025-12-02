@@ -12,8 +12,8 @@ This is a comprehensive plugin development guide for Scarab Terminal.
 ### Documentation
 - ✅ Main README with quick start
 - ✅ 3 completed tutorials (frontend, backend, API overview)
-- ✅ 3 architecture guides (frontend vs backend, lifecycle, performance)
-- ✅ 2 API reference docs (PluginContext, Hooks)
+- ✅ 4 architecture guides (frontend vs backend, lifecycle, performance, security)
+- ✅ 5 API reference docs (PluginContext, Hooks, RemoteUI, Utilities)
 
 ### Example Plugins (8 total)
 
@@ -73,10 +73,13 @@ docs/plugin-development/
 ├── architecture/
 │   ├── frontend-vs-backend.md                # CRITICAL decision guide
 │   ├── plugin-lifecycle.md                   # Lifecycle explanation
-│   └── performance.md                        # Optimization guide
+│   ├── performance.md                        # Optimization guide
+│   └── security.md                           # Security architecture & best practices
 ├── api-reference/
 │   ├── plugin-context.md                     # Complete PluginContext API
-│   └── hooks.md                              # All available hooks
+│   ├── hooks.md                              # All available hooks
+│   ├── remote-ui.md                          # RemoteUI components reference
+│   └── utilities.md                          # Utility functions reference
 └── SUMMARY.md                                # This file
 ```
 
@@ -85,8 +88,11 @@ docs/plugin-development/
 - **[Start Here: README](README.md)** - Overview and quick start
 - **[First Tutorial](tutorials/01-hello-world-frontend.md)** - Build your first plugin
 - **[Frontend vs Backend Guide](architecture/frontend-vs-backend.md)** - Choose the right runtime
+- **[Security Guide](architecture/security.md)** - Security model and best practices
 - **[API Reference: PluginContext](api-reference/plugin-context.md)** - All available methods
 - **[API Reference: Hooks](api-reference/hooks.md)** - All available hooks
+- **[API Reference: RemoteUI](api-reference/remote-ui.md)** - UI components
+- **[API Reference: Utilities](api-reference/utilities.md)** - Helper functions
 
 ## What's Missing (for Future Work)
 
@@ -97,9 +103,6 @@ These are planned but not yet implemented:
 - Tutorial 5: Frontend UI with RemoteUI (building complex UIs)
 - Tutorial 6: Backend Processing with Hooks (advanced patterns)
 - Tutorial 7: Testing and Publishing (production readiness)
-
-### API Reference (1 more)
-- RemoteUI Components (UI building blocks)
 
 ## Testing the Setup
 
@@ -134,11 +137,13 @@ done
 - ✅ `just dev-mode` provides hot-reload workflow
 - ✅ Clear decision guide for .fsx vs .fzb
 - ✅ Complete API reference for PluginContext and Hooks
+- ✅ RemoteUI API reference with all components
+- ✅ Utilities API reference with helper functions
+- ✅ Security architecture guide with best practices
 - ✅ 8 example plugins demonstrating patterns
 - ✅ 3 tutorials covering basics
-- ✅ 3 architecture guides
+- ✅ 4 architecture guides
 - ⚠️ 4 additional tutorials pending (marked for future work)
-- ⚠️ RemoteUI documentation pending (marked for future work)
 
 ## Contributing
 
