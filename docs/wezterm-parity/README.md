@@ -112,6 +112,20 @@ Week 5-6:
 4. **Performance First**: Object proxies should be lightweight (handle-based, not cloning)
 5. **WezTerm Compatibility**: Where possible, mirror WezTerm's API naming for familiarity
 
+## Release Plan
+
+This work targets **v0.2.0** with the following milestone schedule:
+
+| Milestone | Target | Contents |
+|-----------|--------|----------|
+| `v0.2.0-alpha.1` | Week 2-3 | Object Model + Event System foundations |
+| `v0.2.0-alpha.2` | Week 4-5 | Status Bar API + Key Tables |
+| `v0.2.0-alpha.3` | Week 6-7 | Image Protocols + Copy Mode |
+| `v0.2.0-beta.1` | Week 8 | Feature complete, stabilization |
+| `v0.2.0` | Week 9-10 | Stable release |
+
+See [08-release-roadmap.md](./08-release-roadmap.md) for detailed milestone criteria, PR strategies, and progress tracking.
+
 ## File Index
 
 | File | Purpose |
@@ -123,6 +137,7 @@ Week 5-6:
 | [05-image-protocols.md](./05-image-protocols.md) | Image protocol implementation |
 | [06-copy-mode.md](./06-copy-mode.md) | Copy mode and selection |
 | [07-workstreams.md](./07-workstreams.md) | Detailed workstream breakdown |
+| [08-release-roadmap.md](./08-release-roadmap.md) | Release milestones and PR strategy |
 
 ## Success Criteria
 

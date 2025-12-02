@@ -5,6 +5,25 @@ All notable changes to the Scarab terminal emulator will be documented in this f
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.0-alpha.15] - 2025-12-02
+
+### Documentation
+- **WezTerm Parity Planning**: Added comprehensive documentation for achieving WezTerm feature parity
+  - Object model architecture (`docs/wezterm-parity/01-object-model.md`)
+  - Event system design (`docs/wezterm-parity/02-event-system.md`)
+  - Status bar rendering API (`docs/wezterm-parity/03-status-bar-api.md`)
+  - Key tables and modal editing (`docs/wezterm-parity/04-key-tables.md`)
+  - Image protocol support (`docs/wezterm-parity/05-image-protocols.md`)
+  - Copy mode and selection (`docs/wezterm-parity/06-copy-mode.md`)
+  - Workstream parallelization (`docs/wezterm-parity/07-workstreams.md`)
+  - Release roadmap with milestones (`docs/wezterm-parity/08-release-roadmap.md`)
+- **CONTRIBUTING.md**: Added comprehensive git workflow and PR guidelines
+  - Squash merge policy for clean history
+  - Conventional commit format
+  - Branch naming conventions
+  - PR process and templates
+  - Code review guidelines
+
 ## [0.1.0-alpha.14] - 2025-12-02
 
 ### Critical Fixes
