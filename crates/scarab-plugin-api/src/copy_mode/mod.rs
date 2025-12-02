@@ -138,6 +138,175 @@ impl CopyModeState {
             self.cursor = selection.active;
         }
     }
+
+    // Cursor movement methods
+
+    /// Move cursor left, clamping at column 0
+    pub fn move_left(&mut self) {
+        if self.cursor.x > 0 {
+            self.cursor.x -= 1;
+        }
+    }
+
+    /// Move cursor right, clamping at max_cols
+    pub fn move_right(&mut self, max_cols: u16) {
+        if self.cursor.x < max_cols.saturating_sub(1) {
+            self.cursor.x += 1;
+        }
+    }
+
+    /// Move cursor up, clamping at scrollback top
+    pub fn move_up(&mut self, min_y: i32) {
+        if self.cursor.y > min_y {
+            self.cursor.y -= 1;
+        }
+    }
+
+    /// Move cursor down, clamping at screen bottom
+    pub fn move_down(&mut self, max_y: i32) {
+        if self.cursor.y < max_y {
+            self.cursor.y += 1;
+        }
+    }
+
+    /// Move cursor to column 0 (start of line)
+    pub fn move_to_line_start(&mut self) {
+        self.cursor.x = 0;
+    }
+
+    /// Move cursor to end of line
+    pub fn move_to_line_end(&mut self, line_length: u16) {
+        self.cursor.x = line_length.saturating_sub(1);
+    }
+
+    /// Move cursor to top of scrollback
+    pub fn move_to_top(&mut self, min_y: i32) {
+        self.cursor.y = min_y;
+    }
+
+    /// Move cursor to bottom of screen
+    pub fn move_to_bottom(&mut self, max_y: i32) {
+        self.cursor.y = max_y;
+    }
+
+    // Selection methods
+
+    /// Toggle cell selection mode
+    pub fn toggle_cell_selection(&mut self) {
+        self.toggle_selection(SelectionMode::Cell);
+    }
+
+    /// Toggle line selection mode
+    pub fn toggle_line_selection(&mut self) {
+        self.toggle_selection(SelectionMode::Line);
+    }
+
+    /// Toggle block selection mode
+    pub fn toggle_block_selection(&mut self) {
+        self.toggle_selection(SelectionMode::Block);
+    }
+
+    /// Get the selected text using a callback to retrieve line content
+    ///
+    /// The callback function should take a line number (y coordinate) and return
+    /// the line content as a String, or None if the line doesn't exist.
+    pub fn get_selection_text<F>(&self, get_line: F) -> Option<String>
+    where
+        F: Fn(i32) -> Option<String>,
+    {
+        let selection = self.selection.as_ref()?;
+        let (start, end) = normalize_selection(selection);
+
+        let mut result = String::new();
+
+        match self.selection_mode {
+            SelectionMode::None => return None,
+            SelectionMode::Cell => {
+                // Character-by-character selection
+                if start.y == end.y {
+                    // Single line selection
+                    if let Some(line) = get_line(start.y) {
+                        let start_x = start.x as usize;
+                        let end_x = (end.x as usize + 1).min(line.len());
+                        if start_x < line.len() {
+                            result.push_str(&line[start_x..end_x]);
+                        }
+                    }
+                } else {
+                    // Multi-line selection
+                    for y in start.y..=end.y {
+                        if let Some(line) = get_line(y) {
+                            if y == start.y {
+                                // First line: from start.x to end
+                                let start_x = start.x as usize;
+                                if start_x < line.len() {
+                                    result.push_str(&line[start_x..]);
+                                }
+                            } else if y == end.y {
+                                // Last line: from beginning to end.x
+                                let end_x = (end.x as usize + 1).min(line.len());
+                                result.push_str(&line[..end_x]);
+                            } else {
+                                // Middle lines: entire line
+                                result.push_str(&line);
+                            }
+                            // Add newline except for last line
+                            if y < end.y {
+                                result.push('\n');
+                            }
+                        }
+                    }
+                }
+            }
+            SelectionMode::Line => {
+                // Whole line selection
+                for y in start.y..=end.y {
+                    if let Some(line) = get_line(y) {
+                        result.push_str(&line);
+                        if y < end.y {
+                            result.push('\n');
+                        }
+                    }
+                }
+            }
+            SelectionMode::Block => {
+                // Rectangular block selection
+                let min_x = start.x.min(end.x);
+                let max_x = start.x.max(end.x);
+
+                for y in start.y..=end.y {
+                    if let Some(line) = get_line(y) {
+                        let start_x = min_x as usize;
+                        let end_x = (max_x as usize + 1).min(line.len());
+                        if start_x < line.len() {
+                            result.push_str(&line[start_x..end_x]);
+                        }
+                        if y < end.y {
+                            result.push('\n');
+                        }
+                    }
+                }
+            }
+            SelectionMode::Word => {
+                // Word selection (basic implementation - just use cell mode for now)
+                if start.y == end.y {
+                    if let Some(line) = get_line(start.y) {
+                        let start_x = start.x as usize;
+                        let end_x = (end.x as usize + 1).min(line.len());
+                        if start_x < line.len() {
+                            result.push_str(&line[start_x..end_x]);
+                        }
+                    }
+                }
+            }
+        }
+
+        if result.is_empty() {
+            None
+        } else {
+            Some(result)
+        }
+    }
 }
 
 /// Search state for copy mode search functionality
@@ -473,5 +642,286 @@ mod tests {
     fn test_search_direction_default() {
         let direction = SearchDirection::default();
         assert_eq!(direction, SearchDirection::Forward);
+    }
+
+    #[test]
+    fn test_move_left() {
+        let mut state = CopyModeState::new();
+        state.cursor = CopyModeCursor::new(5, 0);
+
+        state.move_left();
+        assert_eq!(state.cursor.x, 4);
+
+        state.move_left();
+        state.move_left();
+        state.move_left();
+        state.move_left();
+        assert_eq!(state.cursor.x, 0);
+
+        // Should clamp at 0
+        state.move_left();
+        assert_eq!(state.cursor.x, 0);
+    }
+
+    #[test]
+    fn test_move_right() {
+        let mut state = CopyModeState::new();
+        state.cursor = CopyModeCursor::new(5, 0);
+
+        state.move_right(80);
+        assert_eq!(state.cursor.x, 6);
+
+        // Should clamp at max_cols - 1
+        state.cursor.x = 79;
+        state.move_right(80);
+        assert_eq!(state.cursor.x, 79);
+    }
+
+    #[test]
+    fn test_move_up() {
+        let mut state = CopyModeState::new();
+        state.cursor = CopyModeCursor::new(5, 10);
+
+        state.move_up(0);
+        assert_eq!(state.cursor.y, 9);
+
+        // Move to min_y
+        for _ in 0..10 {
+            state.move_up(0);
+        }
+        assert_eq!(state.cursor.y, 0);
+
+        // Should clamp at min_y
+        state.move_up(0);
+        assert_eq!(state.cursor.y, 0);
+    }
+
+    #[test]
+    fn test_move_down() {
+        let mut state = CopyModeState::new();
+        state.cursor = CopyModeCursor::new(5, 0);
+
+        state.move_down(24);
+        assert_eq!(state.cursor.y, 1);
+
+        // Move to max_y
+        state.cursor.y = 23;
+        state.move_down(24);
+        assert_eq!(state.cursor.y, 24);
+
+        // Should clamp at max_y
+        state.move_down(24);
+        assert_eq!(state.cursor.y, 24);
+    }
+
+    #[test]
+    fn test_move_up_with_scrollback() {
+        let mut state = CopyModeState::new();
+        state.cursor = CopyModeCursor::new(5, 0);
+
+        // Move into scrollback (negative y)
+        state.move_up(-100);
+        assert_eq!(state.cursor.y, -1);
+
+        state.cursor.y = -50;
+        state.move_up(-100);
+        assert_eq!(state.cursor.y, -51);
+
+        // Clamp at scrollback top
+        state.cursor.y = -100;
+        state.move_up(-100);
+        assert_eq!(state.cursor.y, -100);
+    }
+
+    #[test]
+    fn test_move_to_line_start() {
+        let mut state = CopyModeState::new();
+        state.cursor = CopyModeCursor::new(42, 5);
+
+        state.move_to_line_start();
+        assert_eq!(state.cursor.x, 0);
+        assert_eq!(state.cursor.y, 5); // y unchanged
+    }
+
+    #[test]
+    fn test_move_to_line_end() {
+        let mut state = CopyModeState::new();
+        state.cursor = CopyModeCursor::new(5, 3);
+
+        state.move_to_line_end(80);
+        assert_eq!(state.cursor.x, 79);
+        assert_eq!(state.cursor.y, 3); // y unchanged
+    }
+
+    #[test]
+    fn test_move_to_top() {
+        let mut state = CopyModeState::new();
+        state.cursor = CopyModeCursor::new(5, 10);
+
+        state.move_to_top(-100);
+        assert_eq!(state.cursor.x, 5); // x unchanged
+        assert_eq!(state.cursor.y, -100);
+    }
+
+    #[test]
+    fn test_move_to_bottom() {
+        let mut state = CopyModeState::new();
+        state.cursor = CopyModeCursor::new(5, -50);
+
+        state.move_to_bottom(24);
+        assert_eq!(state.cursor.x, 5); // x unchanged
+        assert_eq!(state.cursor.y, 24);
+    }
+
+    #[test]
+    fn test_toggle_cell_selection() {
+        let mut state = CopyModeState::new();
+        state.cursor = CopyModeCursor::new(5, 5);
+
+        state.toggle_cell_selection();
+        assert_eq!(state.selection_mode, SelectionMode::Cell);
+        assert!(state.selection.is_some());
+
+        state.toggle_cell_selection();
+        assert_eq!(state.selection_mode, SelectionMode::None);
+        assert!(state.selection.is_none());
+    }
+
+    #[test]
+    fn test_toggle_line_selection() {
+        let mut state = CopyModeState::new();
+        state.cursor = CopyModeCursor::new(5, 5);
+
+        state.toggle_line_selection();
+        assert_eq!(state.selection_mode, SelectionMode::Line);
+        assert!(state.selection.is_some());
+
+        state.toggle_line_selection();
+        assert_eq!(state.selection_mode, SelectionMode::None);
+        assert!(state.selection.is_none());
+    }
+
+    #[test]
+    fn test_toggle_block_selection() {
+        let mut state = CopyModeState::new();
+        state.cursor = CopyModeCursor::new(5, 5);
+
+        state.toggle_block_selection();
+        assert_eq!(state.selection_mode, SelectionMode::Block);
+        assert!(state.selection.is_some());
+
+        state.toggle_block_selection();
+        assert_eq!(state.selection_mode, SelectionMode::None);
+        assert!(state.selection.is_none());
+    }
+
+    #[test]
+    fn test_get_selection_text_cell_single_line() {
+        let mut state = CopyModeState::new();
+        state.cursor = CopyModeCursor::new(5, 0);
+        state.start_selection(SelectionMode::Cell);
+        state.cursor = CopyModeCursor::new(9, 0);
+        state.update_selection();
+
+        let get_line = |y: i32| {
+            if y == 0 {
+                Some("Hello, World!".to_string())
+            } else {
+                None
+            }
+        };
+
+        let text = state.get_selection_text(get_line);
+        assert_eq!(text, Some(", Wor".to_string()));
+    }
+
+    #[test]
+    fn test_get_selection_text_cell_multi_line() {
+        let mut state = CopyModeState::new();
+        state.cursor = CopyModeCursor::new(5, 0);
+        state.start_selection(SelectionMode::Cell);
+        state.cursor = CopyModeCursor::new(5, 2);
+        state.update_selection();
+
+        let get_line = |y: i32| match y {
+            0 => Some("Line 0".to_string()),
+            1 => Some("Line 1".to_string()),
+            2 => Some("Line 2".to_string()),
+            _ => None,
+        };
+
+        let text = state.get_selection_text(get_line);
+        assert_eq!(text, Some("0\nLine 1\nLine 2".to_string()));
+    }
+
+    #[test]
+    fn test_get_selection_text_line_mode() {
+        let mut state = CopyModeState::new();
+        state.cursor = CopyModeCursor::new(5, 0);
+        state.start_selection(SelectionMode::Line);
+        state.cursor = CopyModeCursor::new(10, 2);
+        state.update_selection();
+
+        let get_line = |y: i32| match y {
+            0 => Some("First line".to_string()),
+            1 => Some("Second line".to_string()),
+            2 => Some("Third line".to_string()),
+            _ => None,
+        };
+
+        let text = state.get_selection_text(get_line);
+        assert_eq!(text, Some("First line\nSecond line\nThird line".to_string()));
+    }
+
+    #[test]
+    fn test_get_selection_text_block_mode() {
+        let mut state = CopyModeState::new();
+        state.cursor = CopyModeCursor::new(2, 0);
+        state.start_selection(SelectionMode::Block);
+        state.cursor = CopyModeCursor::new(5, 2);
+        state.update_selection();
+
+        let get_line = |y: i32| match y {
+            0 => Some("ABCDEFGH".to_string()),
+            1 => Some("12345678".to_string()),
+            2 => Some("abcdefgh".to_string()),
+            _ => None,
+        };
+
+        let text = state.get_selection_text(get_line);
+        assert_eq!(text, Some("CDEF\n3456\ncdef".to_string()));
+    }
+
+    #[test]
+    fn test_get_selection_text_no_selection() {
+        let state = CopyModeState::new();
+
+        let get_line = |_y: i32| Some("Line".to_string());
+
+        let text = state.get_selection_text(get_line);
+        assert_eq!(text, None);
+    }
+
+    #[test]
+    fn test_movement_with_selection_update() {
+        let mut state = CopyModeState::new();
+        state.cursor = CopyModeCursor::new(5, 5);
+        state.start_selection(SelectionMode::Cell);
+
+        // Move and update selection
+        state.move_right(80);
+        state.update_selection();
+
+        let selection = state.selection.as_ref().unwrap();
+        assert_eq!(selection.anchor, CopyModeCursor::new(5, 5));
+        assert_eq!(selection.active, CopyModeCursor::new(6, 5));
+
+        // Move down and update
+        state.move_down(24);
+        state.update_selection();
+
+        let selection = state.selection.as_ref().unwrap();
+        assert_eq!(selection.anchor, CopyModeCursor::new(5, 5));
+        assert_eq!(selection.active, CopyModeCursor::new(6, 6));
     }
 }
