@@ -13,6 +13,7 @@ pub mod plugin_menu;
 pub mod scroll_indicator;
 pub mod scrollback_selection;
 pub mod search_overlay;
+pub mod status_bar;
 pub mod visual_selection;
 
 pub use animations::{AnimationState, AnimationsPlugin, FadeAnimation};
@@ -27,6 +28,9 @@ pub use plugin_menu::{MenuState, PluginMenuPlugin, ShowPluginMenuEvent};
 pub use scroll_indicator::{ScrollIndicatorConfig, ScrollIndicatorPlugin};
 pub use scrollback_selection::{ScrollbackSelectionPlugin, ScrollbackSelectionState};
 pub use search_overlay::{SearchOverlayConfig, SearchOverlayPlugin};
+pub use status_bar::{
+    StatusBarContainer, StatusBarLeft, StatusBarPlugin, StatusBarRight, StatusBarState,
+};
 pub use visual_selection::{SelectionMode, SelectionRegion, VisualSelectionPlugin};
 
 use bevy::prelude::*;
@@ -49,6 +53,7 @@ impl Plugin for AdvancedUIPlugin {
             ScrollbackSelectionPlugin,
             SearchOverlayPlugin,
             DockPlugin,
+            StatusBarPlugin,
         ))
         .insert_resource(UIConfig::default());
     }
