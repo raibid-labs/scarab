@@ -3,7 +3,6 @@
 //! Renders the tutorial overlay with beautiful ASCII art borders
 
 use super::{TutorialStep, TutorialSystem};
-use bevy::prelude::*;
 
 pub struct TutorialUI;
 

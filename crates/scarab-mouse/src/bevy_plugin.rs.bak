@@ -12,7 +12,7 @@ use crate::{
 };
 use bevy::prelude::*;
 use parking_lot::Mutex;
-use scarab_protocol::{ControlMessage, TerminalMetrics};
+use scarab_protocol::ControlMessage;
 use std::sync::Arc;
 
 /// Trait for sending IPC messages to the daemon
@@ -24,8 +24,6 @@ pub trait IpcSender: Send + Sync {
 /// Wrapper resource for IPC sender to allow dynamic dispatch
 #[derive(Resource)]
 pub struct MouseIpcSender(pub Arc<dyn IpcSender>);
-
-#[derive(Resource)]
 
 /// Bevy plugin for mouse support
 pub struct MousePlugin {
@@ -73,7 +71,6 @@ struct MousePluginState {
 struct SelectionOverlay;
 
 /// Component for context menu UI
-#[allow(dead_code)]
 #[derive(Component)]
 struct ContextMenuComponent;
 
@@ -91,6 +88,7 @@ fn handle_mouse_input(
     };
 
     // Convert window coordinates to terminal grid coordinates
+    // TODO: This needs actual font metrics from the terminal renderer
     let grid_pos = screen_to_grid(cursor_pos, window.width(), window.height());
 
     let ipc_ref = ipc.as_ref().map(|r| r.0.as_ref());
@@ -439,7 +437,6 @@ fn update_selection_rendering(
     plugin_state: Res<MousePluginState>,
     mut commands: Commands,
     selection_query: Query<Entity, With<SelectionOverlay>>,
-    metrics: Option<Res<TerminalMetrics>>,
 ) {
     let state = plugin_state.shared_state.lock();
 
@@ -450,127 +447,10 @@ fn update_selection_rendering(
 
     // Render new selection if exists
     if let Some(selection) = &state.selection {
-        // Get terminal metrics (use default if not available)
-        let metrics = metrics.as_deref().copied().unwrap_or_default();
-
-        log::trace!("Rendering selection: {:?} with metrics: {:?}", selection, metrics);
-
-        let (start, end) = selection.normalized();
-
-        match selection.kind {
-            crate::selection::SelectionKind::Block => {
-                // Rectangular/block selection - render a rectangle for each row
-                let min_x = start.x.min(end.x);
-                let max_x = start.x.max(end.x);
-                let min_y = start.y.min(end.y);
-                let max_y = start.y.max(end.y);
-
-                for row in min_y..=max_y {
-                    spawn_selection_overlay_for_range(
-                        &mut commands,
-                        &metrics,
-                        min_x,
-                        max_x,
-                        row,
-                    );
-                }
-            }
-            crate::selection::SelectionKind::Line => {
-                // Line selection - render full lines
-                for row in start.y..=end.y {
-                    spawn_selection_overlay_for_range(
-                        &mut commands,
-                        &metrics,
-                        0,
-                        metrics.columns - 1,
-                        row,
-                    );
-                }
-            }
-            _ => {
-                // Normal/Word selection - linear character-by-character
-                if start.y == end.y {
-                    // Single line selection
-                    spawn_selection_overlay_for_range(
-                        &mut commands,
-                        &metrics,
-                        start.x,
-                        end.x,
-                        start.y,
-                    );
-                } else {
-                    // Multi-line selection
-                    let cols = metrics.columns;
-
-                    // First line: from start.x to end of line
-                    spawn_selection_overlay_for_range(
-                        &mut commands,
-                        &metrics,
-                        start.x,
-                        cols - 1,
-                        start.y,
-                    );
-
-                    // Middle lines: full width
-                    for row in (start.y + 1)..end.y {
-                        spawn_selection_overlay_for_range(
-                            &mut commands,
-                            &metrics,
-                            0,
-                            cols - 1,
-                            row,
-                        );
-                    }
-
-                    // Last line: from start of line to end.x
-                    if end.y > start.y {
-                        spawn_selection_overlay_for_range(
-                            &mut commands,
-                            &metrics,
-                            0,
-                            end.x,
-                            end.y,
-                        );
-                    }
-                }
-            }
-        }
+        log::trace!("Rendering selection: {:?}", selection);
+        // TODO: Create visual overlay entities for selection
+        // This would spawn colored quads/sprites at the selected cell positions
     }
-}
-
-/// Spawn a selection overlay sprite for a range of columns on a single row
-fn spawn_selection_overlay_for_range(
-    commands: &mut Commands,
-    metrics: &TerminalMetrics,
-    start_col: u16,
-    end_col: u16,
-    row: u16,
-) {
-    let cell_width = metrics.cell_width;
-    let cell_height = metrics.cell_height;
-
-    // Calculate total width of the selection on this row
-    let num_cells = (end_col - start_col + 1) as f32;
-    let total_width = num_cells * cell_width;
-
-    // Calculate position (using same coordinate system as terminal rendering)
-    // Terminal rendering uses: x = col * cell_width, y = -(row * cell_height)
-    // Sprite anchor is at center, so we offset by half dimensions
-    let x = start_col as f32 * cell_width + total_width / 2.0;
-    let y = -(row as f32 * cell_height) - cell_height / 2.0;
-
-    // Selection color: semi-transparent blue (classic terminal selection color)
-    let selection_color = Color::srgba(0.3, 0.6, 1.0, 0.3);
-
-    commands.spawn((
-        Sprite {
-            color: selection_color,
-            custom_size: Some(Vec2::new(total_width, cell_height)),
-            ..default()
-        },
-        Transform::from_xyz(x, y, 1.0), // Z=1.0 to render above terminal text (which is at Z=0)
-        SelectionOverlay,
-    ));
 }
 
 /// System to handle context menu keyboard input

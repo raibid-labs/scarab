@@ -7,7 +7,6 @@ use crate::ui::grid_utils::grid_to_pixel;
 use bevy::input::keyboard::KeyCode;
 use bevy::prelude::*;
 use regex::Regex;
-use scarab_protocol::{SharedState, GRID_HEIGHT, GRID_WIDTH};
 
 /// Plugin for link hint functionality
 pub struct LinkHintsPlugin;
@@ -151,6 +150,7 @@ pub struct LinkActivatedEvent {
 /// Component for hint label display
 #[derive(Component)]
 struct HintLabel {
+    #[allow(dead_code)]
     hint_key: String,
 }
 

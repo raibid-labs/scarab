@@ -2,12 +2,12 @@
 
 use async_trait::async_trait;
 use scarab_plugin_api::{
-    types::{Action, ModalItem, RemoteCommand},
+    types::{ModalItem, RemoteCommand},
     Plugin, PluginContext, PluginMetadata, Result,
 };
 use std::sync::Mutex;
 
-use crate::{manager::ThemeManager, format::ThemeFormat};
+use crate::manager::ThemeManager;
 
 /// Theme plugin state
 struct PluginState {

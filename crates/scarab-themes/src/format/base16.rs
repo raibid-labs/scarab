@@ -13,6 +13,7 @@ use serde::{Deserialize, Serialize};
 pub struct Base16Format;
 
 /// Base16 theme structure
+#[allow(non_snake_case)]
 #[derive(Debug, Deserialize, Serialize)]
 struct Base16Theme {
     scheme: String,

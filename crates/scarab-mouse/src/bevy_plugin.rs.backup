@@ -7,13 +7,20 @@ use crate::{
     click_handler::{generate_cursor_position_sequence, generate_mouse_sequence, ClickDetector},
     context_menu::ContextMenu,
     selection::{find_word_at, Selection},
-    types::{ClickType, MouseButton, MouseEvent, MouseEventKind, MouseMode, Modifiers, Position},
+    types::{ClickType, Modifiers, MouseButton, MouseEvent, MouseEventKind, MouseMode, Position},
     ClickableItem, ClickableKind, MouseState,
 };
 use bevy::prelude::*;
 use parking_lot::Mutex;
 use scarab_protocol::{ControlMessage, TerminalMetrics};
 use std::sync::Arc;
+
+/// Event emitted when scrollback buffer should be scrolled in normal mode
+#[derive(Event)]
+pub struct ScrollbackScrollEvent {
+    /// Number of lines to scroll (positive = up, negative = down)
+    pub lines: i32,
+}
 
 /// Trait for sending IPC messages to the daemon
 /// This trait should be implemented by the IpcChannel in scarab-client
@@ -24,8 +31,6 @@ pub trait IpcSender: Send + Sync {
 /// Wrapper resource for IPC sender to allow dynamic dispatch
 #[derive(Resource)]
 pub struct MouseIpcSender(pub Arc<dyn IpcSender>);
-
-#[derive(Resource)]
 
 /// Bevy plugin for mouse support
 pub struct MousePlugin {
@@ -46,6 +51,7 @@ impl Plugin for MousePlugin {
             drag_start: None,
             is_dragging: false,
         })
+        .add_event::<ScrollbackScrollEvent>()
         .add_systems(
             Update,
             (
@@ -73,7 +79,6 @@ struct MousePluginState {
 struct SelectionOverlay;
 
 /// Component for context menu UI
-#[allow(dead_code)]
 #[derive(Component)]
 struct ContextMenuComponent;
 
@@ -84,6 +89,7 @@ fn handle_mouse_input(
     windows: Query<&Window>,
     mut commands: Commands,
     ipc: Option<Res<MouseIpcSender>>,
+    metrics: Option<Res<TerminalMetrics>>,
 ) {
     let window = windows.single();
     let Some(cursor_pos) = window.cursor_position() else {
@@ -91,6 +97,7 @@ fn handle_mouse_input(
     };
 
     // Convert window coordinates to terminal grid coordinates
+    // TODO: This needs actual font metrics from the terminal renderer
     let grid_pos = screen_to_grid(cursor_pos, window.width(), window.height());
 
     let ipc_ref = ipc.as_ref().map(|r| r.0.as_ref());
@@ -185,12 +192,17 @@ fn handle_left_click(
                     }
                 }
                 ClickType::Double => {
-                    // Select word
-                    select_word_at(&mut state, pos);
+                    // Select word (requires terminal grid access)
+                    log::debug!(
+                        "Double-click word selection at {:?} - grid access needed",
+                        pos
+                    );
+                    // TODO: Implement word selection with grid reader
                 }
                 ClickType::Triple => {
-                    // Select line
-                    select_line_at(&mut state, pos);
+                    // Select line using actual terminal dimensions
+                    let cols = metrics.as_ref().map(|m| m.columns).unwrap_or(80);
+                    select_line_at(&mut state, pos, cols);
                 }
             }
         }
@@ -337,21 +349,15 @@ fn select_word_at(state: &mut MouseState, pos: Position) {
 }
 
 /// Select line at position
-fn select_line_at(state: &mut MouseState, pos: Position) {
-    // TODO: Get actual terminal dimensions
-    let cols = 80; // Placeholder
-
+fn select_line_at(state: &mut MouseState, pos: Position, cols: u16) {
     state.selection = Some(Selection::line(pos.y, pos.y, cols));
-    log::debug!("Selected line {}", pos.y);
+    log::debug!("Selected line {} (width: {})", pos.y, cols);
 }
 
 /// Find clickable item at position
 fn find_clickable_at(state: &MouseState, pos: Position) -> Option<&ClickableItem> {
     state.clickable_items.iter().find(|item| {
-        pos.x >= item.start.x
-            && pos.x <= item.end.x
-            && pos.y >= item.start.y
-            && pos.y <= item.end.y
+        pos.x >= item.start.x && pos.x <= item.end.x && pos.y >= item.start.y && pos.y <= item.end.y
     })
 }
 
@@ -387,13 +393,19 @@ fn handle_scroll(
     mut scroll_events: EventReader<bevy::input::mouse::MouseWheel>,
     windows: Query<&Window>,
     ipc: Option<Res<MouseIpcSender>>,
+    metrics: Option<Res<TerminalMetrics>>,
+    mut scrollback_events: EventWriter<ScrollbackScrollEvent>,
 ) {
     let window = windows.single();
     let Some(cursor_pos) = window.cursor_position() else {
         return;
     };
 
-    let grid_pos = screen_to_grid(cursor_pos, window.width(), window.height());
+    let grid_pos = if let Some(ref metrics) = metrics {
+        screen_to_grid_with_metrics(cursor_pos, metrics)
+    } else {
+        screen_to_grid_fallback(cursor_pos, window.width(), window.height())
+    };
 
     let ipc_ref = ipc.as_ref().map(|r| r.0.as_ref());
 
@@ -426,9 +438,10 @@ fn handle_scroll(
             }
             MouseMode::Normal => {
                 // Scroll scrollback buffer
-                let lines = (event.y.abs() * 3.0) as i32;
-                log::debug!("Scrolling {} lines", lines);
-                // TODO: Send scroll command to daemon (needs scrollback protocol)
+                // Positive event.y = scroll up, negative = scroll down
+                let lines = (event.y * 3.0) as i32;
+                log::debug!("Emitting scrollback scroll event: {} lines", lines);
+                scrollback_events.send(ScrollbackScrollEvent { lines });
             }
         }
     }
@@ -592,6 +605,29 @@ fn handle_context_menu_input(
 fn screen_to_grid(cursor_pos: Vec2, window_width: f32, window_height: f32) -> Position {
     // TODO: Use actual font metrics and terminal dimensions
     // This is a placeholder calculation
+    let cols = 80;
+    let rows = 24;
+
+    let x = ((cursor_pos.x / window_width) * cols as f32) as u16;
+    let y = ((cursor_pos.y / window_height) * rows as f32) as u16;
+
+    Position::new(x.min(cols - 1), y.min(rows - 1))
+}
+
+/// Convert screen coordinates to terminal grid coordinates using actual font metrics
+///
+/// This is the preferred method that uses actual character cell dimensions.
+fn screen_to_grid_with_metrics(cursor_pos: Vec2, metrics: &TerminalMetrics) -> Position {
+    let (col, row) = metrics.screen_to_grid(cursor_pos.x, cursor_pos.y);
+    Position::new(col, row)
+}
+
+/// Fallback screen-to-grid conversion when metrics are unavailable
+///
+/// Uses window dimensions to estimate grid position. This is less accurate
+/// because it assumes the terminal fills the entire window.
+fn screen_to_grid_fallback(cursor_pos: Vec2, window_width: f32, window_height: f32) -> Position {
+    // Fallback calculation using typical terminal size
     let cols = 80;
     let rows = 24;
 

@@ -1,6 +1,6 @@
 use crate::ipc::RemoteMessageEvent;
 use bevy::prelude::*;
-use scarab_protocol::{DaemonMessage, LogLevel, NotifyLevel, OverlayStyle};
+use scarab_protocol::{DaemonMessage, LogLevel, NotifyLevel};
 
 /// Component to tag entities as remote overlays
 #[derive(Component)]
@@ -18,6 +18,7 @@ struct NotificationUI {
 }
 
 /// Component for plugin log display
+#[allow(dead_code)]
 #[derive(Component)]
 struct PluginLogDisplay;
 

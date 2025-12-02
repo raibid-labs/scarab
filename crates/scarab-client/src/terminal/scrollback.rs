@@ -6,6 +6,10 @@ use scarab_protocol::Cell;
 use std::collections::VecDeque;
 use std::time::SystemTime;
 
+// Re-export the event from scarab_mouse for convenience
+// TODO: Uncomment when ScrollbackScrollEvent is available in scarab_mouse
+// pub use scarab_mouse::ScrollbackScrollEvent;
+
 /// Maximum number of lines to keep in scrollback (10,000 default)
 pub const DEFAULT_MAX_SCROLLBACK_LINES: usize = 10_000;
 
@@ -364,6 +368,30 @@ fn handle_mouse_scroll(
     }
 }
 
+// TODO: Uncomment when ScrollbackScrollEvent is defined in scarab_mouse
+/*
+/// System to handle scrollback scroll events from mouse plugin
+/// This handles the case where the mouse plugin emits ScrollbackScrollEvent in normal mode
+fn handle_scrollback_scroll_events(
+    mut scroll_events: EventReader<ScrollbackScrollEvent>,
+    mut scrollback: ResMut<ScrollbackBuffer>,
+    mut state: ResMut<ScrollbackState>,
+) {
+    for event in scroll_events.read() {
+        if event.lines > 0 {
+            // Scroll up (positive lines)
+            scrollback.scroll_up(event.lines as usize);
+        } else if event.lines < 0 {
+            // Scroll down (negative lines)
+            scrollback.scroll_down((-event.lines) as usize);
+        }
+
+        // Update scroll state
+        state.is_scrolled = !scrollback.is_at_bottom();
+    }
+}
+*/
+
 /// System to handle keyboard navigation
 fn handle_keyboard_scrolling(
     keys: Res<ButtonInput<KeyCode>>,
@@ -445,10 +473,13 @@ impl Plugin for ScrollbackPlugin {
         // Initialize resources
         app.insert_resource(ScrollbackBuffer::default())
             .insert_resource(ScrollbackState::new(25)) // 25 lines per page default
+            // Note: ScrollbackScrollEvent is registered by MousePlugin
             .add_systems(
                 Update,
                 (
                     handle_mouse_scroll,
+                    // TODO: Uncomment when ScrollbackScrollEvent is available
+                    // handle_scrollback_scroll_events,
                     handle_keyboard_scrolling,
                     handle_search_navigation,
                 )

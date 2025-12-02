@@ -54,7 +54,7 @@ fn spawn_search_overlay(
 ) {
     // Get window dimensions
     let window = window_query.single();
-    let window_height = window.height();
+    let _window_height = window.height();
 
     if state.search_visible && overlay_query.is_empty() {
         // Spawn search overlay container

@@ -6379,6 +6379,7 @@ dependencies = [
  "regex",
  "rkyv",
  "scarab-config",
+ "scarab-mouse",
  "scarab-nav-protocol",
  "scarab-plugin-api",
  "scarab-protocol",
@@ -6580,6 +6581,7 @@ dependencies = [
 name = "scarab-protocol"
 version = "0.1.0-alpha.13"
 dependencies = [
+ "bevy_ecs",
  "bytemuck",
  "rkyv",
  "serde",

@@ -141,6 +141,7 @@ struct PaletteUI;
 /// Component for command list item
 #[derive(Component)]
 struct CommandItem {
+    #[allow(dead_code)]
     index: usize,
 }
 

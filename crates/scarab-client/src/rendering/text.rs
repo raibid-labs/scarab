@@ -4,7 +4,7 @@ use bevy::prelude::*;
 use bevy::render::mesh::{Indices, PrimitiveTopology};
 use bevy::render::render_asset::RenderAssetUsages;
 use cosmic_text::{Attrs, Buffer, FontSystem, Metrics, Shaping, SwashCache};
-use scarab_protocol::{terminal_state::TerminalStateReader, Cell, SharedState, GRID_HEIGHT, GRID_WIDTH};
+use scarab_protocol::{terminal_state::TerminalStateReader, Cell};
 use std::collections::HashSet;
 
 use super::atlas::{AtlasRect, GlyphAtlas, GlyphKey};

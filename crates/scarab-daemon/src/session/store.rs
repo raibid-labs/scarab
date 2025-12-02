@@ -8,7 +8,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 /// SQLite-based session persistence
 /// Keeps a persistent connection to the database.
 pub struct SessionStore {
-    db_path: PathBuf,
+    #[allow(dead_code)] db_path: PathBuf,
     conn: Mutex<Connection>,
 }
 

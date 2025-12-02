@@ -149,6 +149,7 @@ struct MenuUI;
 /// Component for menu items
 #[derive(Component)]
 struct MenuItemComponent {
+    #[allow(dead_code)]
     index: usize,
 }
 
@@ -574,7 +575,7 @@ fn render_error_state(commands: &mut Commands, menu_state: &MenuState, error: &s
 fn execute_menu_action_system(
     mut events: EventReader<MenuActionEvent>,
     ipc: Res<IpcChannel>,
-    mut command_events: EventWriter<CommandExecutedEvent>,
+    _command_events: EventWriter<CommandExecutedEvent>,
     menu_state: Res<MenuState>,
 ) {
     for event in events.read() {

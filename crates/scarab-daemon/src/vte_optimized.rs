@@ -304,6 +304,7 @@ struct CsiKey {
 }
 
 /// Cached VTE action types
+#[allow(dead_code)]
 #[derive(Clone, Debug)]
 enum CachedAction {
     CursorMove(i32, i32),
@@ -315,6 +316,7 @@ enum CachedAction {
     Reset,
 }
 
+#[allow(dead_code)]
 #[derive(Clone, Copy, Debug)]
 struct Color {
     r: u8,

@@ -14,7 +14,7 @@ pub use self::toml::TomlFormat;
 pub use base16::Base16Format;
 
 use crate::{
-    error::{ThemeError, ThemeResult},
+    error::ThemeResult,
     theme::Theme,
 };
 

@@ -185,7 +185,7 @@ async fn send_message(
     }
 
     // Try to send
-    let mut retry_count = 0;
+    let _retry_count = 0;
     loop {
         {
             let mut conn_lock = inner.write().await;

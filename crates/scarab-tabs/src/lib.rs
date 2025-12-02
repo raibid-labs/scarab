@@ -10,7 +10,6 @@ use scarab_plugin_api::{
     Action, Plugin, PluginContext, PluginMetadata, Result,
 };
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
 
 /// Tab metadata and state
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -116,6 +115,7 @@ impl PluginState {
         }
     }
 
+    #[allow(dead_code)]
     fn move_tab(&mut self, from: usize, to: usize) -> bool {
         if from >= self.tabs.len() || to >= self.tabs.len() {
             return false;
@@ -140,6 +140,7 @@ impl PluginState {
         &self.tabs[self.active_tab_index]
     }
 
+    #[allow(dead_code)]
     fn active_tab_mut(&mut self) -> &mut Tab {
         &mut self.tabs[self.active_tab_index]
     }
@@ -353,7 +354,7 @@ impl Plugin for TabsPlugin {
         Ok(())
     }
 
-    async fn on_resize(&mut self, cols: u16, rows: u16, ctx: &PluginContext) -> Result<()> {
+    async fn on_resize(&mut self, cols: u16, rows: u16, _ctx: &PluginContext) -> Result<()> {
         log::debug!("Tabs plugin: Terminal resized to {}x{}", cols, rows);
         Ok(())
     }

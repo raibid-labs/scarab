@@ -17,9 +17,10 @@ name = "scarab-client"
 path = "src/main.rs"
 
 [dependencies]
-scarab-protocol = { path = "../scarab-protocol" }
+scarab-protocol = { path = "../scarab-protocol", features = ["bevy"] }
 scarab-config = { path = "../scarab-config" }
 scarab-plugin-api = { path = "../scarab-plugin-api" }
+scarab-mouse = { path = "../scarab-mouse" }
 scarab-nav-protocol = "0.1.0"
 fusabi-frontend = { workspace = true }
 bevy = { workspace = true }

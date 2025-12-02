@@ -12,3 +12,8 @@ description = "IPC protocol definitions for Scarab terminal emulator"
 bytemuck = { workspace = true }
 rkyv = { workspace = true }
 serde = { workspace = true }
+bevy_ecs = { version = "0.15", default-features = false, optional = true }
+
+[features]
+default = []
+bevy = ["bevy_ecs"]

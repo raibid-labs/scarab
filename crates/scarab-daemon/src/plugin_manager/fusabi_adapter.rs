@@ -14,8 +14,8 @@ use fusabi_vm::{Value, Vm};
 // Import Fusabi Frontend (F# script parser/compiler)
 use fusabi_frontend::{Compiler, Lexer, Parser};
 
-/// Thread-local storage for VM instances to work around !Send constraints
-/// The Fusabi VM uses Rc which is !Send, so we use thread-local storage
+// Thread-local storage for VM instances to work around !Send constraints
+// The Fusabi VM uses Rc which is !Send, so we use thread-local storage
 thread_local! {
     static VM_CACHE: RefCell<Option<Vm>> = RefCell::new(None);
 }
@@ -287,7 +287,7 @@ impl Plugin for FusabiBytecodePlugin {
 pub struct FusabiScriptPlugin {
     metadata: PluginMetadata,
     script_source: String,
-    script_path: std::path::PathBuf,
+    #[allow(dead_code)] script_path: std::path::PathBuf,
     /// Compiled bytecode (serialized, Send-safe)
     bytecode: Option<Vec<u8>>,
 }

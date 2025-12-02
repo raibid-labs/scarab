@@ -6,7 +6,7 @@ use bevy::render::mesh::{Indices, PrimitiveTopology};
 use bevy::render::render_asset::RenderAssetUsages;
 use scarab_protocol::{Cell, GRID_HEIGHT, GRID_WIDTH};
 
-use crate::terminal::scrollback::{ScrollbackBuffer, ScrollbackState, ScrollbackLine};
+use crate::terminal::scrollback::{ScrollbackBuffer, ScrollbackState};
 use super::atlas::GlyphKey;
 use super::config::{color, TextAttributes};
 use super::text::TextRenderer;
@@ -15,7 +15,7 @@ use super::text::TextRenderer;
 /// Combines scrollback lines with live view at the bottom
 pub fn generate_scrollback_mesh(
     scrollback: &ScrollbackBuffer,
-    scrollback_state: &ScrollbackState,
+    _scrollback_state: &ScrollbackState,
     renderer: &mut TextRenderer,
     images: &mut ResMut<Assets<Image>>,
 ) -> Mesh {

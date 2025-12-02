@@ -29,6 +29,7 @@ pub struct ClipboardPlugin {
     metadata: PluginMetadata,
     state: Mutex<PluginState>,
     clipboard_manager: Mutex<ClipboardManager>,
+    #[allow(dead_code)]
     word_boundary_regex: Regex,
 }
 
@@ -44,7 +45,9 @@ struct PluginState {
 #[derive(Clone)]
 struct PendingPaste {
     text: String,
+    #[allow(dead_code)]
     clipboard_type: ClipboardType,
+    #[allow(dead_code)]
     requires_confirmation: bool,
 }
 

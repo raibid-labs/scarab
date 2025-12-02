@@ -27,7 +27,7 @@
 //! }
 //! ```
 
-use crate::{Cell, SharedState, GRID_HEIGHT, GRID_WIDTH};
+use crate::Cell;
 
 /// Magic number for validating SharedState memory layout
 ///

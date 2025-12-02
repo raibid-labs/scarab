@@ -1,5 +1,5 @@
 use async_trait::async_trait;
-use scarab_plugin_api::{context::NotifyLevel, Plugin, PluginContext, PluginMetadata, Result};
+use scarab_plugin_api::{Plugin, PluginContext, PluginMetadata, Result};
 use scarab_protocol::ModalItem;
 
 pub struct SessionPlugin {

@@ -7,7 +7,7 @@ use crate::safe_state::SafeSharedState;
 use bevy::sprite::MeshMaterial2d;
 use bevy::render::mesh::Mesh2d;
 use bevy::prelude::*;
-use scarab_protocol::{terminal_state::TerminalStateReader, SharedState, GRID_HEIGHT, GRID_WIDTH};
+use scarab_protocol::{terminal_state::TerminalStateReader, GRID_HEIGHT, GRID_WIDTH};
 use shared_memory::Shmem;
 use std::sync::Arc;
 
@@ -69,7 +69,7 @@ fn update_grid_position_system(
     window_query: Query<&Window, With<bevy::window::PrimaryWindow>>,
     renderer: Option<Res<TextRenderer>>, // Use Option to avoid panic if not ready
 ) {
-    let Ok(window) = window_query.get_single() else {
+    let Ok(_window) = window_query.get_single() else {
         return;
     };
 
@@ -113,7 +113,9 @@ fn setup_terminal_rendering(
     // Create text renderer
     let font_config = FontConfig::default();
 
-    // Extract cell dimensions before moving font_config
+    // Extract values needed for metrics before moving font_config
+    let _font_size = font_config.size;
+    let _line_height = font_config.line_height;
     let cell_width = font_config.size * 0.6;
     let cell_height = font_config.size * 1.2;
 
@@ -180,6 +182,12 @@ fn setup_terminal_rendering(
 
     // Insert renderer as resource
     commands.insert_resource(renderer);
+
+    // Create and insert terminal metrics resource for mouse/input systems
+    // TODO: Uncomment when TerminalMetrics is defined
+    // let metrics = TerminalMetrics::new(font_size, line_height, cols, rows);
+    // commands.insert_resource(metrics);
+    // info!("Terminal metrics initialized: {:?}", metrics);
 
     // Send initial window resize to daemon so PTY knows the terminal size
     if let Some(ipc) = ipc {

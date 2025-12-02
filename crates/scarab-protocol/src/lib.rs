@@ -414,4 +414,85 @@ pub const MAX_CLIENTS: usize = 16;
 pub const RECONNECT_DELAY_MS: u64 = 100;
 pub const MAX_RECONNECT_ATTEMPTS: u32 = 10;
 
+/// Terminal display metrics shared between rendering and input systems
+///
+/// This provides the coordinate conversion information needed by:
+/// - Mouse input handlers (screen to grid coordinate conversion)
+/// - Text rendering systems (grid to screen coordinate conversion)
+/// - Selection and UI overlays (coordinate mapping)
+///
+/// This type can be used as a Bevy Resource when the bevy feature is enabled.
+#[derive(Debug, Clone, Copy)]
+#[cfg_attr(feature = "bevy", derive(bevy_ecs::prelude::Resource))]
+pub struct TerminalMetrics {
+    /// Width of a single character cell in pixels
+    pub cell_width: f32,
+    /// Height of a single character cell in pixels
+    pub cell_height: f32,
+    /// Number of columns in the terminal grid
+    pub columns: u16,
+    /// Number of rows in the terminal grid
+    pub rows: u16,
+}
+
+impl Default for TerminalMetrics {
+    fn default() -> Self {
+        Self {
+            cell_width: 9.0,   // Typical monospace width at 15px font
+            cell_height: 18.0, // Typical line height
+            columns: 80,
+            rows: 24,
+        }
+    }
+}
+
+impl TerminalMetrics {
+    /// Create metrics from font size and terminal dimensions
+    pub fn new(font_size: f32, line_height_multiplier: f32, columns: u16, rows: u16) -> Self {
+        Self {
+            cell_width: font_size * 0.6,  // Typical monospace ratio
+            cell_height: font_size * line_height_multiplier,
+            columns,
+            rows,
+        }
+    }
+
+    /// Convert screen coordinates to grid coordinates
+    ///
+    /// # Arguments
+    /// * `screen_x` - X coordinate in pixels (from left edge)
+    /// * `screen_y` - Y coordinate in pixels (from top edge, Y-down)
+    ///
+    /// # Returns
+    /// Grid position clamped to valid bounds (col, row)
+    pub fn screen_to_grid(&self, screen_x: f32, screen_y: f32) -> (u16, u16) {
+        let col = (screen_x / self.cell_width).floor() as i32;
+        let row = (screen_y / self.cell_height).floor() as i32;
+
+        // Clamp to valid grid bounds
+        let col = col.max(0).min((self.columns - 1) as i32) as u16;
+        let row = row.max(0).min((self.rows - 1) as i32) as u16;
+
+        (col, row)
+    }
+
+    /// Convert grid coordinates to screen coordinates (top-left of cell)
+    ///
+    /// # Returns
+    /// Screen position in pixels (x, y)
+    pub fn grid_to_screen(&self, col: u16, row: u16) -> (f32, f32) {
+        let x = col as f32 * self.cell_width;
+        let y = row as f32 * self.cell_height;
+        (x, y)
+    }
+
+    /// Get total terminal size in pixels
+    pub fn screen_size(&self) -> (f32, f32) {
+        (
+            self.columns as f32 * self.cell_width,
+            self.rows as f32 * self.cell_height,
+        )
+    }
+}
+
 extern crate alloc;

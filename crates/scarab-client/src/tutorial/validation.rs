@@ -3,8 +3,10 @@
 use super::TerminalContext;
 
 /// Validation helpers for tutorial steps
+#[allow(dead_code)]
 pub struct TutorialValidation;
 
+#[allow(dead_code)]
 impl TutorialValidation {
     /// Check if user has executed a command
     pub fn has_executed_command(ctx: &TerminalContext) -> bool {

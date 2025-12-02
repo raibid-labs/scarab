@@ -6,11 +6,13 @@ use std::sync::Mutex;
 
 pub struct PalettePlugin {
     metadata: PluginMetadata,
+    #[allow(dead_code)]
     state: Mutex<PluginState>,
 }
 
 #[derive(Default)]
 struct PluginState {
+    #[allow(dead_code)]
     active: bool,
 }
 
