@@ -5,6 +5,18 @@ All notable changes to the Scarab terminal emulator will be documented in this f
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.0-alpha.14] - 2025-12-02
+
+### Critical Fixes
+- **Mouse Support**: Fixed IPC wiring for middle-click paste and implemented correct coordinate mapping (scaling from screen to grid) to support window resizing.
+- **Clipboard**: Implemented X11 Primary Selection support via `arboard` extensions.
+- **Pane Management**: Implemented robust pane resizing logic and tree-based layout recalculation.
+- **Security**: Added GPG signature verification for plugins using `sequoia-openpgp`.
+
+### Documentation
+- Added deep technical audit and gap analysis against WezTerm.
+- Added developer instructions for Fusabi Object Model implementation.
+
 ## [Unreleased]
 
 ## [0.1.0-alpha.7] - 2025-11-24
