@@ -288,6 +288,31 @@ pub struct PluginInspectorInfo {
     pub color: Option<alloc::string::String>,
 }
 
+// Status bar side specification
+#[derive(Debug, Clone, Copy, PartialEq, Eq, rkyv::Archive, rkyv::Serialize, rkyv::Deserialize)]
+#[archive(check_bytes)]
+pub enum StatusBarSide {
+    Left,
+    Right,
+}
+
+// Render item for status bar content
+// This is a simplified version for IPC - full version is in scarab-plugin-api
+#[derive(Debug, Clone, rkyv::Archive, rkyv::Serialize, rkyv::Deserialize)]
+#[archive(check_bytes)]
+pub enum StatusRenderItem {
+    Text(alloc::string::String),
+    Icon(alloc::string::String),
+    Foreground { r: u8, g: u8, b: u8 },
+    Background { r: u8, g: u8, b: u8 },
+    Bold,
+    Italic,
+    ResetAttributes,
+    Spacer,
+    Padding(u8),
+    Separator(alloc::string::String),
+}
+
 // Messages sent from Daemon to Client (Remote UI & Responses)
 #[derive(Debug, Clone, rkyv::Archive, rkyv::Serialize, rkyv::Deserialize)]
 #[archive(check_bytes)]
@@ -321,6 +346,13 @@ pub enum DaemonMessage {
     },
     PaneLayoutUpdate {
         panes: alloc::vec::Vec<PaneInfo>,
+    },
+
+    // Status bar updates
+    StatusBarUpdate {
+        window_id: u64,
+        side: StatusBarSide,
+        items: alloc::vec::Vec<StatusRenderItem>,
     },
 
     // Remote UI Commands
@@ -379,6 +411,27 @@ pub enum DaemonMessage {
     ThemeUpdate {
         theme_json: alloc::string::String, // Serialized Theme
     },
+
+    // Event forwarding to clients
+    Event(EventMessage),
+}
+
+/// Event message for IPC forwarding
+#[derive(Debug, Clone, rkyv::Archive, rkyv::Serialize, rkyv::Deserialize)]
+#[archive(check_bytes)]
+pub struct EventMessage {
+    /// Event type name
+    pub event_type: alloc::string::String,
+    /// Window ID if applicable
+    pub window_id: Option<u64>,
+    /// Pane ID if applicable
+    pub pane_id: Option<u64>,
+    /// Tab ID if applicable
+    pub tab_id: Option<u64>,
+    /// Serialized event data
+    pub data: alloc::vec::Vec<u8>,
+    /// Timestamp in microseconds since UNIX epoch
+    pub timestamp_micros: u64,
 }
 
 #[derive(Debug, Clone, Copy, rkyv::Archive, rkyv::Serialize, rkyv::Deserialize)]

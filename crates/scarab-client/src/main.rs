@@ -1,7 +1,10 @@
 use bevy::prelude::*;
 use bevy::render::camera::OrthographicProjection;
 use scarab_client::integration::{IntegrationPlugin, SharedMemWrapper, SharedMemoryReader};
-use scarab_client::{AdvancedUIPlugin, ScriptingPlugin, ScrollbackPlugin, TutorialPlugin};
+use scarab_client::{
+    AdvancedUIPlugin, CopyModePlugin, EventsPlugin, ImagesPlugin, ScriptingPlugin,
+    ScrollbackPlugin, TutorialPlugin,
+};
 use scarab_config::{ConfigLoader, FusabiConfigLoader};
 // Uncomment to enable hot-reloading config via bevy-fusabi:
 // use scarab_config::ScarabConfigPlugin;
@@ -111,7 +114,10 @@ fn main() {
             }),
     )
         .add_plugins(IpcPlugin) // Add IPC support
+        .add_plugins(EventsPlugin::default()) // Add event handling (client and daemon forwarding)
         .add_plugins(ScrollbackPlugin) // Add scrollback buffer management
+        .add_plugins(CopyModePlugin) // Add vim-like copy mode navigation
+        .add_plugins(ImagesPlugin) // Add inline image rendering support
         .add_plugins(AdvancedUIPlugin) // Add advanced UI features (includes search, indicators)
         .add_plugins(ScriptingPlugin) // Add client-side scripting
         .add_plugins(IntegrationPlugin) // Add text rendering

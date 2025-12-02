@@ -7,6 +7,7 @@ pub mod ui;
 pub mod ui_stub;
 
 pub mod copy_mode;
+pub mod events;
 pub mod input;
 pub mod integration;
 pub mod ipc;
@@ -35,8 +36,8 @@ pub use ui_stub::AdvancedUIPlugin;
 
 // Re-export copy mode system
 pub use copy_mode::{
-    copy_mode_active, CopyModeCursorMarker, CopyModePlugin, CopyModeSearchResource,
-    CopyModeStateResource, SelectionHighlight,
+    copy_mode_active, CopyModeActionEvent, CopyModeCursorMarker, CopyModePlugin,
+    CopyModeSearchResource, CopyModeStateResource, SelectionHighlight, TerminalDimensions,
 };
 
 // Re-export scripting system
@@ -44,6 +45,9 @@ pub use scripting::{RuntimeContext, ScriptEvent, ScriptManager, ScriptingPlugin}
 
 // Re-export tutorial system
 pub use tutorial::{TutorialEvent, TutorialPlugin, TutorialState, TutorialSystem};
+
+// Re-export events system
+pub use events::{EventsPlugin, WindowFocusChangedEvent, WindowResizedEvent, DaemonEvent};
 
 // Re-export plugin inspector (feature-gated)
 #[cfg(feature = "plugin-inspector")]

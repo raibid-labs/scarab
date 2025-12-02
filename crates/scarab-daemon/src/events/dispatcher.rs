@@ -107,9 +107,9 @@ impl DaemonEventDispatcher {
         let data = self.serialize_event_data(&args.data);
 
         // Extract object IDs
-        let window_id = args.window.map(|h| h.id);
-        let pane_id = args.pane.map(|h| h.id);
-        let tab_id = args.tab.map(|h| h.id);
+        let window_id = args.window.map(|h| h.id());
+        let pane_id = args.pane.map(|h| h.id());
+        let tab_id = args.tab.map(|h| h.id());
 
         // Get timestamp in microseconds
         let timestamp_micros = std::time::SystemTime::now()

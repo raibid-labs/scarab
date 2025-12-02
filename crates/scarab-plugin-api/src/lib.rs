@@ -8,6 +8,7 @@ pub mod context;
 pub mod copy_mode;
 pub mod delight;
 pub mod error;
+pub mod events;
 pub mod key_tables;
 pub mod menu;
 pub mod object_model;
@@ -23,6 +24,7 @@ pub use copy_mode::{
 };
 pub use delight::{Achievement, PluginMood};
 pub use error::{PluginError, Result};
+pub use events::{EventArgs, EventData, EventHandler, EventRegistry, EventResult, EventType, HandlerEntry};
 pub use key_tables::{
     ActivateKeyTableMode, ClipboardKind, CopyModeAction, Direction, KeyAction, KeyCode, KeyCombo,
     KeyModifiers, KeyTable, KeyTableActivation, KeyTableStack, LeaderKeyConfig, LeaderKeyState,
