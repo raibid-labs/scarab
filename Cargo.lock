@@ -533,6 +533,8 @@ dependencies = [
 [[package]]
 name = "bevy-fusabi"
 version = "0.1.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a9a7ac77c028f5370165b3ed1d918453bd35f7f94bf81a4bf6949e40864b64e0"
 dependencies = [
  "anyhow",
  "bevy",
@@ -3967,6 +3969,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "multimap"
+version = "0.10.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1d87ecb2933e8aeadb3e3a02b828fed80a7528047e68b4f424523a0981a3a084"
+
+[[package]]
 name = "naga"
 version = "23.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5049,6 +5057,27 @@ dependencies = [
 ]
 
 [[package]]
+name = "prost-build"
+version = "0.12.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "22505a5c94da8e3b7c2996394d1c933236c4d743e81a410bcca4e6989fc066a4"
+dependencies = [
+ "bytes",
+ "heck",
+ "itertools 0.10.5",
+ "log",
+ "multimap",
+ "once_cell",
+ "petgraph",
+ "prettyplease",
+ "prost",
+ "prost-types",
+ "regex",
+ "syn 2.0.110",
+ "tempfile",
+]
+
+[[package]]
 name = "prost-derive"
 version = "0.12.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5059,6 +5088,15 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 2.0.110",
+]
+
+[[package]]
+name = "prost-types"
+version = "0.12.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9091c90b0a32608e984ff2fa4091273cbdd755d54935c51d520887f4a1dbd5b0"
+dependencies = [
+ "prost",
 ]
 
 [[package]]
@@ -5676,6 +5714,7 @@ dependencies = [
  "regex",
  "rkyv",
  "scarab-config",
+ "scarab-nav-protocol",
  "scarab-plugin-api",
  "scarab-protocol",
  "serde",
@@ -5777,8 +5816,24 @@ name = "scarab-nav"
 version = "0.1.0-alpha.13"
 dependencies = [
  "anyhow",
+ "async-trait",
+ "log",
+ "prost",
  "regex",
+ "scarab-nav-protocol",
+ "scarab-plugin-api",
  "serde",
+ "tokio",
+]
+
+[[package]]
+name = "scarab-nav-protocol"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8b51366e30af044a851b8376d82b8f7c00f4ce44e1267163e8107e4da8b2d24f"
+dependencies = [
+ "prost",
+ "prost-build",
 ]
 
 [[package]]

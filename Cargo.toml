@@ -31,7 +31,7 @@ rust-version = "1.75"
 # Updated to 0.17.0 to match bevy-fusabi requirements
 fusabi-vm = { version = "0.17.0", features = ["serde"] }
 fusabi-frontend = "0.17.0"
-bevy-fusabi = { path = "../../fusabi-lang/bevy-fusabi" }
+bevy-fusabi = "0.1.4"
 
 # Base Bevy configuration
 bevy = { version = "0.15", default-features = false, features = [

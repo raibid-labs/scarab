@@ -9,8 +9,12 @@ homepage.workspace = true
 description = "Navigation system for Scarab terminal emulator"
 
 [dependencies]
-# TODO: Re-enable when scarab-nav-protocol is available
-# scarab-nav-protocol = { version = "0.1.0", path = "../../../scarab-nav-protocol/crates/scarab-nav-protocol" }
+scarab-nav-protocol = "0.1.0"
+scarab-plugin-api = { path = "../scarab-plugin-api" }
 anyhow = { workspace = true }
 serde = { workspace = true }
+tokio = { workspace = true }
 regex = "1.10"
+async-trait = "0.1"
+prost = "0.12"
+log = "0.4"
