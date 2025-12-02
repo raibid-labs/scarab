@@ -14,10 +14,13 @@
 //! # Example
 //!
 //! ```
-//! use scarab_plugin_api::object_model::{ObjectHandle, ObjectType};
+//! use scarab_plugin_api::object_model::{ObjectHandle, ObjectType, WindowProxy};
 //!
 //! // Create a handle
 //! let handle = ObjectHandle::new(ObjectType::Window, 1, 0);
+//!
+//! // Create a proxy from the handle
+//! let window = WindowProxy::new(handle).unwrap();
 //!
 //! // Check validity
 //! assert!(handle.is_valid(0));
@@ -52,8 +55,14 @@
 
 mod error;
 mod handle;
+mod pane;
 mod registry;
+mod tab;
+mod window;
 
 pub use error::{ObjectError, Result};
 pub use handle::{ObjectHandle, ObjectType};
+pub use pane::PaneProxy;
 pub use registry::{ObjectRegistry, RegistryEntry};
+pub use tab::TabProxy;
+pub use window::{RenderItem, WindowProxy};

@@ -1,3 +1,4 @@
+use crate::images::{parse_iterm2_image, ImagePlacementState};
 use scarab_protocol::{Cell, SharedState, GRID_HEIGHT, GRID_WIDTH};
 use std::collections::VecDeque;
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -13,6 +14,7 @@ use std::sync::Arc;
 /// - Support colors and text attributes
 /// - UTF-8 multibyte character handling
 /// - Scrollback buffer (10k lines)
+/// - Image protocol support (iTerm2)
 use vte::{Parser, Perform};
 
 /// Maximum scrollback buffer size (10,000 lines)
@@ -68,6 +70,8 @@ pub struct TerminalState {
     /// Saved cursor position (for DECSC/DECRC)
     saved_cursor: (u16, u16),
     saved_attrs: TextAttributes,
+    /// Image placement state for inline images
+    pub image_state: ImagePlacementState,
 }
 
 impl TerminalState {
@@ -85,6 +89,7 @@ impl TerminalState {
             sequence_counter,
             saved_cursor: (0, 0),
             saved_attrs: TextAttributes::default(),
+            image_state: ImagePlacementState::new(),
         }
     }
 
@@ -211,6 +216,9 @@ impl TerminalState {
                 self.cursor_y = 0;
             }
         }
+
+        // Update image positions when scrolling
+        self.image_state.scroll(lines as i32);
     }
 
     /// Clear the screen
@@ -233,6 +241,9 @@ impl TerminalState {
         }
         self.cursor_x = 0;
         self.cursor_y = 0;
+
+        // Clear image placements when clearing screen
+        self.image_state.clear();
     }
 
     /// Clear from cursor to end of line
@@ -304,6 +315,11 @@ impl TerminalState {
             i += 1;
         }
     }
+
+    /// Get current image placements for rendering
+    pub fn image_placements(&self) -> &[crate::images::ImagePlacement] {
+        &self.image_state.placements
+    }
 }
 
 impl Perform for TerminalState {
@@ -352,7 +368,60 @@ impl Perform for TerminalState {
 
     fn unhook(&mut self) {}
 
-    fn osc_dispatch(&mut self, _params: &[&[u8]], _bell_terminated: bool) {}
+    fn osc_dispatch(&mut self, params: &[&[u8]], _bell_terminated: bool) {
+        // Handle OSC sequences
+
+        // Check for iTerm2 image protocol: OSC 1337
+        if params.is_empty() {
+            return;
+        }
+
+        let first = params[0];
+
+        // Handle OSC 1337 - iTerm2 image protocol
+        if first == b"1337" {
+            if params.len() < 2 {
+                log::debug!("OSC 1337 received but no payload");
+                return;
+            }
+
+            // Combine remaining params (they were split by ';')
+            // We need to reconstruct the full payload
+            let mut payload = Vec::new();
+            for (i, param) in params[1..].iter().enumerate() {
+                if i > 0 {
+                    payload.push(b';');
+                }
+                payload.extend_from_slice(param);
+            }
+
+            if let Some(image_data) = parse_iterm2_image(&payload) {
+                let id = self.image_state.add_placement(
+                    self.cursor_x,
+                    self.cursor_y,
+                    image_data.clone(),
+                );
+                log::debug!(
+                    "Added image placement {} at ({}, {})",
+                    id,
+                    self.cursor_x,
+                    self.cursor_y
+                );
+
+                // Move cursor if needed (unless doNotMoveCursor is set)
+                if !image_data.do_not_move_cursor {
+                    // For now, just move to next line
+                    // TODO: Calculate actual cursor movement based on image size
+                    self.cursor_y += 1;
+                    if self.cursor_y >= self.rows {
+                        self.scroll_up(1);
+                    }
+                }
+            } else {
+                log::warn!("Failed to parse iTerm2 image from OSC 1337");
+            }
+        }
+    }
 
     fn csi_dispatch(
         &mut self,
