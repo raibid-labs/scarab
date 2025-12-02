@@ -1,5 +1,6 @@
 use crate::plugin_manager::PluginManager;
-use crate::session::{handle_session_command, SessionManager};
+use crate::session::{handle_pane_command, handle_session_command, handle_tab_command, SessionManager};
+use crate::orchestrator::OrchestratorMessage;
 use anyhow::{Context, Result};
 use portable_pty::PtySize;
 use scarab_protocol::{ControlMessage, DaemonMessage, MenuActionType, PluginInspectorInfo, MAX_CLIENTS, MAX_MESSAGE_SIZE, SOCKET_PATH};
@@ -140,6 +141,7 @@ pub struct IpcServer {
     plugin_manager: Arc<Mutex<PluginManager>>,
     client_registry: ClientRegistry,
     client_counter: Arc<RwLock<u64>>,
+    orchestrator_tx: mpsc::UnboundedSender<OrchestratorMessage>,
 }
 
 impl IpcServer {
@@ -149,6 +151,7 @@ impl IpcServer {
         session_manager: Arc<SessionManager>,
         client_registry: ClientRegistry,
         plugin_manager: Arc<Mutex<PluginManager>>,
+        orchestrator_tx: mpsc::UnboundedSender<OrchestratorMessage>,
     ) -> Result<Self> {
         // Remove existing socket if present
         if Path::new(SOCKET_PATH).exists() {
@@ -174,6 +177,7 @@ impl IpcServer {
             plugin_manager,
             client_registry,
             client_counter: Arc::new(RwLock::new(0)),
+            orchestrator_tx,
         })
     }
 
@@ -212,6 +216,7 @@ impl IpcServer {
                     let session_manager = self.session_manager.clone();
                     let client_registry = self.client_registry.clone();
                     let plugin_manager = self.plugin_manager.clone();
+                    let orchestrator_tx = self.orchestrator_tx.clone();
                     let active_clients = active_clients.clone();
 
                     tokio::spawn(async move {
@@ -222,6 +227,7 @@ impl IpcServer {
                             session_manager,
                             client_registry,
                             plugin_manager,
+                            orchestrator_tx,
                         )
                         .await
                         {
@@ -249,6 +255,7 @@ async fn handle_client(
     session_manager: Arc<SessionManager>,
     client_registry: ClientRegistry,
     plugin_manager: Arc<Mutex<PluginManager>>,
+    orchestrator_tx: mpsc::UnboundedSender<OrchestratorMessage>,
 ) -> Result<()> {
     let (mut stream_read, stream_write) = stream.into_split();
     let mut buffer = vec![0u8; MAX_MESSAGE_SIZE];
@@ -306,6 +313,7 @@ async fn handle_client(
             &plugin_manager,
             &client_registry,
             client_id,
+            &orchestrator_tx,
         )
         .await
         {
@@ -325,6 +333,7 @@ async fn handle_message(
     plugin_manager: &Arc<Mutex<PluginManager>>,
     client_registry: &ClientRegistry,
     client_id: u64,
+    orchestrator_tx: &mpsc::UnboundedSender<OrchestratorMessage>,
 ) -> Result<()> {
     // Try to handle as session command first
     if let Ok(Some(response)) =
@@ -338,7 +347,50 @@ async fn handle_message(
         return Ok(());
     }
 
-    // Handle non-session commands
+    // Try to handle as tab command
+    if let Ok(Some(response)) =
+        handle_tab_command(msg.clone(), session_manager, client_id).await
+    {
+        log::info!("Tab command response: {:?}", response);
+        // Check if a new tab was created - notify orchestrator
+        if let DaemonMessage::TabCreated { ref tab } = response {
+            // New tab means a new pane was created - notify orchestrator
+            // Get the pane ID from the session's active tab
+            if let Some(session) = session_manager.get_default_session() {
+                if let Some(pane) = session.get_active_pane() {
+                    let _ = orchestrator_tx.send(OrchestratorMessage::PaneCreated(pane.id));
+                }
+            }
+            log::info!("Created tab {} with title {:?}", tab.id, tab.title);
+        }
+        client_registry.send(client_id, response).await?;
+        return Ok(());
+    }
+
+    // Try to handle as pane command
+    if let Ok(Some(response)) =
+        handle_pane_command(msg.clone(), session_manager, client_id).await
+    {
+        log::info!("Pane command response: {:?}", response);
+        // Check for pane lifecycle events
+        match &response {
+            DaemonMessage::PaneCreated { ref pane } => {
+                // Notify orchestrator about new pane
+                let _ = orchestrator_tx.send(OrchestratorMessage::PaneCreated(pane.id));
+                log::info!("Created pane {}", pane.id);
+            }
+            DaemonMessage::PaneClosed { pane_id } => {
+                // Notify orchestrator to stop reading from this pane
+                let _ = orchestrator_tx.send(OrchestratorMessage::PaneDestroyed(*pane_id));
+                log::info!("Closed pane {}", pane_id);
+            }
+            _ => {}
+        }
+        client_registry.send(client_id, response).await?;
+        return Ok(());
+    }
+
+    // Handle non-session/tab/pane commands
     match msg {
         ControlMessage::Resize { cols, rows } => {
             log::info!("Client {} resize: {}x{}", client_id, cols, rows);
@@ -799,144 +851,20 @@ async fn handle_message(
         | ControlMessage::SessionRename { .. } => {
             // Already handled by handle_session_command
         }
-        // Tab management - delegate to plugins
-        ControlMessage::TabCreate { title } => {
-            log::info!("Client {} creating tab: {:?}", client_id, title);
-            let mut pm = plugin_manager.lock().await;
-            if let Err(e) = pm.dispatch_remote_command("tabs.new").await {
-                log::error!("Failed to create tab: {}", e);
-            }
+        // Tab management - handled by handle_tab_command above
+        ControlMessage::TabCreate { .. }
+        | ControlMessage::TabClose { .. }
+        | ControlMessage::TabSwitch { .. }
+        | ControlMessage::TabRename { .. }
+        | ControlMessage::TabList => {
+            // Already handled by handle_tab_command
         }
-        ControlMessage::TabClose { tab_id } => {
-            log::info!("Client {} closing tab {}", client_id, tab_id);
-            // Note: Current plugin API doesn't support closing by ID
-            // The tabs plugin only supports closing the active tab via "tabs.close"
-            let mut pm = plugin_manager.lock().await;
-            if let Err(e) = pm.dispatch_remote_command("tabs.close").await {
-                log::error!("Failed to close tab: {}", e);
-                client_registry
-                    .send(
-                        client_id,
-                        DaemonMessage::PluginError {
-                            name: "scarab-tabs".to_string().into(),
-                            error: format!("Failed to close tab: {}", e).into(),
-                        },
-                    )
-                    .await?;
-            }
-        }
-        ControlMessage::TabSwitch { tab_id } => {
-            log::info!("Client {} switching to tab {}", client_id, tab_id);
-            // Note: Current plugin API doesn't support switching by ID
-            // The tabs plugin uses index-based switching via Ctrl+1-9 or next/prev
-            // For now, we log this but can't directly switch to a specific tab ID
-            log::warn!("Tab switching by ID not yet supported in plugin API");
-            client_registry
-                .send(
-                    client_id,
-                    DaemonMessage::PluginError {
-                        name: "scarab-tabs".to_string().into(),
-                        error: "Tab switching by ID not yet supported".to_string().into(),
-                    },
-                )
-                .await?;
-        }
-        ControlMessage::TabRename { tab_id, new_title } => {
-            log::info!("Client {} renaming tab {} to '{}'", client_id, tab_id, new_title);
-            // Note: Current plugin API doesn't support renaming
-            // This functionality needs to be added to scarab-tabs plugin
-            log::warn!("Tab renaming not yet implemented in plugin API");
-            client_registry
-                .send(
-                    client_id,
-                    DaemonMessage::PluginError {
-                        name: "scarab-tabs".to_string().into(),
-                        error: "Tab renaming not yet implemented".to_string().into(),
-                    },
-                )
-                .await?;
-        }
-        ControlMessage::TabList => {
-            log::info!("Client {} requesting tab list", client_id);
-            // Dispatch the tabs.list command which sends a notification to the client
-            let mut pm = plugin_manager.lock().await;
-            if let Err(e) = pm.dispatch_remote_command("tabs.list").await {
-                log::error!("Failed to list tabs: {}", e);
-                client_registry
-                    .send(
-                        client_id,
-                        DaemonMessage::PluginError {
-                            name: "scarab-tabs".to_string().into(),
-                            error: format!("Failed to list tabs: {}", e).into(),
-                        },
-                    )
-                    .await?;
-            }
-            // Note: The plugin sends a notification with tab info
-            // A more complete implementation would return TabListResponse with structured data
-        }
-
-        // Pane management - delegate to plugins
-        ControlMessage::PaneSplit { pane_id, direction } => {
-            log::info!("Client {} splitting pane {} {:?}", client_id, pane_id, direction);
-            let mut pm = plugin_manager.lock().await;
-            let command = match direction {
-                scarab_protocol::SplitDirection::Horizontal => "panes.split_horizontal",
-                scarab_protocol::SplitDirection::Vertical => "panes.split_vertical",
-            };
-            if let Err(e) = pm.dispatch_remote_command(command).await {
-                log::error!("Failed to split pane: {}", e);
-            }
-        }
-        ControlMessage::PaneClose { pane_id } => {
-            log::info!("Client {} closing pane {}", client_id, pane_id);
-            // Note: Current plugin API doesn't support closing by ID
-            // The panes plugin only supports closing the active pane via "panes.close"
-            let mut pm = plugin_manager.lock().await;
-            if let Err(e) = pm.dispatch_remote_command("panes.close").await {
-                log::error!("Failed to close pane: {}", e);
-                client_registry
-                    .send(
-                        client_id,
-                        DaemonMessage::PluginError {
-                            name: "scarab-panes".to_string().into(),
-                            error: format!("Failed to close pane: {}", e).into(),
-                        },
-                    )
-                    .await?;
-            }
-        }
-        ControlMessage::PaneFocus { pane_id } => {
-            log::info!("Client {} focusing pane {}", client_id, pane_id);
-            // Note: Current plugin API doesn't support focusing by ID
-            // The panes plugin uses directional navigation (up/down/left/right)
-            // Focusing a specific pane by ID needs to be added to the plugin API
-            log::warn!("Pane focusing by ID not yet supported in plugin API");
-            client_registry
-                .send(
-                    client_id,
-                    DaemonMessage::PluginError {
-                        name: "scarab-panes".to_string().into(),
-                        error: "Pane focusing by ID not yet supported".to_string().into(),
-                    },
-                )
-                .await?;
-        }
-        ControlMessage::PaneResize { pane_id, width, height } => {
-            log::info!("Client {} resizing pane {} to {}x{}", client_id, pane_id, width, height);
-            // Note: Current plugin API doesn't support resizing by ID with specific dimensions
-            // The panes plugin has resize_pane() internally but it's not exposed via remote commands
-            // This functionality needs to be added to the plugin's on_remote_command handler
-            log::warn!("Pane resizing not yet exposed via plugin API");
-            client_registry
-                .send(
-                    client_id,
-                    DaemonMessage::PluginError {
-                        name: "scarab-panes".to_string().into(),
-                        error: "Pane resizing not yet implemented".to_string().into(),
-                    },
-                )
-                .await?;
+        // Pane management - handled by handle_pane_command above
+        ControlMessage::PaneSplit { .. }
+        | ControlMessage::PaneClose { .. }
+        | ControlMessage::PaneFocus { .. }
+        | ControlMessage::PaneResize { .. } => {
+            // Already handled by handle_pane_command
         }
         ControlMessage::PluginLog { .. }
         | ControlMessage::PluginNotify { .. } => {

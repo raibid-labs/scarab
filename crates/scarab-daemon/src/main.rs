@@ -163,11 +163,16 @@ async fn main() -> Result<()> {
 
     let plugin_manager = Arc::new(tokio::sync::Mutex::new(plugin_manager));
 
+    // Create Pane Orchestrator early so we can pass its command sender to IPC
+    let orchestrator = PaneOrchestrator::new(session_manager.clone());
+    let orchestrator_tx = orchestrator.command_sender();
+
     let ipc_server = IpcServer::new(
         pty_handle.clone(),
         session_manager.clone(),
         client_registry.clone(),
         plugin_manager.clone(),
+        orchestrator_tx,
     )
     .await?;
 
@@ -222,12 +227,8 @@ async fn main() -> Result<()> {
 
     println!("Daemon initialized. Listening for input...");
 
-    // 4. Start the Pane Orchestrator
+    // 4. Start the Pane Orchestrator (already created above, now run it)
     // This spawns parallel reader tasks for all panes
-    let orchestrator = PaneOrchestrator::new(session_manager.clone());
-    let _orchestrator_cmd = orchestrator.command_sender();
-
-    // Run orchestrator in background
     tokio::spawn(async move {
         orchestrator.run().await;
     });
