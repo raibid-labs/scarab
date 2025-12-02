@@ -158,6 +158,11 @@ impl Tab {
         self.panes.len()
     }
 
+    /// Get all pane IDs in this tab
+    pub fn pane_ids(&self) -> Vec<PaneId> {
+        self.panes.keys().copied().collect()
+    }
+
     /// Recalculate pane layouts (simplified tiling algorithm)
     fn recalculate_layout(&mut self) -> Result<()> {
         // For MVP: simple horizontal tiling

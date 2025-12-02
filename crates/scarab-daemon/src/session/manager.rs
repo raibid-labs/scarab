@@ -124,12 +124,20 @@ impl Session {
     }
 
     /// Close a tab
-    pub fn close_tab(&self, tab_id: TabId) -> Result<()> {
+    /// Returns the list of pane IDs that were destroyed
+    pub fn close_tab(&self, tab_id: TabId) -> Result<Vec<PaneId>> {
         let mut tabs = self.tabs.write();
 
         if tabs.len() <= 1 {
             bail!("Cannot close the last tab in a session");
         }
+
+        // Get the pane IDs before removing the tab
+        let destroyed_panes: Vec<PaneId> = if let Some(tab) = tabs.get(&tab_id) {
+            tab.pane_ids()
+        } else {
+            Vec::new()
+        };
 
         tabs.remove(&tab_id);
 
@@ -139,8 +147,8 @@ impl Session {
             *active = *tabs.keys().next().unwrap_or(&0);
         }
 
-        log::info!("Closed tab {} in session {}", tab_id, self.id);
-        Ok(())
+        log::info!("Closed tab {} in session {} (destroyed {} panes)", tab_id, self.id, destroyed_panes.len());
+        Ok(destroyed_panes)
     }
 
     /// Switch to a different tab

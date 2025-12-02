@@ -1,5 +1,5 @@
 use crate::plugin_manager::PluginManager;
-use crate::session::{handle_pane_command, handle_session_command, handle_tab_command, SessionManager};
+use crate::session::{handle_pane_command, handle_session_command, handle_tab_command, SessionManager, TabCommandResult};
 use crate::orchestrator::OrchestratorMessage;
 use anyhow::{Context, Result};
 use portable_pty::PtySize;
@@ -348,12 +348,19 @@ async fn handle_message(
     }
 
     // Try to handle as tab command
-    if let Ok(Some(response)) =
+    if let Ok(Some(result)) =
         handle_tab_command(msg.clone(), session_manager, client_id).await
     {
-        log::info!("Tab command response: {:?}", response);
+        log::info!("Tab command result: message={:?}, destroyed_panes={:?}", result.message, result.destroyed_pane_ids);
+
+        // Notify orchestrator about any destroyed panes
+        for pane_id in &result.destroyed_pane_ids {
+            let _ = orchestrator_tx.send(OrchestratorMessage::PaneDestroyed(*pane_id));
+            log::info!("Notified orchestrator: pane {} destroyed", pane_id);
+        }
+
         // Check if a new tab was created - notify orchestrator
-        if let DaemonMessage::TabCreated { ref tab } = response {
+        if let Some(DaemonMessage::TabCreated { ref tab }) = result.message {
             // New tab means a new pane was created - notify orchestrator
             // Get the pane ID from the session's active tab
             if let Some(session) = session_manager.get_default_session() {
@@ -363,7 +370,10 @@ async fn handle_message(
             }
             log::info!("Created tab {} with title {:?}", tab.id, tab.title);
         }
-        client_registry.send(client_id, response).await?;
+
+        if let Some(response) = result.message {
+            client_registry.send(client_id, response).await?;
+        }
         return Ok(());
     }
 

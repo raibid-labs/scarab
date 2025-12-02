@@ -4,7 +4,7 @@ pub mod pane;
 mod store;
 pub mod tab;
 
-pub use commands::{handle_pane_command, handle_session_command, handle_tab_command};
+pub use commands::{handle_pane_command, handle_session_command, handle_tab_command, TabCommandResult};
 pub use manager::{Session, SessionManager};
 pub use pane::{Pane, PaneId, Rect};
 pub use store::SessionStore;

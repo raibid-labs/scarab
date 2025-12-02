@@ -1,3 +1,4 @@
+use super::pane::PaneId;
 use super::tab::SplitDirection as SessionSplitDirection;
 use super::{ClientId, SessionManager};
 use anyhow::Result;
@@ -112,20 +113,29 @@ pub async fn handle_session_command(
     }
 }
 
+/// Result from tab command including any destroyed pane IDs
+pub struct TabCommandResult {
+    pub message: Option<DaemonMessage>,
+    pub destroyed_pane_ids: Vec<PaneId>,
+}
+
 /// Handle tab-related control messages
-/// Returns a DaemonMessage response for the client
+/// Returns a DaemonMessage response for the client and any destroyed pane IDs
 pub async fn handle_tab_command(
     msg: ControlMessage,
     session_manager: &Arc<SessionManager>,
     client_id: ClientId,
-) -> Result<Option<DaemonMessage>> {
+) -> Result<Option<TabCommandResult>> {
     // Get the default/active session for this client
     let session = match session_manager.get_default_session() {
         Some(s) => s,
         None => {
-            return Ok(Some(DaemonMessage::Session(SessionResponse::Error {
-                message: "No active session".to_string(),
-            })));
+            return Ok(Some(TabCommandResult {
+                message: Some(DaemonMessage::Session(SessionResponse::Error {
+                    message: "No active session".to_string(),
+                })),
+                destroyed_pane_ids: Vec::new(),
+            }));
         }
     };
 
@@ -139,22 +149,28 @@ pub async fn handle_tab_command(
                     let tab_info = tabs.iter().find(|(id, _, _, _)| *id == tab_id);
 
                     if let Some((id, title, is_active, pane_count)) = tab_info {
-                        Ok(Some(DaemonMessage::TabCreated {
-                            tab: TabInfo {
-                                id: *id,
-                                title: title.clone(),
-                                session_id: Some(session.id.clone()),
-                                is_active: *is_active,
-                                pane_count: *pane_count as u32,
-                            },
+                        Ok(Some(TabCommandResult {
+                            message: Some(DaemonMessage::TabCreated {
+                                tab: TabInfo {
+                                    id: *id,
+                                    title: title.clone(),
+                                    session_id: Some(session.id.clone()),
+                                    is_active: *is_active,
+                                    pane_count: *pane_count as u32,
+                                },
+                            }),
+                            destroyed_pane_ids: Vec::new(),
                         }))
                     } else {
                         Ok(None)
                     }
                 }
-                Err(e) => Ok(Some(DaemonMessage::Session(SessionResponse::Error {
-                    message: format!("Failed to create tab: {}", e),
-                }))),
+                Err(e) => Ok(Some(TabCommandResult {
+                    message: Some(DaemonMessage::Session(SessionResponse::Error {
+                        message: format!("Failed to create tab: {}", e),
+                    })),
+                    destroyed_pane_ids: Vec::new(),
+                })),
             }
         }
 
@@ -162,10 +178,16 @@ pub async fn handle_tab_command(
             log::info!("Client {} closing tab: {}", client_id, tab_id);
 
             match session.close_tab(tab_id) {
-                Ok(_) => Ok(Some(DaemonMessage::TabClosed { tab_id })),
-                Err(e) => Ok(Some(DaemonMessage::Session(SessionResponse::Error {
-                    message: format!("Failed to close tab: {}", e),
-                }))),
+                Ok(destroyed_panes) => Ok(Some(TabCommandResult {
+                    message: Some(DaemonMessage::TabClosed { tab_id }),
+                    destroyed_pane_ids: destroyed_panes,
+                })),
+                Err(e) => Ok(Some(TabCommandResult {
+                    message: Some(DaemonMessage::Session(SessionResponse::Error {
+                        message: format!("Failed to close tab: {}", e),
+                    })),
+                    destroyed_pane_ids: Vec::new(),
+                })),
             }
         }
 
@@ -173,10 +195,16 @@ pub async fn handle_tab_command(
             log::info!("Client {} switching to tab: {}", client_id, tab_id);
 
             match session.switch_tab(tab_id) {
-                Ok(_) => Ok(Some(DaemonMessage::TabSwitched { tab_id })),
-                Err(e) => Ok(Some(DaemonMessage::Session(SessionResponse::Error {
-                    message: format!("Failed to switch tab: {}", e),
-                }))),
+                Ok(_) => Ok(Some(TabCommandResult {
+                    message: Some(DaemonMessage::TabSwitched { tab_id }),
+                    destroyed_pane_ids: Vec::new(),
+                })),
+                Err(e) => Ok(Some(TabCommandResult {
+                    message: Some(DaemonMessage::Session(SessionResponse::Error {
+                        message: format!("Failed to switch tab: {}", e),
+                    })),
+                    destroyed_pane_ids: Vec::new(),
+                })),
             }
         }
 
@@ -202,11 +230,17 @@ pub async fn handle_tab_command(
                             pane_count: pane_count as u32,
                         })
                         .collect();
-                    Ok(Some(DaemonMessage::TabListResponse { tabs: tab_infos }))
+                    Ok(Some(TabCommandResult {
+                        message: Some(DaemonMessage::TabListResponse { tabs: tab_infos }),
+                        destroyed_pane_ids: Vec::new(),
+                    }))
                 }
-                Err(e) => Ok(Some(DaemonMessage::Session(SessionResponse::Error {
-                    message: format!("Failed to rename tab: {}", e),
-                }))),
+                Err(e) => Ok(Some(TabCommandResult {
+                    message: Some(DaemonMessage::Session(SessionResponse::Error {
+                        message: format!("Failed to rename tab: {}", e),
+                    })),
+                    destroyed_pane_ids: Vec::new(),
+                })),
             }
         }
 
@@ -225,7 +259,10 @@ pub async fn handle_tab_command(
                 })
                 .collect();
 
-            Ok(Some(DaemonMessage::TabListResponse { tabs: tab_infos }))
+            Ok(Some(TabCommandResult {
+                message: Some(DaemonMessage::TabListResponse { tabs: tab_infos }),
+                destroyed_pane_ids: Vec::new(),
+            }))
         }
 
         _ => Ok(None),
