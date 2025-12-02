@@ -6437,6 +6437,7 @@ version = "0.1.0-alpha.14"
 dependencies = [
  "anyhow",
  "async-trait",
+ "base64 0.21.7",
  "crossbeam",
  "env_logger",
  "fusabi-frontend",
