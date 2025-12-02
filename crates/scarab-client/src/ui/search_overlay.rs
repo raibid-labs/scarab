@@ -3,6 +3,7 @@
 
 use bevy::prelude::*;
 use crate::terminal::scrollback::{ScrollbackBuffer, ScrollbackState};
+use scarab_config::ScarabConfig;
 
 /// Marker component for search overlay UI
 #[derive(Component)]
@@ -182,6 +183,7 @@ fn handle_search_input(
     mut state: ResMut<ScrollbackState>,
     mut scrollback: ResMut<ScrollbackBuffer>,
     keys: Res<ButtonInput<KeyCode>>,
+    config: Res<ScarabConfig>,
 ) {
     if !state.search_visible {
         return;
@@ -202,12 +204,12 @@ fn handle_search_input(
                 // Add character to search input
                 state.search_input.push_str(s);
 
-                // Trigger search
+                // Trigger search with user-configured settings
                 if !state.search_input.is_empty() {
                     scrollback.search(
                         state.search_input.clone(),
-                        false, // case_sensitive (TODO: make configurable)
-                        false, // use_regex (TODO: make configurable)
+                        config.ui.search_case_sensitive,
+                        config.ui.search_use_regex,
                     );
                 }
             }
@@ -217,7 +219,11 @@ fn handle_search_input(
 
                 // Re-trigger search or clear if empty
                 if !state.search_input.is_empty() {
-                    scrollback.search(state.search_input.clone(), false, false);
+                    scrollback.search(
+                        state.search_input.clone(),
+                        config.ui.search_case_sensitive,
+                        config.ui.search_use_regex,
+                    );
                 } else {
                     scrollback.clear_search();
                 }

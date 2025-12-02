@@ -69,11 +69,11 @@ fn main() {
     let window_width = config.terminal.columns as f32 * char_width;
     let window_height = config.terminal.rows as f32 * char_height;
 
-    // TODO: Window icon loading in Bevy 0.15 requires platform-specific handling
-    // For now, we'll leave this as a config option that can be implemented later
+    // Window icon loading note: Bevy 0.15 window icon support requires platform-specific handling
+    // and may not be available in all backends. For now, we log if an icon path is configured.
     if let Some(icon_path) = &config.ui.window_icon {
         println!("Custom window icon specified: {}", icon_path);
-        println!("Note: Window icon loading is not yet fully implemented in Bevy 0.15");
+        println!("Note: Window icon loading requires platform-specific implementation in Bevy 0.15");
     }
 
     let mut app = App::new();

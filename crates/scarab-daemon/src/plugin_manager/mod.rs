@@ -256,6 +256,14 @@ impl PluginManager {
                         })
                         .await;
                 }
+                RemoteCommand::ThemeUpdate { theme_json } => {
+                    // Broadcast theme update to all clients
+                    self.client_registry
+                        .broadcast(DaemonMessage::ThemeUpdate {
+                            theme_json: theme_json.into(),
+                        })
+                        .await;
+                }
             }
         }
     }
@@ -302,11 +310,10 @@ impl PluginManager {
                 if loaded == 1 { "" } else { "s" }
             );
 
-            // Show a random developer tip
-            // TODO: Re-enable when rand dependency is added
-            // if rand::random::<f32>() < 0.3 {
-            //     log::info!("💡 {}", delight::random_developer_tip());
-            // }
+            // Show a random developer tip (30% chance)
+            if rand::random::<f32>() < 0.3 {
+                log::info!("💡 {}", delight::random_developer_tip());
+            }
         } else {
             log::info!("No plugins loaded. Time to create your first one!");
         }

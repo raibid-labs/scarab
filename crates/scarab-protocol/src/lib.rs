@@ -374,6 +374,11 @@ pub enum DaemonMessage {
         plugin_name: alloc::string::String,
         error: alloc::string::String,
     },
+
+    // Theme system updates
+    ThemeUpdate {
+        theme_json: alloc::string::String, // Serialized Theme
+    },
 }
 
 #[derive(Debug, Clone, Copy, rkyv::Archive, rkyv::Serialize, rkyv::Deserialize)]

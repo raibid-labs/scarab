@@ -200,14 +200,24 @@ impl ThemePlugin {
                     });
                 } else {
                     log::info!("Applied theme: {}", theme_id);
+
+                    // Get the active theme and send it to clients
+                    if let Some(theme) = state.manager.active_theme() {
+                        match serde_json::to_string(theme) {
+                            Ok(theme_json) => {
+                                ctx.queue_command(RemoteCommand::ThemeUpdate { theme_json });
+                            }
+                            Err(e) => {
+                                log::error!("Failed to serialize theme: {}", e);
+                            }
+                        }
+                    }
+
                     ctx.queue_command(RemoteCommand::PluginNotify {
                         title: "Theme Applied".to_string(),
                         body: format!("Switched to {}", theme_id),
                         level: scarab_plugin_api::context::NotifyLevel::Success,
                     });
-
-                    // TODO: Send theme update to client via IPC
-                    // This would require extending the RemoteCommand enum
                 }
             }
 

@@ -35,14 +35,18 @@ impl Plugin for ScriptingPlugin {
     fn build(&self, app: &mut App) {
         app.add_plugins(ScriptingSystemPlugin)
             .add_event::<ScriptEvent>()
-            .add_systems(Startup, (context::initialize_context, initialize_scripting))
+            .add_systems(
+                Startup,
+                (context::initialize_context, initialize_scripting, execute_startup_scripts)
+                    .chain(),
+            )
             .add_systems(
                 Update,
                 (
                     check_script_reloads,
-                    execute_pending_scripts,
                     handle_script_events,
                     display_script_errors,
+                    execute_scripts_on_window_resize,
                 ),
             );
     }
@@ -75,6 +79,11 @@ fn initialize_scripting(
     }
 }
 
+/// Execute scripts on startup (after initialization)
+fn execute_startup_scripts(manager: Res<ScriptManager>, context: Res<RuntimeContext>) {
+    manager.execute_on_startup(&context);
+}
+
 /// Check for script file changes and trigger reloads
 fn check_script_reloads(mut manager: ResMut<ScriptManager>) {
     if let Err(e) = manager.check_reloads() {
@@ -82,13 +91,15 @@ fn check_script_reloads(mut manager: ResMut<ScriptManager>) {
     }
 }
 
-/// Execute any pending scripts in the queue
-fn execute_pending_scripts(
-    mut manager: ResMut<ScriptManager>,
+/// Execute scripts when window resize events occur
+fn execute_scripts_on_window_resize(
+    manager: Res<ScriptManager>,
     context: Res<RuntimeContext>,
-    mut commands: Commands,
+    mut resize_events: EventReader<bevy::window::WindowResized>,
 ) {
-    manager.execute_pending(&context, &mut commands);
+    for event in resize_events.read() {
+        manager.execute_on_resize(&context, event.width, event.height);
+    }
 }
 
 /// Handle script-generated events

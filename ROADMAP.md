@@ -2,7 +2,7 @@
 
 > **Vision**: A next-generation, GPU-accelerated terminal emulator with split-process architecture, hybrid F# plugin system, and game-engine-driven UI
 
-**Last Updated**: 2025-11-23
+**Last Updated**: 2025-12-02
 **Current Version**: 0.1.0-alpha
 **Current Phase**: Phase 5 (Integration & Polish)
 
@@ -62,8 +62,11 @@ Scarab has **completed 4 major development phases** and is progressing through P
 
 ## 🔮 Near-Term Roadmap (Phases 6-7)
 
-### Phase 6: Fusabi Runtime Integration
-- Integration with `fusabi-vm` and `fusabi-frontend` crates once released.
+### Phase 6: Fusabi Runtime Integration ✅ COMPLETE
+- ✅ Integrated `fusabi-vm` (v0.17.0) for daemon-side compiled plugins (.fzb)
+- ✅ Integrated `fusabi-frontend` (v0.17.0) for client-side scripting (.fsx)
+- ✅ Integrated `bevy-fusabi` (v0.1.4) for hot-reloadable UI scripts
+- ✅ All dependencies migrated to crates.io (no git dependencies)
 
 ### Phase 7: Feature Completeness & UX Polish
 - Mouse support, Scrollback UI, Copy/Paste enhancements.

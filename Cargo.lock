@@ -6444,6 +6444,7 @@ dependencies = [
  "portable-pty",
  "profiling",
  "puffin",
+ "rand 0.8.5",
  "ratatui-testlib",
  "rkyv",
  "rusqlite",

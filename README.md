@@ -16,7 +16,7 @@
 [![Build Status](https://github.com/raibid-labs/scarab/workflows/CI/badge.svg)](https://github.com/raibid-labs/scarab/actions)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Rust](https://img.shields.io/badge/rust-1.75%2B-orange.svg)](https://www.rust-lang.org/)
-[![Fusabi](https://img.shields.io/badge/Fusabi-0.5.0-purple.svg)](https://github.com/fusabi-lang/fusabi)
+[![Fusabi](https://img.shields.io/badge/Fusabi-0.17.0-purple.svg)](https://github.com/fusabi-lang/fusabi)
 [![Bevy](https://img.shields.io/badge/Bevy-0.15-blue.svg)](https://bevyengine.org/)
 
 [Features](#-features) | [Installation](#-installation) | [Quick Start](#-quick-start) | [Plugins](#-plugin-system) | [Documentation](#-documentation) | [Contributing](#-contributing)
@@ -27,11 +27,11 @@
 
 ## Visual Demos
 
+> **Note**: Demo recordings coming soon! See [docs/assets/demos/PLACEHOLDER.md](docs/assets/demos/PLACEHOLDER.md) for recording instructions.
+
 <div align="center">
 
 ### Link Hints - Open URLs with Keyboard
-
-![Link Hints Demo](docs/assets/demos/link-hints-demo.gif)
 
 *Press Ctrl+Shift+O to highlight all links, then press the shown key to open*
 
@@ -39,15 +39,11 @@
 
 ### Command Palette - Quick Access to Everything
 
-![Command Palette](docs/assets/demos/command-palette.gif)
-
 *Press Ctrl+Shift+P for fuzzy searchable command palette*
 
 ---
 
 ### Plugin System - Extend with F#
-
-![Plugin Installation](docs/assets/demos/plugin-install.gif)
 
 *Write powerful plugins in Fusabi (F# for Rust) with hot-reload support*
 
@@ -55,22 +51,7 @@
 
 ### Real-Time Theme Switching
 
-![Theme Switch](docs/assets/demos/theme-switch.gif)
-
 *Switch themes instantly - no restart required*
-
----
-
-### Watch Full Demos
-
-**Scarab in 2 Minutes** - Quick feature overview
-[▶ Watch on YouTube](#) | [📥 Download MP4](docs/videos/scarab-2min-demo.mp4)
-
-**Your First Plugin** - Step-by-step plugin creation
-[▶ Watch on YouTube](#) | [📥 Download MP4](docs/videos/first-plugin-tutorial.mp4)
-
-**Advanced Workflows** - Power user tips
-[▶ Watch on YouTube](#) | [📥 Download MP4](docs/videos/advanced-workflows.mp4)
 
 </div>
 

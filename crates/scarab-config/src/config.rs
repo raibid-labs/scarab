@@ -260,6 +260,8 @@ pub struct UiConfig {
     pub cursor_blink: bool,
     pub cursor_blink_interval: u32,
     pub window_icon: Option<String>, // Path to custom icon (PNG format, optional)
+    pub search_case_sensitive: bool, // Case-sensitive search by default
+    pub search_use_regex: bool,      // Use regex search by default
 }
 
 impl Default for UiConfig {
@@ -275,6 +277,8 @@ impl Default for UiConfig {
             cursor_blink: true,
             cursor_blink_interval: 750,
             window_icon: None, // No custom icon by default
+            search_case_sensitive: false,
+            search_use_regex: false,
         }
     }
 }

@@ -116,12 +116,43 @@ impl ScriptManager {
             .execute_source(&script.source, name, context.context())
     }
 
-    /// Execute pending scripts (called from Bevy system)
-    pub fn execute_pending(&mut self, context: &RuntimeContext, _commands: &mut Commands) {
-        // This method is intentionally left empty now
-        // Scripts should be executed on-demand or on specific events, not every frame
-        // TODO: Implement event-based script execution
-        let _ = (context, _commands);
+    /// Execute scripts on window resize events
+    pub fn execute_on_resize(&self, context: &RuntimeContext, width: f32, height: f32) {
+        debug!("Executing scripts on window resize: {}x{}", width, height);
+        for (name, script) in &self.scripts {
+            if script.source.contains("on_resize") || script.source.contains("window_resize") {
+                debug!("Script '{}' has resize handler", name);
+                if let Err(e) = self.runtime.execute_source(&script.source, name, context.context()) {
+                    error!("Failed to execute script '{}' on resize: {}", name, e);
+                }
+            }
+        }
+    }
+
+    /// Execute scripts on input events
+    pub fn execute_on_input(&self, context: &RuntimeContext) {
+        debug!("Executing scripts on input event");
+        for (name, script) in &self.scripts {
+            if script.source.contains("on_input") || script.source.contains("keyboard_input") {
+                debug!("Script '{}' has input handler", name);
+                if let Err(e) = self.runtime.execute_source(&script.source, name, context.context()) {
+                    error!("Failed to execute script '{}' on input: {}", name, e);
+                }
+            }
+        }
+    }
+
+    /// Execute scripts on startup (called once after initialization)
+    pub fn execute_on_startup(&self, context: &RuntimeContext) {
+        info!("Executing scripts on startup");
+        for (name, script) in &self.scripts {
+            if script.source.contains("on_startup") || script.source.contains("init") {
+                info!("Script '{}' has startup handler", name);
+                if let Err(e) = self.runtime.execute_source(&script.source, name, context.context()) {
+                    error!("Failed to execute script '{}' on startup: {}", name, e);
+                }
+            }
+        }
     }
 
     /// Handle a script event

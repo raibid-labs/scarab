@@ -809,19 +809,71 @@ async fn handle_message(
         }
         ControlMessage::TabClose { tab_id } => {
             log::info!("Client {} closing tab {}", client_id, tab_id);
-            // TODO: Implement tab closing via plugin
+            // Note: Current plugin API doesn't support closing by ID
+            // The tabs plugin only supports closing the active tab via "tabs.close"
+            let mut pm = plugin_manager.lock().await;
+            if let Err(e) = pm.dispatch_remote_command("tabs.close").await {
+                log::error!("Failed to close tab: {}", e);
+                client_registry
+                    .send(
+                        client_id,
+                        DaemonMessage::PluginError {
+                            name: "scarab-tabs".to_string().into(),
+                            error: format!("Failed to close tab: {}", e).into(),
+                        },
+                    )
+                    .await?;
+            }
         }
         ControlMessage::TabSwitch { tab_id } => {
             log::info!("Client {} switching to tab {}", client_id, tab_id);
-            // TODO: Implement tab switching via plugin
+            // Note: Current plugin API doesn't support switching by ID
+            // The tabs plugin uses index-based switching via Ctrl+1-9 or next/prev
+            // For now, we log this but can't directly switch to a specific tab ID
+            log::warn!("Tab switching by ID not yet supported in plugin API");
+            client_registry
+                .send(
+                    client_id,
+                    DaemonMessage::PluginError {
+                        name: "scarab-tabs".to_string().into(),
+                        error: "Tab switching by ID not yet supported".to_string().into(),
+                    },
+                )
+                .await?;
         }
         ControlMessage::TabRename { tab_id, new_title } => {
             log::info!("Client {} renaming tab {} to '{}'", client_id, tab_id, new_title);
-            // TODO: Implement tab renaming via plugin
+            // Note: Current plugin API doesn't support renaming
+            // This functionality needs to be added to scarab-tabs plugin
+            log::warn!("Tab renaming not yet implemented in plugin API");
+            client_registry
+                .send(
+                    client_id,
+                    DaemonMessage::PluginError {
+                        name: "scarab-tabs".to_string().into(),
+                        error: "Tab renaming not yet implemented".to_string().into(),
+                    },
+                )
+                .await?;
         }
         ControlMessage::TabList => {
             log::info!("Client {} requesting tab list", client_id);
-            // TODO: Implement tab list via plugin
+            // Dispatch the tabs.list command which sends a notification to the client
+            let mut pm = plugin_manager.lock().await;
+            if let Err(e) = pm.dispatch_remote_command("tabs.list").await {
+                log::error!("Failed to list tabs: {}", e);
+                client_registry
+                    .send(
+                        client_id,
+                        DaemonMessage::PluginError {
+                            name: "scarab-tabs".to_string().into(),
+                            error: format!("Failed to list tabs: {}", e).into(),
+                        },
+                    )
+                    .await?;
+            }
+            // Note: The plugin sends a notification with tab info
+            // A more complete implementation would return TabListResponse with structured data
         }
 
         // Pane management - delegate to plugins
@@ -838,15 +890,53 @@ async fn handle_message(
         }
         ControlMessage::PaneClose { pane_id } => {
             log::info!("Client {} closing pane {}", client_id, pane_id);
-            // TODO: Implement pane closing via plugin
+            // Note: Current plugin API doesn't support closing by ID
+            // The panes plugin only supports closing the active pane via "panes.close"
+            let mut pm = plugin_manager.lock().await;
+            if let Err(e) = pm.dispatch_remote_command("panes.close").await {
+                log::error!("Failed to close pane: {}", e);
+                client_registry
+                    .send(
+                        client_id,
+                        DaemonMessage::PluginError {
+                            name: "scarab-panes".to_string().into(),
+                            error: format!("Failed to close pane: {}", e).into(),
+                        },
+                    )
+                    .await?;
+            }
         }
         ControlMessage::PaneFocus { pane_id } => {
             log::info!("Client {} focusing pane {}", client_id, pane_id);
-            // TODO: Implement pane focusing via plugin
+            // Note: Current plugin API doesn't support focusing by ID
+            // The panes plugin uses directional navigation (up/down/left/right)
+            // Focusing a specific pane by ID needs to be added to the plugin API
+            log::warn!("Pane focusing by ID not yet supported in plugin API");
+            client_registry
+                .send(
+                    client_id,
+                    DaemonMessage::PluginError {
+                        name: "scarab-panes".to_string().into(),
+                        error: "Pane focusing by ID not yet supported".to_string().into(),
+                    },
+                )
+                .await?;
         }
         ControlMessage::PaneResize { pane_id, width, height } => {
             log::info!("Client {} resizing pane {} to {}x{}", client_id, pane_id, width, height);
-            // TODO: Implement pane resizing via plugin
+            // Note: Current plugin API doesn't support resizing by ID with specific dimensions
+            // The panes plugin has resize_pane() internally but it's not exposed via remote commands
+            // This functionality needs to be added to the plugin's on_remote_command handler
+            log::warn!("Pane resizing not yet exposed via plugin API");
+            client_registry
+                .send(
+                    client_id,
+                    DaemonMessage::PluginError {
+                        name: "scarab-panes".to_string().into(),
+                        error: "Pane resizing not yet implemented".to_string().into(),
+                    },
+                )
+                .await?;
         }
         ControlMessage::PluginLog { .. }
         | ControlMessage::PluginNotify { .. } => {

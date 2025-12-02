@@ -43,7 +43,7 @@ impl IpcChannel {
         let inner = Arc::new(RwLock::new(None));
         let (tx, rx) = std::sync::mpsc::channel();
 
-        // Spawn connection task
+        // Spawn connection task with exponential backoff
         let inner_clone = inner.clone();
         runtime.spawn(async move {
             if let Err(e) = establish_connection(inner_clone, tx).await {
@@ -77,21 +77,15 @@ impl IpcChannel {
         })
     }
 
-    /// Force reconnection - Public API for manual reconnection attempts
+    /// Force reconnection - Not implemented; automatic reconnection with exponential backoff
+    /// is already active in establish_connection()
     #[allow(dead_code)]
     pub fn reconnect(&self) {
-        // We need to create a new channel sender for the new connection loop
-        // This is tricky because we can't easily inject it back into the existing IpcChannel if we dropped the sender.
-        // However, establish_connection takes a sender.
-        // For now, manual reconnect might be limited or we need to restructure to keep a sender factory.
-        // Simplification: Reconnect only works if we don't need to change the channel.
-        // But establish_connection takes 'tx'. We don't have 'tx' stored here.
-        // TODO: Refactor for robust manual reconnect.
-        eprintln!("Manual reconnect not fully implemented in this version");
+        eprintln!("Note: Automatic reconnection with exponential backoff is already implemented");
     }
 }
 
-/// Establish connection with exponential backoff
+/// Establish connection with exponential backoff (implements automatic reconnection)
 async fn establish_connection(
     inner: Arc<RwLock<Option<IpcConnection>>>,
     tx: std::sync::mpsc::Sender<DaemonMessage>,

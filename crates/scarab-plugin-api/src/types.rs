@@ -30,6 +30,9 @@ pub enum RemoteCommand {
         body: String,
         level: crate::context::NotifyLevel,
     },
+    ThemeUpdate {
+        theme_json: String,
+    },
 }
 
 /// Action that a plugin hook can return
