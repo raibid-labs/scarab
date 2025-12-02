@@ -6,6 +6,7 @@ pub mod terminal;
 pub mod ui;
 pub mod ui_stub;
 
+pub mod input;
 pub mod integration;
 pub mod ipc;
 pub mod rendering;

@@ -7,6 +7,7 @@ pub mod config;
 pub mod context;
 pub mod delight;
 pub mod error;
+pub mod key_tables;
 pub mod menu;
 pub mod object_model;
 pub mod plugin;
@@ -17,6 +18,11 @@ pub use config::{PluginConfig, PluginDiscovery};
 pub use context::PluginContext;
 pub use delight::{Achievement, PluginMood};
 pub use error::{PluginError, Result};
+pub use key_tables::{
+    ActivateKeyTableMode, ClipboardKind, CopyModeAction, Direction, KeyAction, KeyCode, KeyCombo,
+    KeyModifiers, KeyTable, KeyTableActivation, KeyTableStack, LeaderKeyConfig, LeaderKeyState,
+    SearchAction, SplitDirection,
+};
 pub use menu::{MenuAction, MenuItem};
 pub use object_model::{ObjectError, ObjectHandle, ObjectRegistry, ObjectType, RegistryEntry};
 pub use plugin::{Plugin, PluginMetadata};

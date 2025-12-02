@@ -6557,6 +6557,7 @@ version = "0.1.0-alpha.14"
 dependencies = [
  "anyhow",
  "async-trait",
+ "bitflags 2.10.0",
  "chrono",
  "log",
  "parking_lot",
@@ -6564,6 +6565,7 @@ dependencies = [
  "scarab-protocol",
  "semver 1.0.27",
  "serde",
+ "serde_json",
  "thiserror 1.0.69",
  "tokio",
  "toml",
