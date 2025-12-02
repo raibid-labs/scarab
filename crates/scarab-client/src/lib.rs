@@ -36,8 +36,8 @@ pub use ui_stub::AdvancedUIPlugin;
 
 // Re-export copy mode system
 pub use copy_mode::{
-    copy_mode_active, CopyModeActionEvent, CopyModeCursorMarker, CopyModePlugin,
-    CopyModeSearchResource, CopyModeStateResource, SelectionHighlight, TerminalDimensions,
+    copy_mode_active, CopyModeCursorMarker, CopyModePlugin, CopyModeSearchResource,
+    CopyModeStateResource, SelectionHighlight,
 };
 
 // Re-export scripting system
