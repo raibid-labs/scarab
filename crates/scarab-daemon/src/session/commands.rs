@@ -1,6 +1,10 @@
+use super::tab::SplitDirection as SessionSplitDirection;
 use super::{ClientId, SessionManager};
 use anyhow::Result;
-use scarab_protocol::{ControlMessage, SessionInfo, SessionResponse};
+use scarab_protocol::{
+    ControlMessage, DaemonMessage, PaneInfo, SessionInfo, SessionResponse,
+    SplitDirection as ProtocolSplitDirection, TabInfo,
+};
 use std::sync::Arc;
 
 /// Handle session-related control messages
@@ -105,6 +109,234 @@ pub async fn handle_session_command(
             // Not a session command
             Ok(None)
         }
+    }
+}
+
+/// Handle tab-related control messages
+/// Returns a DaemonMessage response for the client
+pub async fn handle_tab_command(
+    msg: ControlMessage,
+    session_manager: &Arc<SessionManager>,
+    client_id: ClientId,
+) -> Result<Option<DaemonMessage>> {
+    // Get the default/active session for this client
+    let session = match session_manager.get_default_session() {
+        Some(s) => s,
+        None => {
+            return Ok(Some(DaemonMessage::Session(SessionResponse::Error {
+                message: "No active session".to_string(),
+            })));
+        }
+    };
+
+    match msg {
+        ControlMessage::TabCreate { title } => {
+            log::info!("Client {} creating tab: {:?}", client_id, title);
+
+            match session.create_tab(title.map(|s| s.to_string())) {
+                Ok(tab_id) => {
+                    let tabs = session.list_tabs();
+                    let tab_info = tabs.iter().find(|(id, _, _, _)| *id == tab_id);
+
+                    if let Some((id, title, is_active, pane_count)) = tab_info {
+                        Ok(Some(DaemonMessage::TabCreated {
+                            tab: TabInfo {
+                                id: *id,
+                                title: title.clone(),
+                                session_id: Some(session.id.clone()),
+                                is_active: *is_active,
+                                pane_count: *pane_count as u32,
+                            },
+                        }))
+                    } else {
+                        Ok(None)
+                    }
+                }
+                Err(e) => Ok(Some(DaemonMessage::Session(SessionResponse::Error {
+                    message: format!("Failed to create tab: {}", e),
+                }))),
+            }
+        }
+
+        ControlMessage::TabClose { tab_id } => {
+            log::info!("Client {} closing tab: {}", client_id, tab_id);
+
+            match session.close_tab(tab_id) {
+                Ok(_) => Ok(Some(DaemonMessage::TabClosed { tab_id })),
+                Err(e) => Ok(Some(DaemonMessage::Session(SessionResponse::Error {
+                    message: format!("Failed to close tab: {}", e),
+                }))),
+            }
+        }
+
+        ControlMessage::TabSwitch { tab_id } => {
+            log::info!("Client {} switching to tab: {}", client_id, tab_id);
+
+            match session.switch_tab(tab_id) {
+                Ok(_) => Ok(Some(DaemonMessage::TabSwitched { tab_id })),
+                Err(e) => Ok(Some(DaemonMessage::Session(SessionResponse::Error {
+                    message: format!("Failed to switch tab: {}", e),
+                }))),
+            }
+        }
+
+        ControlMessage::TabRename { tab_id, new_title } => {
+            log::info!(
+                "Client {} renaming tab {} to {}",
+                client_id,
+                tab_id,
+                new_title
+            );
+
+            match session.rename_tab(tab_id, new_title.to_string()) {
+                Ok(_) => {
+                    // Return updated tab list
+                    let tabs = session.list_tabs();
+                    let tab_infos: Vec<TabInfo> = tabs
+                        .into_iter()
+                        .map(|(id, title, is_active, pane_count)| TabInfo {
+                            id,
+                            title,
+                            session_id: Some(session.id.clone()),
+                            is_active,
+                            pane_count: pane_count as u32,
+                        })
+                        .collect();
+                    Ok(Some(DaemonMessage::TabListResponse { tabs: tab_infos }))
+                }
+                Err(e) => Ok(Some(DaemonMessage::Session(SessionResponse::Error {
+                    message: format!("Failed to rename tab: {}", e),
+                }))),
+            }
+        }
+
+        ControlMessage::TabList => {
+            log::info!("Client {} listing tabs", client_id);
+
+            let tabs = session.list_tabs();
+            let tab_infos: Vec<TabInfo> = tabs
+                .into_iter()
+                .map(|(id, title, is_active, pane_count)| TabInfo {
+                    id,
+                    title,
+                    session_id: Some(session.id.clone()),
+                    is_active,
+                    pane_count: pane_count as u32,
+                })
+                .collect();
+
+            Ok(Some(DaemonMessage::TabListResponse { tabs: tab_infos }))
+        }
+
+        _ => Ok(None),
+    }
+}
+
+/// Handle pane-related control messages
+/// Returns a DaemonMessage response for the client
+pub async fn handle_pane_command(
+    msg: ControlMessage,
+    session_manager: &Arc<SessionManager>,
+    client_id: ClientId,
+) -> Result<Option<DaemonMessage>> {
+    // Get the default/active session for this client
+    let session = match session_manager.get_default_session() {
+        Some(s) => s,
+        None => {
+            return Ok(Some(DaemonMessage::Session(SessionResponse::Error {
+                message: "No active session".to_string(),
+            })));
+        }
+    };
+
+    match msg {
+        ControlMessage::PaneSplit { pane_id: _, direction } => {
+            log::info!("Client {} splitting pane: {:?}", client_id, direction);
+
+            // Convert protocol direction to session direction
+            let session_direction = match direction {
+                ProtocolSplitDirection::Horizontal => SessionSplitDirection::Horizontal,
+                ProtocolSplitDirection::Vertical => SessionSplitDirection::Vertical,
+            };
+
+            match session.split_pane(session_direction) {
+                Ok(new_pane_id) => {
+                    // Get the new pane info
+                    if let Some(pane) = session.get_active_pane() {
+                        Ok(Some(DaemonMessage::PaneCreated {
+                            pane: PaneInfo {
+                                id: new_pane_id,
+                                x: pane.viewport.x,
+                                y: pane.viewport.y,
+                                width: pane.viewport.width,
+                                height: pane.viewport.height,
+                                is_focused: true,
+                            },
+                        }))
+                    } else {
+                        Ok(None)
+                    }
+                }
+                Err(e) => Ok(Some(DaemonMessage::Session(SessionResponse::Error {
+                    message: format!("Failed to split pane: {}", e),
+                }))),
+            }
+        }
+
+        ControlMessage::PaneClose { pane_id } => {
+            log::info!("Client {} closing pane: {}", client_id, pane_id);
+
+            match session.close_pane(pane_id) {
+                Ok(_) => Ok(Some(DaemonMessage::PaneClosed { pane_id })),
+                Err(e) => Ok(Some(DaemonMessage::Session(SessionResponse::Error {
+                    message: format!("Failed to close pane: {}", e),
+                }))),
+            }
+        }
+
+        ControlMessage::PaneFocus { pane_id } => {
+            log::info!("Client {} focusing pane: {}", client_id, pane_id);
+
+            match session.focus_pane(pane_id) {
+                Ok(_) => Ok(Some(DaemonMessage::PaneFocused { pane_id })),
+                Err(e) => Ok(Some(DaemonMessage::Session(SessionResponse::Error {
+                    message: format!("Failed to focus pane: {}", e),
+                }))),
+            }
+        }
+
+        ControlMessage::PaneResize {
+            pane_id: _,
+            width,
+            height,
+        } => {
+            log::info!("Client {} resizing pane to {}x{}", client_id, width, height);
+
+            match session.resize(width, height) {
+                Ok(_) => {
+                    // Return updated layout
+                    if let Some(pane) = session.get_active_pane() {
+                        Ok(Some(DaemonMessage::PaneLayoutUpdate {
+                            panes: vec![PaneInfo {
+                                id: pane.id,
+                                x: pane.viewport.x,
+                                y: pane.viewport.y,
+                                width: pane.viewport.width,
+                                height: pane.viewport.height,
+                                is_focused: true,
+                            }],
+                        }))
+                    } else {
+                        Ok(None)
+                    }
+                }
+                Err(e) => Ok(Some(DaemonMessage::Session(SessionResponse::Error {
+                    message: format!("Failed to resize pane: {}", e),
+                }))),
+            }
+        }
+
+        _ => Ok(None),
     }
 }
 

@@ -80,7 +80,8 @@ impl SessionStore {
             .unwrap_or_default()
             .as_secs() as i64;
 
-        let grid_state = session.grid_state.read();
+        let grid_state_arc = session.grid_state();
+        let grid_state = grid_state_arc.read();
 
         conn.execute(
             "INSERT OR REPLACE INTO sessions (id, name, created_at, last_attached, cols, rows)

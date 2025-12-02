@@ -1,63 +1,72 @@
+use super::pane::{Pane, PaneId};
+use super::tab::{Tab, TabId, SplitDirection};
 use super::{ClientId, GridState, SessionId, SessionStore};
 use anyhow::{bail, Result};
 use parking_lot::RwLock;
-use portable_pty::{CommandBuilder, NativePtySystem, PtySize, PtySystem};
 use std::collections::{HashMap, HashSet};
 use std::sync::{Arc, Mutex};
 use std::time::{SystemTime, UNIX_EPOCH};
 use uuid::Uuid;
 
-/// A single terminal session with PTY and state
+/// A terminal session containing one or more tabs, each with panes
+///
+/// The session is the top-level container that manages:
+/// - Multiple tabs (like browser tabs)
+/// - Each tab contains one or more panes (split views)
+/// - Tracks the active tab and routes input to the active pane
 pub struct Session {
     pub id: SessionId,
     pub name: String,
-    /// PTY master for reading/writing terminal data (public API for VTE integration)
-    /// Wrapped in Arc<Mutex<Option<...>>> to ensure Sync. 
-    /// MasterPty is Send, Mutex makes it Sync.
-    #[allow(dead_code)]
-    pub pty_master: Arc<Mutex<Option<Box<dyn portable_pty::MasterPty + Send>>>>,
-    pub grid_state: Arc<RwLock<GridState>>,
+    /// All tabs in this session
+    tabs: RwLock<HashMap<TabId, Tab>>,
+    /// The currently active tab
+    active_tab_id: RwLock<TabId>,
+    /// Next tab ID to assign
+    next_tab_id: RwLock<TabId>,
+    /// Session creation timestamp
     pub created_at: SystemTime,
+    /// Last time a client attached
     pub last_attached: Arc<RwLock<SystemTime>>,
+    /// Currently attached clients
     pub attached_clients: Arc<RwLock<HashSet<ClientId>>>,
+    /// Default shell for new panes
+    default_shell: String,
+    /// Default terminal dimensions
+    default_cols: u16,
+    default_rows: u16,
 }
 
 // Session is Sync because all interior mutability is behind locks
 unsafe impl Sync for Session {}
 
 impl Session {
-    /// Create a new session with a PTY
+    /// Create a new session with a single tab containing one pane
     pub fn new(name: String, cols: u16, rows: u16) -> Result<Self> {
-        let pty_system = NativePtySystem::default();
-        let pair = pty_system.openpty(PtySize {
-            rows,
-            cols,
-            pixel_width: 0,
-            pixel_height: 0,
-        })?;
+        Self::with_shell(name, cols, rows, "bash")
+    }
 
-        // Spawn shell in PTY
-        let cmd = CommandBuilder::new("bash");
-        let _child = pair.slave.spawn_command(cmd)?;
-
-        // NativePtySystem::openpty returns MasterPty which is Send on supported platforms.
-        // We box it and specify the trait object requires Send.
-        // We no longer use unsafe transmute to force Sync. We use Mutex instead.
-        let master: Box<dyn portable_pty::MasterPty + Send> = pair.master;
-        let _slave = pair.slave;
-        // Slave is dropped here, released in parent process
-
+    /// Create a new session with a specific shell
+    pub fn with_shell(name: String, cols: u16, rows: u16, shell: &str) -> Result<Self> {
         let id = Uuid::new_v4().to_string();
         let now = SystemTime::now();
+
+        // Create initial tab with a single pane
+        let tab = Tab::new(1, "Tab 1".to_string(), shell, cols, rows)?;
+        let mut tabs = HashMap::new();
+        tabs.insert(1, tab);
 
         Ok(Self {
             id,
             name,
-            pty_master: Arc::new(Mutex::new(Some(master))),
-            grid_state: Arc::new(RwLock::new(GridState::new(cols, rows))),
+            tabs: RwLock::new(tabs),
+            active_tab_id: RwLock::new(1),
+            next_tab_id: RwLock::new(2),
             created_at: now,
             last_attached: Arc::new(RwLock::new(now)),
             attached_clients: Arc::new(RwLock::new(HashSet::new())),
+            default_shell: shell.to_string(),
+            default_cols: cols,
+            default_rows: rows,
         })
     }
 
@@ -71,13 +80,196 @@ impl Session {
         Self {
             id,
             name,
-            pty_master: Arc::new(Mutex::new(None)),
-            grid_state: Arc::new(RwLock::new(GridState::new(80, 24))),
+            tabs: RwLock::new(HashMap::new()),
+            active_tab_id: RwLock::new(0),
+            next_tab_id: RwLock::new(1),
             created_at,
             last_attached: Arc::new(RwLock::new(last_attached)),
             attached_clients: Arc::new(RwLock::new(HashSet::new())),
+            default_shell: "bash".to_string(),
+            default_cols: 80,
+            default_rows: 24,
         }
     }
+
+    // ==================== Tab Management ====================
+
+    /// Create a new tab
+    pub fn create_tab(&self, title: Option<String>) -> Result<TabId> {
+        let tab_id = {
+            let mut next_id = self.next_tab_id.write();
+            let id = *next_id;
+            *next_id += 1;
+            id
+        };
+
+        let title = title.unwrap_or_else(|| format!("Tab {}", tab_id));
+        let tab = Tab::new(tab_id, title, &self.default_shell, self.default_cols, self.default_rows)?;
+
+        {
+            let mut tabs = self.tabs.write();
+            tabs.insert(tab_id, tab);
+        }
+
+        // If no active tab, make this one active
+        {
+            let mut active = self.active_tab_id.write();
+            if *active == 0 {
+                *active = tab_id;
+            }
+        }
+
+        log::info!("Created tab {} in session {}", tab_id, self.id);
+        Ok(tab_id)
+    }
+
+    /// Close a tab
+    pub fn close_tab(&self, tab_id: TabId) -> Result<()> {
+        let mut tabs = self.tabs.write();
+
+        if tabs.len() <= 1 {
+            bail!("Cannot close the last tab in a session");
+        }
+
+        tabs.remove(&tab_id);
+
+        // Update active tab if needed
+        let mut active = self.active_tab_id.write();
+        if *active == tab_id {
+            *active = *tabs.keys().next().unwrap_or(&0);
+        }
+
+        log::info!("Closed tab {} in session {}", tab_id, self.id);
+        Ok(())
+    }
+
+    /// Switch to a different tab
+    pub fn switch_tab(&self, tab_id: TabId) -> Result<()> {
+        let tabs = self.tabs.read();
+        if !tabs.contains_key(&tab_id) {
+            bail!("Tab {} not found in session {}", tab_id, self.id);
+        }
+
+        *self.active_tab_id.write() = tab_id;
+        log::info!("Switched to tab {} in session {}", tab_id, self.id);
+        Ok(())
+    }
+
+    /// Rename a tab
+    pub fn rename_tab(&self, tab_id: TabId, new_title: String) -> Result<()> {
+        let mut tabs = self.tabs.write();
+        if let Some(tab) = tabs.get_mut(&tab_id) {
+            tab.title = new_title;
+            Ok(())
+        } else {
+            bail!("Tab {} not found", tab_id)
+        }
+    }
+
+    /// Get the active tab ID
+    pub fn active_tab_id(&self) -> TabId {
+        *self.active_tab_id.read()
+    }
+
+    /// Get tab count
+    pub fn tab_count(&self) -> usize {
+        self.tabs.read().len()
+    }
+
+    /// List all tabs
+    pub fn list_tabs(&self) -> Vec<(TabId, String, bool, usize)> {
+        let tabs = self.tabs.read();
+        let active_id = *self.active_tab_id.read();
+
+        tabs.values()
+            .map(|tab| (tab.id, tab.title.clone(), tab.id == active_id, tab.pane_count()))
+            .collect()
+    }
+
+    // ==================== Pane Management ====================
+
+    /// Split the active pane in the active tab
+    pub fn split_pane(&self, direction: SplitDirection) -> Result<PaneId> {
+        let mut tabs = self.tabs.write();
+        let active_tab_id = *self.active_tab_id.read();
+
+        if let Some(tab) = tabs.get_mut(&active_tab_id) {
+            tab.split_pane(direction, &self.default_shell)
+        } else {
+            bail!("No active tab")
+        }
+    }
+
+    /// Close a pane in the active tab
+    pub fn close_pane(&self, pane_id: PaneId) -> Result<()> {
+        let mut tabs = self.tabs.write();
+        let active_tab_id = *self.active_tab_id.read();
+
+        if let Some(tab) = tabs.get_mut(&active_tab_id) {
+            tab.close_pane(pane_id)
+        } else {
+            bail!("No active tab")
+        }
+    }
+
+    /// Focus a specific pane in the active tab
+    pub fn focus_pane(&self, pane_id: PaneId) -> Result<()> {
+        let mut tabs = self.tabs.write();
+        let active_tab_id = *self.active_tab_id.read();
+
+        if let Some(tab) = tabs.get_mut(&active_tab_id) {
+            tab.set_active_pane(pane_id)
+        } else {
+            bail!("No active tab")
+        }
+    }
+
+    /// Get the active pane (the focused pane in the active tab)
+    pub fn get_active_pane(&self) -> Option<Arc<Pane>> {
+        let tabs = self.tabs.read();
+        let active_tab_id = *self.active_tab_id.read();
+
+        tabs.get(&active_tab_id)
+            .and_then(|tab| tab.get_active_pane())
+    }
+
+    /// Get the active pane's grid state
+    pub fn get_active_grid_state(&self) -> Option<Arc<RwLock<GridState>>> {
+        self.get_active_pane().map(|pane| Arc::clone(&pane.grid_state))
+    }
+
+    /// Get the active pane's PTY master for I/O
+    pub fn get_active_pty_master(&self) -> Option<Arc<Mutex<Option<Box<dyn portable_pty::MasterPty + Send>>>>> {
+        self.get_active_pane().map(|pane| pane.pty_master())
+    }
+
+    // ==================== Legacy Compatibility ====================
+
+    /// Get the grid state (returns active pane's grid state for compatibility)
+    pub fn grid_state(&self) -> Arc<RwLock<GridState>> {
+        self.get_active_grid_state()
+            .unwrap_or_else(|| Arc::new(RwLock::new(GridState::new(80, 24))))
+    }
+
+    /// Get PTY master (returns active pane's PTY for compatibility)
+    #[allow(dead_code)]
+    pub fn pty_master(&self) -> Arc<Mutex<Option<Box<dyn portable_pty::MasterPty + Send>>>> {
+        self.get_active_pty_master()
+            .unwrap_or_else(|| Arc::new(Mutex::new(None)))
+    }
+
+    /// Resize the active tab/pane
+    pub fn resize(&self, cols: u16, rows: u16) -> Result<()> {
+        let tabs = self.tabs.read();
+        let active_tab_id = *self.active_tab_id.read();
+
+        if let Some(tab) = tabs.get(&active_tab_id) {
+            tab.resize(cols, rows)?;
+        }
+        Ok(())
+    }
+
+    // ==================== Client Management ====================
 
     /// Attach a client to this session
     pub fn attach_client(&self, client_id: ClientId) {
@@ -100,33 +292,6 @@ impl Session {
     /// Get attached client count
     pub fn attached_client_count(&self) -> usize {
         self.attached_clients.read().len()
-    }
-
-    /// Resize the PTY (public API for client resize events)
-    #[allow(dead_code)]
-    pub fn resize(&self, cols: u16, rows: u16) -> Result<()> {
-        // Acquire lock on master PTY
-        if let Some(ref master) = *self.pty_master.lock().unwrap() {
-            master.resize(PtySize {
-                rows,
-                cols,
-                pixel_width: 0,
-                pixel_height: 0,
-            })?;
-
-            let mut state = self.grid_state.write();
-            state.cols = cols;
-            state.rows = rows;
-        }
-        Ok(())
-    }
-
-    /// Get PTY master for reading/writing (public API for VTE integration)
-    #[allow(dead_code)]
-    pub fn pty_master(
-        &self,
-    ) -> Arc<Mutex<Option<Box<dyn portable_pty::MasterPty + Send>>>> {
-        Arc::clone(&self.pty_master)
     }
 }
 
@@ -379,5 +544,64 @@ mod tests {
 
         manager.detach_client(&id, 1).unwrap();
         assert!(!session.has_attached_clients());
+    }
+
+    #[test]
+    fn test_session_has_initial_tab_and_pane() {
+        let session = Session::new("test".to_string(), 80, 24).unwrap();
+
+        // Should have one tab
+        assert_eq!(session.tab_count(), 1);
+
+        // Should have an active pane
+        let pane = session.get_active_pane();
+        assert!(pane.is_some());
+
+        // Pane should have PTY
+        let pane = pane.unwrap();
+        assert!(pane.has_pty());
+    }
+
+    #[test]
+    fn test_session_tab_management() {
+        let session = Session::new("test".to_string(), 80, 24).unwrap();
+
+        // Create a second tab
+        let tab_id = session.create_tab(Some("Second Tab".to_string())).unwrap();
+        assert_eq!(session.tab_count(), 2);
+
+        // List tabs
+        let tabs = session.list_tabs();
+        assert_eq!(tabs.len(), 2);
+
+        // Switch to new tab
+        session.switch_tab(tab_id).unwrap();
+        assert_eq!(session.active_tab_id(), tab_id);
+
+        // Close the new tab
+        session.close_tab(tab_id).unwrap();
+        assert_eq!(session.tab_count(), 1);
+    }
+
+    #[test]
+    fn test_session_cannot_close_last_tab() {
+        let session = Session::new("test".to_string(), 80, 24).unwrap();
+        let active_tab_id = session.active_tab_id();
+
+        // Should fail to close the last tab
+        assert!(session.close_tab(active_tab_id).is_err());
+    }
+
+    #[test]
+    fn test_session_active_pane_routing() {
+        let session = Session::new("test".to_string(), 80, 24).unwrap();
+
+        // Get active pane's PTY master
+        let pty = session.get_active_pty_master();
+        assert!(pty.is_some());
+
+        // Get active pane's grid state
+        let grid = session.get_active_grid_state();
+        assert!(grid.is_some());
     }
 }
