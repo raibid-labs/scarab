@@ -46,6 +46,7 @@ profiling = { workspace = true, optional = true }
 
 [dev-dependencies]
 criterion = { workspace = true }
+ratatui-testlib = "0.1.0"
 tempfile = "3.8"
 
 [features]
@@ -61,4 +62,8 @@ harness = false
 
 [[bench]]
 name = "gpu_operations"
+harness = false
+
+[[bench]]
+name = "throughput"
 harness = false
