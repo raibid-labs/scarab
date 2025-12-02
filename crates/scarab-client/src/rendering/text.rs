@@ -4,7 +4,7 @@ use bevy::prelude::*;
 use bevy::render::mesh::{Indices, PrimitiveTopology};
 use bevy::render::render_asset::RenderAssetUsages;
 use cosmic_text::{Attrs, Buffer, FontSystem, Metrics, Shaping, SwashCache};
-use scarab_protocol::{Cell, SharedState, GRID_HEIGHT, GRID_WIDTH};
+use scarab_protocol::{terminal_state::TerminalStateReader, Cell, SharedState, GRID_HEIGHT, GRID_WIDTH};
 use std::collections::HashSet;
 
 use super::atlas::{AtlasRect, GlyphAtlas, GlyphKey};
@@ -23,7 +23,7 @@ pub struct TextRenderer {
 
 impl TextRenderer {
     /// Create a new text renderer
-    pub fn new(config: FontConfig, images: &mut ResMut<Assets<Image>>) -> Self {
+    pub fn new(config: FontConfig, images: &mut Assets<Image>) -> Self {
         let mut font_system = FontSystem::new();
 
         // Load system fonts - this is CRITICAL or no text will render!
@@ -164,10 +164,12 @@ impl Default for TerminalMesh {
 }
 
 /// Generate mesh from terminal grid state
+///
+/// Now accepts any type implementing TerminalStateReader for safe access.
 /// Note: Uses separate attribute arrays instead of a vertex struct
 /// for better compatibility with Bevy's mesh API
 pub fn generate_terminal_mesh(
-    state: &SharedState,
+    state: &impl TerminalStateReader,
     renderer: &mut TextRenderer,
     dirty_region: &DirtyRegion,
     images: &mut ResMut<Assets<Image>>,
@@ -185,15 +187,17 @@ pub fn generate_terminal_mesh(
     let mut glyph_attempts = 0;
     let mut glyph_success = 0;
 
+    let (width, _height) = state.dimensions();
+
     // Iterate through all cells
-    for (idx, cell) in state.cells.iter().enumerate() {
+    for (idx, cell) in state.cells().iter().enumerate() {
         // Skip if not dirty (optimization)
         if !dirty_region.is_empty() && !dirty_region.is_dirty(idx) {
             continue;
         }
 
-        let row = idx / GRID_WIDTH;
-        let col = idx % GRID_WIDTH;
+        let row = idx / width;
+        let col = idx % width;
 
         // Position cells relative to origin (0,0) at top-left
         // Camera2d: Y points UP. Row 0 at top means highest Y value.
@@ -236,7 +240,7 @@ pub fn generate_terminal_mesh(
             }
         }
     }
-    
+
     if glyph_attempts > 0 {
         info!("Mesh generation: {}/{} glyphs rendered successfully", glyph_success, glyph_attempts);
     }
@@ -541,11 +545,12 @@ pub fn update_terminal_mesh_system(
     mut query: Query<&mut TerminalMesh>,
     state_reader: Res<crate::integration::SharedMemoryReader>,
 ) {
-    let state = unsafe { &*(state_reader.shmem.0.as_ptr() as *const SharedState) };
+    // Use safe wrapper to access shared state
+    let safe_state = state_reader.get_safe_state();
 
     for mut terminal_mesh in query.iter_mut() {
         // Check if state changed
-        let current_seq = state.sequence_number;
+        let current_seq = safe_state.sequence();
         if current_seq != terminal_mesh.last_sequence {
             terminal_mesh.dirty_region.mark_full_redraw();
             terminal_mesh.last_sequence = current_seq;
@@ -556,9 +561,9 @@ pub fn update_terminal_mesh_system(
             continue;
         }
 
-        // Generate new mesh
+        // Generate new mesh using safe wrapper
         let new_mesh = generate_terminal_mesh(
-            state,
+            &safe_state,
             &mut renderer,
             &terminal_mesh.dirty_region,
             &mut images,

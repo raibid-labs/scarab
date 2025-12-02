@@ -155,13 +155,11 @@ struct HintLabel {
 }
 
 /// Extract text from terminal grid via SharedMemoryReader
+///
+/// Now uses safe SafeSharedState wrapper instead of raw pointers
 fn extract_terminal_text(state_reader: &SharedMemoryReader) -> String {
-    let shared_ptr = state_reader.shmem.0.as_ptr() as *const SharedState;
-
-    unsafe {
-        let state = &*shared_ptr;
-        crate::integration::extract_grid_text(state)
-    }
+    let safe_state = state_reader.get_safe_state();
+    crate::integration::extract_grid_text(&safe_state)
 }
 
 /// Detect links in terminal grid with accurate pixel positioning

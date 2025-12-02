@@ -28,8 +28,9 @@ rust-version = "1.75"
 
 [workspace.dependencies]
 # Official Fusabi dependencies (from crates.io)
-fusabi-vm = { version = "0.12.0", features = ["serde"] }
-fusabi-frontend = "0.12.0"
+# Updated to 0.17.0 to match bevy-fusabi requirements
+fusabi-vm = { version = "0.17.0", features = ["serde"] }
+fusabi-frontend = "0.17.0"
 bevy-fusabi = { path = "../../fusabi-lang/bevy-fusabi" }
 
 # Base Bevy configuration

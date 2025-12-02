@@ -3,10 +3,11 @@
 
 use crate::rendering::config::FontConfig;
 use crate::rendering::text::{generate_terminal_mesh, TerminalMesh, TextRenderer};
+use crate::safe_state::SafeSharedState;
 use bevy::sprite::MeshMaterial2d;
 use bevy::render::mesh::Mesh2d;
 use bevy::prelude::*;
-use scarab_protocol::{SharedState, GRID_HEIGHT, GRID_WIDTH};
+use scarab_protocol::{terminal_state::TerminalStateReader, SharedState, GRID_HEIGHT, GRID_WIDTH};
 use shared_memory::Shmem;
 use std::sync::Arc;
 
@@ -29,6 +30,14 @@ impl SharedMemoryReader {
             shmem: SharedMemWrapper(shmem),
             last_sequence: 0,
         }
+    }
+
+    /// Get a safe wrapper around the shared state
+    ///
+    /// Returns a SafeSharedState that provides bounds-checked access
+    /// to terminal state via the TerminalStateReader trait.
+    pub fn get_safe_state(&self) -> SafeSharedState<'_> {
+        SafeSharedState::from_shmem(&*self.shmem.0)
     }
 }
 
@@ -63,7 +72,7 @@ fn update_grid_position_system(
     let Ok(window) = window_query.get_single() else {
         return;
     };
-    
+
     // Only update if renderer is ready (though positioning is mostly window dependent)
     let Some(_renderer) = renderer else {
         return;
@@ -183,25 +192,22 @@ fn setup_terminal_rendering(
 
 /// Sync terminal state from shared memory
 fn sync_terminal_state_system(mut state_reader: ResMut<SharedMemoryReader>) {
-    // Read current sequence number from shared memory
-    let shared_ptr = state_reader.shmem.0.as_ptr() as *const SharedState;
+    // Use safe wrapper to access shared state
+    let safe_state = state_reader.get_safe_state();
+    let current_seq = safe_state.sequence();
 
-    unsafe {
-        let state = &*shared_ptr;
-        let current_seq = state.sequence_number;
+    if current_seq != state_reader.last_sequence {
+        // State has been updated by daemon
+        let (cursor_x, cursor_y) = safe_state.cursor_pos();
+        info!(
+            "Terminal state updated: seq {} -> {}, cursor ({}, {})",
+            state_reader.last_sequence,
+            current_seq,
+            cursor_x,
+            cursor_y
+        );
 
-        if current_seq != state_reader.last_sequence {
-            // State has been updated by daemon
-            info!(
-                "Terminal state updated: seq {} -> {}, cursor ({}, {})",
-                state_reader.last_sequence,
-                current_seq,
-                state.cursor_x,
-                state.cursor_y
-            );
-
-            state_reader.last_sequence = current_seq;
-        }
+        state_reader.last_sequence = current_seq;
     }
 }
 
@@ -213,11 +219,12 @@ fn update_terminal_rendering_system(
     mut query: Query<&mut TerminalMesh, With<TerminalGridEntity>>,
     state_reader: Res<SharedMemoryReader>,
 ) {
-    let state = unsafe { &*(state_reader.shmem.0.as_ptr() as *const SharedState) };
+    // Use safe wrapper to access shared state
+    let safe_state = state_reader.get_safe_state();
 
     for mut terminal_mesh in query.iter_mut() {
         // Check if state changed OR if this is the first render (last_sequence == 0 but we haven't rendered yet)
-        let current_seq = state.sequence_number;
+        let current_seq = safe_state.sequence();
         let is_first_render = terminal_mesh.last_sequence == 0 && terminal_mesh.dirty_region.is_full_redraw();
 
         if current_seq != terminal_mesh.last_sequence {
@@ -232,9 +239,9 @@ fn update_terminal_rendering_system(
         }
 
         info!("Generating mesh... (first_render: {})", is_first_render);
-        // Generate new mesh from terminal state
+        // Generate new mesh from terminal state using safe wrapper
         let new_mesh = generate_terminal_mesh(
-            state,
+            &safe_state,
             &mut renderer,
             &terminal_mesh.dirty_region,
             &mut images,
@@ -253,23 +260,27 @@ fn update_terminal_rendering_system(
 }
 
 /// Helper to extract text from terminal grid for UI features
-pub fn extract_grid_text(state: &SharedState) -> String {
+///
+/// Now uses TerminalStateReader trait for safe access
+pub fn extract_grid_text(state: &impl TerminalStateReader) -> String {
     let mut text = String::with_capacity(GRID_WIDTH * GRID_HEIGHT);
+    let (width, height) = state.dimensions();
 
-    for row in 0..GRID_HEIGHT {
-        for col in 0..GRID_WIDTH {
-            let idx = row * GRID_WIDTH + col;
-            let cell = &state.cells[idx];
-
-            if cell.char_codepoint == 0 || cell.char_codepoint == 32 {
-                text.push(' ');
-            } else if let Some(ch) = char::from_u32(cell.char_codepoint) {
-                text.push(ch);
+    for row in 0..height {
+        for col in 0..width {
+            if let Some(cell) = state.cell(row, col) {
+                if cell.char_codepoint == 0 || cell.char_codepoint == 32 {
+                    text.push(' ');
+                } else if let Some(ch) = char::from_u32(cell.char_codepoint) {
+                    text.push(ch);
+                } else {
+                    text.push('?');
+                }
             } else {
-                text.push('?');
+                text.push(' ');
             }
         }
-        if row < GRID_HEIGHT - 1 {
+        if row < height - 1 {
             text.push('\n');
         }
     }
@@ -278,52 +289,42 @@ pub fn extract_grid_text(state: &SharedState) -> String {
 }
 
 /// Helper to get cell at specific position
-pub fn get_cell_at(state: &SharedState, x: usize, y: usize) -> Option<&scarab_protocol::Cell> {
-    if x >= GRID_WIDTH || y >= GRID_HEIGHT {
-        return None;
-    }
-
-    let idx = y * GRID_WIDTH + x;
-    state.cells.get(idx)
+///
+/// Now uses TerminalStateReader trait for safe access
+pub fn get_cell_at(state: &impl TerminalStateReader, x: usize, y: usize) -> Option<&scarab_protocol::Cell> {
+    state.cell(y, x) // Note: cell() takes (row, col)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::safe_state::MockTerminalState;
 
     #[test]
     fn test_extract_grid_text() {
         use scarab_protocol::Cell;
 
-        let mut state = unsafe { std::mem::zeroed::<SharedState>() };
+        let mut mock = MockTerminalState::new(GRID_WIDTH, GRID_HEIGHT);
 
         // Set some test characters
-        state.cells[0] = Cell {
-            char_codepoint: 'H' as u32,
-            fg: 0xFFFFFFFF,
-            bg: 0xFF000000,
-            flags: 0,
-            _padding: [0; 3],
-        };
+        let mut cell_h = Cell::default();
+        cell_h.char_codepoint = 'H' as u32;
+        mock.set_cell(0, 0, cell_h);
 
-        state.cells[1] = Cell {
-            char_codepoint: 'i' as u32,
-            fg: 0xFFFFFFFF,
-            bg: 0xFF000000,
-            flags: 0,
-            _padding: [0; 3],
-        };
+        let mut cell_i = Cell::default();
+        cell_i.char_codepoint = 'i' as u32;
+        mock.set_cell(0, 1, cell_i);
 
-        let text = extract_grid_text(&state);
+        let text = extract_grid_text(&mock);
         assert!(text.starts_with("Hi"));
     }
 
     #[test]
     fn test_get_cell_at() {
-        let state = unsafe { std::mem::zeroed::<SharedState>() };
+        let mock = MockTerminalState::new(GRID_WIDTH, GRID_HEIGHT);
 
-        assert!(get_cell_at(&state, 0, 0).is_some());
-        assert!(get_cell_at(&state, GRID_WIDTH, 0).is_none());
-        assert!(get_cell_at(&state, 0, GRID_HEIGHT).is_none());
+        assert!(get_cell_at(&mock, 0, 0).is_some());
+        assert!(get_cell_at(&mock, GRID_WIDTH, 0).is_none());
+        assert!(get_cell_at(&mock, 0, GRID_HEIGHT).is_none());
     }
 }

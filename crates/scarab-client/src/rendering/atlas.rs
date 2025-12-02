@@ -76,7 +76,7 @@ pub struct GlyphAtlas {
 
 impl GlyphAtlas {
     /// Create a new glyph atlas
-    pub fn new(images: &mut ResMut<Assets<Image>>) -> Self {
+    pub fn new(images: &mut Assets<Image>) -> Self {
         // Create initial atlas texture
         let size = Extent3d {
             width: ATLAS_SIZE,
@@ -286,7 +286,7 @@ impl GlyphAtlas {
     }
 
     /// Update the GPU texture if dirty
-    pub fn update_texture(&mut self, images: &mut ResMut<Assets<Image>>) {
+    pub fn update_texture(&mut self, images: &mut Assets<Image>) {
         if !self.dirty {
             return;
         }

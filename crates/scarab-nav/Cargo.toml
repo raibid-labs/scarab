@@ -6,14 +6,11 @@ authors.workspace = true
 license.workspace = true
 repository.workspace = true
 homepage.workspace = true
-description = "Navigation and window management for Scarab terminal emulator"
+description = "Navigation system for Scarab terminal emulator"
 
 [dependencies]
-scarab-plugin-api = { path = "../scarab-plugin-api" }
-scarab-protocol = { path = "../scarab-protocol" }
+# TODO: Re-enable when scarab-nav-protocol is available
+# scarab-nav-protocol = { version = "0.1.0", path = "../../../scarab-nav-protocol/crates/scarab-nav-protocol" }
+anyhow = { workspace = true }
+serde = { workspace = true }
 regex = "1.10"
-async-trait = "0.1"
-log = "0.4"
-tokio = { workspace = true, features = ["full"] }
-prost = "0.12"
-scarab-nav-protocol = { version = "0.1.0", path = "../../../scarab-nav-protocol/crates/scarab-nav-protocol" }

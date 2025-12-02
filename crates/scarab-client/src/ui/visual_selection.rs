@@ -7,7 +7,7 @@ use crate::ui::grid_utils::grid_to_pixel;
 use arboard::Clipboard;
 use bevy::input::keyboard::KeyCode;
 use bevy::prelude::*;
-use scarab_protocol::{SharedState, GRID_HEIGHT, GRID_WIDTH};
+use scarab_protocol::{terminal_state::TerminalStateReader, GRID_HEIGHT, GRID_WIDTH};
 
 /// Plugin for visual selection
 pub struct VisualSelectionPlugin;
@@ -152,104 +152,104 @@ pub struct SelectionCopiedEvent {
 struct SelectionOverlay;
 
 /// Extract text from selection region using SharedMemoryReader
+///
+/// Now uses safe SafeSharedState wrapper instead of raw pointers
 fn extract_selection_text(
     state_reader: &SharedMemoryReader,
     region: &SelectionRegion,
     mode: SelectionMode,
 ) -> String {
-    let shared_ptr = state_reader.shmem.0.as_ptr() as *const SharedState;
+    // Use safe wrapper to access shared state
+    let safe_state = state_reader.get_safe_state();
 
-    unsafe {
-        let state = &*shared_ptr;
-        let mut region = region.clone();
-        region.normalize();
+    let mut region = region.clone();
+    region.normalize();
 
-        let mut text = String::new();
+    let mut text = String::new();
 
-        match mode {
-            SelectionMode::Character => {
-                // Extract character-wise selection
-                for y in region.start_y..=region.end_y {
-                    let start_x = if y == region.start_y {
-                        region.start_x
-                    } else {
-                        0
-                    };
+    match mode {
+        SelectionMode::Character => {
+            // Extract character-wise selection
+            for y in region.start_y..=region.end_y {
+                let start_x = if y == region.start_y {
+                    region.start_x
+                } else {
+                    0
+                };
 
-                    let end_x = if y == region.end_y {
-                        region.end_x
-                    } else {
-                        (GRID_WIDTH - 1) as u16
-                    };
+                let end_x = if y == region.end_y {
+                    region.end_x
+                } else {
+                    (GRID_WIDTH - 1) as u16
+                };
 
-                    for x in start_x..=end_x {
-                        if let Some(cell) =
-                            crate::integration::get_cell_at(state, x as usize, y as usize)
-                        {
-                            if cell.char_codepoint == 0 || cell.char_codepoint == 32 {
-                                text.push(' ');
-                            } else if let Some(ch) = char::from_u32(cell.char_codepoint) {
-                                text.push(ch);
-                            }
+                for x in start_x..=end_x {
+                    if let Some(cell) =
+                        crate::integration::get_cell_at(&safe_state, x as usize, y as usize)
+                    {
+                        if cell.char_codepoint == 0 || cell.char_codepoint == 32 {
+                            text.push(' ');
+                        } else if let Some(ch) = char::from_u32(cell.char_codepoint) {
+                            text.push(ch);
                         }
-                    }
-
-                    // Add newline except for last line
-                    if y < region.end_y {
-                        text.push('\n');
                     }
                 }
-            }
 
-            SelectionMode::Line => {
-                // Extract full lines
-                for y in region.start_y..=region.end_y {
-                    for x in 0..GRID_WIDTH {
-                        if let Some(cell) = crate::integration::get_cell_at(state, x, y as usize) {
-                            if cell.char_codepoint == 0 || cell.char_codepoint == 32 {
-                                text.push(' ');
-                            } else if let Some(ch) = char::from_u32(cell.char_codepoint) {
-                                text.push(ch);
-                            }
-                        }
-                    }
-
-                    // Add newline except for last line
-                    if y < region.end_y {
-                        text.push('\n');
-                    }
-                }
-            }
-
-            SelectionMode::Block => {
-                // Extract rectangular block
-                for y in region.start_y..=region.end_y {
-                    for x in region.start_x..=region.end_x {
-                        if let Some(cell) =
-                            crate::integration::get_cell_at(state, x as usize, y as usize)
-                        {
-                            if cell.char_codepoint == 0 || cell.char_codepoint == 32 {
-                                text.push(' ');
-                            } else if let Some(ch) = char::from_u32(cell.char_codepoint) {
-                                text.push(ch);
-                            }
-                        }
-                    }
-
-                    // Add newline except for last line
-                    if y < region.end_y {
-                        text.push('\n');
-                    }
+                // Add newline except for last line
+                if y < region.end_y {
+                    text.push('\n');
                 }
             }
         }
 
-        // Trim trailing whitespace from each line
-        text.lines()
-            .map(|line| line.trim_end())
-            .collect::<Vec<_>>()
-            .join("\n")
+        SelectionMode::Line => {
+            // Extract full lines
+            for y in region.start_y..=region.end_y {
+                for x in 0..GRID_WIDTH {
+                    if let Some(cell) = crate::integration::get_cell_at(&safe_state, x, y as usize) {
+                        if cell.char_codepoint == 0 || cell.char_codepoint == 32 {
+                            text.push(' ');
+                        } else if let Some(ch) = char::from_u32(cell.char_codepoint) {
+                            text.push(ch);
+                        }
+                    }
+                }
+
+                // Add newline except for last line
+                if y < region.end_y {
+                    text.push('\n');
+                }
+            }
+        }
+
+        SelectionMode::Block => {
+            // Extract rectangular block
+            for y in region.start_y..=region.end_y {
+                for x in region.start_x..=region.end_x {
+                    if let Some(cell) =
+                        crate::integration::get_cell_at(&safe_state, x as usize, y as usize)
+                    {
+                        if cell.char_codepoint == 0 || cell.char_codepoint == 32 {
+                            text.push(' ');
+                        } else if let Some(ch) = char::from_u32(cell.char_codepoint) {
+                            text.push(ch);
+                        }
+                    }
+                }
+
+                // Add newline except for last line
+                if y < region.end_y {
+                    text.push('\n');
+                }
+            }
+        }
     }
+
+    // Trim trailing whitespace from each line
+    text.lines()
+        .map(|line| line.trim_end())
+        .collect::<Vec<_>>()
+        .join("\n")
 }
 
 /// Handle keyboard input for visual selection
@@ -259,12 +259,9 @@ fn handle_selection_input_system(
     mut event_writer: EventWriter<SelectionChangedEvent>,
     state_reader: Res<SharedMemoryReader>,
 ) {
-    // Get current cursor position from terminal state
-    let shared_ptr = state_reader.shmem.0.as_ptr() as *const SharedState;
-    let (cursor_x, cursor_y) = unsafe {
-        let s = &*shared_ptr;
-        (s.cursor_x, s.cursor_y)
-    };
+    // Get current cursor position from terminal state using safe wrapper
+    let safe_state = state_reader.get_safe_state();
+    let (cursor_x, cursor_y) = safe_state.cursor_pos();
 
     // Enter visual mode with 'v'
     if keyboard.just_pressed(KeyCode::KeyV) && !state.active {

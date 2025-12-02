@@ -133,7 +133,7 @@ fn update_config_from_vm(vm: &Vm, result: &Value, config: &mut ScarabConfig) -> 
 
         // Then check if the result is a Record containing the name
         if let Value::Record(map) = result {
-            if let Some(v) = map.borrow().get(name) {
+            if let Some(v) = map.lock().unwrap().get(name) {
                 return Some(v.clone());
             }
         }
@@ -193,7 +193,7 @@ fn extract_terminal_config(val: &Value) -> Result<TerminalConfig> {
     let mut config = TerminalConfig::default();
 
     if let Value::Record(map) = val {
-        let map = map.borrow();
+        let map = map.lock().unwrap();
         if let Some(s) = get_string(&map, "DefaultShell") { config.default_shell = s; }
         if let Some(i) = get_int(&map, "ScrollbackLines") { config.scrollback_lines = i as u32; }
         if let Some(b) = get_bool(&map, "AltScreen") { config.alt_screen = b; }
@@ -210,7 +210,7 @@ fn extract_font_config(val: &Value) -> Result<FontConfig> {
     let mut config = FontConfig::default();
 
     if let Value::Record(map) = val {
-        let map = map.borrow();
+        let map = map.lock().unwrap();
         if let Some(s) = get_string(&map, "Family") { config.family = s; }
         if let Some(f) = get_float(&map, "Size") { config.size = f as f32; }
         if let Some(f) = get_float(&map, "LineHeight") { config.line_height = f as f32; }
@@ -237,7 +237,7 @@ fn extract_color_config(val: &Value) -> Result<ColorConfig> {
     let mut config = ColorConfig::default();
 
     if let Value::Record(map) = val {
-        let map = map.borrow();
+        let map = map.lock().unwrap();
         if let Some(s) = get_string(&map, "Theme") { config.theme = Some(s); }
         if let Some(f) = get_float(&map, "Opacity") { config.opacity = f as f32; }
         if let Some(f) = get_float(&map, "DimOpacity") { config.dim_opacity = f as f32; }
@@ -251,7 +251,7 @@ fn extract_color_config(val: &Value) -> Result<ColorConfig> {
 
         // Palette (nested record)
         if let Some(Value::Record(palette_map)) = map.get("Palette") {
-            let p_map = palette_map.borrow();
+            let p_map = palette_map.lock().unwrap();
             let p = &mut config.palette;
 
             if let Some(s) = get_string(&p_map, "Black") { p.black = s; }
@@ -281,12 +281,12 @@ fn extract_keybindings(val: &Value) -> Result<KeyBindings> {
     let mut config = KeyBindings::default();
 
     if let Value::Record(map) = val {
-        let map = map.borrow();
+        let map = map.lock().unwrap();
         if let Some(s) = get_string(&map, "LeaderKey") { config.leader_key = s; }
 
         // Custom bindings
         if let Some(Value::Map(custom_map)) = map.get("Custom") {
-            let c_map = custom_map.borrow();
+            let c_map = custom_map.lock().unwrap();
             for (k, v) in c_map.iter() {
                 if let Value::Str(cmd) = v {
                     config.custom.insert(k.clone(), cmd.to_string());
@@ -302,7 +302,7 @@ fn extract_ui_config(val: &Value) -> Result<UiConfig> {
     let mut config = UiConfig::default();
 
     if let Value::Record(map) = val {
-        let map = map.borrow();
+        let map = map.lock().unwrap();
         if let Some(b) = get_bool(&map, "LinkHints") { config.link_hints = b; }
         if let Some(b) = get_bool(&map, "CommandPalette") { config.command_palette = b; }
         if let Some(b) = get_bool(&map, "Animations") { config.animations = b; }
@@ -320,7 +320,7 @@ fn extract_plugin_config(val: &Value) -> Result<PluginConfig> {
     let mut config = PluginConfig::default();
 
     if let Value::Record(map) = val {
-        let map = map.borrow();
+        let map = map.lock().unwrap();
 
         if let Some(Value::Tuple(vec)) = map.get("Enabled") {
             for v in vec {
@@ -338,7 +338,7 @@ fn extract_session_config(val: &Value) -> Result<SessionConfig> {
     let mut config = SessionConfig::default();
 
     if let Value::Record(map) = val {
-        let map = map.borrow();
+        let map = map.lock().unwrap();
         if let Some(b) = get_bool(&map, "RestoreOnStartup") { config.restore_on_startup = b; }
         if let Some(i) = get_int(&map, "AutoSaveInterval") { config.auto_save_interval = i as u32; }
         if let Some(b) = get_bool(&map, "SaveScrollback") { config.save_scrollback = b; }
@@ -388,15 +388,15 @@ mod tests {
         // Test basic Value extraction
         use fusabi_vm::Value;
         use std::collections::HashMap;
-        use std::cell::RefCell;
-        use std::rc::Rc;
+        use std::sync::Mutex;
+        use std::sync::Arc;
 
         let mut terminal_map = HashMap::new();
         terminal_map.insert("DefaultShell".to_string(), Value::Str("/bin/zsh".into()));
         terminal_map.insert("ScrollbackLines".to_string(), Value::Int(10000));
         terminal_map.insert("AltScreen".to_string(), Value::Bool(true));
 
-        let val = Value::Record(Rc::new(RefCell::new(terminal_map)));
+        let val = Value::Record(Arc::new(Mutex::new(terminal_map)));
         let config = extract_terminal_config(&val).unwrap();
 
         assert_eq!(config.default_shell, "/bin/zsh");

@@ -532,7 +532,7 @@ dependencies = [
 
 [[package]]
 name = "bevy-fusabi"
-version = "0.1.0"
+version = "0.1.4"
 dependencies = [
  "anyhow",
  "bevy",
@@ -2774,21 +2774,22 @@ checksum = "e6d5a32815ae3f33302d95fdcb2ce17862f8c65363dcfd29360480ba1001fc9c"
 
 [[package]]
 name = "fusabi-frontend"
-version = "0.12.0"
+version = "0.17.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b80729381bfc74d2134af7b39ae4952023d241e4f3f441151bdf9e6fe8a97670"
+checksum = "90c2e9c1ad85e4e711060f57249d90d5b7a8695332eb85dcf4a368f833cd86d3"
 dependencies = [
  "fusabi-vm",
 ]
 
 [[package]]
 name = "fusabi-vm"
-version = "0.12.0"
+version = "0.17.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "acdad3c03d5e9de91662bf58c269cc5e4496ba2f146782617ae7ce387a6948fa"
+checksum = "6189bf3121fb4a7b22c18896aa6876f909e81f7375484fefec90d931d7d37387"
 dependencies = [
  "bincode",
  "serde",
+ "serde_json",
 ]
 
 [[package]]
@@ -3966,12 +3967,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "multimap"
-version = "0.10.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1d87ecb2933e8aeadb3e3a02b828fed80a7528047e68b4f424523a0981a3a084"
-
-[[package]]
 name = "naga"
 version = "23.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5054,27 +5049,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "prost-build"
-version = "0.12.6"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "22505a5c94da8e3b7c2996394d1c933236c4d743e81a410bcca4e6989fc066a4"
-dependencies = [
- "bytes",
- "heck",
- "itertools 0.10.5",
- "log",
- "multimap",
- "once_cell",
- "petgraph",
- "prettyplease",
- "prost",
- "prost-types",
- "regex",
- "syn 2.0.110",
- "tempfile",
-]
-
-[[package]]
 name = "prost-derive"
 version = "0.12.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5085,15 +5059,6 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 2.0.110",
-]
-
-[[package]]
-name = "prost-types"
-version = "0.12.6"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9091c90b0a32608e984ff2fa4091273cbdd755d54935c51d520887f4a1dbd5b0"
-dependencies = [
- "prost",
 ]
 
 [[package]]
@@ -5711,7 +5676,6 @@ dependencies = [
  "regex",
  "rkyv",
  "scarab-config",
- "scarab-nav-protocol",
  "scarab-plugin-api",
  "scarab-protocol",
  "serde",
@@ -5812,22 +5776,9 @@ dependencies = [
 name = "scarab-nav"
 version = "0.1.0-alpha.13"
 dependencies = [
- "async-trait",
- "log",
- "prost",
+ "anyhow",
  "regex",
- "scarab-nav-protocol",
- "scarab-plugin-api",
- "scarab-protocol",
- "tokio",
-]
-
-[[package]]
-name = "scarab-nav-protocol"
-version = "0.1.0"
-dependencies = [
- "prost",
- "prost-build",
+ "serde",
 ]
 
 [[package]]

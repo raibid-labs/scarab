@@ -109,7 +109,7 @@ impl FusabiConfigLoader {
         let mut config = TerminalConfig::default();
 
         if let Value::Record(map) = val {
-            let map = map.borrow();
+            let map = map.lock().unwrap();
             // println!("Terminal map keys: {:?}", map.keys());
             if let Some(s) = get_string(&map, "DefaultShell") { config.default_shell = s; }
             if let Some(i) = get_int(&map, "ScrollbackLines") { config.scrollback_lines = i as u32; }
@@ -133,13 +133,13 @@ impl FusabiConfigLoader {
         let mut config = FontConfig::default();
 
         if let Value::Record(map) = val {
-            let map = map.borrow();
+            let map = map.lock().unwrap();
             if let Some(s) = get_string(&map, "Family") { config.family = s; }
             if let Some(f) = get_float(&map, "Size") { config.size = f as f32; }
             if let Some(f) = get_float(&map, "LineHeight") { config.line_height = f as f32; }
             if let Some(b) = get_bool(&map, "BoldIsBright") { config.bold_is_bright = b; }
             if let Some(b) = get_bool(&map, "UseThinStrokes") { config.use_thin_strokes = b; }
-            
+
             if let Some(Value::Tuple(vec)) = map.get("Fallback") {
                  let mut fallback = Vec::new();
                  for v in vec {
@@ -152,7 +152,7 @@ impl FusabiConfigLoader {
                  }
             }
         }
-        
+
         Ok(config)
     }
 
@@ -166,11 +166,11 @@ impl FusabiConfigLoader {
         let mut config = ColorConfig::default();
 
         if let Value::Record(map) = val {
-            let map = map.borrow();
+            let map = map.lock().unwrap();
             if let Some(s) = get_string(&map, "Theme") { config.theme = Some(s); }
             if let Some(f) = get_float(&map, "Opacity") { config.opacity = f as f32; }
             if let Some(f) = get_float(&map, "DimOpacity") { config.dim_opacity = f as f32; }
-            
+
             // Optional overrides
             if let Some(s) = get_string(&map, "Foreground") { config.foreground = Some(s); }
             if let Some(s) = get_string(&map, "Background") { config.background = Some(s); }
@@ -180,9 +180,9 @@ impl FusabiConfigLoader {
 
             // Palette (nested record)
             if let Some(Value::Record(palette_map)) = map.get("Palette") {
-                let p_map = palette_map.borrow();
+                let p_map = palette_map.lock().unwrap();
                 let p = &mut config.palette;
-                
+
                 if let Some(s) = get_string(&p_map, "Black") { p.black = s; }
                 if let Some(s) = get_string(&p_map, "Red") { p.red = s; }
                 if let Some(s) = get_string(&p_map, "Green") { p.green = s; }
@@ -191,7 +191,7 @@ impl FusabiConfigLoader {
                 if let Some(s) = get_string(&p_map, "Magenta") { p.magenta = s; }
                 if let Some(s) = get_string(&p_map, "Cyan") { p.cyan = s; }
                 if let Some(s) = get_string(&p_map, "White") { p.white = s; }
-                
+
                 if let Some(s) = get_string(&p_map, "BrightBlack") { p.bright_black = s; }
                 if let Some(s) = get_string(&p_map, "BrightRed") { p.bright_red = s; }
                 if let Some(s) = get_string(&p_map, "BrightGreen") { p.bright_green = s; }
@@ -212,17 +212,17 @@ impl FusabiConfigLoader {
             Some(v) => v,
             None => return Ok(KeyBindings::default()),
         };
-        
+
         let mut config = KeyBindings::default();
-        
+
         if let Value::Record(map) = val {
-            let map = map.borrow();
+            let map = map.lock().unwrap();
             if let Some(s) = get_string(&map, "LeaderKey") { config.leader_key = s; }
             // ... other bindings ...
-            
+
             // Custom bindings
             if let Some(Value::Map(custom_map)) = map.get("Custom") {
-                let c_map = custom_map.borrow();
+                let c_map = custom_map.lock().unwrap();
                 for (k, v) in c_map.iter() {
                     if let Value::Str(cmd) = v {
                         config.custom.insert(k.clone(), cmd.to_string());
@@ -230,7 +230,7 @@ impl FusabiConfigLoader {
                 }
             }
         }
-        
+
         Ok(config)
     }
 
@@ -240,11 +240,11 @@ impl FusabiConfigLoader {
             Some(v) => v,
             None => return Ok(UiConfig::default()),
         };
-        
+
         let mut config = UiConfig::default();
-        
+
         if let Value::Record(map) = val {
-            let map = map.borrow();
+            let map = map.lock().unwrap();
             if let Some(b) = get_bool(&map, "LinkHints") { config.link_hints = b; }
             if let Some(b) = get_bool(&map, "CommandPalette") { config.command_palette = b; }
             if let Some(b) = get_bool(&map, "Animations") { config.animations = b; }
@@ -253,11 +253,11 @@ impl FusabiConfigLoader {
             if let Some(b) = get_bool(&map, "CursorBlink") { config.cursor_blink = b; }
             if let Some(i) = get_int(&map, "CursorBlinkInterval") { config.cursor_blink_interval = i as u32; }
             if let Some(s) = get_string(&map, "WindowIcon") { config.window_icon = Some(s); }
-            
+
             // Enums would need string parsing or integer mapping
             // For now, skip enums to keep it simple
         }
-        
+
         Ok(config)
     }
 
@@ -267,12 +267,12 @@ impl FusabiConfigLoader {
              Some(v) => v,
              None => return Ok(PluginConfig::default()),
         };
-        
+
         let mut config = PluginConfig::default();
-        
+
         if let Value::Record(map) = val {
-            let map = map.borrow();
-            
+            let map = map.lock().unwrap();
+
             if let Some(Value::Tuple(vec)) = map.get("Enabled") {
                 for v in vec {
                     if let Value::Str(s) = v {
@@ -280,12 +280,12 @@ impl FusabiConfigLoader {
                     }
                 }
             }
-            
+
             // Plugin specific config (Map<String, Record>)
             // This is complex because we need to convert Value to serde_json::Value
             // Skipping for now
         }
-        
+
         Ok(config)
     }
 
@@ -295,17 +295,17 @@ impl FusabiConfigLoader {
             Some(v) => v,
             None => return Ok(SessionConfig::default()),
         };
-        
+
         let mut config = SessionConfig::default();
-        
+
         if let Value::Record(map) = val {
-            let map = map.borrow();
+            let map = map.lock().unwrap();
             if let Some(b) = get_bool(&map, "RestoreOnStartup") { config.restore_on_startup = b; }
             if let Some(i) = get_int(&map, "AutoSaveInterval") { config.auto_save_interval = i as u32; }
             if let Some(b) = get_bool(&map, "SaveScrollback") { config.save_scrollback = b; }
             if let Some(s) = get_string(&map, "WorkingDirectory") { config.working_directory = Some(s); }
         }
-        
+
         Ok(config)
     }
 }
@@ -322,15 +322,15 @@ impl FusabiModule {
         if let Some(v) = self.vm.globals.get(name) {
             return Some(v.clone());
         }
-        
+
         // Then check if the result is a Record containing the name
         // (e.g. if the script returns a module object)
         if let Value::Record(map) = &self.result {
-             if let Some(v) = map.borrow().get(name) {
+             if let Some(v) = map.lock().unwrap().get(name) {
                  return Some(v.clone());
              }
         }
-        
+
         None
     }
 }
@@ -403,11 +403,11 @@ let font = {
         }
         assert!(config.is_ok(), "Config should compile successfully");
         let config = config.unwrap();
-        
+
         assert_eq!(config.terminal.default_shell, "/bin/zsh");
         assert_eq!(config.terminal.scrollback_lines, 12345);
         assert_eq!(config.terminal.columns, 120);
-        
+
         assert_eq!(config.font.family, "Hack");
         assert_eq!(config.font.size, 16.5);
         // Tuples in F# might compile to Value::Tuple or Value::Array depending on version

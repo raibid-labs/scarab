@@ -4,6 +4,10 @@
 
 use bytemuck::{Pod, Zeroable};
 
+// Safe abstraction layer for SharedState access
+pub mod terminal_state;
+pub use terminal_state::TerminalStateReader;
+
 pub const SHMEM_PATH: &str = "/scarab_shm_v1";
 pub const GRID_WIDTH: usize = 200;
 pub const GRID_HEIGHT: usize = 100;

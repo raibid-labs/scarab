@@ -5,7 +5,7 @@
 
 use crate::ipc::{IpcChannel, RemoteMessageEvent};
 use crate::ui::command_palette::CommandExecutedEvent;
-use crate::ui::dock::RequestPluginMenuEvent;
+// use crate::ui::dock::RequestPluginMenuEvent;
 use bevy::input::keyboard::KeyCode;
 use bevy::prelude::*;
 use scarab_plugin_api::menu::{MenuAction, MenuItem};
@@ -22,7 +22,7 @@ impl Plugin for PluginMenuPlugin {
             .add_systems(
                 Update,
                 (
-                    handle_request_plugin_menu,
+                    // handle_request_plugin_menu,
                     handle_show_menu_event,
                     handle_daemon_menu_response,
                     handle_menu_input_system,
@@ -34,16 +34,16 @@ impl Plugin for PluginMenuPlugin {
     }
 }
 
-/// Handle dock requests to open plugin menus
-fn handle_request_plugin_menu(
-    mut events: EventReader<RequestPluginMenuEvent>,
-    mut menu_state: ResMut<MenuState>,
-) {
-    for event in events.read() {
-        info!("Starting menu load for plugin: {}", event.plugin_name);
-        menu_state.start_loading(event.plugin_name.clone());
-    }
-}
+// /// Handle dock requests to open plugin menus
+// fn handle_request_plugin_menu(
+//     mut events: EventReader<RequestPluginMenuEvent>,
+//     mut menu_state: ResMut<MenuState>,
+// ) {
+//     for event in events.read() {
+//         info!("Starting menu load for plugin: {}", event.plugin_name);
+//         menu_state.start_loading(event.plugin_name.clone());
+//     }
+// }
 
 /// Event to show a plugin menu
 #[derive(Event)]
