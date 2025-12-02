@@ -65,4 +65,4 @@ pub use handle::{ObjectHandle, ObjectType};
 pub use pane::PaneProxy;
 pub use registry::{ObjectRegistry, RegistryEntry};
 pub use tab::TabProxy;
-pub use window::{RenderItem, WindowProxy};
+pub use window::WindowProxy;

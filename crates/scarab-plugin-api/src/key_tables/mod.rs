@@ -7,9 +7,14 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::time::Duration;
 
+pub mod defaults;
 pub mod leader;
 pub mod stack;
 
+pub use defaults::{
+    default_copy_mode_table, default_resize_mode_table, default_search_mode_table,
+    KeyTableRegistry,
+};
 pub use leader::{LeaderKeyConfig, LeaderKeyState};
 pub use stack::{KeyTableActivation, KeyTableStack};
 
@@ -55,6 +60,31 @@ impl KeyCombo {
     /// Create a new key combination
     pub fn new(key: KeyCode, mods: KeyModifiers) -> Self {
         Self { key, mods }
+    }
+
+    /// Create a key combination with no modifiers
+    pub fn key(key: KeyCode) -> Self {
+        Self { key, mods: KeyModifiers::NONE }
+    }
+
+    /// Create a key combination with Ctrl modifier
+    pub fn ctrl(key: KeyCode) -> Self {
+        Self { key, mods: KeyModifiers::CTRL }
+    }
+
+    /// Create a key combination with Shift modifier
+    pub fn shift(key: KeyCode) -> Self {
+        Self { key, mods: KeyModifiers::SHIFT }
+    }
+
+    /// Create a key combination with Alt modifier
+    pub fn alt(key: KeyCode) -> Self {
+        Self { key, mods: KeyModifiers::ALT }
+    }
+
+    /// Create a key combination with Super modifier
+    pub fn super_key(key: KeyCode) -> Self {
+        Self { key, mods: KeyModifiers::SUPER }
     }
 }
 
