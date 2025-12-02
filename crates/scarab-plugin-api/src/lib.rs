@@ -5,6 +5,7 @@
 
 pub mod config;
 pub mod context;
+pub mod copy_mode;
 pub mod delight;
 pub mod error;
 pub mod key_tables;
@@ -16,6 +17,10 @@ pub mod types;
 
 pub use config::{PluginConfig, PluginDiscovery};
 pub use context::PluginContext;
+pub use copy_mode::{
+    get_selection_bounds, normalize_selection, CopyModeCursor, CopyModeState, SearchDirection,
+    SearchMatch, SearchState, Selection, SelectionMode,
+};
 pub use delight::{Achievement, PluginMood};
 pub use error::{PluginError, Result};
 pub use key_tables::{

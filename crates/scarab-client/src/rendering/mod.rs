@@ -10,6 +10,5 @@ pub use atlas::{AtlasRect, GlyphAtlas, GlyphKey};
 pub use config::{color, FontConfig, TextAttributes};
 pub use scrollback_render::generate_scrollback_mesh;
 pub use text::{
-    generate_terminal_mesh, DirtyRegion, TerminalMesh, TextRenderer,
-    update_terminal_mesh_system,
+    generate_terminal_mesh, update_terminal_mesh_system, DirtyRegion, TerminalMesh, TextRenderer,
 };

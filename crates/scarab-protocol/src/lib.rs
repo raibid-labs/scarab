@@ -495,4 +495,42 @@ impl TerminalMetrics {
     }
 }
 
+/// Image format specification for image protocol support
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[repr(u8)]
+pub enum ImageFormat {
+    /// PNG image format
+    Png = 0,
+    /// JPEG image format
+    Jpeg = 1,
+    /// GIF image format
+    Gif = 2,
+    /// Raw RGBA pixel data
+    Rgba = 3,
+}
+
+/// Represents an image placement in the terminal grid
+///
+/// Images are transferred via shared memory to avoid protocol overhead.
+/// This struct contains the metadata and reference to the image data.
+#[derive(Debug, Clone)]
+pub struct ImagePlacement {
+    /// Unique identifier for this placement
+    pub id: u64,
+    /// Column position in terminal grid
+    pub x: u16,
+    /// Row position in terminal grid
+    pub y: u16,
+    /// Width in terminal cells
+    pub width_cells: u16,
+    /// Height in terminal cells
+    pub height_cells: u16,
+    /// Offset into shared memory image buffer
+    pub shm_offset: usize,
+    /// Size of image data in shared memory
+    pub shm_size: usize,
+    /// Image format
+    pub format: ImageFormat,
+}
+
 extern crate alloc;

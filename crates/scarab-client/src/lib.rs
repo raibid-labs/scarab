@@ -6,6 +6,7 @@ pub mod terminal;
 pub mod ui;
 pub mod ui_stub;
 
+pub mod copy_mode;
 pub mod input;
 pub mod integration;
 pub mod ipc;
@@ -25,16 +26,24 @@ pub use integration::{extract_grid_text, get_cell_at, IntegrationPlugin, SharedM
 pub use safe_state::{MockTerminalState, SafeSharedState};
 
 // Re-export terminal types
-pub use terminal::scrollback::{ScrollbackBuffer, ScrollbackLine, ScrollbackPlugin, ScrollbackState};
+pub use terminal::scrollback::{
+    ScrollbackBuffer, ScrollbackLine, ScrollbackPlugin, ScrollbackState,
+};
 
 // Re-export UI plugin
 pub use ui_stub::AdvancedUIPlugin;
 
+// Re-export copy mode system
+pub use copy_mode::{
+    copy_mode_active, CopyModeCursorMarker, CopyModePlugin, CopyModeSearchResource,
+    CopyModeStateResource, SelectionHighlight,
+};
+
 // Re-export scripting system
-pub use scripting::{ScriptingPlugin, ScriptManager, ScriptEvent, RuntimeContext};
+pub use scripting::{RuntimeContext, ScriptEvent, ScriptManager, ScriptingPlugin};
 
 // Re-export tutorial system
-pub use tutorial::{TutorialPlugin, TutorialSystem, TutorialEvent, TutorialState};
+pub use tutorial::{TutorialEvent, TutorialPlugin, TutorialState, TutorialSystem};
 
 // Re-export plugin inspector (feature-gated)
 #[cfg(feature = "plugin-inspector")]
