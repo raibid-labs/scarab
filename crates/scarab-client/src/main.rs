@@ -9,12 +9,23 @@ use scarab_protocol::{SharedState, SHMEM_PATH};
 use shared_memory::ShmemConf;
 use std::sync::Arc;
 
-use scarab_client::ipc::IpcPlugin;
+use scarab_client::ipc::{IpcPlugin, StartupCommand};
+use clap::Parser;
 
 #[cfg(feature = "plugin-inspector")]
 use scarab_client::PluginInspectorPlugin;
 
+#[derive(Parser, Debug)]
+#[command(author, version, about = "Scarab Terminal Client")]
+struct Args {
+    /// Command to execute on startup (sends input to the running shell)
+    #[arg(long)]
+    command: Option<String>,
+}
+
 fn main() {
+    let args = Args::parse();
+
     // Load Configuration (Fusabi-based)
     let home_dir = std::env::var("HOME").unwrap_or_else(|_| ".".to_string());
     let fusabi_config_path = std::path::PathBuf::from(&home_dir)
@@ -77,6 +88,10 @@ fn main() {
     }
 
     let mut app = App::new();
+
+    if let Some(cmd) = args.command {
+        app.insert_resource(StartupCommand(cmd));
+    }
 
     app.add_plugins(
         DefaultPlugins

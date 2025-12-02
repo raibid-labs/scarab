@@ -38,6 +38,7 @@ fuzzy-matcher = "0.3"
 arboard = "3.3"
 image = "0.25"
 prost = "0.12"
+clap = { version = "4.4", features = ["derive"] }
 
 # Profiling dependencies
 tracy-client = { workspace = true, optional = true }

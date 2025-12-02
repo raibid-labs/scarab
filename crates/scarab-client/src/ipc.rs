@@ -16,6 +16,10 @@ use tokio::time::{sleep, Duration};
 #[derive(Event)]
 pub struct RemoteMessageEvent(pub DaemonMessage);
 
+/// Resource to hold the startup command to execute
+#[derive(Resource)]
+pub struct StartupCommand(pub String);
+
 /// Bevy resource for IPC communication
 #[derive(Resource)]
 pub struct IpcChannel {
@@ -219,6 +223,33 @@ async fn send_message(
     }
 }
 
+/// System to send startup command once connected
+fn handle_startup_command(
+    mut commands: Commands,
+    ipc: Res<IpcChannel>,
+    startup_cmd: Option<Res<StartupCommand>>,
+) {
+    if let Some(cmd) = startup_cmd {
+        // Check if connected by trying to acquire read lock (non-blocking check ideally)
+        // For now we just try to send. If it fails, it fails.
+        // But to ensure it sends *after* connection, we might need a reliable check.
+        // IpcChannel::send spawns a task.
+        
+        // We really want to wait until is_connected() is true.
+        if ipc.is_connected() {
+            println!("Sending startup command: {}", cmd.0);
+            // Append newline to execute the command
+            let mut input = cmd.0.as_bytes().to_vec();
+            input.push(b'\r'); // Enter key
+            
+            ipc.send(ControlMessage::Input { data: input });
+            
+            // Remove the resource so we don't send it again
+            commands.remove_resource::<StartupCommand>();
+        }
+    }
+}
+
 /// Bevy system to handle keyboard input
 pub fn handle_keyboard_input(keys: Res<ButtonInput<KeyCode>>, ipc: Res<IpcChannel>) {
     for key in keys.get_just_pressed() {
@@ -350,6 +381,7 @@ impl Plugin for IpcPlugin {
                         handle_character_input,
                         handle_window_resize,
                         receive_ipc_messages,
+                        handle_startup_command,
                     ),
                 );
             }
