@@ -44,6 +44,10 @@ use bevy::prelude::*;
 // ==================== Sub-modules ====================
 
 pub mod focusable;
+pub mod metrics;
+
+// Re-export metrics types
+pub use metrics::{NavMetrics, NavMetricsPlugin, NavMetricsReport};
 
 // ==================== Navigation Modes ====================
 

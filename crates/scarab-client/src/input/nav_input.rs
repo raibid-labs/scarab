@@ -331,24 +331,11 @@ impl NavInputRouter {
     }
 
     /// Create a router from configuration
-    pub fn from_config(config: &scarab_config::NavConfig) -> Self {
-        use scarab_config::NavStyle as ConfigNavStyle;
-
-        // Convert config NavStyle to local NavStyle
-        let style = match config.style {
-            ConfigNavStyle::Vimium => NavStyle::VimiumStyle,
-            ConfigNavStyle::Cosmos => NavStyle::CosmosStyle,
-            ConfigNavStyle::Spacemacs => NavStyle::SpacemacsStyle,
-        };
-
-        let mut router = Self::new(style);
-
-        // Apply custom keybinding overrides
-        if !config.keybindings.is_empty() {
-            router.apply_custom_bindings(&config.keybindings);
-        }
-
-        router
+    /// TODO: Implement once scarab_config::NavConfig is available
+    #[allow(dead_code)]
+    pub fn from_config(_config: &str) -> Self {
+        // Placeholder - config integration pending
+        Self::default()
     }
 
     /// Apply custom keybinding overrides from config
