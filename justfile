@@ -250,6 +250,10 @@ test:
 test-verbose:
     cargo test --workspace -- --nocapture
 
+# Navigation smoke test - exercises hint mode, pane switch, prompt jump
+nav-smoke:
+    ./scripts/nav-smoke-test.sh
+
 # Run benchmarks
 bench:
     cargo bench --workspace

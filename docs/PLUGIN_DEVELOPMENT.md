@@ -1,5 +1,7 @@
 # Fusabi Plugin Development Guide
 
+> **DEPRECATED**: This document is outdated. See [Plugin Development Guide](./plugin-development/README.md) for current information.
+
 Comprehensive guide for developing Scarab plugins using the Fusabi language.
 
 ## Table of Contents

@@ -1,5 +1,7 @@
 # Scarab Plugin API Reference
 
+> **DEPRECATED**: This document is outdated. See [Plugin Development Guide](./plugin-development/README.md) and [API Reference](./plugin-development/api-reference/) for current information.
+
 Complete API reference for the Scarab plugin system.
 
 ## Module Overview

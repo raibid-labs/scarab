@@ -1,5 +1,7 @@
 # Scarab Plugin Development Guide
 
+> **DEPRECATED**: This document is outdated. See [Plugin Development Guide](./plugin-development/README.md) for current information.
+
 Complete guide to developing plugins for the Scarab terminal emulator.
 
 ## Table of Contents
