@@ -231,12 +231,18 @@ impl HintOverlayBundle {
 /// Runs in: NavSystemSet::Render
 fn render_hint_overlays(
     mut commands: Commands,
-    nav_state: Res<NavState>,
+    nav_registry: Res<crate::NavStateRegistry>,
     config: Res<HintOverlayConfig>,
     nav_hints: Query<(Entity, &NavHint)>,
     existing_overlays: Query<(Entity, &HintOverlay)>,
     asset_server: Res<AssetServer>,
 ) {
+    // Get the active pane's NavState
+    let nav_state = match nav_registry.get_active() {
+        Some(state) => state,
+        None => return, // No active pane
+    };
+
     // Only render hints when in hint mode
     if !nav_state.is_hint_mode() {
         return;
@@ -335,13 +341,19 @@ fn render_hint_overlays(
 /// Runs in: NavSystemSet::Update
 fn update_hint_overlays(
     mut commands: Commands,
-    nav_state: Res<NavState>,
+    nav_registry: Res<crate::NavStateRegistry>,
     config: Res<HintOverlayConfig>,
     mut overlays: Query<(Entity, &mut HintOverlay, &Children)>,
     nav_hints: Query<&NavHint>,
     mut backgrounds: Query<&mut Sprite, With<HintBackground>>,
     mut texts: Query<&mut TextColor, (With<HintText>, Without<HintBackground>)>,
 ) {
+    // Get the active pane's NavState
+    let nav_state = match nav_registry.get_active() {
+        Some(state) => state,
+        None => return, // No active pane
+    };
+
     if !nav_state.is_hint_mode() {
         return;
     }
