@@ -5,24 +5,70 @@ All notable changes to the Scarab terminal emulator will be documented in this f
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.1.0-alpha.15] - 2025-12-02
+## [0.1.0-alpha.15] - 2025-12-03
+
+### Added - ECS Navigation System
+- **ECS-Native Navigation**: Complete rewrite of navigation as pure Bevy ECS (~5,100 LOC)
+  - `NavFocus`, `NavHint`, `NavGroup`, `NavMode` components
+  - `NavState` resource with focus history and mode stack
+  - `NavAction` enum for all navigation operations
+  - `NavigationPlugin` for easy integration
+- **Focusable Entity Detection**: Automatic terminal content scanning
+  - URL, file path, email detection via regex
+  - `FocusableRegion` entities with grid coordinates
+  - Zone filtering for prompt-scoped navigation
+  - Performance-limited scanning (max 500 focusables)
+- **Unified Input Routing**: Centralized keymap system
+  - `NavInputRouter` with VimiumStyle, CosmosStyle, SpacemacsStyle presets
+  - `ModeStack` for nested navigation modes
+  - Configurable keybindings
+- **Hint Overlay Rendering**: Pure Bevy ECS overlays
+  - `HintOverlay` entities with Text2d labels
+  - Filter-based styling (dimmed, partial match, exact match)
+  - Fade-in/out animations
+- **Prompt Marker Integration**: OSC 133 navigation
+  - `NavAnchor` entities for prompt markers
+  - `JumpToPromptEvent` with scrollback integration
+  - `PromptZoneFocusedEvent` for zone filtering
+
+### Added - Bevy/ECS Roadmap (Phases 0-6)
+- **Chunked Grid System**: Entity-per-chunk rendering with dirty tracking
+- **Image Pipeline**: iTerm2 protocol support with Bevy texture integration
+- **Ratatui Bridge**: Native ratatui widget rendering in Bevy
+- **Plugin Host**: ECS-integrated plugin system
+- **Golden Tests**: 50+ headless rendering tests
+- **300+ Unit Tests**: Comprehensive test coverage
+
+### Added - Multiplexing Architecture
+- **Tab/Pane System**: Full multiplexing with `SessionManager`
+- **PaneOrchestrator**: Parallel PTY reading across panes
+- **IPC Commands**: Tab create/close, pane split/focus/resize
+- **Tree Layout**: Hierarchical pane arrangement
+
+### Added - Copy Mode
+- **Vim-style Selection**: Visual line and character modes
+- **Search Integration**: `/` search with `n`/`N` navigation
+- **Cursor Movement**: hjkl, word motions, line jumps
+- **Mode Indicator**: Visual feedback for copy mode state
+
+### Changed
+- **EventRegistry Deprecated**: Migration to pure Bevy events
+  - 31 typed event mappings documented
+  - `#[deprecated]` attribute with migration guidance
+  - Lock-free, parallel event dispatch
 
 ### Documentation
-- **WezTerm Parity Planning**: Added comprehensive documentation for achieving WezTerm feature parity
-  - Object model architecture (`docs/wezterm-parity/01-object-model.md`)
-  - Event system design (`docs/wezterm-parity/02-event-system.md`)
-  - Status bar rendering API (`docs/wezterm-parity/03-status-bar-api.md`)
-  - Key tables and modal editing (`docs/wezterm-parity/04-key-tables.md`)
-  - Image protocol support (`docs/wezterm-parity/05-image-protocols.md`)
-  - Copy mode and selection (`docs/wezterm-parity/06-copy-mode.md`)
-  - Workstream parallelization (`docs/wezterm-parity/07-workstreams.md`)
-  - Release roadmap with milestones (`docs/wezterm-parity/08-release-roadmap.md`)
-- **CONTRIBUTING.md**: Added comprehensive git workflow and PR guidelines
-  - Squash merge policy for clean history
-  - Conventional commit format
-  - Branch naming conventions
-  - PR process and templates
-  - Code review guidelines
+- **Navigation Guide**: Complete `docs/navigation.md` (25KB)
+  - All keymaps documented (Vimium/Cosmos/Spacemacs)
+  - Developer guide for custom actions
+  - Architecture diagrams
+- **Event Migration Guide**: `docs/event-migration-guide.md`
+- **WezTerm Parity Planning**: 8 detailed specification documents
+- **CONTRIBUTING.md**: Git workflow and PR guidelines
+
+### Tests
+- **Navigation Tests**: 16 headless tests for all navigation features
+- **Mega-commit Validation**: 391/391 unit tests pass (100%)
 
 ## [0.1.0-alpha.14] - 2025-12-02
 
