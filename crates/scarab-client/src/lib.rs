@@ -11,6 +11,8 @@ pub mod events;
 pub mod input;
 pub mod integration;
 pub mod ipc;
+pub mod plugin_host;
+pub mod ratatui_bridge;
 pub mod rendering;
 pub mod scripting;
 pub mod tutorial;
@@ -31,6 +33,9 @@ pub use terminal::scrollback::{
     ScrollbackBuffer, ScrollbackLine, ScrollbackPlugin, ScrollbackState,
 };
 
+// Re-export chunk system
+pub use terminal::chunks::{ChunkGrid, ChunkMesh, ChunkPlugin, TerminalChunk, CHUNK_HEIGHT, CHUNK_WIDTH};
+
 // Re-export UI plugin
 pub use ui_stub::AdvancedUIPlugin;
 
@@ -41,13 +46,31 @@ pub use copy_mode::{
 };
 
 // Re-export scripting system
-pub use scripting::{RuntimeContext, ScriptEvent, ScriptManager, ScriptingPlugin};
+pub use scripting::{
+    FusabiActionChannel, FusabiEcsBridgePlugin, FusabiNatives, RuntimeContext, ScriptEvent,
+    ScriptManager, ScriptingPlugin,
+};
 
 // Re-export tutorial system
 pub use tutorial::{TutorialEvent, TutorialPlugin, TutorialState, TutorialSystem};
 
 // Re-export events system
-pub use events::{EventsPlugin, WindowFocusChangedEvent, WindowResizedEvent, DaemonEvent};
+pub use events::{
+    DaemonEvent, EventsPlugin, ModalItem, NotificationLevel, PluginAction, PluginResponse,
+    StatusSide, TerminalCell, TerminalRow, WindowFocusChangedEvent, WindowResizedEvent,
+};
+
+// Re-export ratatui bridge
+pub use ratatui_bridge::{
+    CommandPalettePlugin, RatatuiBridgePlugin,
+    CommandPaletteState, CommandSelected, PaletteCommand,
+};
+
+// Re-export plugin host system
+pub use plugin_host::{
+    PluginNotification, PluginOverlay, PluginRegistry, PluginStatusItem, RegisteredPlugin,
+    ScarabPluginHostPlugin,
+};
 
 // Re-export plugin inspector (feature-gated)
 #[cfg(feature = "plugin-inspector")]

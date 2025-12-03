@@ -9,9 +9,11 @@
 //! - Access to Bevy resources (colors, fonts, window)
 //! - Custom overlay/widget registration
 //! - Event handling for daemon messages
+//! - ECS bridge for plugin actions and responses
 
 pub mod api;
 pub mod context;
+pub mod ecs_bridge;
 pub mod error;
 pub mod loader;
 pub mod manager;
@@ -20,6 +22,7 @@ pub mod watcher;
 
 pub use api::{ScriptApi, ScriptContext, ScriptEvent};
 pub use context::RuntimeContext;
+pub use ecs_bridge::{FusabiActionChannel, FusabiEcsBridgePlugin, FusabiNatives};
 pub use error::{ScriptError, ScriptResult};
 pub use loader::ScriptLoader;
 pub use manager::ScriptManager;
@@ -33,7 +36,7 @@ pub struct ScriptingPlugin;
 
 impl Plugin for ScriptingPlugin {
     fn build(&self, app: &mut App) {
-        app.add_plugins(ScriptingSystemPlugin)
+        app.add_plugins((ScriptingSystemPlugin, FusabiEcsBridgePlugin))
             .add_event::<ScriptEvent>()
             .add_systems(
                 Startup,

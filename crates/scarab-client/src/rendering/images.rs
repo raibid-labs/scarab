@@ -7,20 +7,114 @@
 //! # Architecture
 //!
 //! - Images are transferred via shared memory from daemon to client
+//! - `SharedImageReader` resource manages reading from shared memory
 //! - `ImageCache` resource manages decoded textures and LRU eviction
 //! - `ImagePlacementComponent` marks sprite entities for lifecycle management
 //! - Three main systems: load, render, and cleanup
 
 use bevy::prelude::*;
 use bevy::render::render_asset::RenderAssetUsages;
-use scarab_protocol::{ImageFormat as ProtocolImageFormat, ImagePlacement, TerminalMetrics};
+use scarab_protocol::{
+    ImageFormat as ProtocolImageFormat, ImagePlacement, SharedImageBuffer, SharedImagePlacement,
+    TerminalMetrics, IMAGE_BUFFER_SIZE, IMAGE_SHMEM_PATH,
+};
+use shared_memory::Shmem;
 use std::collections::HashMap;
+use std::sync::Arc;
 
 /// Maximum memory budget for image cache (100 MB)
 const MAX_CACHE_SIZE_BYTES: usize = 100 * 1024 * 1024;
 
-/// Z-index for image rendering (above text layer at 0.0)
-const IMAGE_Z_INDEX: f32 = 1.0;
+/// Z-index for image rendering (above text layer at 0.0, below overlays at 100.0)
+const IMAGE_Z_INDEX: f32 = 10.0;
+
+// Wrapper to make shared memory Send + Sync
+struct SharedMemWrapper(Arc<Shmem>);
+
+unsafe impl Send for SharedMemWrapper {}
+unsafe impl Sync for SharedMemWrapper {}
+
+/// Resource for reading image data from shared memory
+#[derive(Resource)]
+pub struct SharedImageReader {
+    /// Shared memory handle
+    shmem: SharedMemWrapper,
+    /// Last sequence number processed
+    last_sequence: u64,
+}
+
+impl SharedImageReader {
+    /// Try to open the shared image buffer
+    pub fn try_new() -> Option<Self> {
+        match shared_memory::ShmemConf::new()
+            .size(std::mem::size_of::<SharedImageBuffer>())
+            .os_id(IMAGE_SHMEM_PATH)
+            .open()
+        {
+            Ok(shmem) => {
+                info!("Connected to shared image buffer at: {}", IMAGE_SHMEM_PATH);
+                Some(Self {
+                    shmem: SharedMemWrapper(Arc::new(shmem)),
+                    last_sequence: 0,
+                })
+            }
+            Err(e) => {
+                debug!(
+                    "Could not open shared image buffer (daemon may not have images enabled): {}",
+                    e
+                );
+                None
+            }
+        }
+    }
+
+    /// Check if there are new images
+    pub fn has_updates(&self) -> bool {
+        let buffer = self.buffer();
+        buffer.sequence_number != self.last_sequence
+    }
+
+    /// Get reference to the shared buffer
+    fn buffer(&self) -> &SharedImageBuffer {
+        unsafe { &*(self.shmem.0.as_ptr() as *const SharedImageBuffer) }
+    }
+
+    /// Get active placements
+    pub fn placements(&self) -> impl Iterator<Item = &SharedImagePlacement> {
+        let buffer = self.buffer();
+        buffer.placements[..buffer.count as usize]
+            .iter()
+            .filter(|p| p.is_valid())
+    }
+
+    /// Extract image blob data for a placement
+    pub fn get_blob(&self, placement: &SharedImagePlacement) -> &[u8] {
+        let buffer = self.buffer();
+        let start = placement.blob_offset as usize;
+        let end = start + placement.blob_size as usize;
+
+        // Safety: bounds check
+        if end > IMAGE_BUFFER_SIZE {
+            warn!(
+                "Image blob exceeds buffer size: offset={} size={} max={}",
+                start, placement.blob_size, IMAGE_BUFFER_SIZE
+            );
+            return &[];
+        }
+
+        &buffer.blob_data[start..end]
+    }
+
+    /// Mark sequence as processed
+    pub fn mark_processed(&mut self) {
+        self.last_sequence = self.buffer().sequence_number;
+    }
+
+    /// Get current sequence number
+    pub fn sequence_number(&self) -> u64 {
+        self.buffer().sequence_number
+    }
+}
 
 /// Resource managing image textures and LRU eviction
 #[derive(Resource)]
@@ -91,9 +185,75 @@ pub struct ImagesPlugin;
 
 impl Plugin for ImagesPlugin {
     fn build(&self, app: &mut App) {
-        app.insert_resource(ImageCache::new())
-            .add_systems(Update, (load_images_system, render_images_system, cleanup_images_system).chain());
+        // Try to connect to shared image buffer
+        if let Some(reader) = SharedImageReader::try_new() {
+            app.insert_resource(reader);
+        }
+
+        app.insert_resource(ImageCache::new()).add_systems(
+            Update,
+            (
+                sync_images_from_shmem,
+                load_images_system,
+                render_images_system,
+                cleanup_images_system,
+            )
+                .chain(),
+        );
     }
+}
+
+/// System to sync image placements from shared memory
+///
+/// This system checks for updates in the shared image buffer and extracts
+/// image placements into the ImageCache for processing.
+fn sync_images_from_shmem(
+    mut reader: Option<ResMut<SharedImageReader>>,
+    mut cache: ResMut<ImageCache>,
+) {
+    let Some(reader) = reader.as_deref_mut() else {
+        return;
+    };
+
+    if !reader.has_updates() {
+        return;
+    }
+
+    let mut new_placements = Vec::new();
+
+    for placement in reader.placements() {
+        // Convert SharedImagePlacement to ImagePlacement
+        let image_placement = ImagePlacement {
+            id: placement.image_id,
+            x: placement.x,
+            y: placement.y,
+            width_cells: placement.width_cells,
+            height_cells: placement.height_cells,
+            shm_offset: placement.blob_offset as usize,
+            shm_size: placement.blob_size as usize,
+            format: match placement.format {
+                0 => ProtocolImageFormat::Png,
+                1 => ProtocolImageFormat::Jpeg,
+                2 => ProtocolImageFormat::Gif,
+                3 => ProtocolImageFormat::Rgba,
+                _ => {
+                    warn!("Unknown image format: {}", placement.format);
+                    continue;
+                }
+            },
+        };
+
+        new_placements.push(image_placement);
+    }
+
+    debug!(
+        "Synced {} image placements from shared memory (seq {})",
+        new_placements.len(),
+        reader.sequence_number()
+    );
+
+    cache.update_placements(new_placements);
+    reader.mark_processed();
 }
 
 /// System to decode images and create Bevy textures
@@ -102,33 +262,43 @@ impl Plugin for ImagesPlugin {
 /// been loaded yet. It decodes the image data (PNG, JPEG, etc.) and creates
 /// Bevy texture assets.
 pub fn load_images_system(
+    reader: Option<Res<SharedImageReader>>,
     mut cache: ResMut<ImageCache>,
     mut images: ResMut<Assets<Image>>,
 ) {
-    // TODO: In production, this would read from shared memory
-    // For now, we process the placements that have been set via update_placements()
+    let Some(reader) = reader.as_deref() else {
+        return;
+    };
 
     for placement in &cache.placements.clone() {
         // Skip if already loaded
         if cache.textures.contains_key(&placement.id) {
+            cache.touch(placement.id);
             continue;
         }
 
+        // Find the corresponding SharedImagePlacement to get blob data
+        let blob_data = reader
+            .placements()
+            .find(|p| p.image_id == placement.id)
+            .map(|p| reader.get_blob(p));
+
+        let Some(data) = blob_data else {
+            continue;
+        };
+
         // Decode image based on format
         let image_result = match placement.format {
-            ProtocolImageFormat::Png => {
-                decode_image(&[], image::ImageFormat::Png)
-            }
-            ProtocolImageFormat::Jpeg => {
-                decode_image(&[], image::ImageFormat::Jpeg)
-            }
-            ProtocolImageFormat::Gif => {
-                decode_image(&[], image::ImageFormat::Gif)
-            }
+            ProtocolImageFormat::Png => decode_image(data, image::ImageFormat::Png),
+            ProtocolImageFormat::Jpeg => decode_image(data, image::ImageFormat::Jpeg),
+            ProtocolImageFormat::Gif => decode_image(data, image::ImageFormat::Gif),
             ProtocolImageFormat::Rgba => {
-                // Raw RGBA data - not yet implemented
-                warn!("RGBA format not yet supported for image {}", placement.id);
-                continue;
+                // Raw RGBA data - decode directly
+                decode_rgba(
+                    data,
+                    placement.width_cells as u32 * 10,  // Estimate pixel width
+                    placement.height_cells as u32 * 20, // Estimate pixel height
+                )
             }
         };
 
@@ -149,8 +319,6 @@ pub fn load_images_system(
 ///
 /// Returns the decoded image and its size in bytes, or None if decoding fails.
 fn decode_image(data: &[u8], format: image::ImageFormat) -> Option<(Image, usize)> {
-    // TODO: In production, read actual data from shared memory
-    // For now, return None since we don't have real data
     if data.is_empty() {
         return None;
     }
@@ -170,6 +338,35 @@ fn decode_image(data: &[u8], format: image::ImageFormat) -> Option<(Image, usize
         },
         bevy::render::render_resource::TextureDimension::D2,
         raw_data,
+        bevy::render::render_resource::TextureFormat::Rgba8UnormSrgb,
+        RenderAssetUsages::RENDER_WORLD,
+    );
+
+    Some((bevy_image, size_bytes))
+}
+
+/// Decode raw RGBA data into a Bevy Image
+fn decode_rgba(data: &[u8], width: u32, height: u32) -> Option<(Image, usize)> {
+    let expected_size = (width * height * 4) as usize;
+
+    if data.len() != expected_size {
+        warn!(
+            "RGBA data size mismatch: expected {} bytes, got {}",
+            expected_size,
+            data.len()
+        );
+        return None;
+    }
+
+    let size_bytes = data.len();
+    let bevy_image = Image::new(
+        bevy::render::render_resource::Extent3d {
+            width,
+            height,
+            depth_or_array_layers: 1,
+        },
+        bevy::render::render_resource::TextureDimension::D2,
+        data.to_vec(),
         bevy::render::render_resource::TextureFormat::Rgba8UnormSrgb,
         RenderAssetUsages::RENDER_WORLD,
     );
@@ -199,22 +396,25 @@ pub fn render_images_system(
 
         if let Some(texture) = cache.get_texture(placement.id) {
             // Calculate pixel position from grid coordinates
-            let x = placement.x as f32 * metrics.cell_width;
-            let y = placement.y as f32 * metrics.cell_height;
+            let (x, y) = metrics.grid_to_screen(placement.x, placement.y);
 
             // Calculate sprite size based on cell dimensions
             let width = placement.width_cells as f32 * metrics.cell_width;
             let height = placement.height_cells as f32 * metrics.cell_height;
 
             debug!(
-                "Rendering image {} at ({}, {}) with size {}x{}",
-                placement.id, x, y, width, height
+                "Rendering image {} at ({}, {}) with size {}x{} (grid: {},{} cells: {}x{})",
+                placement.id, x, y, width, height, placement.x, placement.y,
+                placement.width_cells, placement.height_cells
             );
 
+            // Spawn sprite with anchor at top-left
+            // Bevy sprites are centered by default, so we offset by half the size
             commands.spawn((
                 Sprite {
                     image: texture.clone(),
                     custom_size: Some(Vec2::new(width, height)),
+                    anchor: bevy::sprite::Anchor::TopLeft,
                     ..default()
                 },
                 Transform::from_xyz(x, -y, IMAGE_Z_INDEX),
@@ -414,18 +614,16 @@ mod tests {
     fn test_image_cache_update_placements() {
         let mut cache = ImageCache::new();
 
-        let placements = vec![
-            ImagePlacement {
-                id: 1,
-                x: 0,
-                y: 0,
-                width_cells: 10,
-                height_cells: 5,
-                shm_offset: 0,
-                shm_size: 1000,
-                format: ProtocolImageFormat::Png,
-            },
-        ];
+        let placements = vec![ImagePlacement {
+            id: 1,
+            x: 0,
+            y: 0,
+            width_cells: 10,
+            height_cells: 5,
+            shm_offset: 0,
+            shm_size: 1000,
+            format: ProtocolImageFormat::Png,
+        }];
 
         cache.update_placements(placements);
         assert_eq!(cache.placements.len(), 1);

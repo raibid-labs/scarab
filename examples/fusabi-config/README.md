@@ -38,6 +38,9 @@ let font = {
 |------|-------------|
 | `minimal.fsx` | Simplest possible config |
 | `standard.fsx` | Common configuration options (terminal, font, colors) |
+| `telemetry.fsx` | Configuration with telemetry/logging enabled for debugging |
+| `advanced.fsx` | Advanced configuration with all sections |
+| `custom-theme.fsx` | Custom color theme configuration |
 
 ### Quick Start
 
@@ -66,8 +69,27 @@ All sections are optional. If omitted, defaults are used.
 - **keybindings**: Leader key, shortcuts
 - **plugins**: Enabled plugins
 - **sessions**: Auto-save, restore settings
+- **telemetry**: Logging and observability (opt-in)
 
-See `standard.fsx` for a comprehensive list of fields.
+See `standard.fsx` for a comprehensive list of fields, or `telemetry.fsx` for debugging options.
+
+## Telemetry Configuration
+
+For development and debugging, you can enable telemetry to monitor:
+- Compositor FPS
+- Sequence number changes
+- Dirty region sizes
+- Pane lifecycle events
+
+See `telemetry.fsx` for an example, or use environment variables:
+
+```bash
+# Quick debugging without config changes
+SCARAB_LOG_FPS=5 SCARAB_LOG_PANES=1 cargo run -p scarab-daemon
+
+# Full documentation
+cat ../../docs/TELEMETRY.md
+```
 
 ## Comparison with WezTerm (Lua Config)
 
@@ -97,6 +119,7 @@ let font = {
 
 - ✅ **Phase 1**: TOML config integration (Legacy)
 - ✅ **Phase 2**: Fusabi config loader (Active)
+- ✅ **Telemetry**: Logging and observability configuration
 - 📅 **Phase 3**: Advanced DSL and Host Functions (Planned)
 
 Scarab will automatically prefer `config.fsx` if present. If not, it falls back to defaults (or `config.toml` if supported).

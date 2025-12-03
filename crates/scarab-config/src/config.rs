@@ -15,6 +15,7 @@ pub struct ScarabConfig {
     pub ui: UiConfig,
     pub plugins: PluginConfig,
     pub sessions: SessionConfig,
+    pub telemetry: TelemetryConfig,
 }
 
 impl Default for ScarabConfig {
@@ -27,6 +28,7 @@ impl Default for ScarabConfig {
             ui: UiConfig::default(),
             plugins: PluginConfig::default(),
             sessions: SessionConfig::default(),
+            telemetry: TelemetryConfig::default(),
         }
     }
 }
@@ -64,6 +66,11 @@ impl ScarabConfig {
         // Sessions
         if other.sessions != SessionConfig::default() {
             self.sessions = other.sessions;
+        }
+
+        // Telemetry
+        if other.telemetry != TelemetryConfig::default() {
+            self.telemetry = other.telemetry;
         }
     }
 }
@@ -338,6 +345,94 @@ impl Default for SessionConfig {
     }
 }
 
+/// Telemetry and logging configuration
+///
+/// Controls observability features for development and debugging.
+/// All settings are opt-in (disabled by default) to avoid performance impact.
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
+#[serde(default)]
+pub struct TelemetryConfig {
+    /// Log compositor FPS every N seconds (0 = disabled)
+    ///
+    /// Example: Set to 5 to log FPS stats every 5 seconds
+    /// Output: [INFO] Compositor: 60.2 fps (avg over 5s), 3012 frames
+    pub fps_log_interval_secs: u64,
+
+    /// Log sequence number changes in compositor
+    ///
+    /// Helps debug shared memory synchronization issues
+    /// Output: [DEBUG] Sequence: 1234 -> 1235, dirty_cells: 847
+    pub log_sequence_changes: bool,
+
+    /// Log dirty region sizes when blitting to shared memory
+    ///
+    /// Useful for understanding update patterns and performance
+    /// Output: [DEBUG] Blit: 847 dirty cells (4.2% of grid)
+    pub log_dirty_regions: bool,
+
+    /// Log pane lifecycle events (create, destroy, reader status)
+    ///
+    /// Validates tab/pane flow in the orchestrator
+    /// Output: [INFO] PaneOrchestrator: Pane 1 created, reader task spawned
+    pub log_pane_events: bool,
+}
+
+impl Default for TelemetryConfig {
+    fn default() -> Self {
+        Self {
+            fps_log_interval_secs: 0,
+            log_sequence_changes: false,
+            log_dirty_regions: false,
+            log_pane_events: false,
+        }
+    }
+}
+
+impl TelemetryConfig {
+    /// Create telemetry config from environment variables
+    ///
+    /// Environment variables override config file settings:
+    /// - SCARAB_LOG_FPS=5 - Log FPS every 5 seconds
+    /// - SCARAB_LOG_SEQUENCE=1 - Enable sequence logging
+    /// - SCARAB_LOG_DIRTY=1 - Enable dirty region logging
+    /// - SCARAB_LOG_PANES=1 - Enable pane lifecycle logging
+    pub fn from_env(&self) -> Self {
+        let mut config = self.clone();
+
+        // FPS logging interval
+        if let Ok(val) = std::env::var("SCARAB_LOG_FPS") {
+            if let Ok(secs) = val.parse::<u64>() {
+                config.fps_log_interval_secs = secs;
+            }
+        }
+
+        // Sequence number logging
+        if let Ok(val) = std::env::var("SCARAB_LOG_SEQUENCE") {
+            config.log_sequence_changes = val == "1" || val.to_lowercase() == "true";
+        }
+
+        // Dirty region logging
+        if let Ok(val) = std::env::var("SCARAB_LOG_DIRTY") {
+            config.log_dirty_regions = val == "1" || val.to_lowercase() == "true";
+        }
+
+        // Pane events logging
+        if let Ok(val) = std::env::var("SCARAB_LOG_PANES") {
+            config.log_pane_events = val == "1" || val.to_lowercase() == "true";
+        }
+
+        config
+    }
+
+    /// Check if any telemetry is enabled
+    pub fn is_enabled(&self) -> bool {
+        self.fps_log_interval_secs > 0
+            || self.log_sequence_changes
+            || self.log_dirty_regions
+            || self.log_pane_events
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -366,5 +461,26 @@ mod tests {
         let toml = toml::to_string(&config).unwrap();
         let parsed: ScarabConfig = toml::from_str(&toml).unwrap();
         assert_eq!(config.font.size, parsed.font.size);
+    }
+
+    #[test]
+    fn test_telemetry_default_disabled() {
+        let config = TelemetryConfig::default();
+        assert!(!config.is_enabled());
+        assert_eq!(config.fps_log_interval_secs, 0);
+        assert!(!config.log_sequence_changes);
+        assert!(!config.log_dirty_regions);
+        assert!(!config.log_pane_events);
+    }
+
+    #[test]
+    fn test_telemetry_is_enabled() {
+        let mut config = TelemetryConfig::default();
+        config.fps_log_interval_secs = 5;
+        assert!(config.is_enabled());
+
+        config.fps_log_interval_secs = 0;
+        config.log_pane_events = true;
+        assert!(config.is_enabled());
     }
 }

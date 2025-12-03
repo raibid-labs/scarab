@@ -54,6 +54,87 @@ pub struct SharedState {
 unsafe impl Pod for SharedState {}
 unsafe impl Zeroable for SharedState {}
 
+// Image buffer constants
+/// Maximum number of concurrent image placements
+pub const MAX_IMAGES: usize = 64;
+
+/// Maximum total image buffer size (16MB)
+pub const IMAGE_BUFFER_SIZE: usize = 16 * 1024 * 1024;
+
+/// Shared memory path for image buffer (separate from terminal state)
+pub const IMAGE_SHMEM_PATH: &str = "/scarab_img_shm_v1";
+
+/// Image placement metadata for shared memory
+#[repr(C)]
+#[derive(Copy, Clone)]
+pub struct SharedImagePlacement {
+    /// Unique identifier for this placement
+    pub image_id: u64,
+    /// Column position in terminal grid
+    pub x: u16,
+    /// Row position in terminal grid
+    pub y: u16,
+    /// Width in terminal cells
+    pub width_cells: u16,
+    /// Height in terminal cells
+    pub height_cells: u16,
+    /// Pixel width of decoded image
+    pub pixel_width: u32,
+    /// Pixel height of decoded image
+    pub pixel_height: u32,
+    /// Offset into blob_data buffer
+    pub blob_offset: u32,
+    /// Size of image data in bytes
+    pub blob_size: u32,
+    /// Image format (0=PNG, 1=JPEG, 2=GIF, 3=RGBA)
+    pub format: u8,
+    /// Flags (bit 0: valid/active)
+    pub flags: u8,
+    /// Padding for alignment
+    pub _padding: [u8; 6],
+}
+
+// Manual Pod/Zeroable implementations
+unsafe impl Pod for SharedImagePlacement {}
+unsafe impl Zeroable for SharedImagePlacement {}
+
+impl SharedImagePlacement {
+    /// Check if this placement is valid/active
+    pub const fn is_valid(&self) -> bool {
+        (self.flags & 0x01) != 0
+    }
+
+    /// Mark this placement as valid/active
+    pub fn set_valid(&mut self) {
+        self.flags |= 0x01;
+    }
+
+    /// Mark this placement as invalid/inactive
+    pub fn set_invalid(&mut self) {
+        self.flags &= !0x01;
+    }
+}
+
+/// Shared memory buffer for image data
+#[repr(C)]
+#[derive(Copy, Clone)]
+pub struct SharedImageBuffer {
+    /// Sequence number for synchronization (increment on any change)
+    pub sequence_number: u64,
+    /// Number of active placements
+    pub count: u32,
+    /// Next blob write offset (circular buffer pointer)
+    pub next_blob_offset: u32,
+    /// Image placement metadata array
+    pub placements: [SharedImagePlacement; MAX_IMAGES],
+    /// Raw image blob data (circular buffer)
+    pub blob_data: [u8; IMAGE_BUFFER_SIZE],
+}
+
+// Manual Pod/Zeroable implementations for large array
+unsafe impl Pod for SharedImageBuffer {}
+unsafe impl Zeroable for SharedImageBuffer {}
+
 // Log levels for plugin logging
 #[derive(Debug, Clone, Copy, PartialEq, Eq, rkyv::Archive, rkyv::Serialize, rkyv::Deserialize)]
 #[archive(check_bytes)]
@@ -412,6 +493,12 @@ pub enum DaemonMessage {
         theme_json: alloc::string::String, // Serialized Theme
     },
 
+    // Shell prompt markers update (OSC 133 shell integration)
+    PromptMarkersUpdate {
+        /// List of current prompt markers from daemon
+        markers: alloc::vec::Vec<PromptMarkerInfo>,
+    },
+
     // Event forwarding to clients
     Event(EventMessage),
 }
@@ -584,6 +671,93 @@ pub struct ImagePlacement {
     pub shm_size: usize,
     /// Image format
     pub format: ImageFormat,
+}
+
+/// Shell prompt marker for IPC (OSC 133 shell integration)
+///
+/// This is a simplified, serializable version of the daemon's internal
+/// PromptMarker type. Used to communicate shell integration markers
+/// from daemon to client for features like:
+/// - Semantic prompt navigation (jump to previous/next prompt)
+/// - Command output extraction
+/// - Command duration tracking
+#[derive(Debug, Clone, rkyv::Archive, rkyv::Serialize, rkyv::Deserialize)]
+#[archive(check_bytes)]
+pub struct PromptMarkerInfo {
+    /// Marker type encoded as u8:
+    /// - 0 = PromptStart (OSC 133;A)
+    /// - 1 = CommandStart (OSC 133;B)
+    /// - 2 = CommandExecuted (OSC 133;C)
+    /// - 3 = CommandFinished (OSC 133;D)
+    pub marker_type: u8,
+    /// Absolute line number in scrollback
+    pub line: u32,
+    /// Exit code (only valid for CommandFinished markers)
+    pub exit_code: Option<i32>,
+    /// Timestamp in microseconds since UNIX epoch
+    pub timestamp_micros: u64,
+}
+
+impl PromptMarkerInfo {
+    /// Create a PromptStart marker
+    pub fn prompt_start(line: u32, timestamp_micros: u64) -> Self {
+        Self {
+            marker_type: 0,
+            line,
+            exit_code: None,
+            timestamp_micros,
+        }
+    }
+
+    /// Create a CommandStart marker
+    pub fn command_start(line: u32, timestamp_micros: u64) -> Self {
+        Self {
+            marker_type: 1,
+            line,
+            exit_code: None,
+            timestamp_micros,
+        }
+    }
+
+    /// Create a CommandExecuted marker
+    pub fn command_executed(line: u32, timestamp_micros: u64) -> Self {
+        Self {
+            marker_type: 2,
+            line,
+            exit_code: None,
+            timestamp_micros,
+        }
+    }
+
+    /// Create a CommandFinished marker with exit code
+    pub fn command_finished(line: u32, exit_code: i32, timestamp_micros: u64) -> Self {
+        Self {
+            marker_type: 3,
+            line,
+            exit_code: Some(exit_code),
+            timestamp_micros,
+        }
+    }
+
+    /// Check if this is a PromptStart marker
+    pub fn is_prompt_start(&self) -> bool {
+        self.marker_type == 0
+    }
+
+    /// Check if this is a CommandStart marker
+    pub fn is_command_start(&self) -> bool {
+        self.marker_type == 1
+    }
+
+    /// Check if this is a CommandExecuted marker
+    pub fn is_command_executed(&self) -> bool {
+        self.marker_type == 2
+    }
+
+    /// Check if this is a CommandFinished marker
+    pub fn is_command_finished(&self) -> bool {
+        self.marker_type == 3
+    }
 }
 
 extern crate alloc;

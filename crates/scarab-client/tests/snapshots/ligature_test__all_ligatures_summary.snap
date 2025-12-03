@@ -1,0 +1,30 @@
+---
+source: crates/scarab-client/tests/ligature_test.rs
+expression: snapshot_output
+---
+=== Programming Ligature Test Results ===
+
+Sequence: '=='   | Chars: 2 | Glyphs: 2 | Ligated: false
+Sequence: '!='   | Chars: 2 | Glyphs: 2 | Ligated: false
+Sequence: '==='  | Chars: 3 | Glyphs: 3 | Ligated: false
+Sequence: '!=='  | Chars: 3 | Glyphs: 3 | Ligated: false
+Sequence: '->'   | Chars: 2 | Glyphs: 2 | Ligated: false
+Sequence: '=>'   | Chars: 2 | Glyphs: 2 | Ligated: false
+Sequence: '>='   | Chars: 2 | Glyphs: 2 | Ligated: false
+Sequence: '<='   | Chars: 2 | Glyphs: 2 | Ligated: false
+Sequence: '<-'   | Chars: 2 | Glyphs: 2 | Ligated: false
+Sequence: '::'   | Chars: 2 | Glyphs: 2 | Ligated: false
+Sequence: '++'   | Chars: 2 | Glyphs: 2 | Ligated: false
+Sequence: '--'   | Chars: 2 | Glyphs: 2 | Ligated: false
+Sequence: '&&'   | Chars: 2 | Glyphs: 2 | Ligated: false
+Sequence: '||'   | Chars: 2 | Glyphs: 2 | Ligated: false
+Sequence: '/*'   | Chars: 2 | Glyphs: 2 | Ligated: false
+Sequence: '*/'   | Chars: 2 | Glyphs: 2 | Ligated: false
+Sequence: '//'   | Chars: 2 | Glyphs: 2 | Ligated: false
+Sequence: '...'  | Chars: 3 | Glyphs: 3 | Ligated: false
+Sequence: '..<'  | Chars: 3 | Glyphs: 3 | Ligated: false
+Sequence: '..='  | Chars: 3 | Glyphs: 3 | Ligated: false
+Sequence: '|>'   | Chars: 2 | Glyphs: 2 | Ligated: false
+Sequence: '<|'   | Chars: 2 | Glyphs: 2 | Ligated: false
+Sequence: '>>>'  | Chars: 3 | Glyphs: 3 | Ligated: false
+Sequence: '<<<'  | Chars: 3 | Glyphs: 3 | Ligated: false

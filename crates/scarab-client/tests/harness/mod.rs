@@ -36,6 +36,10 @@ use bevy::ecs::query::{QueryData, QueryFilter};
 use bevy::ecs::schedule::ScheduleLabel;
 
 pub mod mocks;
+pub mod headless;
+
+// Re-export HeadlessHarness for convenience
+pub use headless::HeadlessHarness;
 
 /// A reusable test harness for headless Bevy UI testing.
 ///
@@ -333,7 +337,7 @@ impl HeadlessTestHarness {
     /// let mut images = harness.resource_mut::<Assets<Image>>();
     /// images.add(Image::default());
     /// ```
-    pub fn resource_mut<R: Resource>(&mut self) -> Mut<R> {
+    pub fn resource_mut<R: Resource>(&mut self) -> Mut<'_, R> {
         self.app.world_mut().resource_mut::<R>()
     }
 

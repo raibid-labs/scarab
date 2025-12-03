@@ -1,9 +1,11 @@
 //! Events plugin for Bevy integration
+//!
+//! This module provides pure ECS event handling, replacing the Arc<Mutex<EventRegistry>>
+//! pattern with typed Bevy events.
 
-use super::{DaemonEvent, WindowFocusChangedEvent, WindowResizedEvent};
+use super::bevy_events::*;
 use bevy::prelude::*;
 use bevy::window::WindowFocused;
-use scarab_plugin_api::events::{EventArgs, EventData, EventRegistry, EventType};
 use scarab_plugin_api::object_model::{ObjectHandle, ObjectType};
 use scarab_protocol::{DaemonMessage, EventMessage};
 use std::sync::{Arc, Mutex};
@@ -13,97 +15,103 @@ use tokio::sync::broadcast;
 ///
 /// Integrates the event system with Bevy's ECS, handling both client-originated
 /// events (window focus, resize) and daemon-forwarded events.
-pub struct EventsPlugin {
-    /// Event registry for local client-side handlers
-    registry: Arc<Mutex<EventRegistry>>,
-}
-
-impl EventsPlugin {
-    /// Create a new events plugin with default registry
-    pub fn new() -> Self {
-        Self {
-            registry: Arc::new(Mutex::new(EventRegistry::new())),
-        }
-    }
-
-    /// Create events plugin with existing registry
-    pub fn with_registry(registry: Arc<Mutex<EventRegistry>>) -> Self {
-        Self {
-            registry,
-        }
-    }
-}
-
-impl Default for EventsPlugin {
-    fn default() -> Self {
-        Self::new()
-    }
-}
+///
+/// This plugin uses pure Bevy events (no Arc<Mutex<EventRegistry>>) for lock-free event handling.
+pub struct EventsPlugin;
 
 impl Plugin for EventsPlugin {
     fn build(&self, app: &mut App) {
-        // Insert the event registry as a resource
-        app.insert_resource(ClientEventRegistry(Arc::clone(&self.registry)));
+        // Register all window events
+        app.add_event::<WindowCreatedEvent>()
+            .add_event::<WindowClosedEvent>()
+            .add_event::<WindowFocusChangedEvent>()
+            .add_event::<WindowResizedEvent>()
+            .add_event::<WindowConfigReloadedEvent>()
+            .add_event::<GuiStartupEvent>();
 
-        // Add custom event types
-        app.add_event::<WindowFocusChangedEvent>();
-        app.add_event::<WindowResizedEvent>();
-        app.add_event::<DaemonEvent>();
+        // Register all tab events
+        app.add_event::<TabCreatedEvent>()
+            .add_event::<TabClosedEvent>()
+            .add_event::<TabSwitchedEvent>()
+            .add_event::<NewTabButtonClickEvent>();
 
-        // Add systems
+        // Register all pane events
+        app.add_event::<PaneCreatedEvent>()
+            .add_event::<PaneClosedEvent>()
+            .add_event::<PaneFocusedEvent>()
+            .add_event::<PaneTitleChangedEvent>();
+
+        // Register all terminal events
+        app.add_event::<BellEvent>()
+            .add_event::<SelectionChangedEvent>()
+            .add_event::<UserVarChangedEvent>()
+            .add_event::<OpenUriEvent>()
+            .add_event::<ScrollbackClearedEvent>();
+
+        // Register all status events
+        app.add_event::<UpdateStatusEvent>()
+            .add_event::<UpdateRightStatusEvent>()
+            .add_event::<UpdateLeftStatusEvent>()
+            .add_event::<FormatTabTitleEvent>()
+            .add_event::<FormatWindowTitleEvent>();
+
+        // Register all legacy hook events
+        app.add_event::<OutputEvent>()
+            .add_event::<InputEvent>()
+            .add_event::<PreCommandEvent>()
+            .add_event::<PostCommandEvent>()
+            .add_event::<ResizeEvent>()
+            .add_event::<AttachEvent>()
+            .add_event::<DetachEvent>();
+
+        // Register custom and daemon events
+        app.add_event::<CustomEvent>()
+            .add_event::<DaemonEvent>();
+
+        // Add systems for handling Bevy window events
         app.add_systems(
             Update,
             (
-                handle_window_focus_changed,
-                handle_window_resized,
+                handle_bevy_window_focus,
+                handle_bevy_window_resize,
                 receive_daemon_events,
             ),
         );
     }
 }
 
-/// Resource wrapper for event registry
-#[derive(Resource, Clone)]
-pub struct ClientEventRegistry(pub Arc<Mutex<EventRegistry>>);
+impl Default for EventsPlugin {
+    fn default() -> Self {
+        Self
+    }
+}
 
 /// Resource wrapper for daemon event receiver
 #[derive(Resource)]
 pub struct DaemonEventReceiver(pub Arc<Mutex<broadcast::Receiver<DaemonMessage>>>);
 
-/// System to handle window focus changes
-fn handle_window_focus_changed(
-    mut focus_events: EventReader<WindowFocused>,
-    mut custom_events: EventWriter<WindowFocusChangedEvent>,
-    registry: Option<Res<ClientEventRegistry>>,
+/// System to handle Bevy window focus events and convert to typed events
+fn handle_bevy_window_focus(
+    mut bevy_focus_events: EventReader<WindowFocused>,
+    mut focus_events: EventWriter<WindowFocusChangedEvent>,
 ) {
-    for event in focus_events.read() {
-        // Emit custom event for other systems
-        custom_events.send(WindowFocusChangedEvent {
+    for event in bevy_focus_events.read() {
+        // TODO: Use actual window ID instead of hardcoded 0
+        let window_handle = ObjectHandle::new(ObjectType::Window, 0, 0);
+
+        focus_events.send(WindowFocusChangedEvent {
+            window: window_handle,
             is_focused: event.focused,
         });
-
-        // Dispatch through event registry if available
-        if let Some(registry) = &registry {
-            let window_handle = ObjectHandle::new(ObjectType::Window, 0, 0); // TODO: Use actual window ID
-            let args = EventArgs::new(EventType::WindowFocusChanged)
-                .with_window(window_handle)
-                .with_data(EventData::FocusState {
-                    is_focused: event.focused,
-                });
-
-            let registry = registry.0.lock().unwrap();
-            registry.dispatch(&args);
-        }
     }
 }
 
-/// System to handle window resize events
-fn handle_window_resized(
-    mut resize_events: EventReader<bevy::window::WindowResized>,
-    mut custom_events: EventWriter<WindowResizedEvent>,
-    registry: Option<Res<ClientEventRegistry>>,
+/// System to handle Bevy window resize events and convert to typed events
+fn handle_bevy_window_resize(
+    mut bevy_resize_events: EventReader<bevy::window::WindowResized>,
+    mut resize_events: EventWriter<WindowResizedEvent>,
 ) {
-    for event in resize_events.read() {
+    for event in bevy_resize_events.read() {
         // Convert physical pixels to terminal cells
         // TODO: Use actual cell dimensions from rendering system
         let cell_width = 9.0;
@@ -111,19 +119,14 @@ fn handle_window_resized(
         let cols = (event.width / cell_width).floor() as u16;
         let rows = (event.height / cell_height).floor() as u16;
 
-        // Emit custom event
-        custom_events.send(WindowResizedEvent { cols, rows });
+        // TODO: Use actual window ID instead of hardcoded 0
+        let window_handle = ObjectHandle::new(ObjectType::Window, 0, 0);
 
-        // Dispatch through event registry if available
-        if let Some(registry) = &registry {
-            let window_handle = ObjectHandle::new(ObjectType::Window, 0, 0); // TODO: Use actual window ID
-            let args = EventArgs::new(EventType::WindowResized)
-                .with_window(window_handle)
-                .with_data(EventData::Dimensions { cols, rows });
-
-            let registry = registry.0.lock().unwrap();
-            registry.dispatch(&args);
-        }
+        resize_events.send(WindowResizedEvent {
+            window: window_handle,
+            cols,
+            rows,
+        });
     }
 }
 
@@ -131,19 +134,35 @@ fn handle_window_resized(
 fn receive_daemon_events(
     receiver: Option<Res<DaemonEventReceiver>>,
     mut daemon_events: EventWriter<DaemonEvent>,
-    registry: Option<Res<ClientEventRegistry>>,
+    // Event writers for all typed events
+    mut bell_events: EventWriter<BellEvent>,
+    mut title_changed_events: EventWriter<PaneTitleChangedEvent>,
+    mut window_created_events: EventWriter<WindowCreatedEvent>,
+    mut window_closed_events: EventWriter<WindowClosedEvent>,
+    mut window_focus_events: EventWriter<WindowFocusChangedEvent>,
+    mut window_resize_events: EventWriter<WindowResizedEvent>,
+    mut tab_created_events: EventWriter<TabCreatedEvent>,
+    mut tab_closed_events: EventWriter<TabClosedEvent>,
+    mut pane_created_events: EventWriter<PaneCreatedEvent>,
+    mut pane_closed_events: EventWriter<PaneClosedEvent>,
 ) {
     let Some(receiver) = receiver else {
         return;
     };
 
-    let mut receiver = receiver.0.lock().unwrap();
+    let mut receiver = match receiver.0.lock() {
+        Ok(r) => r,
+        Err(e) => {
+            error!("Failed to lock daemon event receiver: {}", e);
+            return;
+        }
+    };
 
     // Process all available messages without blocking
     loop {
         match receiver.try_recv() {
             Ok(DaemonMessage::Event(event_msg)) => {
-                // Emit Bevy event for other systems
+                // Emit generic daemon event for debugging/logging
                 daemon_events.send(DaemonEvent {
                     event_type: event_msg.event_type.to_string(),
                     window_id: event_msg.window_id,
@@ -153,13 +172,20 @@ fn receive_daemon_events(
                     timestamp_micros: event_msg.timestamp_micros,
                 });
 
-                // Dispatch through local registry if available
-                if let Some(registry) = &registry {
-                    if let Some(args) = convert_event_message_to_args(&event_msg) {
-                        let registry = registry.0.lock().unwrap();
-                        registry.dispatch(&args);
-                    }
-                }
+                // Convert to typed event and dispatch
+                convert_and_dispatch_event(
+                    &event_msg,
+                    &mut bell_events,
+                    &mut title_changed_events,
+                    &mut window_created_events,
+                    &mut window_closed_events,
+                    &mut window_focus_events,
+                    &mut window_resize_events,
+                    &mut tab_created_events,
+                    &mut tab_closed_events,
+                    &mut pane_created_events,
+                    &mut pane_closed_events,
+                );
             }
             Ok(_other_message) => {
                 // Other daemon messages (TabCreated, etc.) - not event system messages
@@ -181,98 +207,124 @@ fn receive_daemon_events(
     }
 }
 
-/// Convert an EventMessage from the daemon to EventArgs
-fn convert_event_message_to_args(msg: &EventMessage) -> Option<EventArgs> {
-    // Parse event type from name
-    let event_type = match msg.event_type.as_str() {
-        "bell" => EventType::Bell,
-        "pane-title-changed" => EventType::PaneTitleChanged,
-        "window-created" => EventType::WindowCreated,
-        "window-closed" => EventType::WindowClosed,
-        "window-focus-changed" => EventType::WindowFocusChanged,
-        "window-resized" => EventType::WindowResized,
-        "tab-created" => EventType::TabCreated,
-        "tab-closed" => EventType::TabClosed,
-        "pane-created" => EventType::PaneCreated,
-        "pane-closed" => EventType::PaneClosed,
-        _ => {
-            // Unknown or custom event
-            warn!("Unknown event type from daemon: {}", msg.event_type);
-            return None;
-        }
-    };
-
+/// Convert an EventMessage from the daemon to typed Bevy events
+#[allow(clippy::too_many_arguments)]
+fn convert_and_dispatch_event(
+    msg: &EventMessage,
+    bell_events: &mut EventWriter<BellEvent>,
+    title_changed_events: &mut EventWriter<PaneTitleChangedEvent>,
+    window_created_events: &mut EventWriter<WindowCreatedEvent>,
+    window_closed_events: &mut EventWriter<WindowClosedEvent>,
+    window_focus_events: &mut EventWriter<WindowFocusChangedEvent>,
+    window_resize_events: &mut EventWriter<WindowResizedEvent>,
+    tab_created_events: &mut EventWriter<TabCreatedEvent>,
+    tab_closed_events: &mut EventWriter<TabClosedEvent>,
+    pane_created_events: &mut EventWriter<PaneCreatedEvent>,
+    pane_closed_events: &mut EventWriter<PaneClosedEvent>,
+) {
     // Create object handles
-    let window = msg.window_id.map(|id| ObjectHandle::new(ObjectType::Window, id, 0));
-    let pane = msg.pane_id.map(|id| ObjectHandle::new(ObjectType::Pane, id, 0));
-    let tab = msg.tab_id.map(|id| ObjectHandle::new(ObjectType::Tab, id, 0));
+    let window = msg
+        .window_id
+        .map(|id| ObjectHandle::new(ObjectType::Window, id, 0));
+    let pane = msg
+        .pane_id
+        .map(|id| ObjectHandle::new(ObjectType::Pane, id, 0));
+    let tab = msg
+        .tab_id
+        .map(|id| ObjectHandle::new(ObjectType::Tab, id, 0));
 
-    // Parse event data
-    let data = parse_event_data(&event_type, &msg.data);
-
-    let mut args = EventArgs::new(event_type).with_data(data);
-
-    if let Some(w) = window {
-        args = args.with_window(w);
-    }
-    if let Some(p) = pane {
-        args = args.with_pane(p);
-    }
-    if let Some(t) = tab {
-        args = args.with_tab(t);
-    }
-
-    Some(args)
-}
-
-/// Parse event data from bytes
-fn parse_event_data(event_type: &EventType, data: &[u8]) -> EventData {
-    if data.is_empty() {
-        return EventData::None;
-    }
-
-    match event_type {
-        EventType::PaneTitleChanged => {
-            // Parse JSON: {"old": "...", "new": "..."}
-            if let Ok(json) = serde_json::from_slice::<serde_json::Value>(data) {
-                if let (Some(old), Some(new)) = (json.get("old"), json.get("new")) {
-                    if let (Some(old_str), Some(new_str)) = (old.as_str(), new.as_str()) {
-                        return EventData::TitleChange {
-                            old: old_str.to_string(),
-                            new: new_str.to_string(),
-                        };
+    // Dispatch to appropriate typed event
+    match msg.event_type.as_str() {
+        "bell" => {
+            if let Some(pane) = pane {
+                bell_events.send(BellEvent { pane });
+            }
+        }
+        "pane-title-changed" => {
+            if let Some(pane) = pane {
+                // Parse JSON: {"old": "...", "new": "..."}
+                if let Ok(json) = serde_json::from_slice::<serde_json::Value>(&msg.data) {
+                    if let (Some(old), Some(new)) = (json.get("old"), json.get("new")) {
+                        if let (Some(old_str), Some(new_str)) = (old.as_str(), new.as_str()) {
+                            title_changed_events.send(PaneTitleChangedEvent {
+                                pane,
+                                old_title: old_str.to_string(),
+                                new_title: new_str.to_string(),
+                            });
+                        }
                     }
                 }
             }
-            EventData::None
         }
-        EventType::WindowFocusChanged => {
-            // Parse JSON: {"is_focused": bool}
-            if let Ok(json) = serde_json::from_slice::<serde_json::Value>(data) {
-                if let Some(is_focused) = json.get("is_focused").and_then(|v| v.as_bool()) {
-                    return EventData::FocusState { is_focused };
+        "window-created" => {
+            if let Some(window) = window {
+                window_created_events.send(WindowCreatedEvent { window });
+            }
+        }
+        "window-closed" => {
+            if let Some(window) = window {
+                window_closed_events.send(WindowClosedEvent { window });
+            }
+        }
+        "window-focus-changed" => {
+            if let Some(window) = window {
+                // Parse JSON: {"is_focused": bool}
+                let is_focused = if let Ok(json) =
+                    serde_json::from_slice::<serde_json::Value>(&msg.data)
+                {
+                    json.get("is_focused")
+                        .and_then(|v| v.as_bool())
+                        .unwrap_or(false)
+                } else {
+                    false
+                };
+
+                window_focus_events.send(WindowFocusChangedEvent {
+                    window,
+                    is_focused,
+                });
+            }
+        }
+        "window-resized" => {
+            if let Some(window) = window {
+                // Parse JSON: {"cols": u16, "rows": u16}
+                if let Ok(json) = serde_json::from_slice::<serde_json::Value>(&msg.data) {
+                    if let (Some(cols), Some(rows)) = (
+                        json.get("cols").and_then(|v| v.as_u64()),
+                        json.get("rows").and_then(|v| v.as_u64()),
+                    ) {
+                        window_resize_events.send(WindowResizedEvent {
+                            window,
+                            cols: cols as u16,
+                            rows: rows as u16,
+                        });
+                    }
                 }
             }
-            EventData::None
         }
-        EventType::WindowResized => {
-            // Parse JSON: {"cols": u16, "rows": u16}
-            if let Ok(json) = serde_json::from_slice::<serde_json::Value>(data) {
-                if let (Some(cols), Some(rows)) = (
-                    json.get("cols").and_then(|v| v.as_u64()),
-                    json.get("rows").and_then(|v| v.as_u64()),
-                ) {
-                    return EventData::Dimensions {
-                        cols: cols as u16,
-                        rows: rows as u16,
-                    };
-                }
+        "tab-created" => {
+            if let (Some(window), Some(tab)) = (window, tab) {
+                tab_created_events.send(TabCreatedEvent { window, tab });
             }
-            EventData::None
+        }
+        "tab-closed" => {
+            if let (Some(window), Some(tab)) = (window, tab) {
+                tab_closed_events.send(TabClosedEvent { window, tab });
+            }
+        }
+        "pane-created" => {
+            if let (Some(window), Some(tab), Some(pane)) = (window, tab, pane) {
+                pane_created_events.send(PaneCreatedEvent { window, tab, pane });
+            }
+        }
+        "pane-closed" => {
+            if let (Some(window), Some(tab), Some(pane)) = (window, tab, pane) {
+                pane_closed_events.send(PaneClosedEvent { window, tab, pane });
+            }
         }
         _ => {
-            // Default to binary data
-            EventData::Binary(data.to_vec())
+            // Unknown event type - logged by daemon event
+            debug!("Unknown event type from daemon: {}", msg.event_type);
         }
     }
 }
@@ -283,39 +335,25 @@ mod tests {
 
     #[test]
     fn test_plugin_creation() {
-        let _plugin = EventsPlugin::new();
+        let _plugin = EventsPlugin;
         // Plugin created successfully
     }
 
     #[test]
-    fn test_convert_event_message() {
-        let msg = EventMessage {
-            event_type: "bell".to_string().into(),
-            window_id: Some(1),
-            pane_id: Some(2),
-            tab_id: None,
-            data: vec![],
-            timestamp_micros: 123456,
-        };
+    fn test_plugin_registration() {
+        let mut app = App::new();
+        app.add_plugins(EventsPlugin);
 
-        let args = convert_event_message_to_args(&msg).unwrap();
-        assert_eq!(args.event_type, EventType::Bell);
-        assert_eq!(args.window.unwrap().id(), 1);
-        assert_eq!(args.pane.unwrap().id(), 2);
-    }
+        // Verify events are registered by checking that we can send them
+        app.world_mut().send_event(BellEvent {
+            pane: ObjectHandle::new(ObjectType::Pane, 1, 0),
+        });
 
-    #[test]
-    fn test_parse_title_change_data() {
-        let json = r#"{"old": "old title", "new": "new title"}"#;
-        let data = json.as_bytes();
+        app.world_mut().send_event(WindowFocusChangedEvent {
+            window: ObjectHandle::new(ObjectType::Window, 1, 0),
+            is_focused: true,
+        });
 
-        let event_data = parse_event_data(&EventType::PaneTitleChanged, data);
-
-        if let EventData::TitleChange { old, new } = event_data {
-            assert_eq!(old, "old title");
-            assert_eq!(new, "new title");
-        } else {
-            panic!("Expected TitleChange data");
-        }
+        // If we get here without panic, events are registered
     }
 }

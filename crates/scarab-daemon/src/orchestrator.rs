@@ -37,11 +37,13 @@ pub struct PaneOrchestrator {
     command_tx: mpsc::UnboundedSender<OrchestratorMessage>,
     /// Channel to receive orchestration commands
     command_rx: Option<mpsc::UnboundedReceiver<OrchestratorMessage>>,
+    /// Enable pane lifecycle event logging
+    log_events: bool,
 }
 
 impl PaneOrchestrator {
     /// Create a new orchestrator
-    pub fn new(session_manager: Arc<SessionManager>) -> Self {
+    pub fn new(session_manager: Arc<SessionManager>, log_events: bool) -> Self {
         let (command_tx, command_rx) = mpsc::unbounded_channel();
 
         Self {
@@ -49,6 +51,7 @@ impl PaneOrchestrator {
             reader_tasks: Arc::new(RwLock::new(HashMap::new())),
             command_tx,
             command_rx: Some(command_rx),
+            log_events,
         }
     }
 
@@ -66,17 +69,30 @@ impl PaneOrchestrator {
         // Spawn readers for all existing panes
         self.spawn_all_readers().await;
 
-        log::info!("PaneOrchestrator started with {} panes", self.reader_tasks.read().len());
+        let pane_count = self.reader_tasks.read().len();
+        if self.log_events {
+            log::info!("PaneOrchestrator: Started with {} panes", pane_count);
+        } else {
+            log::info!("PaneOrchestrator started with {} panes", pane_count);
+        }
 
         // Listen for lifecycle events
         while let Some(msg) = command_rx.recv().await {
             match msg {
                 OrchestratorMessage::PaneCreated(pane_id) => {
-                    log::debug!("Pane {} created, spawning reader", pane_id);
+                    if self.log_events {
+                        log::info!("PaneOrchestrator: Pane {} created, spawning reader", pane_id);
+                    } else {
+                        log::debug!("Pane {} created, spawning reader", pane_id);
+                    }
                     self.spawn_reader_for_pane(pane_id).await;
                 }
                 OrchestratorMessage::PaneDestroyed(pane_id) => {
-                    log::debug!("Pane {} destroyed, stopping reader", pane_id);
+                    if self.log_events {
+                        log::info!("PaneOrchestrator: Pane {} destroyed, stopping reader", pane_id);
+                    } else {
+                        log::debug!("Pane {} destroyed, stopping reader", pane_id);
+                    }
                     self.stop_reader_for_pane(pane_id).await;
                 }
                 OrchestratorMessage::Shutdown => {
@@ -134,17 +150,28 @@ impl PaneOrchestrator {
         }
 
         // Spawn the reader task
-        let handle = tokio::spawn(Self::pane_reader_task(pane));
+        let log_events = self.log_events;
+        let handle = tokio::spawn(Self::pane_reader_task(pane, log_events));
 
         self.reader_tasks.write().insert(pane_id, handle);
-        log::debug!("Spawned reader for pane {}", pane_id);
+
+        if self.log_events {
+            log::info!("PaneOrchestrator: Reader task spawned for pane {}", pane_id);
+        } else {
+            log::debug!("Spawned reader for pane {}", pane_id);
+        }
     }
 
     /// The reader task for a single pane
     /// Reads from PTY and updates TerminalState continuously
-    async fn pane_reader_task(pane: Arc<Pane>) {
+    async fn pane_reader_task(pane: Arc<Pane>, log_events: bool) {
         let pane_id = pane.id;
-        log::debug!("Reader task started for pane {}", pane_id);
+
+        if log_events {
+            log::info!("PaneOrchestrator: Reader task started for pane {}", pane_id);
+        } else {
+            log::debug!("Reader task started for pane {}", pane_id);
+        }
 
         loop {
             // Get the PTY master
@@ -187,7 +214,11 @@ impl PaneOrchestrator {
                 }
                 Ok(Ok(_)) => {
                     // EOF - shell exited
-                    log::info!("PTY EOF for pane {}, shell exited", pane_id);
+                    if log_events {
+                        log::info!("PaneOrchestrator: PTY EOF for pane {}, shell exited", pane_id);
+                    } else {
+                        log::info!("PTY EOF for pane {}, shell exited", pane_id);
+                    }
                     // Wait a bit before retrying (in case pane is restarted)
                     tokio::time::sleep(tokio::time::Duration::from_millis(500)).await;
                 }
@@ -202,14 +233,23 @@ impl PaneOrchestrator {
             }
         }
 
-        log::debug!("Reader task ended for pane {}", pane_id);
+        if log_events {
+            log::info!("PaneOrchestrator: Reader task ended for pane {}", pane_id);
+        } else {
+            log::debug!("Reader task ended for pane {}", pane_id);
+        }
     }
 
     /// Stop the reader task for a specific pane
     async fn stop_reader_for_pane(&self, pane_id: PaneId) {
         if let Some(handle) = self.reader_tasks.write().remove(&pane_id) {
             handle.abort();
-            log::debug!("Stopped reader for pane {}", pane_id);
+
+            if self.log_events {
+                log::info!("PaneOrchestrator: Reader task stopped for pane {}", pane_id);
+            } else {
+                log::debug!("Stopped reader for pane {}", pane_id);
+            }
         }
     }
 

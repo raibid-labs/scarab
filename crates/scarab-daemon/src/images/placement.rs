@@ -3,7 +3,7 @@
 //! Manages the positions and state of images displayed in the terminal.
 //! Handles scrolling, clearing, and coordinate tracking for images.
 
-use super::ImageData;
+use super::{format::detect_image, ImageData};
 use log::debug;
 
 /// A single image placement in the terminal grid
@@ -19,8 +19,14 @@ pub struct ImagePlacement {
     pub width_cells: u16,
     /// Height in terminal cells
     pub height_cells: u16,
+    /// Pixel width of decoded image
+    pub pixel_width: u32,
+    /// Pixel height of decoded image
+    pub pixel_height: u32,
     /// Raw image data (PNG, JPEG, GIF, etc.)
-    pub image_data: Vec<u8>,
+    pub data: Vec<u8>,
+    /// Image format (0=PNG, 1=JPEG, 2=GIF, 3=RGBA)
+    pub format: u8,
 }
 
 /// Manages all active image placements
@@ -46,27 +52,52 @@ impl ImagePlacementState {
     /// # Arguments
     /// * `x` - Column position in terminal grid
     /// * `y` - Row position in terminal grid
-    /// * `data` - Parsed image data from protocol
+    /// * `image_data` - Parsed image data from protocol
     ///
     /// # Returns
     /// The unique ID assigned to this placement
-    pub fn add_placement(&mut self, x: u16, y: u16, data: ImageData) -> u64 {
+    pub fn add_placement(&mut self, x: u16, y: u16, image_data: ImageData) -> u64 {
         let id = self.next_id;
         self.next_id += 1;
 
+        // Detect image format and extract pixel dimensions
+        let (pixel_width, pixel_height, format) = if let Some(meta) = detect_image(&image_data.data) {
+            (meta.width, meta.height, meta.format.to_protocol_u8())
+        } else {
+            // Fallback if detection fails
+            debug!("Failed to detect image format for placement {}", id);
+            (0, 0, 0) // Unknown dimensions, assume PNG
+        };
+
         // Calculate cell dimensions based on ImageSize specifications
         // For now, use simple defaults - client will need to do actual sizing
-        let width_cells = match data.width {
-            super::ImageSize::Auto => 10, // Default to 10 cells wide
+        let width_cells = match image_data.width {
+            super::ImageSize::Auto => {
+                // Auto-calculate based on pixel dimensions
+                // Assume ~10 pixels per cell width
+                if pixel_width > 0 {
+                    ((pixel_width + 9) / 10) as u16
+                } else {
+                    10 // Fallback
+                }
+            }
             super::ImageSize::Cells(n) => n,
-            super::ImageSize::Pixels(_) => 10, // TODO: Convert pixels to cells
+            super::ImageSize::Pixels(px) => ((px + 9) / 10) as u16, // Convert pixels to cells
             super::ImageSize::Percent(_) => 10, // TODO: Calculate from terminal width
         };
 
-        let height_cells = match data.height {
-            super::ImageSize::Auto => 5, // Default to 5 cells high
+        let height_cells = match image_data.height {
+            super::ImageSize::Auto => {
+                // Auto-calculate based on pixel dimensions
+                // Assume ~20 pixels per cell height
+                if pixel_height > 0 {
+                    ((pixel_height + 19) / 20) as u16
+                } else {
+                    5 // Fallback
+                }
+            }
             super::ImageSize::Cells(n) => n,
-            super::ImageSize::Pixels(_) => 5, // TODO: Convert pixels to cells
+            super::ImageSize::Pixels(px) => ((px + 19) / 20) as u16, // Convert pixels to cells
             super::ImageSize::Percent(_) => 5, // TODO: Calculate from terminal height
         };
 
@@ -76,12 +107,15 @@ impl ImagePlacementState {
             y,
             width_cells,
             height_cells,
-            image_data: data.data,
+            pixel_width,
+            pixel_height,
+            data: image_data.data,
+            format,
         };
 
         debug!(
-            "Adding image placement: id={}, pos=({},{}), size=({}x{})",
-            id, x, y, width_cells, height_cells
+            "Adding image placement: id={}, pos=({},{}), cells=({}x{}), pixels=({}x{}), format={}",
+            id, x, y, width_cells, height_cells, pixel_width, pixel_height, format
         );
 
         self.placements.push(placement);
@@ -165,8 +199,17 @@ mod tests {
     use crate::images::ImageSize;
 
     fn make_test_image_data() -> ImageData {
+        // Minimal 1x1 PNG
+        let png_data = vec![
+            0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, // PNG signature
+            0x00, 0x00, 0x00, 0x0D, // IHDR length (13)
+            0x49, 0x48, 0x44, 0x52, // "IHDR"
+            0x00, 0x00, 0x00, 0x01, // Width = 1
+            0x00, 0x00, 0x00, 0x01, // Height = 1
+        ];
+
         ImageData {
-            data: vec![0xFF; 100], // Dummy image data
+            data: png_data,
             width: ImageSize::Cells(10),
             height: ImageSize::Cells(5),
             preserve_aspect_ratio: true,
@@ -190,6 +233,8 @@ mod tests {
         assert_eq!(placement.y, 10);
         assert_eq!(placement.width_cells, 10);
         assert_eq!(placement.height_cells, 5);
+        assert_eq!(placement.pixel_width, 1);
+        assert_eq!(placement.pixel_height, 1);
     }
 
     #[test]
@@ -304,8 +349,10 @@ mod tests {
 
         state.add_placement(0, 0, data);
 
-        // Should use default sizes
-        assert_eq!(state.placements[0].width_cells, 10);
-        assert_eq!(state.placements[0].height_cells, 5);
+        // Should auto-calculate from 1x1 pixel dimensions
+        // 1 pixel wide / 10 = 0.1 cells, rounds up to 1
+        // 1 pixel tall / 20 = 0.05 cells, rounds up to 1
+        assert_eq!(state.placements[0].width_cells, 1);
+        assert_eq!(state.placements[0].height_cells, 1);
     }
 }

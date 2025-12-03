@@ -3,6 +3,8 @@ use scarab_protocol::{Cell, SharedState, GRID_HEIGHT, GRID_WIDTH};
 use std::collections::VecDeque;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
+use std::time::Instant;
+
 /// VTE (Virtual Terminal Emulator) Parser Integration
 ///
 /// This module implements the VTE parser to handle ANSI escape sequences
@@ -16,10 +18,14 @@ use std::sync::Arc;
 /// - Scrollback buffer (10k lines)
 /// - Image protocol support (iTerm2)
 /// - Instance-based grid storage (for multiplexing)
+/// - OSC 133 shell integration markers
 use vte::{Parser, Perform};
 
 /// Maximum scrollback buffer size (10,000 lines)
 const SCROLLBACK_SIZE: usize = 10_000;
+
+/// Maximum images per pane (matches SharedImageBuffer MAX_IMAGES)
+const MAX_IMAGES_PER_PANE: usize = 64;
 
 /// Default colors
 const DEFAULT_FG: u32 = 0xFFCCCCCC; // Light gray
@@ -31,6 +37,29 @@ pub const FLAG_ITALIC: u8 = 1 << 1;
 pub const FLAG_UNDERLINE: u8 = 1 << 2;
 pub const FLAG_INVERSE: u8 = 1 << 3;
 pub const FLAG_DIM: u8 = 1 << 4;
+
+/// Shell prompt marker types (OSC 133)
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PromptMarkerType {
+    /// Prompt start (133;A)
+    PromptStart,
+    /// Command start / input begins (133;B)
+    CommandStart,
+    /// Command executed / output begins (133;C)
+    CommandExecuted,
+    /// Command finished with exit code (133;D)
+    CommandFinished { exit_code: i32 },
+}
+
+/// A shell prompt marker at a specific line
+#[derive(Debug, Clone)]
+pub struct PromptMarker {
+    pub marker_type: PromptMarkerType,
+    /// Absolute line number in scrollback (scrollback lines + current line)
+    pub line: usize,
+    /// Timestamp when marker was recorded
+    pub timestamp: Instant,
+}
 
 /// Current text attributes for rendering
 #[derive(Clone, Copy, Debug)]
@@ -177,6 +206,12 @@ pub struct TerminalState {
     saved_attrs: TextAttributes,
     /// Image placement state for inline images
     pub image_state: ImagePlacementState,
+    /// Shell integration markers (OSC 133)
+    pub prompt_markers: Vec<PromptMarker>,
+    /// Maximum markers to retain
+    pub max_markers: usize,
+    /// Maximum images per pane (for eviction)
+    pub max_images: usize,
 }
 
 impl TerminalState {
@@ -197,6 +232,9 @@ impl TerminalState {
             saved_cursor: (0, 0),
             saved_attrs: TextAttributes::default(),
             image_state: ImagePlacementState::new(),
+            prompt_markers: Vec::new(),
+            max_markers: 1000, // Keep last 1000 markers
+            max_images: MAX_IMAGES_PER_PANE,
         }
     }
 
@@ -254,6 +292,84 @@ impl TerminalState {
     /// Get dimensions
     pub fn dimensions(&self) -> (u16, u16) {
         (self.cols, self.rows)
+    }
+
+    /// Calculate the absolute line number in scrollback
+    ///
+    /// This is used for prompt markers to track their position across scrolling.
+    /// Returns: scrollback_lines + current_y
+    fn absolute_line(&self) -> usize {
+        self.scrollback.len() + self.cursor_y as usize
+    }
+
+    /// Add a shell integration marker at the current cursor position
+    pub fn add_prompt_marker(&mut self, marker_type: PromptMarkerType) {
+        let marker = PromptMarker {
+            marker_type,
+            line: self.absolute_line(),
+            timestamp: Instant::now(),
+        };
+        self.prompt_markers.push(marker);
+
+        // Trim old markers if needed
+        if self.prompt_markers.len() > self.max_markers {
+            self.prompt_markers.remove(0);
+        }
+
+        log::debug!(
+            "Added prompt marker {:?} at line {} (scrollback: {}, cursor_y: {})",
+            marker_type,
+            self.absolute_line(),
+            self.scrollback.len(),
+            self.cursor_y
+        );
+    }
+
+    /// Find the previous prompt from current position
+    pub fn previous_prompt(&self, from_line: usize) -> Option<&PromptMarker> {
+        self.prompt_markers
+            .iter()
+            .rev()
+            .find(|m| m.line < from_line && matches!(m.marker_type, PromptMarkerType::PromptStart))
+    }
+
+    /// Find the next prompt from current position
+    pub fn next_prompt(&self, from_line: usize) -> Option<&PromptMarker> {
+        self.prompt_markers
+            .iter()
+            .find(|m| m.line > from_line && matches!(m.marker_type, PromptMarkerType::PromptStart))
+    }
+
+    /// Get all prompt markers
+    pub fn prompt_markers(&self) -> &[PromptMarker] {
+        &self.prompt_markers
+    }
+
+    /// Add an image placement from iTerm2 parser
+    ///
+    /// Automatically evicts oldest image if at max_images limit.
+    pub fn add_image(&mut self, image_data: crate::images::ImageData) {
+        // Evict oldest if at limit
+        if self.image_state.len() >= self.max_images {
+            if let Some(oldest) = self.image_state.placements.first() {
+                let oldest_id = oldest.id;
+                self.image_state.remove_placement(oldest_id);
+                log::debug!("Evicted oldest image {} (at limit {})", oldest_id, self.max_images);
+            }
+        }
+
+        let id = self.image_state.add_placement(
+            self.cursor_x,
+            self.cursor_y,
+            image_data,
+        );
+
+        log::debug!("Added image placement {} at ({}, {})", id, self.cursor_x, self.cursor_y);
+    }
+
+    /// Clear all images (called on RIS/full reset)
+    pub fn clear_images(&mut self) {
+        self.image_state.clear();
     }
 
     /// Process PTY output through the VTE parser
@@ -369,7 +485,7 @@ impl TerminalState {
         self.cursor_y = 0;
 
         // Clear image placements when clearing screen
-        self.image_state.clear();
+        self.clear_images();
     }
 
     /// Clear from cursor to end of line
@@ -496,13 +612,48 @@ impl Perform for TerminalState {
 
     fn osc_dispatch(&mut self, params: &[&[u8]], _bell_terminated: bool) {
         // Handle OSC sequences
-
-        // Check for iTerm2 image protocol: OSC 1337
         if params.is_empty() {
             return;
         }
 
         let first = params[0];
+
+        // Handle OSC 133 - Shell Integration (FinalTerm/VS Code)
+        if first == b"133" {
+            if let Some(code) = params.get(1) {
+                match *code {
+                    b"A" => {
+                        // Prompt start
+                        self.add_prompt_marker(PromptMarkerType::PromptStart);
+                    }
+                    b"B" => {
+                        // Command start / input begins
+                        self.add_prompt_marker(PromptMarkerType::CommandStart);
+                    }
+                    b"C" => {
+                        // Command executed / output begins
+                        self.add_prompt_marker(PromptMarkerType::CommandExecuted);
+                    }
+                    b"D" => {
+                        // Command finished with exit code
+                        // Exit code may be in params[2] in format "D;exit_code"
+                        let exit_code = if params.len() > 2 {
+                            std::str::from_utf8(params[2])
+                                .ok()
+                                .and_then(|s| s.parse().ok())
+                                .unwrap_or(0)
+                        } else {
+                            0
+                        };
+                        self.add_prompt_marker(PromptMarkerType::CommandFinished { exit_code });
+                    }
+                    _ => {
+                        log::debug!("Unknown OSC 133 code: {:?}", code);
+                    }
+                }
+            }
+            return;
+        }
 
         // Handle OSC 1337 - iTerm2 image protocol
         if first == b"1337" {
@@ -522,20 +673,12 @@ impl Perform for TerminalState {
             }
 
             if let Some(image_data) = parse_iterm2_image(&payload) {
-                let id = self.image_state.add_placement(
-                    self.cursor_x,
-                    self.cursor_y,
-                    image_data.clone(),
-                );
-                log::debug!(
-                    "Added image placement {} at ({}, {})",
-                    id,
-                    self.cursor_x,
-                    self.cursor_y
-                );
+                // Use the new add_image method which handles eviction
+                let do_not_move_cursor = image_data.do_not_move_cursor;
+                self.add_image(image_data);
 
                 // Move cursor if needed (unless doNotMoveCursor is set)
-                if !image_data.do_not_move_cursor {
+                if !do_not_move_cursor {
                     // For now, just move to next line
                     // TODO: Calculate actual cursor movement based on image size
                     self.cursor_y += 1;
@@ -615,7 +758,7 @@ impl Perform for TerminalState {
                         }
                     }
                     2 => {
-                        // Clear entire screen
+                        // Clear entire screen (RIS - Reset Initial State)
                         self.clear_screen();
                     }
                     _ => {}
@@ -743,5 +886,161 @@ mod tests {
         // Test grayscale
         let gray = color_256_to_rgba(232);
         assert!(gray != 0);
+    }
+
+    #[test]
+    fn test_osc_133_parsing() {
+        let mut state = TerminalState::new(80, 24);
+
+        // Simulate OSC 133;A (Prompt Start)
+        state.osc_dispatch(&[b"133", b"A"], true);
+        assert_eq!(state.prompt_markers.len(), 1);
+        assert!(matches!(
+            state.prompt_markers[0].marker_type,
+            PromptMarkerType::PromptStart
+        ));
+
+        // Simulate OSC 133;B (Command Start)
+        state.osc_dispatch(&[b"133", b"B"], true);
+        assert_eq!(state.prompt_markers.len(), 2);
+        assert!(matches!(
+            state.prompt_markers[1].marker_type,
+            PromptMarkerType::CommandStart
+        ));
+
+        // Simulate OSC 133;C (Command Executed)
+        state.osc_dispatch(&[b"133", b"C"], true);
+        assert_eq!(state.prompt_markers.len(), 3);
+        assert!(matches!(
+            state.prompt_markers[2].marker_type,
+            PromptMarkerType::CommandExecuted
+        ));
+
+        // Simulate OSC 133;D;0 (Command Finished with exit code 0)
+        state.osc_dispatch(&[b"133", b"D", b"0"], true);
+        assert_eq!(state.prompt_markers.len(), 4);
+        if let PromptMarkerType::CommandFinished { exit_code } = state.prompt_markers[3].marker_type {
+            assert_eq!(exit_code, 0);
+        } else {
+            panic!("Expected CommandFinished marker");
+        }
+
+        // Simulate OSC 133;D;127 (Command Finished with exit code 127)
+        state.osc_dispatch(&[b"133", b"D", b"127"], true);
+        assert_eq!(state.prompt_markers.len(), 5);
+        if let PromptMarkerType::CommandFinished { exit_code } = state.prompt_markers[4].marker_type {
+            assert_eq!(exit_code, 127);
+        } else {
+            panic!("Expected CommandFinished marker");
+        }
+    }
+
+    #[test]
+    fn test_prompt_navigation() {
+        let mut state = TerminalState::new(80, 24);
+
+        // Add several prompt markers at different lines
+        state.cursor_y = 0;
+        state.add_prompt_marker(PromptMarkerType::PromptStart);
+
+        state.cursor_y = 5;
+        state.add_prompt_marker(PromptMarkerType::PromptStart);
+
+        state.cursor_y = 10;
+        state.add_prompt_marker(PromptMarkerType::PromptStart);
+
+        // Test previous_prompt
+        let prev = state.previous_prompt(7);
+        assert!(prev.is_some());
+        assert_eq!(prev.unwrap().line, 5);
+
+        // Test next_prompt
+        let next = state.next_prompt(7);
+        assert!(next.is_some());
+        assert_eq!(next.unwrap().line, 10);
+    }
+
+    #[test]
+    fn test_marker_limit() {
+        let mut state = TerminalState::new(80, 24);
+        state.max_markers = 10; // Set a low limit for testing
+
+        // Add more markers than the limit
+        for i in 0..15 {
+            state.cursor_y = i as u16;
+            state.add_prompt_marker(PromptMarkerType::PromptStart);
+        }
+
+        // Should have exactly max_markers
+        assert_eq!(state.prompt_markers.len(), 10);
+
+        // First marker should be the 6th one added (0-indexed 5th)
+        assert_eq!(state.prompt_markers[0].line, 5);
+    }
+
+    #[test]
+    fn test_image_eviction() {
+        let mut state = TerminalState::new(80, 24);
+        state.max_images = 3; // Set low limit for testing
+
+        // Create minimal test image data
+        let make_image = || crate::images::ImageData {
+            data: vec![
+                0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, // PNG signature
+                0x00, 0x00, 0x00, 0x0D, // IHDR length (13)
+                0x49, 0x48, 0x44, 0x52, // "IHDR"
+                0x00, 0x00, 0x00, 0x01, // Width = 1
+                0x00, 0x00, 0x00, 0x01, // Height = 1
+            ],
+            width: crate::images::ImageSize::Auto,
+            height: crate::images::ImageSize::Auto,
+            preserve_aspect_ratio: true,
+            inline: true,
+            do_not_move_cursor: true,
+            filename: None,
+        };
+
+        // Add 4 images - should evict first one
+        state.add_image(make_image());
+        state.add_image(make_image());
+        state.add_image(make_image());
+        assert_eq!(state.image_state.len(), 3);
+
+        state.add_image(make_image());
+        assert_eq!(state.image_state.len(), 3); // Still at limit
+
+        // First image should have been evicted (ID 1)
+        // Remaining should be IDs 2, 3, 4
+        assert_eq!(state.image_state.placements[0].id, 2);
+        assert_eq!(state.image_state.placements[1].id, 3);
+        assert_eq!(state.image_state.placements[2].id, 4);
+    }
+
+    #[test]
+    fn test_clear_images() {
+        let mut state = TerminalState::new(80, 24);
+
+        let make_image = || crate::images::ImageData {
+            data: vec![
+                0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A,
+                0x00, 0x00, 0x00, 0x0D,
+                0x49, 0x48, 0x44, 0x52,
+                0x00, 0x00, 0x00, 0x01,
+                0x00, 0x00, 0x00, 0x01,
+            ],
+            width: crate::images::ImageSize::Auto,
+            height: crate::images::ImageSize::Auto,
+            preserve_aspect_ratio: true,
+            inline: true,
+            do_not_move_cursor: true,
+            filename: None,
+        };
+
+        state.add_image(make_image());
+        state.add_image(make_image());
+        assert_eq!(state.image_state.len(), 2);
+
+        state.clear_images();
+        assert_eq!(state.image_state.len(), 0);
     }
 }

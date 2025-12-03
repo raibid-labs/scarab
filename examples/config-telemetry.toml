@@ -1,0 +1,58 @@
+# Scarab Configuration Example with Telemetry
+#
+# This shows telemetry/logging configuration in TOML format.
+# Note: Fusabi (.fsx) config is recommended over TOML.
+#
+# Usage: Copy to ~/.config/scarab/config.toml
+
+[terminal]
+default_shell = "/bin/zsh"
+scrollback_lines = 10000
+alt_screen = true
+scroll_multiplier = 3.0
+auto_scroll = true
+columns = 120
+rows = 40
+
+[font]
+family = "JetBrains Mono"
+size = 14.0
+line_height = 1.2
+fallback = ["Fira Code", "Hack", "monospace"]
+bold_is_bright = true
+use_thin_strokes = false
+
+[colors]
+theme = "dracula"
+opacity = 0.95
+dim_opacity = 0.7
+
+[ui]
+link_hints = true
+command_palette = true
+animations = true
+smooth_scroll = true
+show_tabs = true
+cursor_blink = true
+
+# Telemetry configuration for development and debugging
+# All settings are opt-in (disabled by default for performance)
+[telemetry]
+# Log compositor FPS every N seconds (0 = disabled)
+# Output: [INFO] Compositor: 60.2 fps (avg over 5s), 3012 frames
+fps_log_interval_secs = 5
+
+# Log sequence number changes in compositor
+# Helps debug shared memory synchronization issues
+# Output: [DEBUG] Sequence: 1234 -> 1235
+log_sequence_changes = true
+
+# Log dirty region sizes when blitting to shared memory
+# Useful for understanding update patterns
+# Output: [DEBUG] Blit: 847 dirty cells (4.2% of grid)
+log_dirty_regions = false
+
+# Log pane lifecycle events (create, destroy, reader tasks)
+# Validates tab/pane flow in the orchestrator
+# Output: [INFO] PaneOrchestrator: Pane 1 created, reader task spawned
+log_pane_events = true
