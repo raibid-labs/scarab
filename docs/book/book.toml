@@ -1,0 +1,18 @@
+[book]
+title = "Scarab Terminal Emulator"
+authors = ["Raibid Labs"]
+description = "High-performance, split-process terminal emulator"
+language = "en"
+src = "src"
+
+[build]
+build-dir = "build"
+
+[output.html]
+default-theme = "rust"
+preferred-dark-theme = "ayu"
+git-repository-url = "https://github.com/raibid-labs/scarab"
+edit-url-template = "https://github.com/raibid-labs/scarab/edit/main/docs/book/{path}"
+
+# Uncomment when mdbook-linkcheck is installed
+# [output.linkcheck]

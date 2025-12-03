@@ -78,6 +78,7 @@ Welcome to the Scarab terminal emulator documentation.
 
 ## Testing
 
+- [**TESTING.md**](../TESTING.md) - **Comprehensive testing guide (START HERE)**
 - [Testing Guide](./testing-guide.md) - How to run tests
 - [Headless Testing Quickstart](./testing/HEADLESS_TESTING_QUICKSTART.md) - Automated testing
 - [Headless POC Results](./testing/HEADLESS_POC_RESULTS.md) - Test infrastructure validation

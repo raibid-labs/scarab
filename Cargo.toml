@@ -15,6 +15,7 @@ members = [
     "crates/scarab-clipboard",
     "crates/scarab-mouse",
     "crates/scarab-themes",
+    "crates/scarab-telemetry-hud",
 ]
 
 [workspace.package]

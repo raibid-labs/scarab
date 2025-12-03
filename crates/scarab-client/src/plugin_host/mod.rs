@@ -362,7 +362,7 @@ fn process_plugin_actions(
                 );
 
                 // Emit EnterHintModeEvent to trigger hint mode
-                commands.add(|world: &mut World| {
+                commands.queue(|world: &mut World| {
                     world.send_event(EnterHintModeEvent);
                 });
 
@@ -379,7 +379,7 @@ fn process_plugin_actions(
                 );
 
                 // Emit ExitHintModeEvent to exit hint mode
-                commands.add(|world: &mut World| {
+                commands.queue(|world: &mut World| {
                     world.send_event(ExitHintModeEvent);
                 });
 

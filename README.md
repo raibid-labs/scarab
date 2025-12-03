@@ -405,6 +405,7 @@ Plugin.Register {
 ### Project Documentation
 - **[ROADMAP.md](./ROADMAP.md)** - Strategic development roadmap (Phases 1-10)
 - **[CLAUDE.md](./CLAUDE.md)** - Architecture overview and build commands
+- **[TESTING.md](./TESTING.md)** - Comprehensive testing guide
 - **[IMPLEMENTATION_SUMMARY.md](./IMPLEMENTATION_SUMMARY.md)** - Technical implementation details
 - **[MIGRATION_GUIDE.md](./MIGRATION_GUIDE.md)** - Bevy 0.15 migration guide
 - **[docs/PLUGIN_DOCK_IMPLEMENTATION.md](./docs/PLUGIN_DOCK_IMPLEMENTATION.md)** - Plugin Dock & Menu system

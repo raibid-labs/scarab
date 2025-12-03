@@ -278,9 +278,27 @@ clippy:
 clippy-fix:
     cargo clippy --workspace --fix --allow-dirty --allow-staged
 
-# Build documentation
+# Build Rust API documentation
 doc:
     cargo doc --workspace --no-deps --open
+
+# Build documentation book
+docs-build:
+    #!/usr/bin/env bash
+    if ! command -v mdbook &> /dev/null; then
+        echo "Error: mdbook not found. Install with: cargo install mdbook"
+        exit 1
+    fi
+    cd docs/book && mdbook build
+
+# Serve documentation locally with live reload
+docs-serve:
+    #!/usr/bin/env bash
+    if ! command -v mdbook &> /dev/null; then
+        echo "Error: mdbook not found. Install with: cargo install mdbook"
+        exit 1
+    fi
+    cd docs/book && mdbook serve --open
 
 # Check dependency tree
 tree:

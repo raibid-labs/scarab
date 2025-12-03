@@ -6787,6 +6787,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "scarab-telemetry-hud"
+version = "0.1.0-alpha.15"
+dependencies = [
+ "bevy",
+ "log",
+ "scarab-plugin-api",
+]
+
+[[package]]
 name = "scarab-themes"
 version = "0.1.0-alpha.15"
 dependencies = [

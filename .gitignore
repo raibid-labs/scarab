@@ -53,6 +53,7 @@ yarn.lock
 # Documentation build
 /book/
 /mdbook/
+docs/book/build/
 
 # OS
 Thumbs.db
