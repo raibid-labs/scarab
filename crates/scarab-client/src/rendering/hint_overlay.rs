@@ -35,6 +35,7 @@ use bevy::prelude::*;
 use crate::navigation::{
     EnterHintModeEvent, ExitHintModeEvent, NavHint, NavState, NavSystemSet,
 };
+use super::layers::LAYER_HINTS;
 
 // ==================== Components ====================
 
@@ -59,7 +60,7 @@ pub struct HintOverlay {
     /// True if this hint matches the current filter input
     pub matched: bool,
 
-    /// Z-layer for rendering order (default 200.0)
+    /// Z-layer for rendering order (uses LAYER_HINTS constant)
     pub z_layer: f32,
 
     /// Reference to the NavHint entity this overlay represents
@@ -74,7 +75,7 @@ impl Default for HintOverlay {
             background_color: Color::srgba(1.0, 0.75, 0.0, 0.9), // Amber/yellow
             text_color: Color::srgb(0.0, 0.0, 0.0), // Black
             matched: false,
-            z_layer: 200.0,
+            z_layer: LAYER_HINTS,
             nav_hint_entity: Entity::PLACEHOLDER,
         }
     }
@@ -149,7 +150,7 @@ pub struct HintOverlayConfig {
     /// Opacity for dimmed hints (0.0 to 1.0)
     pub dimmed_opacity: f32,
 
-    /// Z-layer for hint overlays (above terminal, below modals)
+    /// Z-layer for hint overlays (uses LAYER_HINTS: above images, below modals)
     pub z_layer: f32,
 }
 
@@ -165,7 +166,7 @@ impl Default for HintOverlayConfig {
             padding: Vec2::new(6.0, 4.0),
             border_radius: 3.0,
             dimmed_opacity: 0.4,
-            z_layer: 200.0,
+            z_layer: LAYER_HINTS,
         }
     }
 }
@@ -527,7 +528,7 @@ mod tests {
         assert_eq!(overlay.label, "");
         assert_eq!(overlay.position, Vec2::ZERO);
         assert!(!overlay.matched);
-        assert_eq!(overlay.z_layer, 200.0);
+        assert_eq!(overlay.z_layer, LAYER_HINTS);
     }
 
     #[test]
@@ -542,7 +543,7 @@ mod tests {
     fn test_config_default() {
         let config = HintOverlayConfig::default();
         assert_eq!(config.font_size, 14.0);
-        assert_eq!(config.z_layer, 200.0);
+        assert_eq!(config.z_layer, LAYER_HINTS);
         assert_eq!(config.padding, Vec2::new(6.0, 4.0));
     }
 

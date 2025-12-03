@@ -78,7 +78,7 @@ pub use plugin_host::{
 pub use navigation::{
     EnterHintModeEvent, ExitHintModeEvent, FocusChangedEvent, NavAction, NavActionEvent, NavFocus,
     NavGroup, NavHint, NavMetrics, NavMetricsPlugin, NavMetricsReport, NavMode, NavState,
-    NavSystemSet, NavigationPlugin,
+    NavStateRegistry, NavSystemSet, NavigationPlugin,
 };
 
 // Re-export prompt markers system

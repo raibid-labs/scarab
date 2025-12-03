@@ -37,7 +37,8 @@ mod registry;
 pub use registry::*;
 
 use bevy::prelude::*;
-use crate::events::{NotificationLevel, PluginAction, PluginResponse};
+use crate::events::{NavFocusableAction, NotificationLevel, PluginAction, PluginResponse};
+use crate::navigation::{EnterHintModeEvent, ExitHintModeEvent, FocusableRegion, FocusableType, FocusableSource, NavAction};
 use crate::ratatui_bridge::RatatuiSurface;
 
 /// Plugin providing ECS-safe plugin hosting capabilities
@@ -344,6 +345,140 @@ fn process_plugin_actions(
 
                 // TODO: Spawn modal UI entity
             }
+
+            PluginAction::NavEnterHintMode { plugin_id } => {
+                if !registry.is_enabled(plugin_id) {
+                    responses.send(PluginResponse::Error {
+                        plugin_id: plugin_id.clone(),
+                        action: "NavEnterHintMode".to_string(),
+                        message: "Plugin is disabled".into(),
+                    });
+                    continue;
+                }
+
+                info!(
+                    plugin_id = %plugin_id,
+                    "Plugin entering hint mode"
+                );
+
+                // Emit EnterHintModeEvent to trigger hint mode
+                commands.add(|world: &mut World| {
+                    world.send_event(EnterHintModeEvent);
+                });
+
+                // Send success response
+                responses.send(PluginResponse::NavModeEntered {
+                    plugin_id: plugin_id.clone(),
+                });
+            }
+
+            PluginAction::NavExitMode { plugin_id } => {
+                info!(
+                    plugin_id = %plugin_id,
+                    "Plugin exiting navigation mode"
+                );
+
+                // Emit ExitHintModeEvent to exit hint mode
+                commands.add(|world: &mut World| {
+                    world.send_event(ExitHintModeEvent);
+                });
+
+                // Send success response
+                responses.send(PluginResponse::NavModeExited {
+                    plugin_id: plugin_id.clone(),
+                });
+            }
+
+            PluginAction::NavRegisterFocusable {
+                plugin_id,
+                x,
+                y,
+                width,
+                height,
+                label,
+                action,
+            } => {
+                if !registry.is_enabled(plugin_id) {
+                    responses.send(PluginResponse::Error {
+                        plugin_id: plugin_id.clone(),
+                        action: "NavRegisterFocusable".to_string(),
+                        message: "Plugin is disabled".into(),
+                    });
+                    continue;
+                }
+
+                // Allocate a unique focusable ID
+                let focusable_id = registry.next_overlay_id(); // Reuse overlay ID counter
+
+                info!(
+                    plugin_id = %plugin_id,
+                    focusable_id = focusable_id,
+                    x = x,
+                    y = y,
+                    width = width,
+                    height = height,
+                    label = %label,
+                    "Plugin registering focusable region"
+                );
+
+                // Convert plugin action to navigation action
+                let nav_action = match action {
+                    NavFocusableAction::OpenUrl(url) => NavAction::Open(url.clone()),
+                    NavFocusableAction::OpenFile(path) => NavAction::Open(path.clone()),
+                    NavFocusableAction::Custom(action_name) => {
+                        // For custom actions, we'll use Cancel as placeholder
+                        // In production, this would trigger a plugin callback
+                        warn!(
+                            plugin_id = %plugin_id,
+                            action_name = %action_name,
+                            "Custom navigation actions not yet implemented, using Cancel"
+                        );
+                        NavAction::Cancel
+                    }
+                };
+
+                // Spawn FocusableRegion entity
+                commands.spawn(FocusableRegion {
+                    region_type: FocusableType::Widget, // Plugin-registered focusables are widgets
+                    grid_start: (*x, *y),
+                    grid_end: (*x + *width, *y + *height),
+                    content: label.clone(),
+                    source: FocusableSource::Ratatui, // Mark as plugin/UI source
+                    screen_position: None, // Will be calculated by bounds_to_world_coords
+                });
+
+                // Track in registry (store as overlay for lifecycle management)
+                registry.add_overlay(plugin_id, focusable_id);
+
+                // Send success response
+                responses.send(PluginResponse::NavFocusableRegistered {
+                    plugin_id: plugin_id.clone(),
+                    focusable_id,
+                });
+            }
+
+            PluginAction::NavUnregisterFocusable {
+                plugin_id,
+                focusable_id,
+            } => {
+                info!(
+                    plugin_id = %plugin_id,
+                    focusable_id = focusable_id,
+                    "Plugin unregistering focusable region"
+                );
+
+                // Remove from registry
+                registry.remove_overlay(plugin_id, *focusable_id);
+
+                // The actual entity cleanup will happen via cleanup_removed_overlays system
+                // which already handles despawning entities not in the registry
+
+                // Send success response
+                responses.send(PluginResponse::NavFocusableUnregistered {
+                    plugin_id: plugin_id.clone(),
+                    focusable_id: *focusable_id,
+                });
+            }
         }
     }
 }
@@ -566,5 +701,216 @@ mod tests {
             .iter(app.world())
             .count();
         assert_eq!(notifications, 0);
+    }
+
+    #[test]
+    fn test_nav_enter_hint_mode() {
+        let mut app = App::new();
+        app.add_plugins(ScarabPluginHostPlugin);
+        app.add_plugins(MinimalPlugins);
+
+        // Add events
+        app.add_event::<PluginAction>();
+        app.add_event::<PluginResponse>();
+        app.add_event::<EnterHintModeEvent>();
+
+        // Register a test plugin
+        let mut registry = app.world_mut().resource_mut::<PluginRegistry>();
+        registry.register(
+            "test.plugin".to_string(),
+            "Test Plugin".to_string(),
+            "1.0.0".to_string(),
+        );
+        drop(registry);
+
+        // Send NavEnterHintMode action
+        app.world_mut()
+            .send_event(PluginAction::NavEnterHintMode {
+                plugin_id: "test.plugin".to_string(),
+            });
+
+        // Run systems
+        app.update();
+
+        // Check that response was sent
+        let mut response_reader = app.world_mut().resource_mut::<Events<PluginResponse>>();
+        let mut reader = response_reader.get_reader();
+        let responses: Vec<_> = reader.read(&response_reader).cloned().collect();
+        assert_eq!(responses.len(), 1);
+
+        match &responses[0] {
+            PluginResponse::NavModeEntered { plugin_id } => {
+                assert_eq!(plugin_id, "test.plugin");
+            }
+            _ => panic!("Expected NavModeEntered response"),
+        }
+
+        // Check that EnterHintModeEvent was emitted
+        let mut hint_events = app.world_mut().resource_mut::<Events<EnterHintModeEvent>>();
+        let mut hint_reader = hint_events.get_reader();
+        let hint_events_list: Vec<_> = hint_reader.read(&hint_events).collect();
+        assert_eq!(hint_events_list.len(), 1);
+    }
+
+    #[test]
+    fn test_nav_register_focusable() {
+        let mut app = App::new();
+        app.add_plugins(ScarabPluginHostPlugin);
+        app.add_plugins(MinimalPlugins);
+
+        // Add events
+        app.add_event::<PluginAction>();
+        app.add_event::<PluginResponse>();
+
+        // Register a test plugin
+        let mut registry = app.world_mut().resource_mut::<PluginRegistry>();
+        registry.register(
+            "test.plugin".to_string(),
+            "Test Plugin".to_string(),
+            "1.0.0".to_string(),
+        );
+        drop(registry);
+
+        // Send NavRegisterFocusable action
+        app.world_mut()
+            .send_event(PluginAction::NavRegisterFocusable {
+                plugin_id: "test.plugin".to_string(),
+                x: 10,
+                y: 5,
+                width: 20,
+                height: 1,
+                label: "Test Focusable".to_string(),
+                action: NavFocusableAction::OpenUrl("https://example.com".to_string()),
+            });
+
+        // Run systems
+        app.update();
+
+        // Check that FocusableRegion entity was spawned
+        let focusables = app
+            .world_mut()
+            .query::<&FocusableRegion>()
+            .iter(app.world())
+            .count();
+        assert_eq!(focusables, 1);
+
+        // Check the focusable properties
+        let mut query = app.world_mut().query::<&FocusableRegion>();
+        let region = query.single(app.world());
+        assert_eq!(region.grid_start, (10, 5));
+        assert_eq!(region.grid_end, (30, 6));
+        assert_eq!(region.content, "Test Focusable");
+        assert_eq!(region.region_type, FocusableType::Widget);
+        assert_eq!(region.source, FocusableSource::Ratatui);
+
+        // Check that response was sent
+        let mut response_reader = app.world_mut().resource_mut::<Events<PluginResponse>>();
+        let mut reader = response_reader.get_reader();
+        let responses: Vec<_> = reader.read(&response_reader).cloned().collect();
+        assert_eq!(responses.len(), 1);
+
+        match &responses[0] {
+            PluginResponse::NavFocusableRegistered {
+                plugin_id,
+                focusable_id,
+            } => {
+                assert_eq!(plugin_id, "test.plugin");
+                assert_eq!(*focusable_id, 0);
+            }
+            _ => panic!("Expected NavFocusableRegistered response"),
+        }
+    }
+
+    #[test]
+    fn test_nav_exit_mode() {
+        let mut app = App::new();
+        app.add_plugins(ScarabPluginHostPlugin);
+        app.add_plugins(MinimalPlugins);
+
+        // Add events
+        app.add_event::<PluginAction>();
+        app.add_event::<PluginResponse>();
+        app.add_event::<ExitHintModeEvent>();
+
+        // Register a test plugin
+        let mut registry = app.world_mut().resource_mut::<PluginRegistry>();
+        registry.register(
+            "test.plugin".to_string(),
+            "Test Plugin".to_string(),
+            "1.0.0".to_string(),
+        );
+        drop(registry);
+
+        // Send NavExitMode action
+        app.world_mut()
+            .send_event(PluginAction::NavExitMode {
+                plugin_id: "test.plugin".to_string(),
+            });
+
+        // Run systems
+        app.update();
+
+        // Check that response was sent
+        let mut response_reader = app.world_mut().resource_mut::<Events<PluginResponse>>();
+        let mut reader = response_reader.get_reader();
+        let responses: Vec<_> = reader.read(&response_reader).cloned().collect();
+        assert_eq!(responses.len(), 1);
+
+        match &responses[0] {
+            PluginResponse::NavModeExited { plugin_id } => {
+                assert_eq!(plugin_id, "test.plugin");
+            }
+            _ => panic!("Expected NavModeExited response"),
+        }
+
+        // Check that ExitHintModeEvent was emitted
+        let mut exit_events = app.world_mut().resource_mut::<Events<ExitHintModeEvent>>();
+        let mut exit_reader = exit_events.get_reader();
+        let exit_events_list: Vec<_> = exit_reader.read(&exit_events).collect();
+        assert_eq!(exit_events_list.len(), 1);
+    }
+
+    #[test]
+    fn test_nav_disabled_plugin_rejection() {
+        let mut app = App::new();
+        app.add_plugins(ScarabPluginHostPlugin);
+        app.add_plugins(MinimalPlugins);
+
+        // Add events
+        app.add_event::<PluginAction>();
+        app.add_event::<PluginResponse>();
+
+        // Register a test plugin and disable it
+        let mut registry = app.world_mut().resource_mut::<PluginRegistry>();
+        registry.register(
+            "test.plugin".to_string(),
+            "Test Plugin".to_string(),
+            "1.0.0".to_string(),
+        );
+        registry.set_enabled("test.plugin", false);
+        drop(registry);
+
+        // Send NavEnterHintMode action (should be rejected)
+        app.world_mut()
+            .send_event(PluginAction::NavEnterHintMode {
+                plugin_id: "test.plugin".to_string(),
+            });
+
+        // Run systems
+        app.update();
+
+        // Check that error response was sent
+        let mut response_reader = app.world_mut().resource_mut::<Events<PluginResponse>>();
+        let mut reader = response_reader.get_reader();
+        let responses: Vec<_> = reader.read(&response_reader).cloned().collect();
+        assert_eq!(responses.len(), 1);
+
+        match &responses[0] {
+            PluginResponse::Error { plugin_id, message, .. } => {
+                assert_eq!(plugin_id, "test.plugin");
+                assert_eq!(message, "Plugin is disabled");
+            }
+            _ => panic!("Expected Error response"),
+        }
     }
 }

@@ -1,4 +1,5 @@
 use crate::ipc::RemoteMessageEvent;
+use crate::rendering::layers::LAYER_MODALS;
 use bevy::prelude::*;
 use scarab_protocol::{DaemonMessage, LogLevel, NotifyLevel};
 
@@ -65,6 +66,13 @@ fn handle_remote_messages(
                 let pixel_x = *x as f32 * char_width;
                 let pixel_y = *y as f32 * -char_height; // Y is down in terminal, Up in Bevy
 
+                // Use LAYER_MODALS or style.z_index if it's already at modal level
+                let z_layer = if style.z_index >= LAYER_MODALS {
+                    style.z_index
+                } else {
+                    LAYER_MODALS
+                };
+
                 commands.spawn((
                     Text2d::default(),
                     Text::new(text.as_str()),
@@ -79,7 +87,7 @@ fn handle_remote_messages(
                         (style.fg >> 8) as u8,
                         (style.fg) as u8,
                     )),
-                    Transform::from_xyz(pixel_x, pixel_y, style.z_index),
+                    Transform::from_xyz(pixel_x, pixel_y, z_layer),
                     RemoteOverlay { id: *id },
                 ));
             }

@@ -175,6 +175,18 @@ pub enum MenuActionType {
     },
 }
 
+// Navigation focusable action types
+#[derive(Debug, Clone, rkyv::Archive, rkyv::Serialize, rkyv::Deserialize)]
+#[archive(check_bytes)]
+pub enum NavFocusableAction {
+    /// Open a URL in the default browser
+    OpenUrl(alloc::string::String),
+    /// Open a file in the configured editor
+    OpenFile(alloc::string::String),
+    /// Custom plugin-defined action
+    Custom(alloc::string::String),
+}
+
 // Control messages (Sent via Socket/Pipe, not ShMem)
 // Using rkyv for zero-copy serialization
 #[derive(Debug, Clone, rkyv::Archive, rkyv::Serialize, rkyv::Deserialize)]
@@ -285,6 +297,27 @@ pub enum ControlMessage {
         title: alloc::string::String,
         body: alloc::string::String,
         level: NotifyLevel,
+    },
+
+    // Navigation API commands (sent from plugins via client to daemon/client)
+    NavEnterHintMode {
+        plugin_name: alloc::string::String,
+    },
+    NavExitMode {
+        plugin_name: alloc::string::String,
+    },
+    NavRegisterFocusable {
+        plugin_name: alloc::string::String,
+        x: u16,
+        y: u16,
+        width: u16,
+        height: u16,
+        label: alloc::string::String,
+        action: NavFocusableAction,
+    },
+    NavUnregisterFocusable {
+        plugin_name: alloc::string::String,
+        focusable_id: u64,
     },
 }
 
@@ -501,6 +534,22 @@ pub enum DaemonMessage {
 
     // Event forwarding to clients
     Event(EventMessage),
+
+    // Navigation API responses
+    NavFocusableRegistered {
+        plugin_name: alloc::string::String,
+        focusable_id: u64,
+    },
+    NavFocusableUnregistered {
+        plugin_name: alloc::string::String,
+        focusable_id: u64,
+    },
+    NavModeEntered {
+        plugin_name: alloc::string::String,
+    },
+    NavModeExited {
+        plugin_name: alloc::string::String,
+    },
 }
 
 /// Event message for IPC forwarding

@@ -16,6 +16,6 @@ pub use plugin::{DaemonEventReceiver, EventsPlugin};
 
 // Re-export plugin actions (for UI integration)
 pub use plugin_actions::{
-    ModalItem, NotificationLevel, PluginAction, PluginResponse, StatusSide, TerminalCell,
-    TerminalRow,
+    ModalItem, NavFocusableAction, NotificationLevel, PluginAction, PluginResponse, StatusSide,
+    TerminalCell, TerminalRow,
 };

@@ -9,6 +9,7 @@ use std::collections::HashSet;
 
 use super::atlas::{AtlasRect, GlyphAtlas, GlyphKey};
 use super::config::{color, FontConfig, TextAttributes};
+use super::layers::{LAYER_TERMINAL_BG, LAYER_TERMINAL_TEXT, LAYER_TEXT_DECORATIONS};
 
 /// Text renderer resource managing fonts and glyph caching
 #[derive(Resource)]
@@ -286,10 +287,10 @@ fn add_background_quad(
     // bot-left: (x, y+h) bot-right: (x+w, y+h)  <- Wait, this would extend UP!
     // Actually we WANT y-height because our y is already negative for lower rows
     positions.extend_from_slice(&[
-        [x, y, 0.0],
-        [x + width, y, 0.0],
-        [x + width, y - height, 0.0],
-        [x, y - height, 0.0],
+        [x, y, LAYER_TERMINAL_BG],
+        [x + width, y, LAYER_TERMINAL_BG],
+        [x + width, y - height, LAYER_TERMINAL_BG],
+        [x, y - height, LAYER_TERMINAL_BG],
     ]);
 
     // Use provided UV rect (likely white pixel for solid color)
@@ -421,10 +422,10 @@ fn render_glyph(
     let glyph_height = atlas_rect.height as f32;
 
     positions.extend_from_slice(&[
-        [x, y, 0.1], // Slightly above background
-        [x + glyph_width, y, 0.1],
-        [x + glyph_width, y - glyph_height, 0.1],
-        [x, y - glyph_height, 0.1],
+        [x, y, LAYER_TERMINAL_TEXT], // Above background
+        [x + glyph_width, y, LAYER_TERMINAL_TEXT],
+        [x + glyph_width, y - glyph_height, LAYER_TERMINAL_TEXT],
+        [x, y - glyph_height, LAYER_TERMINAL_TEXT],
     ]);
 
     // Use normal UVs (no flip)
@@ -508,10 +509,10 @@ fn add_underline_quad(
     let color_array = color.to_srgba().to_f32_array();
 
     positions.extend_from_slice(&[
-        [x, y, 0.15], // Above glyph
-        [x + width, y, 0.15],
-        [x + width, y - height, 0.15],
-        [x, y - height, 0.15],
+        [x, y, LAYER_TEXT_DECORATIONS], // Above glyph
+        [x + width, y, LAYER_TEXT_DECORATIONS],
+        [x + width, y - height, LAYER_TEXT_DECORATIONS],
+        [x, y - height, LAYER_TEXT_DECORATIONS],
     ]);
 
     uvs.extend_from_slice(&[

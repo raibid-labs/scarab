@@ -170,12 +170,11 @@ pub enum NavAction {
 
 // ==================== Navigation State Resource ====================
 
-/// Global navigation state resource
+/// Per-pane navigation state
 ///
-/// This resource tracks the current navigation mode, mode history stack,
-/// focus history, and hint filtering input. It serves as the central
-/// coordination point for the navigation system.
-#[derive(Resource, Debug, Clone)]
+/// This structure tracks the navigation state for a single pane/session.
+/// Each pane maintains its own independent navigation mode, history, and hint filter.
+#[derive(Debug, Clone)]
 pub struct NavState {
     /// Current active navigation mode
     pub current_mode: NavMode,
@@ -194,6 +193,112 @@ pub struct NavState {
 
     /// Maximum focus history size to prevent unbounded growth
     pub max_history_size: usize,
+}
+
+/// Registry of navigation states, one per pane
+///
+/// This resource maintains isolated navigation states for each pane/session,
+/// ensuring that mode changes and navigation history don't interfere across
+/// different terminal panes.
+///
+/// # Example
+/// ```rust,ignore
+/// fn handle_pane_switch(
+///     mut registry: ResMut<NavStateRegistry>,
+///     event: EventReader<PaneFocusedEvent>,
+/// ) {
+///     for ev in event.read() {
+///         // Switch to the newly focused pane's navigation state
+///         registry.set_active_pane(ev.pane.id());
+///     }
+/// }
+/// ```
+#[derive(Resource, Debug, Clone)]
+pub struct NavStateRegistry {
+    /// Navigation states mapped by PaneId
+    states: std::collections::HashMap<u64, NavState>,
+
+    /// Currently active pane (focus target)
+    active_pane: Option<u64>,
+}
+
+impl Default for NavStateRegistry {
+    fn default() -> Self {
+        Self {
+            states: std::collections::HashMap::new(),
+            active_pane: None,
+        }
+    }
+}
+
+impl NavStateRegistry {
+    /// Create a new empty registry
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// Set the active pane and ensure it has a NavState
+    pub fn set_active_pane(&mut self, pane_id: u64) {
+        self.active_pane = Some(pane_id);
+        // Ensure the pane has a NavState entry
+        self.states.entry(pane_id).or_insert_with(NavState::default);
+    }
+
+    /// Get the currently active pane ID
+    pub fn active_pane(&self) -> Option<u64> {
+        self.active_pane
+    }
+
+    /// Get a reference to the active pane's NavState
+    pub fn get_active(&self) -> Option<&NavState> {
+        self.active_pane.and_then(|id| self.states.get(&id))
+    }
+
+    /// Get a mutable reference to the active pane's NavState
+    pub fn get_active_mut(&mut self) -> Option<&mut NavState> {
+        self.active_pane.and_then(|id| self.states.get_mut(&id))
+    }
+
+    /// Get a reference to a specific pane's NavState
+    pub fn get(&self, pane_id: u64) -> Option<&NavState> {
+        self.states.get(&pane_id)
+    }
+
+    /// Get a mutable reference to a specific pane's NavState
+    pub fn get_mut(&mut self, pane_id: u64) -> Option<&mut NavState> {
+        self.states.get_mut(&pane_id)
+    }
+
+    /// Create a new NavState for a pane
+    pub fn create_for_pane(&mut self, pane_id: u64) {
+        self.states.insert(pane_id, NavState::default());
+    }
+
+    /// Remove a pane's NavState (cleanup on pane close)
+    pub fn remove_pane(&mut self, pane_id: u64) {
+        self.states.remove(&pane_id);
+        // Clear active pane if it was removed
+        if self.active_pane == Some(pane_id) {
+            self.active_pane = None;
+        }
+    }
+
+    /// Check if a pane has a NavState
+    pub fn has_pane(&self, pane_id: u64) -> bool {
+        self.states.contains_key(&pane_id)
+    }
+
+    /// Get the number of tracked panes
+    pub fn pane_count(&self) -> usize {
+        self.states.len()
+    }
+
+    /// Clear all pane states (useful for testing)
+    #[cfg(test)]
+    pub fn clear_all(&mut self) {
+        self.states.clear();
+        self.active_pane = None;
+    }
 }
 
 impl Default for NavState {
@@ -409,8 +514,8 @@ pub struct NavigationPlugin;
 impl Plugin for NavigationPlugin {
     fn build(&self, app: &mut App) {
         app
-            // Register navigation state resource
-            .init_resource::<NavState>()
+            // Register navigation state registry (per-pane isolation)
+            .init_resource::<NavStateRegistry>()
 
             // Register navigation events
             .add_event::<EnterHintModeEvent>()
@@ -427,11 +532,88 @@ impl Plugin for NavigationPlugin {
                     NavSystemSet::Render,
                 )
                     .chain(), // Run in order: Input -> Update -> Render
+            )
+
+            // Add pane lifecycle systems for NavState management
+            .add_systems(
+                Update,
+                (
+                    on_pane_created,
+                    on_pane_focused,
+                    on_pane_closed,
+                )
+                    .in_set(NavSystemSet::Update),
             );
 
         // Note: Actual navigation systems will be added by other plugins
         // that depend on this navigation plugin. This keeps the core
         // navigation module focused on types and infrastructure.
+    }
+}
+
+// ==================== Pane Lifecycle Systems ====================
+
+/// System to create NavState when a pane is created
+fn on_pane_created(
+    mut registry: ResMut<NavStateRegistry>,
+    mut events: EventReader<crate::events::PaneCreatedEvent>,
+) {
+    use scarab_plugin_api::object_model::ObjectType;
+
+    for event in events.read() {
+        // Extract pane ID from ObjectHandle - only process Pane objects
+        if event.pane.object_type() != ObjectType::Pane {
+            continue;
+        }
+
+        let pane_id = event.pane.id();
+        registry.create_for_pane(pane_id);
+    }
+}
+
+/// System to switch active pane and restore its NavState when focus changes
+fn on_pane_focused(
+    mut registry: ResMut<NavStateRegistry>,
+    mut events: EventReader<crate::events::PaneFocusedEvent>,
+    mut exit_hint_events: EventWriter<ExitHintModeEvent>,
+) {
+    use scarab_plugin_api::object_model::ObjectType;
+
+    for event in events.read() {
+        // Extract pane ID from ObjectHandle - only process Pane objects
+        if event.pane.object_type() != ObjectType::Pane {
+            continue;
+        }
+
+        let pane_id = event.pane.id();
+
+        // Exit hint mode on the previously active pane if it was in hint mode
+        if let Some(old_state) = registry.get_active() {
+            if old_state.is_hint_mode() {
+                exit_hint_events.send(ExitHintModeEvent);
+            }
+        }
+
+        // Switch to the new pane (creates NavState if needed)
+        registry.set_active_pane(pane_id);
+    }
+}
+
+/// System to cleanup NavState when a pane is closed
+fn on_pane_closed(
+    mut registry: ResMut<NavStateRegistry>,
+    mut events: EventReader<crate::events::PaneClosedEvent>,
+) {
+    use scarab_plugin_api::object_model::ObjectType;
+
+    for event in events.read() {
+        // Extract pane ID from ObjectHandle - only process Pane objects
+        if event.pane.object_type() != ObjectType::Pane {
+            continue;
+        }
+
+        let pane_id = event.pane.id();
+        registry.remove_pane(pane_id);
     }
 }
 

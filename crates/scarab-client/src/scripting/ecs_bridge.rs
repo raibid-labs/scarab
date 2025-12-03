@@ -61,6 +61,18 @@ impl FusabiActionChannel {
                     PluginResponse::Error {
                         plugin_id: id, ..
                     } => id == plugin_id,
+                    PluginResponse::NavFocusableRegistered {
+                        plugin_id: id, ..
+                    } => id == plugin_id,
+                    PluginResponse::NavFocusableUnregistered {
+                        plugin_id: id, ..
+                    } => id == plugin_id,
+                    PluginResponse::NavModeEntered {
+                        plugin_id: id, ..
+                    } => id == plugin_id,
+                    PluginResponse::NavModeExited {
+                        plugin_id: id, ..
+                    } => id == plugin_id,
                 }
             });
             *responses = remaining;
@@ -87,6 +99,18 @@ impl FusabiActionChannel {
                         plugin_id: id, ..
                     } => id == plugin_id,
                     PluginResponse::Error {
+                        plugin_id: id, ..
+                    } => id == plugin_id,
+                    PluginResponse::NavFocusableRegistered {
+                        plugin_id: id, ..
+                    } => id == plugin_id,
+                    PluginResponse::NavFocusableUnregistered {
+                        plugin_id: id, ..
+                    } => id == plugin_id,
+                    PluginResponse::NavModeEntered {
+                        plugin_id: id, ..
+                    } => id == plugin_id,
+                    PluginResponse::NavModeExited {
                         plugin_id: id, ..
                     } => id == plugin_id,
                 })

@@ -11,6 +11,7 @@ pub mod error;
 pub mod events;
 pub mod key_tables;
 pub mod menu;
+pub mod navigation;
 pub mod object_model;
 pub mod plugin;
 pub mod status_bar;
@@ -34,6 +35,7 @@ pub use key_tables::{
     SearchAction, SplitDirection,
 };
 pub use menu::{MenuAction, MenuItem};
+pub use navigation::{NavigationExt, PluginFocusable, PluginFocusableAction};
 pub use object_model::{ObjectError, ObjectHandle, ObjectRegistry, ObjectType, RegistryEntry};
 pub use plugin::{Plugin, PluginMetadata};
 pub use status_bar::{

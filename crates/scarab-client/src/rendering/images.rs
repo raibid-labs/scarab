@@ -22,11 +22,10 @@ use shared_memory::Shmem;
 use std::collections::HashMap;
 use std::sync::Arc;
 
+use super::layers::LAYER_IMAGES;
+
 /// Maximum memory budget for image cache (100 MB)
 const MAX_CACHE_SIZE_BYTES: usize = 100 * 1024 * 1024;
-
-/// Z-index for image rendering (above text layer at 0.0, below overlays at 100.0)
-const IMAGE_Z_INDEX: f32 = 10.0;
 
 // Wrapper to make shared memory Send + Sync
 struct SharedMemWrapper(Arc<Shmem>);
@@ -417,7 +416,7 @@ pub fn render_images_system(
                     anchor: bevy::sprite::Anchor::TopLeft,
                     ..default()
                 },
-                Transform::from_xyz(x, -y, IMAGE_Z_INDEX),
+                Transform::from_xyz(x, -y, LAYER_IMAGES),
                 ImagePlacementComponent {
                     id: placement.id,
                 },

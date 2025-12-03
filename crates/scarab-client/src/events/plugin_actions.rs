@@ -82,6 +82,33 @@ pub enum PluginAction {
         title: String,
         items: Vec<ModalItem>,
     },
+
+    /// Navigation: Enter hint mode
+    NavEnterHintMode {
+        plugin_id: String,
+    },
+
+    /// Navigation: Exit navigation mode
+    NavExitMode {
+        plugin_id: String,
+    },
+
+    /// Navigation: Register a custom focusable region
+    NavRegisterFocusable {
+        plugin_id: String,
+        x: u16,
+        y: u16,
+        width: u16,
+        height: u16,
+        label: String,
+        action: NavFocusableAction,
+    },
+
+    /// Navigation: Unregister a focusable region
+    NavUnregisterFocusable {
+        plugin_id: String,
+        focusable_id: u64,
+    },
 }
 
 /// Responses from ECS systems back to plugins
@@ -111,6 +138,39 @@ pub enum PluginResponse {
         action: String,
         message: String,
     },
+
+    /// Navigation: Focusable was registered
+    NavFocusableRegistered {
+        plugin_id: String,
+        focusable_id: u64,
+    },
+
+    /// Navigation: Focusable was unregistered
+    NavFocusableUnregistered {
+        plugin_id: String,
+        focusable_id: u64,
+    },
+
+    /// Navigation: Mode was entered
+    NavModeEntered {
+        plugin_id: String,
+    },
+
+    /// Navigation: Mode was exited
+    NavModeExited {
+        plugin_id: String,
+    },
+}
+
+/// Navigation focusable action
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum NavFocusableAction {
+    /// Open a URL in the default browser
+    OpenUrl(String),
+    /// Open a file in the configured editor
+    OpenFile(String),
+    /// Custom plugin-defined action
+    Custom(String),
 }
 
 /// Notification severity level
