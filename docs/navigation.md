@@ -596,3 +596,323 @@ Visual indicators in the left gutter show:
 - `crates/scarab-client/src/input/nav_input.rs` - Unified input routing
 - `crates/scarab-client/src/ui/link_hints.rs` - Legacy link hints implementation
 - `crates/scarab-client/src/prompt_markers.rs` - OSC 133 prompt marker system
+
+## Using Navigation from Plugins
+
+Scarab's plugin system provides a bridge API that allows plugins to interact with the navigation system programmatically. This enables plugins to trigger hint mode, register custom focusable elements, and respond to navigation events.
+
+### Entering Hint Mode Programmatically
+
+Plugins can programmatically enter hint mode using the navigation context:
+
+```rust
+// From plugin context
+ctx.nav().enter_hint_mode()?;
+```
+
+This is useful for plugins that want to provide custom keyboard shortcuts or automation that triggers the hint selection interface.
+
+### Registering Custom Focusables
+
+Plugins can register their own focusable elements that will appear in hint mode alongside terminal-detected focusables:
+
+```rust
+let id = ctx.nav().register_focusable(PluginFocusable {
+    x: 10, y: 5,
+    width: 20, height: 1,
+    label: "Open Settings".into(),
+    action: PluginFocusableAction::Custom("settings".into()),
+})?;
+
+// Later, unregister when done
+ctx.nav().unregister_focusable(id)?;
+```
+
+**Key Points:**
+- Each focusable receives a unique ID for later reference
+- Coordinates are in grid cell units (column, row)
+- Custom actions are defined by the plugin and handled in plugin code
+- Always unregister focusables when they are no longer valid
+
+### Capability Requirements
+
+Plugins must declare appropriate capabilities in their manifest to use navigation features:
+
+```toml
+[plugin.capabilities]
+can_enter_hint_mode = true        # Required to trigger hint mode
+can_register_focusables = true    # Required to register custom focusables
+can_trigger_actions = true        # Required to execute navigation actions
+```
+
+**Capability Enforcement:**
+- Operations are rejected if the plugin lacks required capabilities
+- Rejections are logged to telemetry (`nav.plugin_actions_rejected`)
+- Sandboxed plugins have stricter restrictions than trusted plugins
+
+## Per-Pane Navigation
+
+Scarab's navigation system maintains independent state for each terminal pane, enabling context-aware navigation across split layouts.
+
+### State Isolation
+
+Each pane maintains its own independent navigation state:
+
+- **Navigation mode** (Normal, Hints, Copy, CommandPalette, Search)
+- **Mode stack** for nested mode transitions
+- **Focus history** for navigation tracking
+- **Hint filter input** for incremental hint filtering
+
+This isolation ensures that operations in one pane don't affect others, allowing users to have different modes active in different panes simultaneously.
+
+### Pane Switch Behavior
+
+When switching between panes, the navigation system preserves and restores state:
+
+1. **Current pane's NavState is preserved** - All mode information is saved
+2. **New pane's NavState is restored** - Previous state is loaded, or fresh state is created for new panes
+3. **Hint mode may auto-exit** (configurable) - Can be set to exit hints when switching panes to avoid confusion
+
+### Example Workflow
+
+```
+Pane A: Hints mode, filter "ab"
+  ↓ (User switches to Pane B)
+Pane B: Normal mode (independent state)
+  ↓ (User switches back to Pane A)
+Pane A: Still in Hints mode, filter "ab" preserved
+```
+
+**Use Cases:**
+- Leave hint mode active in one pane while working in another
+- Compare command outputs across panes while maintaining separate focus
+- Keep different filtering states for different contexts
+
+### Configuration
+
+Control pane switch behavior via configuration:
+
+```rust
+NavConfig {
+    exit_hints_on_pane_switch: false,  // Keep hints active across switches
+    clear_filter_on_pane_switch: false, // Preserve filter text
+    // ...
+}
+```
+
+## Best Practices
+
+### When to Register Focusables
+
+**Do:**
+- Register focusables **after render cycle completes** to ensure accurate positions
+- Register in response to terminal output changes or UI updates
+- Use entity lifecycle hooks to track when focusables become valid
+
+**Don't:**
+- Register during system initialization before the terminal is ready
+- Register during the render phase (causes race conditions)
+- Register focusables that extend outside the viewport
+
+### Cleanup
+
+Always clean up focusables when they are no longer valid:
+
+```rust
+// In plugin code
+impl PluginImpl for MyPlugin {
+    fn on_unload(&mut self, ctx: &mut PluginContext) {
+        // Unregister all focusables before unloading
+        for id in &self.focusable_ids {
+            ctx.nav().unregister_focusable(*id).ok();
+        }
+        self.focusable_ids.clear();
+    }
+}
+```
+
+**Key Points:**
+- Call `unregister_focusable()` explicitly when elements are removed
+- Implement cleanup in plugin `on_unload()` lifecycle hook
+- Track focusable IDs for batch cleanup operations
+- Silent failures are acceptable during cleanup (use `.ok()`)
+
+### Rate Limiting
+
+The navigation system enforces rate limits to prevent abuse and maintain performance:
+
+- **Action rate limit**: 10 actions/second per plugin
+- **Max focusables**: 50 focusables per plugin at any time
+- **Burst allowance**: Small burst over limit is tolerated
+
+**Design Guidelines:**
+- Batch focusable registrations when possible
+- Use debouncing for event-triggered registrations
+- Monitor telemetry for rate limit rejections
+- Unregister unused focusables promptly to stay under limits
+
+### Bounds Validation
+
+All focusable coordinates are validated before registration:
+
+```rust
+// Valid focusable - within reasonable bounds
+PluginFocusable {
+    x: 10, y: 5,
+    width: 20, height: 1,  // Reasonable size
+    // ...
+}
+
+// Invalid focusable - rejected
+PluginFocusable {
+    x: -5, y: -10,         // Negative coordinates
+    width: 5000, height: 3000,  // Unreasonably large
+    // ...
+}
+```
+
+**Validation Rules:**
+- Coordinates must be non-negative
+- Width and height must be > 0 and < 1000
+- Focusables should be within the current viewport
+- Out-of-bounds focusables are rejected silently
+
+## Troubleshooting
+
+### Common Issues
+
+#### Focusables not appearing in hints
+
+**Symptoms:**
+- Plugin registers focusables successfully (no errors)
+- Hint mode shows no hints for plugin focusables
+- Terminal-detected focusables work fine
+
+**Potential Causes:**
+1. **Missing capabilities** - Check plugin manifest has `can_register_focusables = true`
+2. **Out of viewport** - Focusable coordinates are outside visible terminal area
+3. **Generation mismatch** - Focusables registered for old pane generation, cleared on pane switch
+
+**Solutions:**
+```rust
+// Check capabilities in manifest
+[plugin.capabilities]
+can_register_focusables = true
+
+// Verify coordinates are within viewport
+let (cols, rows) = ctx.terminal().dimensions();
+assert!(x < cols && y < rows);
+
+// Re-register focusables after pane switch
+ctx.on_pane_focus(|ctx| {
+    // Re-register all focusables for new pane
+    register_all_focusables(ctx)?;
+    Ok(())
+});
+```
+
+#### Stale focusables after pane switch
+
+**Symptoms:**
+- Focusables from previous pane appear in current pane
+- Hint labels point to incorrect locations
+- Focusable count in telemetry higher than expected
+
+**Cause:**
+- Generation mismatch - Focusables not properly associated with pane generation
+- Plugin didn't receive pane switch event
+
+**Solution:**
+```rust
+// Track pane generation in plugin state
+struct MyPlugin {
+    current_generation: u64,
+    focusable_ids: Vec<FocusableId>,
+}
+
+// Clear and re-register on pane switch
+fn on_pane_switch(&mut self, ctx: &mut PluginContext) {
+    // Clear old focusables
+    for id in &self.focusable_ids {
+        ctx.nav().unregister_focusable(*id).ok();
+    }
+    self.focusable_ids.clear();
+
+    // Update generation
+    self.current_generation = ctx.pane().generation();
+
+    // Re-register focusables for new pane
+    self.register_focusables(ctx)?;
+}
+```
+
+#### Rate limiting rejections
+
+**Symptoms:**
+- Plugin actions fail intermittently
+- Telemetry shows high `nav.plugin_actions_rejected` count
+- Error logs mention rate limiting
+
+**Solutions:**
+```rust
+// Use debouncing for frequent updates
+use std::time::{Duration, Instant};
+
+struct MyPlugin {
+    last_registration: Instant,
+    min_interval: Duration,
+}
+
+impl MyPlugin {
+    fn try_update_focusables(&mut self, ctx: &mut PluginContext) {
+        // Only update if enough time has passed
+        if self.last_registration.elapsed() >= self.min_interval {
+            self.update_focusables(ctx)?;
+            self.last_registration = Instant::now();
+        }
+    }
+}
+
+// Batch registrations
+fn register_multiple_focusables(
+    ctx: &mut PluginContext,
+    focusables: Vec<PluginFocusable>
+) -> Result<Vec<FocusableId>> {
+    // Register all at once instead of in a loop with delays
+    focusables.into_iter()
+        .map(|f| ctx.nav().register_focusable(f))
+        .collect()
+}
+```
+
+### Telemetry to Check
+
+Monitor these telemetry metrics to diagnose navigation issues:
+
+| Metric | Description | Normal Range | Investigation Threshold |
+|--------|-------------|--------------|------------------------|
+| `nav.focusables_dropped` | Stale focusables removed | 0-10/min | >50/min - Check generation tracking |
+| `nav.plugin_actions_rejected` | Actions denied due to capabilities/rate limits | 0/min | >0 - Check capabilities and rate limiting |
+| `nav.hint_mode_entries` | Times hint mode was entered | Varies | Unusually high - Check for plugin loops |
+| `nav.focusables_registered` | Total focusables registered | 0-500 | >500 - At max limit, cleanup needed |
+| `nav.hint_filter_time_ms` | Time to filter hints | <5ms | >50ms - Too many focusables |
+
+**Accessing Telemetry:**
+```rust
+// In plugin code
+let stats = ctx.telemetry().get_nav_stats();
+info!("Focusables dropped: {}", stats.focusables_dropped);
+info!("Actions rejected: {}", stats.plugin_actions_rejected);
+
+// Query specific metric
+let rejected = ctx.telemetry()
+    .query("nav.plugin_actions_rejected")
+    .last_minute()
+    .sum();
+```
+
+**Common Patterns:**
+- High `focusables_dropped` + pane switches = Generation tracking issue
+- High `plugin_actions_rejected` + capability errors = Missing manifest capabilities
+- High `plugin_actions_rejected` + rate limit errors = Too frequent operations
+- High `hint_filter_time_ms` = Too many focusables, need cleanup
