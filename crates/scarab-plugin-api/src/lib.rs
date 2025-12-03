@@ -24,6 +24,9 @@ pub use copy_mode::{
 };
 pub use delight::{Achievement, PluginMood};
 pub use error::{PluginError, Result};
+
+// Note: EventRegistry is deprecated for client-side use. See events module docs for migration guide.
+#[allow(deprecated)]
 pub use events::{EventArgs, EventData, EventHandler, EventRegistry, EventResult, EventType, HandlerEntry};
 pub use key_tables::{
     ActivateKeyTableMode, ClipboardKind, CopyModeAction, Direction, KeyAction, KeyCode, KeyCombo,

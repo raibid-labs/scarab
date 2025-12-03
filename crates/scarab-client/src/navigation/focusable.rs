@@ -155,14 +155,14 @@ impl Default for FocusableScanConfig {
 ///
 /// Caches compiled regex patterns to avoid recompilation on every scan.
 #[derive(Resource)]
-struct FocusableDetector {
-    url_regex: Regex,
-    filepath_regex: Regex,
-    email_regex: Regex,
+pub(crate) struct FocusableDetector {
+    pub(crate) url_regex: Regex,
+    pub(crate) filepath_regex: Regex,
+    pub(crate) email_regex: Regex,
 }
 
 impl FocusableDetector {
-    fn new(config: &FocusableScanConfig) -> Self {
+    pub(crate) fn new(config: &FocusableScanConfig) -> Self {
         Self {
             url_regex: Regex::new(&config.url_regex)
                 .expect("Invalid URL regex in FocusableScanConfig"),
@@ -176,7 +176,7 @@ impl FocusableDetector {
     /// Detect all focusables in terminal text content
     ///
     /// Returns a vector of (content, type, start_col, start_row, end_col, end_row)
-    fn detect_all(&self, text: &str, max_focusables: usize) -> Vec<(String, FocusableType, u16, u16, u16, u16)> {
+    pub(crate) fn detect_all(&self, text: &str, max_focusables: usize) -> Vec<(String, FocusableType, u16, u16, u16, u16)> {
         let mut focusables = Vec::new();
 
         // Split text into lines and track row positions

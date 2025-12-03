@@ -1,7 +1,33 @@
 //! Event registry for managing and dispatching events
 //!
-//! The registry maintains collections of event handlers and provides thread-safe
-//! dispatch functionality.
+//! **DEPRECATED**: This legacy mutex-based registry is being replaced by pure Bevy ECS events.
+//!
+//! # Migration Path
+//!
+//! The `EventRegistry` pattern using `Arc<Mutex<EventRegistry>>` is deprecated in favor
+//! of typed Bevy events defined in `scarab-client/src/events/bevy_events.rs`.
+//!
+//! **Old pattern (deprecated):**
+//! ```ignore
+//! let registry = Arc::new(Mutex::new(EventRegistry::new()));
+//! registry.lock().unwrap().register(EventType::Bell, 100, "plugin", handler);
+//! registry.lock().unwrap().dispatch(&args);
+//! ```
+//!
+//! **New pattern (Bevy ECS):**
+//! ```ignore
+//! // In plugin setup:
+//! app.add_event::<BellEvent>();
+//!
+//! // In handler system:
+//! fn handle_bell(mut events: EventReader<BellEvent>) {
+//!     for event in events.read() {
+//!         // Handle bell event
+//!     }
+//! }
+//! ```
+//!
+//! See `crates/scarab-client/src/events/bevy_events.rs` for all available typed events.
 
 use super::{EventArgs, EventResult, EventType, HandlerEntry, EventHandler};
 use std::collections::HashMap;
@@ -9,13 +35,27 @@ use std::sync::atomic::{AtomicU64, Ordering};
 
 /// Central registry for event handlers
 ///
-/// Manages registration, unregistration, and dispatching of events to handlers.
-/// Handlers are organized by event type and called in priority order (highest first).
+/// **DEPRECATED**: Use Bevy ECS events instead. See module documentation for migration guide.
+///
+/// This registry uses `Arc<Mutex<>>` for thread synchronization, which is incompatible
+/// with Bevy's lock-free ECS architecture. The daemon still uses this for plugin-side
+/// event handling, but client-side code should use typed Bevy events.
+///
+/// # Migration Path
+///
+/// - **Daemon plugins**: Continue using `DaemonEventDispatcher` which wraps this registry
+/// - **Client code**: Use typed events from `scarab-client/src/events/bevy_events.rs`
+/// - **New code**: Always prefer Bevy events over this registry
 ///
 /// # Thread Safety
 ///
 /// The registry is NOT thread-safe by default. Wrap it in a `Mutex` or `RwLock`
 /// for concurrent access from multiple threads.
+#[deprecated(
+    since = "0.1.0",
+    note = "Use Bevy ECS events (scarab-client/src/events/bevy_events.rs) instead of Arc<Mutex<EventRegistry>>. \
+            See crates/scarab-plugin-api/src/events/registry.rs module docs for migration guide."
+)]
 pub struct EventRegistry {
     /// Handlers for standard event types
     handlers: HashMap<EventType, Vec<HandlerEntry>>,
@@ -27,6 +67,7 @@ pub struct EventRegistry {
     next_handler_id: AtomicU64,
 }
 
+#[allow(deprecated)]
 impl EventRegistry {
     /// Create a new empty event registry
     pub fn new() -> Self {
@@ -246,6 +287,7 @@ impl EventRegistry {
     }
 }
 
+#[allow(deprecated)]
 impl Default for EventRegistry {
     fn default() -> Self {
         Self::new()

@@ -5,6 +5,9 @@ use scarab_client::{
     AdvancedUIPlugin, CopyModePlugin, EventsPlugin, ImagesPlugin, ScriptingPlugin,
     ScrollbackPlugin, TutorialPlugin,
 };
+use scarab_client::navigation::{NavigationPlugin, FocusablePlugin};
+use scarab_client::rendering::HintOverlayPlugin;
+use scarab_client::input::{NavInputRouter, ModeStack, NavStyle};
 use scarab_config::{ConfigLoader, FusabiConfigLoader};
 // Uncomment to enable hot-reloading config via bevy-fusabi:
 // use scarab_config::ScarabConfigPlugin;
@@ -115,6 +118,9 @@ fn main() {
     )
         .add_plugins(IpcPlugin) // Add IPC support
         .add_plugins(EventsPlugin::default()) // Add event handling (client and daemon forwarding)
+        .add_plugins(NavigationPlugin) // Add core navigation system (modes, events, state)
+        .add_plugins(FocusablePlugin) // Add focusable detection and scanning
+        .add_plugins(HintOverlayPlugin) // Add hint overlay rendering
         .add_plugins(ScrollbackPlugin) // Add scrollback buffer management
         .add_plugins(CopyModePlugin) // Add vim-like copy mode navigation
         .add_plugins(ImagesPlugin) // Add inline image rendering support
@@ -124,6 +130,8 @@ fn main() {
         .add_plugins(TutorialPlugin) // Add interactive tutorial system
         .insert_resource(reader)
         .insert_resource(config) // Make initial config available (will be updated by plugin)
+        .insert_resource(NavInputRouter::new(NavStyle::VimiumStyle)) // Initialize navigation input router with Vimium-style keybindings
+        .insert_resource(ModeStack::new()) // Initialize mode stack (starts in Normal mode)
         // NOTE: Uncomment the following line to enable hot-reloading config via bevy-fusabi
         // .add_plugins(ScarabConfigPlugin::new("config.fsx"))
         .add_systems(Startup, setup);

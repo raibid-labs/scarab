@@ -293,16 +293,19 @@ pub fn prompt_navigation(
     keys: Res<ButtonInput<KeyCode>>,
     mut markers: ResMut<PromptMarkers>,
     mut jump_events: EventWriter<JumpToPromptEvent>,
-    // TODO: Add scroll control resource to actually perform scrolling
-    // scroll_state: Option<ResMut<ScrollbackState>>,
+    scrollback: Res<crate::terminal::scrollback::ScrollbackBuffer>,
 ) {
     // Check for Ctrl modifier
     let ctrl = keys.pressed(KeyCode::ControlLeft) || keys.pressed(KeyCode::ControlRight);
 
     if ctrl && keys.just_pressed(KeyCode::ArrowUp) {
         // Jump to previous prompt
-        // TODO: Get current scroll position from scrollback system
-        let current_line = 0; // Placeholder - should be actual viewport top line
+        // Get current scroll position from scrollback buffer
+        // The scroll_offset represents how many lines we've scrolled up from bottom
+        // We need to convert this to a line number in the buffer
+        let total_lines = scrollback.line_count() as u32;
+        let scroll_offset = scrollback.scroll_offset() as u32;
+        let current_line = total_lines.saturating_sub(scroll_offset);
 
         if let Some(idx) = markers.previous_prompt(current_line) {
             markers.current_index = Some(idx);
@@ -317,10 +320,6 @@ pub fn prompt_navigation(
                     anchor_type: PromptAnchorType::PromptStart,
                 });
 
-                // TODO: Actually scroll to marker.line
-                // if let Some(mut scroll) = scroll_state {
-                //     scroll.scroll_to_line(line);
-                // }
                 println!("Navigate to previous prompt at line {}", line);
             }
         }
@@ -328,8 +327,10 @@ pub fn prompt_navigation(
 
     if ctrl && keys.just_pressed(KeyCode::ArrowDown) {
         // Jump to next prompt
-        // TODO: Get current scroll position from scrollback system
-        let current_line = 0; // Placeholder - should be actual viewport top line
+        // Get current scroll position from scrollback buffer
+        let total_lines = scrollback.line_count() as u32;
+        let scroll_offset = scrollback.scroll_offset() as u32;
+        let current_line = total_lines.saturating_sub(scroll_offset);
 
         if let Some(idx) = markers.next_prompt(current_line) {
             markers.current_index = Some(idx);
@@ -344,13 +345,62 @@ pub fn prompt_navigation(
                     anchor_type: PromptAnchorType::PromptStart,
                 });
 
-                // TODO: Actually scroll to marker.line
-                // if let Some(mut scroll) = scroll_state {
-                //     scroll.scroll_to_line(line);
-                // }
                 println!("Navigate to next prompt at line {}", line);
             }
         }
+    }
+}
+
+/// System to handle jump-to-prompt events and update scrollback position
+///
+/// This system listens for JumpToPromptEvent and scrolls the viewport to
+/// make the target line visible. The target line is centered in the viewport
+/// when possible.
+pub fn handle_jump_to_prompt(
+    mut jump_events: EventReader<JumpToPromptEvent>,
+    mut scrollback: ResMut<crate::terminal::scrollback::ScrollbackBuffer>,
+    mut scroll_state: ResMut<crate::terminal::scrollback::ScrollbackState>,
+) {
+    for event in jump_events.read() {
+        let target_line = event.target_line as usize;
+        let total_lines = scrollback.line_count();
+
+        // Calculate scroll offset to center the target line in viewport
+        // scroll_offset is how many lines we've scrolled up from bottom
+        // If target_line is near the top of the buffer, we scroll to maximum
+        // If target_line is near the bottom, we scroll less
+
+        // We want to position target_line at ~1/3 from top of viewport for better context
+        let viewport_offset = scroll_state.lines_per_page / 3;
+
+        if target_line >= total_lines {
+            // Target is beyond the buffer, scroll to top
+            scrollback.scroll_to_top();
+        } else {
+            // Calculate how far from bottom the target line is
+            let lines_from_bottom = total_lines.saturating_sub(target_line);
+
+            // Add offset to show context above the target
+            let desired_offset = lines_from_bottom.saturating_add(viewport_offset);
+
+            // Scroll to position (clamp to valid range)
+            let max_scroll = total_lines;
+            let scroll_offset = desired_offset.min(max_scroll);
+
+            // Set the scroll position by first going to bottom, then scrolling up
+            scrollback.scroll_to_bottom();
+            scrollback.scroll_up(scroll_offset);
+        }
+
+        // Update scroll state
+        scroll_state.is_scrolled = !scrollback.is_at_bottom();
+
+        println!(
+            "Jumped to {:?} at line {} (offset: {})",
+            event.anchor_type,
+            event.target_line,
+            scrollback.scroll_offset()
+        );
     }
 }
 
@@ -366,6 +416,7 @@ pub fn prompt_navigation(
 pub fn prompt_zone_filtering(
     hints_state: Res<LinkHintsState>,
     markers: Res<PromptMarkers>,
+    scrollback: Res<crate::terminal::scrollback::ScrollbackBuffer>,
     mut zone_events: EventWriter<PromptZoneFocusedEvent>,
 ) {
     // Only filter when hint mode becomes active
@@ -373,8 +424,10 @@ pub fn prompt_zone_filtering(
         return;
     }
 
-    // TODO: Get actual current viewport line from scrollback
-    let current_line = 0u32;
+    // Get actual current viewport line from scrollback
+    let total_lines = scrollback.line_count() as u32;
+    let scroll_offset = scrollback.scroll_offset() as u32;
+    let current_line = total_lines.saturating_sub(scroll_offset);
 
     // Get the current prompt zone bounds
     if let Some((start_line, end_line)) = markers.current_prompt_zone(current_line) {
@@ -419,6 +472,7 @@ pub fn receive_prompt_markers(
 /// - Gutter rendering system
 /// - NavAnchor spawning system
 /// - Keyboard navigation system with event emission
+/// - Jump-to-prompt scrollback handler system
 /// - Prompt zone filtering system for hint mode
 /// - IPC message receiver system
 pub struct PromptMarkersPlugin;
@@ -435,9 +489,10 @@ impl Plugin for PromptMarkersPlugin {
                     render_gutter_markers,
                     spawn_nav_anchors,
                     prompt_navigation,
+                    handle_jump_to_prompt, // New: Handle jump events and scroll viewport
                     prompt_zone_filtering,
                 )
-                    .chain(), // Run in order: receive -> render -> spawn anchors -> navigate -> filter
+                    .chain(), // Run in order: receive -> render -> spawn anchors -> navigate -> jump -> filter
             );
     }
 }

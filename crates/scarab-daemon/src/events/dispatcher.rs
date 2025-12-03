@@ -1,7 +1,25 @@
 //! Daemon event dispatcher
 //!
 //! Dispatches events through the event registry and forwards them to clients via IPC.
+//!
+//! # Note on EventRegistry Usage
+//!
+//! This dispatcher wraps the **legacy** `EventRegistry` for daemon-side plugin compatibility.
+//! The registry itself is deprecated for client-side use, but remains necessary on the daemon
+//! for Fusabi plugin event handling.
+//!
+//! **Event Flow:**
+//! ```text
+//! Daemon Plugin → EventRegistry → DaemonEventDispatcher → IPC → Client
+//!                                                                  ↓
+//!                                                          Bevy Events (typed)
+//! ```
+//!
+//! Client-side code should use typed Bevy events from `scarab-client/src/events/bevy_events.rs`
+//! instead of directly accessing the registry.
 
+// Allow use of deprecated EventRegistry - it's still needed for daemon-side plugin compatibility
+#[allow(deprecated)]
 use scarab_plugin_api::events::{EventArgs, EventData, EventRegistry, EventResult, EventType};
 use scarab_plugin_api::object_model::ObjectHandle;
 use scarab_protocol::{DaemonMessage, EventMessage};
@@ -12,14 +30,29 @@ use tokio::sync::broadcast;
 ///
 /// Wraps an EventRegistry and provides IPC forwarding capabilities.
 /// Events are dispatched locally to plugins and forwarded to connected clients.
+///
+/// # Architecture Note
+///
+/// This dispatcher continues to use `Arc<Mutex<EventRegistry>>` for daemon-side plugin
+/// compatibility. Events are:
+/// 1. Dispatched to local daemon plugins via the registry
+/// 2. Forwarded to clients via IPC
+/// 3. Converted to typed Bevy events on the client side
+///
+/// **Do not use this pattern in client code** - use Bevy events instead.
+#[allow(deprecated)]
 pub struct DaemonEventDispatcher {
-    /// Event registry for local plugin handlers
+    /// Event registry for local plugin handlers (daemon-side only)
+    ///
+    /// Note: This uses the legacy EventRegistry pattern for daemon plugin compatibility.
+    /// Client-side code uses typed Bevy events instead.
     registry: Arc<Mutex<EventRegistry>>,
 
     /// Broadcast channel for forwarding events to clients
     ipc_sender: Option<broadcast::Sender<DaemonMessage>>,
 }
 
+#[allow(deprecated)]
 impl DaemonEventDispatcher {
     /// Create a new daemon event dispatcher
     pub fn new(registry: Arc<Mutex<EventRegistry>>) -> Self {
@@ -196,6 +229,7 @@ impl DaemonEventDispatcher {
     }
 }
 
+#[allow(deprecated)]
 impl Default for DaemonEventDispatcher {
     fn default() -> Self {
         Self::new(Arc::new(Mutex::new(EventRegistry::new())))

@@ -442,8 +442,12 @@ pub use focusable::{
     FocusableScanConfig,
 };
 
+// Re-export for tests
 #[cfg(test)]
-mod tests {
+pub(crate) use focusable::FocusableDetector;
+
+#[cfg(test)]
+mod basic_tests {
     use super::*;
 
     #[test]
@@ -556,3 +560,7 @@ mod tests {
         assert_eq!(event_with_source.source, Some(entity));
     }
 }
+
+// Comprehensive navigation tests module
+#[cfg(test)]
+mod tests;
