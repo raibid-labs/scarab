@@ -12,6 +12,7 @@ use bevy::render::mesh::Mesh2d;
 use scarab_protocol::{PromptMarkerInfo, TerminalMetrics};
 
 use crate::ipc::RemoteMessageEvent;
+use crate::ui::link_hints::LinkHintsState;
 
 /// Resource storing received prompt markers from the daemon
 #[derive(Resource, Default)]
@@ -50,6 +51,32 @@ impl PromptMarkers {
             .map(|(i, _)| i)
     }
 
+    /// Get the current prompt zone bounds (start line to end line)
+    ///
+    /// Returns the line range of the current prompt block, from the last
+    /// PromptStart marker to either the next PromptStart or end of buffer.
+    pub fn current_prompt_zone(&self, current_line: u32) -> Option<(u32, u32)> {
+        // Find the last prompt start before or at current line
+        let start_idx = self.markers
+            .iter()
+            .enumerate()
+            .rev()
+            .find(|(_, m)| m.line <= current_line && m.is_prompt_start())
+            .map(|(i, _)| i)?;
+
+        let start_line = self.markers[start_idx].line;
+
+        // Find the next prompt start after current position (if any)
+        let end_line = self.markers
+            .iter()
+            .skip(start_idx + 1)
+            .find(|m| m.is_prompt_start())
+            .map(|m| m.line)
+            .unwrap_or(u32::MAX); // If no next prompt, zone extends to end
+
+        Some((start_line, end_line))
+    }
+
     /// Update markers from daemon message
     pub fn update_markers(&mut self, new_markers: Vec<PromptMarkerInfo>) {
         self.markers = new_markers;
@@ -70,6 +97,63 @@ impl PromptMarkers {
 pub struct PromptGutterMarker {
     pub line: u32,
     pub marker_type: u8,
+}
+
+/// Navigation anchor types for prompt-based navigation
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PromptAnchorType {
+    /// Start of a new prompt (OSC 133 A marker)
+    PromptStart,
+    /// End of command execution (OSC 133 D marker with exit code)
+    CommandFinished,
+    /// Output region (between prompt end and command finished)
+    CommandOutput,
+}
+
+/// Navigation anchor component for prompt markers
+///
+/// Attached to entities to mark them as navigation targets for the
+/// navigation system. These anchors enable:
+/// - Jump-to-prompt navigation (Ctrl+Up/Down)
+/// - Semantic zone filtering for hint mode
+/// - Command output region selection
+#[derive(Component, Debug, Clone)]
+pub struct NavAnchor {
+    /// Type of navigation anchor
+    pub anchor_type: PromptAnchorType,
+    /// Terminal line number
+    pub line: u32,
+    /// Command text for semantic zones (if available)
+    pub command_text: Option<String>,
+    /// Exit code for CommandFinished anchors
+    pub exit_code: Option<i32>,
+}
+
+/// Event fired when navigating to a prompt anchor
+///
+/// This event is triggered when the user navigates to a prompt marker
+/// via keyboard shortcuts or other navigation actions.
+#[derive(Event, Debug, Clone)]
+pub struct JumpToPromptEvent {
+    /// Target line to jump to
+    pub target_line: u32,
+    /// Anchor being jumped to
+    pub anchor_type: PromptAnchorType,
+}
+
+/// Event fired when a prompt zone becomes the active filter scope
+///
+/// This event signals that hint mode or other navigation features
+/// should filter focusable elements to only those within the
+/// specified prompt block.
+#[derive(Event, Debug, Clone)]
+pub struct PromptZoneFocusedEvent {
+    /// Start line of the focused prompt zone
+    pub start_line: u32,
+    /// End line of the focused prompt zone (exclusive)
+    pub end_line: u32,
+    /// Command text if available
+    pub command_text: Option<String>,
 }
 
 /// Determine the color for a marker based on its type and exit code
@@ -155,17 +239,60 @@ pub fn render_gutter_markers(
     }
 }
 
+/// System to spawn navigation anchor entities from prompt markers
+///
+/// This system creates NavAnchor entities for each prompt marker, enabling
+/// integration with the broader navigation system. NavAnchors are:
+/// - Queryable by navigation systems for jump-to-prompt
+/// - Used for semantic zone filtering in hint mode
+/// - Tagged with command metadata for context-aware navigation
+pub fn spawn_nav_anchors(
+    mut commands: Commands,
+    markers: Res<PromptMarkers>,
+    existing_anchors: Query<Entity, With<NavAnchor>>,
+) {
+    // Only update if markers changed
+    if !markers.is_changed() {
+        return;
+    }
+
+    // Despawn all existing nav anchors
+    for entity in existing_anchors.iter() {
+        commands.entity(entity).despawn();
+    }
+
+    // Spawn new nav anchors for each marker
+    for marker in &markers.markers {
+        let anchor_type = match marker.marker_type {
+            0 => PromptAnchorType::PromptStart,      // OSC 133 A
+            3 => PromptAnchorType::CommandFinished,  // OSC 133 D
+            _ => continue, // Skip other marker types for now
+        };
+
+        // Create NavAnchor entity
+        // Note: command_text would need to be extracted from terminal buffer
+        // if needed, as it's not part of the marker protocol data
+        commands.spawn(NavAnchor {
+            anchor_type,
+            line: marker.line,
+            command_text: None, // TODO: Extract from terminal buffer if needed
+            exit_code: marker.exit_code,
+        });
+    }
+}
+
 /// System to handle prompt navigation via keyboard
 ///
 /// Keybindings:
 /// - Ctrl+Up: Jump to previous prompt
 /// - Ctrl+Down: Jump to next prompt
 ///
-/// TODO: This system currently sets target_scroll_line but doesn't actually
-/// scroll the view. Integration with scrollback system is needed.
+/// This system now emits JumpToPromptEvent for integration with scrollback
+/// and other navigation systems.
 pub fn prompt_navigation(
     keys: Res<ButtonInput<KeyCode>>,
     mut markers: ResMut<PromptMarkers>,
+    mut jump_events: EventWriter<JumpToPromptEvent>,
     // TODO: Add scroll control resource to actually perform scrolling
     // scroll_state: Option<ResMut<ScrollbackState>>,
 ) {
@@ -183,6 +310,13 @@ pub fn prompt_navigation(
             if let Some(marker) = markers.markers.get(idx) {
                 let line = marker.line;
                 markers.target_scroll_line = Some(line);
+
+                // Emit navigation event
+                jump_events.send(JumpToPromptEvent {
+                    target_line: line,
+                    anchor_type: PromptAnchorType::PromptStart,
+                });
+
                 // TODO: Actually scroll to marker.line
                 // if let Some(mut scroll) = scroll_state {
                 //     scroll.scroll_to_line(line);
@@ -203,6 +337,13 @@ pub fn prompt_navigation(
             if let Some(marker) = markers.markers.get(idx) {
                 let line = marker.line;
                 markers.target_scroll_line = Some(line);
+
+                // Emit navigation event
+                jump_events.send(JumpToPromptEvent {
+                    target_line: line,
+                    anchor_type: PromptAnchorType::PromptStart,
+                });
+
                 // TODO: Actually scroll to marker.line
                 // if let Some(mut scroll) = scroll_state {
                 //     scroll.scroll_to_line(line);
@@ -210,6 +351,48 @@ pub fn prompt_navigation(
                 println!("Navigate to next prompt at line {}", line);
             }
         }
+    }
+}
+
+/// System to filter focusable elements to current prompt zone when hint mode is active
+///
+/// When hint mode is activated, this system:
+/// 1. Determines the current prompt zone boundaries
+/// 2. Emits PromptZoneFocusedEvent to notify navigation systems
+/// 3. Allows downstream systems to filter hints/focusables to this zone
+///
+/// This enables context-aware navigation where only links/items in the current
+/// command output are targetable, reducing visual clutter and improving UX.
+pub fn prompt_zone_filtering(
+    hints_state: Res<LinkHintsState>,
+    markers: Res<PromptMarkers>,
+    mut zone_events: EventWriter<PromptZoneFocusedEvent>,
+) {
+    // Only filter when hint mode becomes active
+    if !hints_state.is_changed() || !hints_state.active {
+        return;
+    }
+
+    // TODO: Get actual current viewport line from scrollback
+    let current_line = 0u32;
+
+    // Get the current prompt zone bounds
+    if let Some((start_line, end_line)) = markers.current_prompt_zone(current_line) {
+        // TODO: Extract command text from terminal buffer if needed
+        // Command text is not stored in PromptMarkerInfo protocol data
+        let command_text = None;
+
+        // Emit zone focused event for downstream systems to filter
+        zone_events.send(PromptZoneFocusedEvent {
+            start_line,
+            end_line,
+            command_text,
+        });
+
+        println!(
+            "Filtering hints to prompt zone: lines {}-{}",
+            start_line, end_line
+        );
     }
 }
 
@@ -232,22 +415,29 @@ pub fn receive_prompt_markers(
 ///
 /// Adds:
 /// - PromptMarkers resource for tracking markers
+/// - JumpToPromptEvent and PromptZoneFocusedEvent for navigation integration
 /// - Gutter rendering system
-/// - Keyboard navigation system
+/// - NavAnchor spawning system
+/// - Keyboard navigation system with event emission
+/// - Prompt zone filtering system for hint mode
 /// - IPC message receiver system
 pub struct PromptMarkersPlugin;
 
 impl Plugin for PromptMarkersPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<PromptMarkers>()
+            .add_event::<JumpToPromptEvent>()
+            .add_event::<PromptZoneFocusedEvent>()
             .add_systems(
                 Update,
                 (
                     receive_prompt_markers,
                     render_gutter_markers,
+                    spawn_nav_anchors,
                     prompt_navigation,
+                    prompt_zone_filtering,
                 )
-                    .chain(), // Run in order: receive -> render -> navigate
+                    .chain(), // Run in order: receive -> render -> spawn anchors -> navigate -> filter
             );
     }
 }

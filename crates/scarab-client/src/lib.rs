@@ -11,7 +11,9 @@ pub mod events;
 pub mod input;
 pub mod integration;
 pub mod ipc;
+pub mod navigation;
 pub mod plugin_host;
+pub mod prompt_markers;
 pub mod ratatui_bridge;
 pub mod rendering;
 pub mod scripting;
@@ -70,6 +72,18 @@ pub use ratatui_bridge::{
 pub use plugin_host::{
     PluginNotification, PluginOverlay, PluginRegistry, PluginStatusItem, RegisteredPlugin,
     ScarabPluginHostPlugin,
+};
+
+// Re-export navigation system
+pub use navigation::{
+    EnterHintModeEvent, ExitHintModeEvent, FocusChangedEvent, NavAction, NavActionEvent, NavFocus,
+    NavGroup, NavHint, NavMode, NavState, NavSystemSet, NavigationPlugin,
+};
+
+// Re-export prompt markers system
+pub use prompt_markers::{
+    JumpToPromptEvent, NavAnchor, PromptAnchorType, PromptGutterMarker, PromptMarkers,
+    PromptMarkersPlugin, PromptZoneFocusedEvent,
 };
 
 // Re-export plugin inspector (feature-gated)

@@ -454,7 +454,7 @@ mod tests {
 
         // Check that overlay was spawned
         let overlays = app
-            .world()
+            .world_mut()
             .query::<&PluginOverlay>()
             .iter(app.world())
             .count();
@@ -515,7 +515,7 @@ mod tests {
 
         // Check that overlay was NOT spawned
         let overlays = app
-            .world()
+            .world_mut()
             .query::<&PluginOverlay>()
             .iter(app.world())
             .count();
@@ -542,6 +542,10 @@ mod tests {
         app.add_plugins(ScarabPluginHostPlugin);
         app.add_plugins(MinimalPlugins);
 
+        // Add events
+        app.add_event::<PluginAction>();
+        app.add_event::<PluginResponse>();
+
         // Manually spawn a notification that's already expired
         let mut time = app.world_mut().resource_mut::<Time>();
         let now = time.elapsed_secs_f64();
@@ -557,7 +561,7 @@ mod tests {
 
         // Check that notification was cleaned up
         let notifications = app
-            .world()
+            .world_mut()
             .query::<&PluginNotification>()
             .iter(app.world())
             .count();
