@@ -63,6 +63,51 @@ jobs:
       - name: Run doc tests
         run: cargo test --workspace --doc
 
+  navigation-tests:
+    name: Navigation System Tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo registry
+        uses: actions/cache@v4
+        with:
+          path: ~/.cargo/registry
+          key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Cache cargo index
+        uses: actions/cache@v4
+        with:
+          path: ~/.cargo/git
+          key: ${{ runner.os }}-cargo-git-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Cache cargo build
+        uses: actions/cache@v4
+        with:
+          path: target
+          key: ${{ runner.os }}-cargo-build-target-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libxkbcommon-dev libwayland-dev libxcb-shape0-dev libxcb-xfixes0-dev
+
+      - name: Run navigation unit tests
+        run: cargo test -p scarab-client --lib navigation::tests
+
+      - name: Run golden tests
+        run: cargo test -p scarab-client --test golden_tests
+
+      - name: Run headless harness tests
+        run: cargo test -p scarab-client --test headless_harness
+
+      - name: Run navigation smoke test script
+        run: bash scripts/nav-smoke-test.sh
+
   coverage:
     name: Code Coverage
     runs-on: ubuntu-latest
