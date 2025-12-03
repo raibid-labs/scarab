@@ -126,6 +126,124 @@ impl KeyBinding {
         }
     }
 
+    /// Parse a key binding from a string like "Ctrl+F" or "Alt+Shift+Enter"
+    pub fn from_string(s: &str, action: NavAction) -> Result<Self, String> {
+        let parts: Vec<&str> = s.split('+').map(|p| p.trim()).collect();
+
+        if parts.is_empty() {
+            return Err("Empty key binding string".to_string());
+        }
+
+        let mut modifiers = Vec::new();
+        let mut key_part = None;
+
+        for part in parts {
+            match part {
+                "Ctrl" | "Control" => modifiers.push(Modifier::Ctrl),
+                "Alt" => modifiers.push(Modifier::Alt),
+                "Shift" => modifiers.push(Modifier::Shift),
+                "Super" | "Meta" | "Win" | "Cmd" => modifiers.push(Modifier::Super),
+                key => {
+                    if key_part.is_some() {
+                        return Err(format!("Multiple keys specified: {} and {}", key_part.unwrap(), key));
+                    }
+                    key_part = Some(key);
+                }
+            }
+        }
+
+        let key = match key_part {
+            Some(k) => Self::parse_key(k)?,
+            None => return Err("No key specified, only modifiers".to_string()),
+        };
+
+        Ok(Self {
+            key,
+            modifiers,
+            action,
+            active_in_mode: None,
+        })
+    }
+
+    /// Parse a key string into a KeyCode
+    fn parse_key(s: &str) -> Result<KeyCode, String> {
+        match s {
+            // Function keys
+            "F1" => Ok(KeyCode::F1),
+            "F2" => Ok(KeyCode::F2),
+            "F3" => Ok(KeyCode::F3),
+            "F4" => Ok(KeyCode::F4),
+            "F5" => Ok(KeyCode::F5),
+            "F6" => Ok(KeyCode::F6),
+            "F7" => Ok(KeyCode::F7),
+            "F8" => Ok(KeyCode::F8),
+            "F9" => Ok(KeyCode::F9),
+            "F10" => Ok(KeyCode::F10),
+            "F11" => Ok(KeyCode::F11),
+            "F12" => Ok(KeyCode::F12),
+            // Special keys
+            "Escape" | "Esc" => Ok(KeyCode::Escape),
+            "Enter" | "Return" => Ok(KeyCode::Enter),
+            "Space" => Ok(KeyCode::Space),
+            "Tab" => Ok(KeyCode::Tab),
+            "Backspace" => Ok(KeyCode::Backspace),
+            "Delete" | "Del" => Ok(KeyCode::Delete),
+            "Insert" | "Ins" => Ok(KeyCode::Insert),
+            "Home" => Ok(KeyCode::Home),
+            "End" => Ok(KeyCode::End),
+            "PageUp" | "PgUp" => Ok(KeyCode::PageUp),
+            "PageDown" | "PgDown" => Ok(KeyCode::PageDown),
+            // Arrow keys
+            "ArrowUp" | "Up" => Ok(KeyCode::ArrowUp),
+            "ArrowDown" | "Down" => Ok(KeyCode::ArrowDown),
+            "ArrowLeft" | "Left" => Ok(KeyCode::ArrowLeft),
+            "ArrowRight" | "Right" => Ok(KeyCode::ArrowRight),
+            // Letters
+            "A" | "a" => Ok(KeyCode::KeyA),
+            "B" | "b" => Ok(KeyCode::KeyB),
+            "C" | "c" => Ok(KeyCode::KeyC),
+            "D" | "d" => Ok(KeyCode::KeyD),
+            "E" | "e" => Ok(KeyCode::KeyE),
+            "F" | "f" => Ok(KeyCode::KeyF),
+            "G" | "g" => Ok(KeyCode::KeyG),
+            "H" | "h" => Ok(KeyCode::KeyH),
+            "I" | "i" => Ok(KeyCode::KeyI),
+            "J" | "j" => Ok(KeyCode::KeyJ),
+            "K" | "k" => Ok(KeyCode::KeyK),
+            "L" | "l" => Ok(KeyCode::KeyL),
+            "M" | "m" => Ok(KeyCode::KeyM),
+            "N" | "n" => Ok(KeyCode::KeyN),
+            "O" | "o" => Ok(KeyCode::KeyO),
+            "P" | "p" => Ok(KeyCode::KeyP),
+            "Q" | "q" => Ok(KeyCode::KeyQ),
+            "R" | "r" => Ok(KeyCode::KeyR),
+            "S" | "s" => Ok(KeyCode::KeyS),
+            "T" | "t" => Ok(KeyCode::KeyT),
+            "U" | "u" => Ok(KeyCode::KeyU),
+            "V" | "v" => Ok(KeyCode::KeyV),
+            "W" | "w" => Ok(KeyCode::KeyW),
+            "X" | "x" => Ok(KeyCode::KeyX),
+            "Y" | "y" => Ok(KeyCode::KeyY),
+            "Z" | "z" => Ok(KeyCode::KeyZ),
+            // Numbers
+            "0" => Ok(KeyCode::Digit0),
+            "1" => Ok(KeyCode::Digit1),
+            "2" => Ok(KeyCode::Digit2),
+            "3" => Ok(KeyCode::Digit3),
+            "4" => Ok(KeyCode::Digit4),
+            "5" => Ok(KeyCode::Digit5),
+            "6" => Ok(KeyCode::Digit6),
+            "7" => Ok(KeyCode::Digit7),
+            "8" => Ok(KeyCode::Digit8),
+            "9" => Ok(KeyCode::Digit9),
+            // Special characters
+            "/" | "Slash" => Ok(KeyCode::Slash),
+            "-" | "Minus" => Ok(KeyCode::Minus),
+            "=" | "Equals" => Ok(KeyCode::Equal),
+            _ => Err(format!("Unknown key: {}", s)),
+        }
+    }
+
     /// Add Ctrl modifier
     pub fn with_ctrl(mut self) -> Self {
         self.modifiers.push(Modifier::Ctrl);
@@ -210,6 +328,91 @@ impl NavInputRouter {
         router.register_spacemacs_bindings();
 
         router
+    }
+
+    /// Create a router from configuration
+    pub fn from_config(config: &scarab_config::NavConfig) -> Self {
+        use scarab_config::NavStyle as ConfigNavStyle;
+
+        // Convert config NavStyle to local NavStyle
+        let style = match config.style {
+            ConfigNavStyle::Vimium => NavStyle::VimiumStyle,
+            ConfigNavStyle::Cosmos => NavStyle::CosmosStyle,
+            ConfigNavStyle::Spacemacs => NavStyle::SpacemacsStyle,
+        };
+
+        let mut router = Self::new(style);
+
+        // Apply custom keybinding overrides
+        if !config.keybindings.is_empty() {
+            router.apply_custom_bindings(&config.keybindings);
+        }
+
+        router
+    }
+
+    /// Apply custom keybinding overrides from config
+    fn apply_custom_bindings(&mut self, custom: &HashMap<String, String>) {
+        let current_style = self.current_style;
+        let bindings = self.bindings_by_style.get_mut(&current_style);
+
+        if let Some(bindings) = bindings {
+            for (action_name, key_string) in custom {
+                if let Some(action) = Self::parse_action_name(action_name) {
+                    match KeyBinding::from_string(key_string, action) {
+                        Ok(new_binding) => {
+                            // Remove any existing binding for this action
+                            bindings.retain(|b| b.action != action);
+                            // Add the new custom binding
+                            bindings.push(new_binding);
+                            info!("Applied custom keybinding: {} -> {}", action_name, key_string);
+                        }
+                        Err(e) => {
+                            warn!("Failed to parse keybinding '{}' for action '{}': {}",
+                                  key_string, action_name, e);
+                        }
+                    }
+                } else {
+                    warn!("Unknown navigation action: {}", action_name);
+                }
+            }
+        }
+    }
+
+    /// Parse an action name string into a NavAction
+    fn parse_action_name(name: &str) -> Option<NavAction> {
+        match name {
+            // Mode transitions
+            "enter_hints" | "enter_hint_mode" => Some(NavAction::EnterHintMode),
+            "enter_copy" | "enter_copy_mode" => Some(NavAction::EnterCopyMode),
+            "enter_search" | "enter_search_mode" => Some(NavAction::EnterSearchMode),
+            "enter_command_palette" => Some(NavAction::EnterCommandPalette),
+            "exit_mode" | "exit_current_mode" => Some(NavAction::ExitCurrentMode),
+            "cancel" | "cancel_all_modes" => Some(NavAction::CancelAllModes),
+
+            // Hint mode actions
+            "activate_hint" => Some(NavAction::ActivateHint),
+
+            // Prompt navigation
+            "prev_prompt" | "jump_to_prev_prompt" => Some(NavAction::JumpToPrevPrompt),
+            "next_prompt" | "jump_to_next_prompt" => Some(NavAction::JumpToNextPrompt),
+
+            // Copy mode actions
+            "copy_mode_toggle_selection" => Some(NavAction::CopyModeToggleSelection),
+            "copy_mode_exit" => Some(NavAction::CopyModeExit),
+
+            // Search actions
+            "search_forward" => Some(NavAction::SearchForward),
+            "search_backward" => Some(NavAction::SearchBackward),
+            "next_search_match" => Some(NavAction::NextSearchMatch),
+            "prev_search_match" => Some(NavAction::PrevSearchMatch),
+
+            // Command palette actions
+            "execute_command" => Some(NavAction::ExecuteCommand),
+            "filter_commands" => Some(NavAction::FilterCommands),
+
+            _ => None,
+        }
     }
 
     /// Get the current active keybindings
@@ -559,5 +762,146 @@ mod tests {
 
         assert_eq!(action1, action2);
         assert_ne!(action1, action3);
+    }
+
+    // KeyBinding::from_string() tests
+    #[test]
+    fn test_key_binding_from_string_simple() {
+        let binding = KeyBinding::from_string("F", NavAction::EnterHintMode).unwrap();
+        assert_eq!(binding.key, KeyCode::KeyF);
+        assert!(binding.modifiers.is_empty());
+        assert_eq!(binding.action, NavAction::EnterHintMode);
+    }
+
+    #[test]
+    fn test_key_binding_from_string_with_ctrl() {
+        let binding = KeyBinding::from_string("Ctrl+F", NavAction::EnterHintMode).unwrap();
+        assert_eq!(binding.key, KeyCode::KeyF);
+        assert_eq!(binding.modifiers.len(), 1);
+        assert!(binding.modifiers.contains(&Modifier::Ctrl));
+    }
+
+    #[test]
+    fn test_key_binding_from_string_with_multiple_modifiers() {
+        let binding =
+            KeyBinding::from_string("Ctrl+Alt+Shift+Enter", NavAction::EnterSearchMode).unwrap();
+        assert_eq!(binding.key, KeyCode::Enter);
+        assert_eq!(binding.modifiers.len(), 3);
+        assert!(binding.modifiers.contains(&Modifier::Ctrl));
+        assert!(binding.modifiers.contains(&Modifier::Alt));
+        assert!(binding.modifiers.contains(&Modifier::Shift));
+    }
+
+    #[test]
+    fn test_key_binding_from_string_escape() {
+        let binding = KeyBinding::from_string("Escape", NavAction::CancelAllModes).unwrap();
+        assert_eq!(binding.key, KeyCode::Escape);
+        assert!(binding.modifiers.is_empty());
+    }
+
+    #[test]
+    fn test_key_binding_from_string_arrow_keys() {
+        let up = KeyBinding::from_string("ArrowUp", NavAction::JumpToPrevPrompt).unwrap();
+        assert_eq!(up.key, KeyCode::ArrowUp);
+
+        let down = KeyBinding::from_string("Down", NavAction::JumpToNextPrompt).unwrap();
+        assert_eq!(down.key, KeyCode::ArrowDown);
+    }
+
+    #[test]
+    fn test_key_binding_from_string_function_keys() {
+        let f1 = KeyBinding::from_string("F1", NavAction::EnterCommandPalette).unwrap();
+        assert_eq!(f1.key, KeyCode::F1);
+
+        let f12 = KeyBinding::from_string("F12", NavAction::EnterCommandPalette).unwrap();
+        assert_eq!(f12.key, KeyCode::F12);
+    }
+
+    #[test]
+    fn test_key_binding_from_string_case_insensitive() {
+        let lower = KeyBinding::from_string("f", NavAction::EnterHintMode).unwrap();
+        let upper = KeyBinding::from_string("F", NavAction::EnterHintMode).unwrap();
+        assert_eq!(lower.key, upper.key);
+        assert_eq!(lower.key, KeyCode::KeyF);
+    }
+
+    #[test]
+    fn test_key_binding_from_string_error_empty() {
+        let result = KeyBinding::from_string("", NavAction::EnterHintMode);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_key_binding_from_string_error_unknown_key() {
+        let result = KeyBinding::from_string("UnknownKey", NavAction::EnterHintMode);
+        assert!(result.is_err());
+    }
+
+    // NavInputRouter::from_config() tests
+    #[test]
+    fn test_router_from_config_vimium() {
+        let config = scarab_config::NavConfig {
+            style: scarab_config::NavStyle::Vimium,
+            keybindings: std::collections::HashMap::new(),
+        };
+
+        let router = NavInputRouter::from_config(&config);
+        assert_eq!(router.current_style, NavStyle::VimiumStyle);
+        assert!(!router.current_bindings().is_empty());
+    }
+
+    #[test]
+    fn test_router_from_config_cosmos() {
+        let config = scarab_config::NavConfig {
+            style: scarab_config::NavStyle::Cosmos,
+            keybindings: std::collections::HashMap::new(),
+        };
+
+        let router = NavInputRouter::from_config(&config);
+        assert_eq!(router.current_style, NavStyle::CosmosStyle);
+    }
+
+    #[test]
+    fn test_router_from_config_with_custom_bindings() {
+        let mut custom_bindings = std::collections::HashMap::new();
+        custom_bindings.insert("enter_hints".to_string(), "Ctrl+H".to_string());
+        custom_bindings.insert("cancel".to_string(), "Ctrl+C".to_string());
+
+        let config = scarab_config::NavConfig {
+            style: scarab_config::NavStyle::Vimium,
+            keybindings: custom_bindings,
+        };
+
+        let router = NavInputRouter::from_config(&config);
+
+        // Verify custom bindings were applied
+        let has_ctrl_h = router
+            .current_bindings()
+            .iter()
+            .any(|b| b.key == KeyCode::KeyH && b.modifiers.contains(&Modifier::Ctrl));
+        assert!(has_ctrl_h, "Custom Ctrl+H binding should be present");
+
+        let has_ctrl_c = router
+            .current_bindings()
+            .iter()
+            .any(|b| b.key == KeyCode::KeyC && b.modifiers.contains(&Modifier::Ctrl));
+        assert!(has_ctrl_c, "Custom Ctrl+C binding should be present");
+    }
+
+    #[test]
+    fn test_parse_action_name() {
+        assert_eq!(
+            NavInputRouter::parse_action_name("enter_hints"),
+            Some(NavAction::EnterHintMode)
+        );
+        assert_eq!(
+            NavInputRouter::parse_action_name("cancel"),
+            Some(NavAction::CancelAllModes)
+        );
+        assert_eq!(
+            NavInputRouter::parse_action_name("prev_prompt"),
+            Some(NavAction::JumpToPrevPrompt)
+        );
+        assert_eq!(NavInputRouter::parse_action_name("unknown_action"), None);
     }
 }
