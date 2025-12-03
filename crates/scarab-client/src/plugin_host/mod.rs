@@ -445,6 +445,8 @@ fn process_plugin_actions(
                     content: label.clone(),
                     source: FocusableSource::Ratatui, // Mark as plugin/UI source
                     screen_position: None, // Will be calculated by bounds_to_world_coords
+                    pane_id: None, // TODO: Track pane_id for plugin focusables
+                    generation: 0, // Plugin focusables don't use generation tracking
                 });
 
                 // Track in registry (store as overlay for lifecycle management)

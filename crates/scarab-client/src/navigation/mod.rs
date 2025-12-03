@@ -600,9 +600,19 @@ fn on_pane_focused(
 }
 
 /// System to cleanup NavState when a pane is closed
+///
+/// This system handles complete cleanup on pane close:
+/// 1. Removes NavState from registry
+/// 2. Despawns all FocusableRegion entities for this pane
+/// 3. Despawns all HintOverlay entities (hints are pane-specific)
+/// 4. Removes pane's generation tracking
 fn on_pane_closed(
+    mut commands: Commands,
     mut registry: ResMut<NavStateRegistry>,
     mut events: EventReader<crate::events::PaneClosedEvent>,
+    focusables: Query<(Entity, &FocusableRegion)>,
+    hints: Query<Entity, With<crate::rendering::hint_overlay::HintOverlay>>,
+    mut generation: ResMut<crate::navigation::focusable::FocusableGeneration>,
 ) {
     use scarab_plugin_api::object_model::ObjectType;
 
@@ -613,7 +623,37 @@ fn on_pane_closed(
         }
 
         let pane_id = event.pane.id();
+
+        // Remove NavState
         registry.remove_pane(pane_id);
+
+        // Despawn focusables for this pane
+        let mut focusables_removed = 0;
+        for (entity, region) in focusables.iter() {
+            // Check if focusable belongs to closed pane
+            if region.pane_id == Some(pane_id) {
+                commands.entity(entity).despawn();
+                focusables_removed += 1;
+            }
+        }
+
+        if focusables_removed > 0 {
+            info!("Despawned {} focusables for closed pane {}", focusables_removed, pane_id);
+        }
+
+        // Clear all hint overlays (they're scoped to the active pane)
+        let mut hints_removed = 0;
+        for entity in hints.iter() {
+            commands.entity(entity).despawn_recursive();
+            hints_removed += 1;
+        }
+
+        if hints_removed > 0 {
+            info!("Despawned {} hint overlays on pane close", hints_removed);
+        }
+
+        // Remove pane's generation tracking
+        generation.remove_pane(pane_id);
     }
 }
 
@@ -626,6 +666,7 @@ pub use focusable::{
     FocusableType,
     FocusableSource,
     FocusableScanConfig,
+    FocusableGeneration,
 };
 
 // Re-export for tests

@@ -158,6 +158,8 @@ fn test_detect_urls_in_terminal() {
         grid_end: (26, 0),
         content: "https://example.com".to_string(),
         source: FocusableSource::Terminal,
+            pane_id: None,
+            generation: 0,
         screen_position: None,
     });
 
@@ -167,6 +169,8 @@ fn test_detect_urls_in_terminal() {
         grid_end: (26, 1),
         content: "www.github.com".to_string(),
         source: FocusableSource::Terminal,
+            pane_id: None,
+            generation: 0,
         screen_position: None,
     });
 
@@ -204,6 +208,8 @@ fn test_detect_filepaths() {
         grid_end: (28, 0),
         content: "/usr/local/bin/foo.txt".to_string(),
         source: FocusableSource::Terminal,
+            pane_id: None,
+            generation: 0,
         screen_position: None,
     });
 
@@ -213,6 +219,8 @@ fn test_detect_filepaths() {
         grid_end: (26, 1),
         content: "./relative/path.rs".to_string(),
         source: FocusableSource::Terminal,
+            pane_id: None,
+            generation: 0,
         screen_position: None,
     });
 
@@ -301,6 +309,8 @@ fn test_hint_activation() {
             grid_end: (30, 5),
             content: "https://example.com".to_string(),
             source: FocusableSource::Terminal,
+            pane_id: None,
+            generation: 0,
             screen_position: Some(Vec2::new(100.0, 200.0)),
         },
     )).id();
@@ -422,6 +432,8 @@ fn test_prompt_zone_filtering() {
         grid_end: (20, 7),
         content: "https://zone1.com".to_string(),
         source: FocusableSource::Terminal,
+            pane_id: None,
+            generation: 0,
         screen_position: None,
     }).id();
 
@@ -431,6 +443,8 @@ fn test_prompt_zone_filtering() {
         grid_end: (20, 18),
         content: "https://zone2.com".to_string(),
         source: FocusableSource::Terminal,
+            pane_id: None,
+            generation: 0,
         screen_position: None,
     }).id();
 
@@ -440,6 +454,8 @@ fn test_prompt_zone_filtering() {
         grid_end: (20, 28),
         content: "https://zone3.com".to_string(),
         source: FocusableSource::Terminal,
+            pane_id: None,
+            generation: 0,
         screen_position: None,
     }).id();
 
@@ -828,6 +844,8 @@ fn test_zone_scoping_with_multiple_prompts() {
         grid_end: (20, 12),
         content: "https://zone1-url1.com".to_string(),
         source: FocusableSource::Terminal,
+            pane_id: None,
+            generation: 0,
         screen_position: None,
     });
 
@@ -837,6 +855,8 @@ fn test_zone_scoping_with_multiple_prompts() {
         grid_end: (20, 15),
         content: "https://zone1-url2.com".to_string(),
         source: FocusableSource::Terminal,
+            pane_id: None,
+            generation: 0,
         screen_position: None,
     });
 
@@ -847,6 +867,8 @@ fn test_zone_scoping_with_multiple_prompts() {
         grid_end: (20, 35),
         content: "https://zone2-url.com".to_string(),
         source: FocusableSource::Terminal,
+            pane_id: None,
+            generation: 0,
         screen_position: None,
     });
 
@@ -857,6 +879,8 @@ fn test_zone_scoping_with_multiple_prompts() {
         grid_end: (20, 52),
         content: "https://zone3-url1.com".to_string(),
         source: FocusableSource::Terminal,
+            pane_id: None,
+            generation: 0,
         screen_position: None,
     });
 
@@ -866,6 +890,8 @@ fn test_zone_scoping_with_multiple_prompts() {
         grid_end: (20, 55),
         content: "https://zone3-url2.com".to_string(),
         source: FocusableSource::Terminal,
+            pane_id: None,
+            generation: 0,
         screen_position: None,
     });
 
@@ -875,6 +901,8 @@ fn test_zone_scoping_with_multiple_prompts() {
         grid_end: (20, 58),
         content: "https://zone3-url3.com".to_string(),
         source: FocusableSource::Terminal,
+            pane_id: None,
+            generation: 0,
         screen_position: None,
     });
 
@@ -953,6 +981,8 @@ fn test_full_hint_mode_workflow() {
             grid_end: (26, 0),
             content: "https://example.com".to_string(),
             source: FocusableSource::Terminal,
+            pane_id: None,
+            generation: 0,
             screen_position: Some(Vec2::new(60.0, 0.0)),
         },
         NavHint {
@@ -999,6 +1029,8 @@ fn test_coordinate_conversion() {
         grid_end: (30, 5),
         content: "https://example.com".to_string(),
         source: FocusableSource::Terminal,
+            pane_id: None,
+            generation: 0,
         screen_position: None,
     }).id();
 
@@ -1504,6 +1536,8 @@ fn test_plugin_focusables_in_hint_mode() {
             grid_end: (20, 5),
             content: "Button 1".to_string(),
             source: FocusableSource::Ratatui,
+            pane_id: None,
+            generation: 0,
             screen_position: Some(Vec2::new(100.0, 50.0)),
         },
         NavHint {
@@ -1520,6 +1554,8 @@ fn test_plugin_focusables_in_hint_mode() {
             grid_end: (20, 10),
             content: "Button 2".to_string(),
             source: FocusableSource::Ratatui,
+            pane_id: None,
+            generation: 0,
             screen_position: Some(Vec2::new(100.0, 100.0)),
         },
         NavHint {
@@ -1536,6 +1572,8 @@ fn test_plugin_focusables_in_hint_mode() {
             grid_end: (20, 15),
             content: "Button 3".to_string(),
             source: FocusableSource::Ratatui,
+            pane_id: None,
+            generation: 0,
             screen_position: Some(Vec2::new(100.0, 150.0)),
         },
         NavHint {
@@ -1828,4 +1866,278 @@ fn test_rapid_pane_switching_no_race() {
         let registry = app.world().resource::<NavStateRegistry>();
         assert_eq!(registry.pane_count(), 3);
     }
+}
+
+// ==================== State Lifecycle Tests (GitHub Issue #46) ====================
+
+#[test]
+fn test_pane_close_clears_focusables() {
+    use scarab_plugin_api::object_model::{ObjectHandle, ObjectType};
+    use crate::navigation::focusable::FocusableGeneration;
+
+    let mut app = build_test_app();
+
+    // Add events
+    app.add_event::<PaneCreatedEvent>();
+    app.add_event::<PaneFocusedEvent>();
+    app.add_event::<PaneClosedEvent>();
+
+    // Add FocusableGeneration resource
+    app.insert_resource(FocusableGeneration::new());
+
+    // Create Pane 1
+    app.world_mut().send_event(PaneCreatedEvent {
+        window: ObjectHandle::new(ObjectType::Window, 1, 0),
+        tab: ObjectHandle::new(ObjectType::Tab, 1, 0),
+        pane: ObjectHandle::new(ObjectType::Pane, 1, 0),
+    });
+
+    app.update();
+
+    // Focus Pane 1
+    app.world_mut().send_event(PaneFocusedEvent {
+        window: ObjectHandle::new(ObjectType::Window, 1, 0),
+        tab: ObjectHandle::new(ObjectType::Tab, 1, 0),
+        pane: ObjectHandle::new(ObjectType::Pane, 1, 0),
+    });
+
+    app.update();
+
+    // Spawn focusables for Pane 1
+    app.world_mut().spawn(FocusableRegion {
+        region_type: FocusableType::Url,
+        grid_start: (0, 5),
+        grid_end: (20, 5),
+        content: "https://pane1.com".to_string(),
+        source: FocusableSource::Terminal,
+        screen_position: None,
+        pane_id: Some(1),
+        generation: 0,
+    });
+
+    app.world_mut().spawn(FocusableRegion {
+        region_type: FocusableType::Url,
+        grid_start: (0, 10),
+        grid_end: (20, 10),
+        content: "https://pane1-second.com".to_string(),
+        source: FocusableSource::Terminal,
+        screen_position: None,
+        pane_id: Some(1),
+        generation: 0,
+    });
+
+    app.update();
+
+    // Create Pane 2 with different focusables
+    app.world_mut().send_event(PaneCreatedEvent {
+        window: ObjectHandle::new(ObjectType::Window, 1, 0),
+        tab: ObjectHandle::new(ObjectType::Tab, 1, 0),
+        pane: ObjectHandle::new(ObjectType::Pane, 2, 0),
+    });
+
+    app.update();
+
+    app.world_mut().spawn(FocusableRegion {
+        region_type: FocusableType::Url,
+        grid_start: (0, 5),
+        grid_end: (20, 5),
+        content: "https://pane2.com".to_string(),
+        source: FocusableSource::Terminal,
+        screen_position: None,
+        pane_id: Some(2),
+        generation: 0,
+    });
+
+    app.update();
+
+    // Verify 3 focusables exist
+    {
+        let mut query = app.world_mut().query::<&FocusableRegion>();
+        let focusables: Vec<_> = query.iter(app.world()).collect();
+        assert_eq!(focusables.len(), 3);
+    }
+
+    // Close Pane 1
+    app.world_mut().send_event(PaneClosedEvent {
+        window: ObjectHandle::new(ObjectType::Window, 1, 0),
+        tab: ObjectHandle::new(ObjectType::Tab, 1, 0),
+        pane: ObjectHandle::new(ObjectType::Pane, 1, 0),
+    });
+
+    app.update();
+
+    // Verify only Pane 2's focusable remains
+    {
+        let mut query = app.world_mut().query::<&FocusableRegion>();
+        let focusables: Vec<_> = query.iter(app.world()).collect();
+        assert_eq!(focusables.len(), 1, "Should only have 1 focusable remaining (from Pane 2)");
+        assert_eq!(focusables[0].content, "https://pane2.com");
+        assert_eq!(focusables[0].pane_id, Some(2));
+    }
+
+    // Verify NavState was removed
+    {
+        let registry = app.world().resource::<NavStateRegistry>();
+        assert!(!registry.has_pane(1));
+        assert_eq!(registry.pane_count(), 1);
+    }
+}
+
+#[test]
+fn test_pane_close_clears_hints() {
+    use scarab_plugin_api::object_model::{ObjectHandle, ObjectType};
+    use crate::navigation::focusable::FocusableGeneration;
+    use crate::rendering::hint_overlay::HintOverlay;
+
+    let mut app = build_test_app();
+
+    // Add events
+    app.add_event::<PaneCreatedEvent>();
+    app.add_event::<PaneFocusedEvent>();
+    app.add_event::<PaneClosedEvent>();
+
+    // Add FocusableGeneration resource
+    app.insert_resource(FocusableGeneration::new());
+
+    // Create and focus a pane
+    app.world_mut().send_event(PaneCreatedEvent {
+        window: ObjectHandle::new(ObjectType::Window, 1, 0),
+        tab: ObjectHandle::new(ObjectType::Tab, 1, 0),
+        pane: ObjectHandle::new(ObjectType::Pane, 1, 0),
+    });
+
+    app.update();
+
+    app.world_mut().send_event(PaneFocusedEvent {
+        window: ObjectHandle::new(ObjectType::Window, 1, 0),
+        tab: ObjectHandle::new(ObjectType::Tab, 1, 0),
+        pane: ObjectHandle::new(ObjectType::Pane, 1, 0),
+    });
+
+    app.update();
+
+    // Spawn hint overlays (simulating hint mode)
+    let hint1 = app.world_mut().spawn(HintOverlay {
+        label: "aa".to_string(),
+        position: Vec2::new(100.0, 100.0),
+        ..Default::default()
+    }).id();
+
+    let hint2 = app.world_mut().spawn(HintOverlay {
+        label: "ab".to_string(),
+        position: Vec2::new(200.0, 200.0),
+        ..Default::default()
+    }).id();
+
+    app.update();
+
+    // Verify hints exist
+    {
+        let mut query = app.world_mut().query::<&HintOverlay>();
+        let hints: Vec<_> = query.iter(app.world()).collect();
+        assert_eq!(hints.len(), 2);
+    }
+
+    // Close the pane
+    app.world_mut().send_event(PaneClosedEvent {
+        window: ObjectHandle::new(ObjectType::Window, 1, 0),
+        tab: ObjectHandle::new(ObjectType::Tab, 1, 0),
+        pane: ObjectHandle::new(ObjectType::Pane, 1, 0),
+    });
+
+    app.update();
+
+    // Verify hints are cleared
+    {
+        let mut query = app.world_mut().query::<&HintOverlay>();
+        let hints: Vec<_> = query.iter(app.world()).collect();
+        assert_eq!(hints.len(), 0, "All hints should be cleared on pane close");
+    }
+}
+
+#[test]
+fn test_stale_focusables_detection() {
+    use crate::navigation::focusable::{FocusableGeneration, detect_stale_focusables};
+
+    let mut app = build_test_app();
+
+    // Add FocusableGeneration resource
+    let mut generation = FocusableGeneration::new();
+    generation.increment_pane(1); // Set generation to 1 for pane 1
+    app.insert_resource(generation);
+
+    // Spawn focusables with generation 0 (stale)
+    app.world_mut().spawn(FocusableRegion {
+        region_type: FocusableType::Url,
+        grid_start: (0, 5),
+        grid_end: (20, 5),
+        content: "https://stale.com".to_string(),
+        source: FocusableSource::Terminal,
+        screen_position: None,
+        pane_id: Some(1),
+        generation: 0, // Stale generation
+    });
+
+    // Spawn focusables with current generation (fresh)
+    app.world_mut().spawn(FocusableRegion {
+        region_type: FocusableType::Url,
+        grid_start: (0, 10),
+        grid_end: (20, 10),
+        content: "https://fresh.com".to_string(),
+        source: FocusableSource::Terminal,
+        screen_position: None,
+        pane_id: Some(1),
+        generation: 1, // Current generation
+    });
+
+    app.update();
+
+    // Verify 2 focusables exist before cleanup
+    {
+        let mut query = app.world_mut().query::<&FocusableRegion>();
+        let focusables: Vec<_> = query.iter(app.world()).collect();
+        assert_eq!(focusables.len(), 2);
+    }
+
+    // Run stale detection system manually
+    app.world_mut().run_system_once(detect_stale_focusables);
+
+    app.update();
+
+    // Verify only fresh focusable remains
+    {
+        let mut query = app.world_mut().query::<&FocusableRegion>();
+        let focusables: Vec<_> = query.iter(app.world()).collect();
+        assert_eq!(focusables.len(), 1, "Only fresh focusable should remain");
+        assert_eq!(focusables[0].content, "https://fresh.com");
+        assert_eq!(focusables[0].generation, 1);
+    }
+}
+
+#[test]
+fn test_generation_increment_on_chunk_refresh() {
+    use crate::navigation::focusable::FocusableGeneration;
+
+    let mut generation = FocusableGeneration::new();
+
+    // Initial generation should be 0
+    assert_eq!(generation.get_pane_generation(1), 0);
+
+    // Simulate chunk refresh (increment generation)
+    let new_gen = generation.increment_pane(1);
+    assert_eq!(new_gen, 1);
+    assert_eq!(generation.get_pane_generation(1), 1);
+
+    // Another chunk refresh
+    let new_gen2 = generation.increment_pane(1);
+    assert_eq!(new_gen2, 2);
+    assert_eq!(generation.get_pane_generation(1), 2);
+
+    // Different pane
+    let pane2_gen = generation.increment_pane(2);
+    assert_eq!(pane2_gen, 1);
+    assert_eq!(generation.get_pane_generation(2), 1);
+
+    // Pane 1 should still be at generation 2
+    assert_eq!(generation.get_pane_generation(1), 2);
 }

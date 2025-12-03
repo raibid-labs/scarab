@@ -46,6 +46,8 @@ use super::{EnterHintModeEvent, ExitHintModeEvent, NavSystemSet};
 ///     content: "https://example.com".to_string(),
 ///     source: FocusableSource::Terminal,
 ///     screen_position: None, // Will be calculated by bounds_to_world_coords
+///     pane_id: Some(1), // Track which pane owns this focusable
+///     generation: 0, // Generation number for stale detection
 /// });
 /// ```
 #[derive(Component, Debug, Clone, PartialEq)]
@@ -67,6 +69,12 @@ pub struct FocusableRegion {
 
     /// World space position for rendering (calculated from grid coords)
     pub screen_position: Option<Vec2>,
+
+    /// Track which pane owns this focusable (for cleanup on pane close)
+    pub pane_id: Option<u64>,
+
+    /// Generation number for stale detection (increments on chunk refresh)
+    pub generation: u64,
 }
 
 /// Type of focusable element
@@ -159,6 +167,48 @@ pub(crate) struct FocusableDetector {
     pub(crate) url_regex: Regex,
     pub(crate) filepath_regex: Regex,
     pub(crate) email_regex: Regex,
+}
+
+/// Resource for tracking focusable generation numbers
+///
+/// Generation numbers are incremented when terminal content is refreshed
+/// (e.g., on chunk updates). Focusables with mismatched generation numbers
+/// are considered stale and should be cleaned up.
+#[derive(Resource, Default, Debug, Clone)]
+pub struct FocusableGeneration {
+    /// Global generation counter
+    pub generation: u64,
+
+    /// Per-pane generation numbers
+    pub pane_generations: std::collections::HashMap<u64, u64>,
+}
+
+impl FocusableGeneration {
+    /// Create a new generation tracker
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// Increment the generation for a specific pane
+    ///
+    /// Call this when the pane's content is refreshed to mark all
+    /// existing focusables as stale.
+    pub fn increment_pane(&mut self, pane_id: u64) -> u64 {
+        let entry = self.pane_generations.entry(pane_id).or_insert(0);
+        *entry += 1;
+        self.generation += 1;
+        *entry
+    }
+
+    /// Get the current generation for a pane
+    pub fn get_pane_generation(&self, pane_id: u64) -> u64 {
+        self.pane_generations.get(&pane_id).copied().unwrap_or(0)
+    }
+
+    /// Remove a pane's generation tracking (on pane close)
+    pub fn remove_pane(&mut self, pane_id: u64) {
+        self.pane_generations.remove(&pane_id);
+    }
 }
 
 impl FocusableDetector {
@@ -271,12 +321,22 @@ fn scan_terminal_focusables(
     detector: Res<FocusableDetector>,
     config: Res<FocusableScanConfig>,
     nav_anchors: Query<&NavAnchor>,
+    nav_registry: Res<crate::NavStateRegistry>,
+    generation: Res<FocusableGeneration>,
 ) {
     // Only scan when entering hint mode
     if enter_hint_events.is_empty() {
         return;
     }
     enter_hint_events.clear();
+
+    // Get the active pane ID
+    let active_pane_id = nav_registry.active_pane();
+
+    // Get the current generation for this pane
+    let current_generation = active_pane_id
+        .map(|id| generation.get_pane_generation(id))
+        .unwrap_or(0);
 
     // Extract terminal text content
     let safe_state = state_reader.get_safe_state();
@@ -295,6 +355,8 @@ fn scan_terminal_focusables(
             content,
             source: FocusableSource::Terminal,
             screen_position: None, // Will be calculated by bounds_to_world_coords
+            pane_id: active_pane_id,
+            generation: current_generation,
         });
     }
 
@@ -320,6 +382,8 @@ fn scan_terminal_focusables(
             content,
             source: FocusableSource::PromptMarker,
             screen_position: None,
+            pane_id: active_pane_id,
+            generation: current_generation,
         });
 
         prompt_focusables += 1;
@@ -410,6 +474,41 @@ fn cleanup_focusables(
     info!("Cleaned up {} focusable entities on hint mode exit", count);
 }
 
+/// System: Detect and remove stale focusables
+///
+/// Scans all FocusableRegion entities and despawns those with mismatched
+/// generation numbers. This prevents stale focusables from persisting after
+/// terminal content refreshes (chunk updates).
+///
+/// Runs in NavSystemSet::Update phase.
+pub fn detect_stale_focusables(
+    mut commands: Commands,
+    generation: Res<FocusableGeneration>,
+    focusables: Query<(Entity, &FocusableRegion)>,
+) {
+    let mut stale_count = 0;
+
+    for (entity, region) in focusables.iter() {
+        if let Some(pane_id) = region.pane_id {
+            let current_gen = generation.get_pane_generation(pane_id);
+
+            // Stale if generation doesn't match
+            if region.generation != current_gen && current_gen > 0 {
+                warn!(
+                    "Dropping stale focusable: pane={} region_gen={} current_gen={}",
+                    pane_id, region.generation, current_gen
+                );
+                commands.entity(entity).despawn();
+                stale_count += 1;
+            }
+        }
+    }
+
+    if stale_count > 0 {
+        info!("Removed {} stale focusables", stale_count);
+    }
+}
+
 // ==================== Plugin ====================
 
 /// Plugin for focusable entity detection system
@@ -438,6 +537,9 @@ impl Plugin for FocusablePlugin {
             // Register config resource with defaults
             .init_resource::<FocusableScanConfig>()
 
+            // Register generation tracking resource
+            .init_resource::<FocusableGeneration>()
+
             // Initialize detector at startup
             .add_systems(Startup, initialize_focusable_detector)
 
@@ -453,6 +555,7 @@ impl Plugin for FocusablePlugin {
                         bounds_to_world_coords,
                         filter_focusables_by_zone,
                         cleanup_focusables,
+                        detect_stale_focusables,
                     )
                         .chain()
                         .in_set(NavSystemSet::Update),
@@ -490,6 +593,8 @@ mod tests {
             content: "https://example.com".to_string(),
             source: FocusableSource::Terminal,
             screen_position: Some(Vec2::new(100.0, 50.0)),
+            pane_id: Some(1),
+            generation: 0,
         };
 
         let cloned = region.clone();
@@ -586,5 +691,64 @@ mod tests {
         assert!(email.is_some());
         let (_, _, _, row, _, _) = email.unwrap();
         assert_eq!(*row, 1); // Second line
+    }
+
+    #[test]
+    fn test_focusable_generation_tracking() {
+        let mut gen = FocusableGeneration::new();
+
+        // Initial generation should be 0
+        assert_eq!(gen.get_pane_generation(1), 0);
+
+        // Increment pane 1
+        let gen1 = gen.increment_pane(1);
+        assert_eq!(gen1, 1);
+        assert_eq!(gen.get_pane_generation(1), 1);
+
+        // Increment pane 1 again
+        let gen2 = gen.increment_pane(1);
+        assert_eq!(gen2, 2);
+        assert_eq!(gen.get_pane_generation(1), 2);
+
+        // Increment different pane
+        let gen_pane2 = gen.increment_pane(2);
+        assert_eq!(gen_pane2, 1);
+        assert_eq!(gen.get_pane_generation(2), 1);
+
+        // Pane 1 should still be at 2
+        assert_eq!(gen.get_pane_generation(1), 2);
+
+        // Remove pane 1
+        gen.remove_pane(1);
+        assert_eq!(gen.get_pane_generation(1), 0); // Back to default
+    }
+
+    #[test]
+    fn test_focusable_pane_id_tracking() {
+        let region1 = FocusableRegion {
+            region_type: FocusableType::Url,
+            grid_start: (10, 5),
+            grid_end: (30, 5),
+            content: "https://example.com".to_string(),
+            source: FocusableSource::Terminal,
+            screen_position: None,
+            pane_id: Some(1),
+            generation: 0,
+        };
+
+        let region2 = FocusableRegion {
+            region_type: FocusableType::Url,
+            grid_start: (10, 5),
+            grid_end: (30, 5),
+            content: "https://example.com".to_string(),
+            source: FocusableSource::Terminal,
+            screen_position: None,
+            pane_id: Some(2),
+            generation: 0,
+        };
+
+        assert_eq!(region1.pane_id, Some(1));
+        assert_eq!(region2.pane_id, Some(2));
+        assert_ne!(region1.pane_id, region2.pane_id);
     }
 }

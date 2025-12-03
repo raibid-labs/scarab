@@ -85,14 +85,6 @@ pub struct NavMetrics {
 
     /// Number of plugin focusables registered
     pub plugin_focusables_registered: AtomicU64,
-            pane_switches: AtomicU64::new(0),
-            pane_switch_times: Mutex::new(TimingSamples::new()),
-            focusables_restored: AtomicU64::new(0),
-            focusables_dropped: AtomicU64::new(0),
-            plugin_actions_accepted: AtomicU64::new(0),
-            plugin_actions_rejected: AtomicU64::new(0),
-            plugin_focusables_registered: AtomicU64::new(0),
-            plugin_rate_limit_hits: AtomicU64::new(0),
 
     /// Number of rate limit hits (from any source)
     pub plugin_rate_limit_hits: AtomicU64,
@@ -119,6 +111,14 @@ impl NavMetrics {
             nav_errors: AtomicU64::new(0),
             hint_gen_times: Mutex::new(TimingSamples::new()),
             nav_input_latency: Mutex::new(TimingSamples::new()),
+            pane_switches: AtomicU64::new(0),
+            pane_switch_times: Mutex::new(TimingSamples::new()),
+            focusables_restored: AtomicU64::new(0),
+            focusables_dropped: AtomicU64::new(0),
+            plugin_actions_accepted: AtomicU64::new(0),
+            plugin_actions_rejected: AtomicU64::new(0),
+            plugin_focusables_registered: AtomicU64::new(0),
+            plugin_rate_limit_hits: AtomicU64::new(0),
             last_report: Mutex::new(Instant::now()),
             report_interval_secs,
         }

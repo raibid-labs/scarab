@@ -33,7 +33,7 @@
 
 use bevy::prelude::*;
 use crate::navigation::{
-    EnterHintModeEvent, ExitHintModeEvent, NavHint, NavState, NavSystemSet,
+    EnterHintModeEvent, ExitHintModeEvent, NavHint, NavSystemSet,
 };
 use super::layers::LAYER_HINTS;
 
