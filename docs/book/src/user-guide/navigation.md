@@ -1,12 +1,24 @@
 # Navigation
 
+> **DEPRECATION NOTICE**: This document is part of the legacy mdBook documentation structure and may be outdated.
+>
+> For current navigation documentation, see:
+> - **User Guide**: [docs/navigation/user-guide.md](../../navigation/user-guide.md)
+> - **Developer Guide**: [docs/navigation/developer-guide.md](../../navigation/developer-guide.md)
+> - **Architecture Overview**: [docs/navigation.md](../../navigation.md)
+>
+> Last updated: 2025-12-03
+
+---
+
 Scarab features an ECS-native navigation system that provides intuitive pane and tab management.
 
 ## Navigation Modes
 
 For detailed information about navigation modes and behavior, see:
-- [Navigation Design Document](../../navigation/README.md)
-- [Navigation Specification](../../navigation/NAVIGATION_SPEC.md)
+- [Navigation User Guide](../../navigation/user-guide.md) - Current user-facing documentation
+- [Navigation Developer Guide](../../navigation/developer-guide.md) - Current developer documentation
+- [Navigation Architecture](../../navigation.md) - Complete technical overview
 
 ## Quick Reference
 

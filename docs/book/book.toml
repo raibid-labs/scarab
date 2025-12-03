@@ -1,18 +1,59 @@
 [book]
 title = "Scarab Terminal Emulator"
 authors = ["Raibid Labs"]
-description = "High-performance, split-process terminal emulator"
+description = "High-performance, split-process terminal emulator with F# plugin system"
 language = "en"
+multilingual = false
 src = "src"
 
 [build]
 build-dir = "build"
+create-missing = false
+use-default-preprocessors = true
 
 [output.html]
 default-theme = "rust"
 preferred-dark-theme = "ayu"
 git-repository-url = "https://github.com/raibid-labs/scarab"
 edit-url-template = "https://github.com/raibid-labs/scarab/edit/main/docs/book/{path}"
+site-url = "/scarab/"
+cname = "scarab.raibid-labs.dev"
+additional-css = []
+additional-js = []
+no-section-label = false
+fold = { enable = false, level = 0 }
+
+[output.html.search]
+enable = true
+limit-results = 30
+teaser-word-count = 30
+use-boolean-and = true
+boost-title = 2
+boost-hierarchy = 1
+boost-paragraph = 1
+expand = true
+heading-split-level = 3
+
+[output.html.playground]
+editable = false
+copyable = true
+line-numbers = false
+
+# Rustdoc integration
+[output.html.redirect]
+"/api" = "https://raibid-labs.github.io/scarab/rustdoc/scarab/"
+"/api/daemon" = "https://raibid-labs.github.io/scarab/rustdoc/scarab_daemon/"
+"/api/client" = "https://raibid-labs.github.io/scarab/rustdoc/scarab_client/"
+"/api/protocol" = "https://raibid-labs.github.io/scarab/rustdoc/scarab_protocol/"
+"/api/plugin-api" = "https://raibid-labs.github.io/scarab/rustdoc/scarab_plugin_api/"
+"/api/config" = "https://raibid-labs.github.io/scarab/rustdoc/scarab_config/"
 
 # Uncomment when mdbook-linkcheck is installed
 # [output.linkcheck]
+# follow-web-links = false
+# traverse-parent-directories = false
+# exclude = []
+
+# Uncomment for PDF output (requires mdbook-pdf)
+# [output.pdf]
+# output-file = "scarab-docs.pdf"

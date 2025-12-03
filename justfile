@@ -250,9 +250,48 @@ test:
 test-verbose:
     cargo test --workspace -- --nocapture
 
+# Run golden/visual regression tests
+golden:
+    cargo test -p scarab-client --test golden_tests
+
+# Update golden test baselines (for insta snapshots)
+golden-update:
+    cargo test -p scarab-client --test golden_tests -- --nocapture
+    @echo "Note: If using insta, run 'cargo insta review' to accept changes"
+
+# Run ratatui-testlib smoke tests
+testlib:
+    cargo test -p scarab-client --test ratatui_testlib_smoke
+
+# Run headless harness tests
+headless:
+    cargo test -p scarab-client --test headless_harness
+    cargo test -p scarab-client --test headless_poc
+
+# Run E2E tests
+e2e:
+    cargo test -p scarab-client --test integration_e2e
+    cargo test --test e2e -- --test-threads=1
+
+# Run integration tests
+integration:
+    cargo test --test integration --test-threads=1
+    cargo test -p scarab-daemon --test ipc_integration
+    cargo test -p scarab-daemon --test session_integration
+    cargo test -p scarab-daemon --test plugin_integration
+
+# Run all test types (comprehensive test suite)
+test-all: test golden testlib headless e2e integration
+    @echo "All test suites completed!"
+
+# Fast subset for iteration (unit tests + headless only)
+test-quick:
+    cargo test --lib --workspace
+    cargo test -p scarab-client --test headless_harness
+
 # Navigation smoke test - exercises hint mode, pane switch, prompt jump
 nav-smoke:
-    ./scripts/nav-smoke-test.sh
+    nu scripts/nav-smoke-test.nu
 
 # Run benchmarks
 bench:

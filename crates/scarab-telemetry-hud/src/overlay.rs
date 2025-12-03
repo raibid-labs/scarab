@@ -3,7 +3,7 @@
 //! This module handles the visual rendering of the telemetry HUD overlay.
 //! It uses Bevy's UI system to display performance metrics in a configurable position.
 
-use crate::metrics::PerformanceMetrics;
+use crate::metrics::{PerformanceMetrics, TelemetryData};
 use bevy::prelude::*;
 
 /// HUD position on screen
@@ -37,11 +37,21 @@ pub struct HudText;
 
 /// Marker component for the frame time graph
 #[derive(Component)]
+#[allow(dead_code)]
 pub struct HudGraph;
 
-/// System: Toggle HUD visibility with F12
+/// System: Toggle HUD visibility with F12 or Ctrl+Shift+T
 pub(crate) fn toggle_hud(keys: Res<ButtonInput<KeyCode>>, mut state: ResMut<HudState>) {
-    if keys.just_pressed(KeyCode::F12) {
+    // F12 for quick toggle (legacy)
+    let f12_pressed = keys.just_pressed(KeyCode::F12);
+
+    // Ctrl+Shift+T for standard toggle
+    let ctrl = keys.pressed(KeyCode::ControlLeft) || keys.pressed(KeyCode::ControlRight);
+    let shift = keys.pressed(KeyCode::ShiftLeft) || keys.pressed(KeyCode::ShiftRight);
+    let t_pressed = keys.just_pressed(KeyCode::KeyT);
+    let ctrl_shift_t = ctrl && shift && t_pressed;
+
+    if f12_pressed || ctrl_shift_t {
         state.visible = !state.visible;
         if state.visible {
             info!("Telemetry HUD enabled");
@@ -59,6 +69,7 @@ pub(crate) fn render_hud(
     mut commands: Commands,
     state: Res<HudState>,
     metrics: Res<PerformanceMetrics>,
+    telemetry: Res<TelemetryData>,
     container_query: Query<Entity, With<HudContainer>>,
     text_query: Query<Entity, With<HudText>>,
 ) {
@@ -78,7 +89,7 @@ pub(crate) fn render_hud(
 
     // Update existing HUD text with current metrics
     for entity in text_query.iter() {
-        update_hud_text(&mut commands, entity, &metrics);
+        update_hud_text(&mut commands, entity, &metrics, &telemetry);
     }
 }
 
@@ -146,15 +157,23 @@ fn spawn_hud(commands: &mut Commands, state: &HudState) {
 }
 
 /// Update HUD text with current metrics
-fn update_hud_text(commands: &mut Commands, entity: Entity, metrics: &PerformanceMetrics) {
+fn update_hud_text(
+    commands: &mut Commands,
+    entity: Entity,
+    metrics: &PerformanceMetrics,
+    telemetry: &TelemetryData,
+) {
     let snapshot = metrics.snapshot();
+    let cache = &telemetry.cache_stats;
+    let memory = &telemetry.memory_stats;
+    let hints = &telemetry.hint_stats;
 
-    // Format metrics text
-    let text = format!(
-        "FPS: {:.0}\n\
-         Frame Time: {:.2}ms\n\
+    // Format comprehensive metrics text
+    let mut text = format!(
+        "PERFORMANCE\n\
+         FPS: {:.0} ({:.2}ms)\n\
          Avg: {:.2}ms  Min: {:.2}ms  Max: {:.2}ms\n\
-         Frames: {}  Uptime: {:.1}s",
+         Frames: {}  Uptime: {:.1}s\n",
         snapshot.current_fps,
         snapshot.current_frame_time_ms,
         snapshot.avg_frame_time_ms,
@@ -163,6 +182,37 @@ fn update_hud_text(commands: &mut Commands, entity: Entity, metrics: &Performanc
         snapshot.total_frames,
         snapshot.total_elapsed_secs,
     );
+
+    // Add cache statistics
+    text.push_str(&format!(
+        "\nCACHE\n\
+         Glyphs: {}  Hit Rate: {:.1}%\n\
+         Atlases: {}  Tex Mem: {:.1} MB\n",
+        cache.glyph_count,
+        cache.glyph_hit_rate * 100.0,
+        cache.atlas_count,
+        cache.texture_memory_bytes as f32 / (1024.0 * 1024.0),
+    ));
+
+    // Add memory statistics
+    text.push_str(&format!(
+        "\nMEMORY\n\
+         Process: {:.1} MB\n\
+         Heap: {:.1} MB  GPU: {:.1} MB\n",
+        memory.process_mb,
+        memory.heap_mb,
+        memory.gpu_mb,
+    ));
+
+    // Add navigation hint statistics
+    text.push_str(&format!(
+        "\nNAVIGATION\n\
+         Hints: {}  Focusable: {}\n\
+         Overlays: {}\n",
+        hints.hint_count,
+        hints.focusable_count,
+        hints.overlay_count,
+    ));
 
     // Update the text component
     commands.entity(entity).insert(Text::new(text));

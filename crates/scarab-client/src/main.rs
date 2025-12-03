@@ -2,8 +2,9 @@ use bevy::prelude::*;
 use bevy::render::camera::OrthographicProjection;
 use scarab_client::integration::{IntegrationPlugin, SharedMemWrapper, SharedMemoryReader};
 use scarab_client::{
-    AdvancedUIPlugin, CopyModePlugin, EventsPlugin, ImagesPlugin, ScriptingPlugin,
-    ScrollbackPlugin, ScarabEffectsPlugin, TutorialPlugin,
+    AccessibilityPlugin, AdvancedUIPlugin, CopyModePlugin, EventsPlugin, GraphicsInspectorPlugin,
+    ImagesPlugin, ScarabTelemetryPlugin, ScriptingPlugin, ScrollbackPlugin, ScarabEffectsPlugin,
+    TutorialPlugin,
 };
 use scarab_client::navigation::{NavigationPlugin, FocusablePlugin};
 use scarab_client::rendering::HintOverlayPlugin;
@@ -20,6 +21,9 @@ use clap::Parser;
 
 #[cfg(feature = "plugin-inspector")]
 use scarab_client::PluginInspectorPlugin;
+
+#[cfg(debug_assertions)]
+use scarab_client::BevyInspectorPlugin;
 
 #[derive(Parser, Debug)]
 #[command(author, version, about = "Scarab Terminal Client")]
@@ -129,6 +133,8 @@ fn main() {
         .add_plugins(IntegrationPlugin) // Add text rendering
         .add_plugins(TutorialPlugin) // Add interactive tutorial system
         .add_plugins(ScarabEffectsPlugin) // Add post-processing effects (blur, glow)
+        .add_plugins(ScarabTelemetryPlugin) // Add telemetry HUD overlay (Ctrl+Shift+T to toggle)
+        .add_plugins(AccessibilityPlugin) // Add accessibility features (screen reader, export, high contrast)
         .insert_resource(reader)
         .insert_resource(config) // Make initial config available (will be updated by plugin)
         .insert_resource(NavInputRouter::new(NavStyle::VimiumStyle)) // Initialize navigation input router with Vimium-style keybindings
@@ -142,6 +148,17 @@ fn main() {
     {
         app.add_plugins(PluginInspectorPlugin);
         println!("Plugin Inspector enabled - Press Ctrl+Shift+P to open");
+    }
+
+    // Add graphics inspector
+    app.add_plugins(GraphicsInspectorPlugin);
+    println!("Graphics Inspector enabled - Press Ctrl+Shift+G to open");
+
+    // Conditionally add Bevy ECS inspector (debug builds only)
+    #[cfg(debug_assertions)]
+    {
+        app.add_plugins(BevyInspectorPlugin);
+        println!("Bevy Inspector enabled - Press Ctrl+Shift+I to open");
     }
 
     app.run();

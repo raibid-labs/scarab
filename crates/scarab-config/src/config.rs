@@ -389,6 +389,30 @@ pub struct TelemetryConfig {
     /// Validates tab/pane flow in the orchestrator
     /// Output: [INFO] PaneOrchestrator: Pane 1 created, reader task spawned
     pub log_pane_events: bool,
+
+    /// Enable telemetry HUD overlay
+    ///
+    /// Displays real-time performance metrics, cache stats, and navigation hints
+    pub hud_enabled: bool,
+
+    /// Telemetry HUD position on screen
+    ///
+    /// Options: "top-right", "top-left", "bottom-right", "bottom-left"
+    pub hud_position: String,
+
+    /// Telemetry HUD hotkey for toggling
+    ///
+    /// Default: "Ctrl+Shift+T"
+    pub hud_hotkey: String,
+
+    /// Include memory usage in HUD
+    pub hud_show_memory: bool,
+
+    /// Include cache statistics in HUD
+    pub hud_show_cache: bool,
+
+    /// Include navigation hint counts in HUD
+    pub hud_show_hints: bool,
 }
 
 impl Default for TelemetryConfig {
@@ -398,6 +422,12 @@ impl Default for TelemetryConfig {
             log_sequence_changes: false,
             log_dirty_regions: false,
             log_pane_events: false,
+            hud_enabled: false,
+            hud_position: "top-right".to_string(),
+            hud_hotkey: "Ctrl+Shift+T".to_string(),
+            hud_show_memory: true,
+            hud_show_cache: true,
+            hud_show_hints: true,
         }
     }
 }

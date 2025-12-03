@@ -6,8 +6,10 @@ pub mod terminal;
 pub mod ui;
 pub mod ui_stub;
 
+pub mod accessibility;
 pub mod context_menu;
 pub mod copy_mode;
+pub mod diagnostics;
 pub mod events;
 pub mod input;
 pub mod integration;
@@ -20,11 +22,18 @@ pub mod ratatui_bridge;
 pub mod rendering;
 pub mod scripting;
 pub mod shaders;
+pub mod telemetry_integration;
 pub mod tutorial;
 pub mod zones;
 
 #[cfg(feature = "plugin-inspector")]
 pub mod plugin_inspector;
+
+pub mod graphics_inspector;
+
+// Developer tools (debug builds only)
+#[cfg(debug_assertions)]
+pub mod dev;
 
 pub use rendering::*;
 
@@ -107,9 +116,36 @@ pub use marketplace::{
 #[cfg(feature = "plugin-inspector")]
 pub use plugin_inspector::{PluginInspectorPlugin, PluginInspectorState};
 
+// Re-export graphics inspector
+pub use graphics_inspector::{GraphicsInspectorPlugin, GraphicsInspectorState};
+
 // Re-export shaders and effects system
 pub use shaders::{
     BlurSettings, BlurShaderNode, GlowSettings, GlowShaderNode, ScarabEffectsPlugin,
+};
+
+// Re-export diagnostics system
+pub use diagnostics::{
+    DiagnosticsPlugin, DiagnosticsRecorder, DiagnosticsReplay, EventData, EventType,
+    PlaybackState, Recording, RecordedEvent, RecordingMetadata, RecordingStats,
+    ReplayControlEvent, ReplayEvent, StartRecordingEvent, StopRecordingEvent,
+    RecordMarkerEvent, FORMAT_VERSION,
+};
+
+// Re-export telemetry integration
+pub use telemetry_integration::ScarabTelemetryPlugin;
+
+// Re-export developer tools (debug builds only)
+#[cfg(debug_assertions)]
+pub use dev::{BevyInspectorPlugin, BevyInspectorState};
+
+// Re-export accessibility system
+pub use accessibility::{
+    AccessibilityCommand, AccessibilityConfig, AccessibilityEvent, AccessibilityPlugin,
+    Announcement, AnnouncementPriority, AtSpiIntegration, ChangeTextScaleEvent,
+    ExportFormat, ExportGridEvent, ScreenReaderAnnounceEvent, ScreenReaderState,
+    TerminalExporter, ToggleHighContrastEvent,
+    parse_accessibility_command, parse_export_command,
 };
 
 // // Re-export zones system

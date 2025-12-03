@@ -424,6 +424,28 @@ Plugin.Register {
 
 ---
 
+## 🧪 Testing
+
+Scarab has comprehensive test coverage across multiple test types. Quick reference:
+
+```bash
+# Run all tests
+cargo test --workspace
+
+# Run specific test types
+cargo test --workspace --lib              # Unit tests
+cargo test --workspace --test '*'         # Integration tests
+cargo test -p scarab-client --test e2e    # E2E tests
+just nav-smoke                            # Navigation smoke tests
+
+# Run CI suite (format, lint, test)
+just ci
+```
+
+For detailed testing documentation, see **[TESTING.md](./TESTING.md)**.
+
+---
+
 ## 🏗️ Building from Source
 
 ### Full Workspace Build

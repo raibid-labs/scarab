@@ -1,14 +1,16 @@
 # Scarab Telemetry HUD
 
-Performance metrics HUD overlay for the Scarab terminal emulator.
+Real-time performance metrics overlay for the Scarab terminal emulator.
 
 ## Features
 
-- **Real-time FPS counter**: Displays current frames per second
-- **Frame time statistics**: Shows current, average, minimum, and maximum frame times
-- **Configurable position**: Place the HUD in any corner of the screen
-- **Toggle visibility**: Press F12 to show/hide the HUD
-- **Low overhead**: Uses lock-free circular buffers and efficient rendering
+- **Performance Metrics**: FPS, frame time (current, average, min, max)
+- **Cache Statistics**: Glyph cache, texture atlas usage
+- **Memory Tracking**: Process memory, heap, GPU memory (Linux only)
+- **Navigation Stats**: Active hints, focusable regions, overlay counts
+- **Configurable Position**: Top-right, top-left, bottom-right, bottom-left
+- **Toggle Hotkeys**: F12 or Ctrl+Shift+T
+- **Low Overhead**: Lock-free atomics, efficient ECS queries
 
 ## Usage
 
@@ -65,37 +67,94 @@ App::new()
 - `HudPosition::BottomRight`
 - `HudPosition::BottomLeft`
 
+## Scarab Integration
+
+Use `ScarabTelemetryPlugin` for automatic configuration:
+
+```rust
+use scarab_client::ScarabTelemetryPlugin;
+
+app.add_plugins(ScarabTelemetryPlugin);  // Reads from ScarabConfig
+```
+
+### Configuration (TOML)
+
+Add to `~/.config/scarab/config.toml`:
+
+```toml
+[telemetry]
+hud_enabled = true
+hud_position = "top-right"
+hud_hotkey = "Ctrl+Shift+T"
+hud_show_memory = true
+hud_show_cache = true
+hud_show_hints = true
+```
+
+### Configuration (Fusabi)
+
+Add to `~/.config/scarab/config.fsx`:
+
+```fsharp
+{
+  telemetry = {
+    hud_enabled = true
+    hud_position = "top-right"
+    hud_hotkey = "Ctrl+Shift+T"
+    hud_show_memory = true
+    hud_show_cache = true
+    hud_show_hints = true
+  }
+}
+```
+
 ## Controls
 
-- **F12**: Toggle HUD visibility
+- **F12**: Toggle HUD visibility (legacy)
+- **Ctrl+Shift+T**: Toggle HUD visibility (configurable)
 
 ## Metrics Displayed
 
-The HUD displays the following performance metrics:
-
+### Performance
 - **FPS**: Current frames per second
-- **Frame Time**: Current frame rendering time in milliseconds
-- **Avg**: Average frame time over the configured window
-- **Min**: Minimum frame time in the window
-- **Max**: Maximum frame time in the window
-- **Frames**: Total number of frames rendered
-- **Uptime**: Total elapsed time since application start
+- **Frame Time**: Current frame time in milliseconds
+- **Avg/Min/Max**: Statistical frame time data
+- **Frames**: Total frames rendered
+- **Uptime**: Total elapsed time
+
+### Cache
+- **Glyphs**: Number of cached glyphs
+- **Hit Rate**: Glyph cache hit percentage
+- **Atlases**: Number of texture atlases
+- **Tex Mem**: Total texture memory usage
+
+### Memory
+- **Process**: Total process memory (RSS on Linux)
+- **Heap**: Heap allocation size
+- **GPU**: GPU memory usage (estimated)
+
+### Navigation
+- **Hints**: Active NavHint entities
+- **Focusable**: FocusableRegion count
+- **Overlays**: Visible HintOverlay entities
 
 ## Architecture
 
-### Components
+### Resources
 
-- **`TelemetryHudPlugin`**: Main plugin struct, configures and registers systems
-- **`PerformanceMetrics`**: Resource that tracks frame timing data
-- **`HudState`**: Resource controlling HUD visibility and position
-- **`HudContainer`**: Component marking the HUD UI entity
-- **`HudText`**: Component marking text elements within the HUD
+- **`TelemetryHudPlugin`**: Main plugin, registers systems
+- **`PerformanceMetrics`**: Frame timing data
+- **`TelemetryData`**: Cache, memory, navigation stats
+- **`HudState`**: Visibility and position control
 
 ### Systems
 
-1. **`update_metrics`**: Collects frame timing data every frame
-2. **`toggle_hud`**: Handles F12 key press to toggle visibility
-3. **`render_hud`**: Creates/updates HUD UI when visible
+1. **`update_metrics`**: Frame timing collection
+2. **`update_cache_stats`**: Cache metrics (stub for integration)
+3. **`update_memory_stats`**: Memory sampling (Linux: procfs)
+4. **`update_hint_stats`**: Navigation entity counting (via integration)
+5. **`toggle_hud`**: F12 / Ctrl+Shift+T handler
+6. **`render_hud`**: UI creation and updates
 
 ### Performance Considerations
 
@@ -115,31 +174,45 @@ cargo test -p scarab-telemetry-hud
 
 All metrics collection and statistics computation are thoroughly tested.
 
-## Integration with Scarab Client
+## Extension Points
 
-To integrate with the Scarab client, add the plugin in the main app setup:
+### Custom Cache Integration
 
 ```rust
-// In scarab-client/src/main.rs
-use scarab_telemetry_hud::TelemetryHudPlugin;
+use scarab_telemetry_hud::TelemetryData;
 
-app.add_plugins(TelemetryHudPlugin::default());
+fn update_custom_cache(
+    mut telemetry: ResMut<TelemetryData>,
+    my_cache: Res<MyGlyphCache>,
+) {
+    telemetry.cache_stats.glyph_count = my_cache.len();
+    telemetry.cache_stats.glyph_hit_rate = my_cache.hit_rate();
+}
 ```
 
-The HUD will automatically integrate with Scarab's rendering pipeline and respond to F12 key presses.
+### Component Counting
+
+```rust
+use scarab_telemetry_hud::integration::update_nav_hint_counts;
+
+app.add_systems(
+    Update,
+    update_nav_hint_counts::<NavHint, FocusableRegion, HintOverlay>
+);
+```
+
+## Platform Support
+
+- **Linux**: Full support (memory via `/proc/self/status`)
+- **macOS/Windows**: Performance and navigation (memory stub)
 
 ## Future Enhancements
 
-Potential future improvements:
-
-- Frame time graph visualization using `HudGraph` component
-- Memory usage tracking
-- Entity count metrics
-- System execution time breakdown
-- GPU metrics (if available)
+- Frame time graph visualization
+- GPU memory tracking (platform-specific APIs)
 - Customizable color themes
-- Export metrics to file/logging system
-- Integration with external profiling tools (Tracy, puffin)
+- Export metrics to file
+- Integration with Tracy/puffin profilers
 
 ## License
 

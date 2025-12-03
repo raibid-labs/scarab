@@ -181,6 +181,84 @@ pub struct PerformanceSnapshot {
     pub total_elapsed_secs: f32,
 }
 
+/// Extended metrics including cache, memory, and navigation stats
+#[derive(Debug, Clone, Copy)]
+pub struct ExtendedMetrics {
+    /// Core performance metrics
+    pub performance: PerformanceSnapshot,
+
+    /// Cache statistics
+    pub cache_stats: CacheStats,
+
+    /// Memory usage statistics
+    pub memory_stats: MemoryStats,
+
+    /// Navigation hint statistics
+    pub hint_stats: HintStats,
+}
+
+/// Cache statistics for glyph and texture caches
+#[derive(Debug, Clone, Copy, Default)]
+pub struct CacheStats {
+    /// Number of glyphs in cache
+    pub glyph_count: usize,
+
+    /// Glyph cache hit rate (0.0 to 1.0)
+    pub glyph_hit_rate: f32,
+
+    /// Texture atlas usage count
+    pub atlas_count: usize,
+
+    /// Total texture memory (bytes)
+    pub texture_memory_bytes: usize,
+}
+
+/// Memory usage statistics
+#[derive(Debug, Clone, Copy, Default)]
+pub struct MemoryStats {
+    /// Current process memory (MB)
+    pub process_mb: f32,
+
+    /// Heap allocation size (MB)
+    pub heap_mb: f32,
+
+    /// GPU memory usage (MB)
+    pub gpu_mb: f32,
+}
+
+/// Navigation hint statistics
+#[derive(Debug, Clone, Copy, Default)]
+pub struct HintStats {
+    /// Number of active NavHint entities
+    pub hint_count: usize,
+
+    /// Number of FocusableRegion entities
+    pub focusable_count: usize,
+
+    /// Number of visible overlays
+    pub overlay_count: usize,
+}
+
+/// Resource to track extended telemetry data
+#[derive(Resource, Default)]
+pub struct TelemetryData {
+    pub cache_stats: CacheStats,
+    pub memory_stats: MemoryStats,
+    pub hint_stats: HintStats,
+}
+
+impl TelemetryData {
+    /// Get a combined snapshot of all metrics
+    pub fn extended_snapshot(&self, perf: &PerformanceMetrics) -> ExtendedMetrics {
+        ExtendedMetrics {
+            performance: perf.snapshot(),
+            cache_stats: self.cache_stats,
+            memory_stats: self.memory_stats,
+            hint_stats: self.hint_stats,
+        }
+    }
+}
+
 /// System: Update performance metrics
 ///
 /// Runs every frame to collect timing data.
@@ -188,6 +266,61 @@ pub struct PerformanceSnapshot {
 pub(crate) fn update_metrics(time: Res<Time>, mut metrics: ResMut<PerformanceMetrics>) {
     let delta = time.delta_secs();
     metrics.record_frame(delta);
+}
+
+/// System: Update cache statistics
+///
+/// Collects cache metrics from rendering systems.
+/// This would ideally query actual cache resources but can be stubbed for now.
+pub(crate) fn update_cache_stats(_telemetry: ResMut<TelemetryData>) {
+    // Stub: In a full implementation, this would query GlyphCache and TextureAtlas resources
+    // For now, we maintain placeholder values that can be updated by other systems
+    // Real implementation would look like:
+    // if let Some(glyph_cache) = glyph_cache_query.get_single().ok() {
+    //     _telemetry.cache_stats.glyph_count = glyph_cache.len();
+    // }
+}
+
+/// System: Update memory statistics
+///
+/// Samples process memory usage using platform-specific APIs.
+pub(crate) fn update_memory_stats(mut telemetry: ResMut<TelemetryData>) {
+    #[cfg(target_os = "linux")]
+    {
+        use std::fs;
+        if let Ok(status) = fs::read_to_string("/proc/self/status") {
+            for line in status.lines() {
+                if line.starts_with("VmRSS:") {
+                    if let Some(value) = line.split_whitespace().nth(1) {
+                        if let Ok(kb) = value.parse::<f32>() {
+                            telemetry.memory_stats.process_mb = kb / 1024.0;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    #[cfg(not(target_os = "linux"))]
+    {
+        // Placeholder for other platforms
+        telemetry.memory_stats.process_mb = 0.0;
+    }
+}
+
+/// System: Update navigation hint statistics
+///
+/// Counts active hint-related entities in the ECS world.
+pub(crate) fn update_hint_stats(
+    _telemetry: ResMut<TelemetryData>,
+    // We'll add component queries when integrating with scarab-client
+    // For now, this is a placeholder that can be filled in during integration
+) {
+    // Stub: Will be updated when integrated with scarab-client navigation
+    // Real implementation would count:
+    // - NavHint entities
+    // - FocusableRegion entities
+    // - HintOverlay entities
 }
 
 #[cfg(test)]

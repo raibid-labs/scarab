@@ -26,12 +26,17 @@
 
 mod metrics;
 mod overlay;
+pub mod integration;
 
-pub use metrics::{PerformanceMetrics, PerformanceSnapshot};
+pub use metrics::{
+    PerformanceMetrics, PerformanceSnapshot, TelemetryData, ExtendedMetrics,
+    CacheStats, MemoryStats, HintStats,
+};
 pub use overlay::{HudPosition, HudState};
+pub use integration::update_nav_hint_counts;
 
 use bevy::prelude::*;
-use metrics::update_metrics;
+use metrics::{update_metrics, update_cache_stats, update_memory_stats, update_hint_stats};
 use overlay::{render_hud, toggle_hud};
 
 /// Telemetry HUD Plugin
@@ -91,7 +96,8 @@ impl Plugin for TelemetryHudPlugin {
             visible: self.visible,
             position: self.position,
         })
-        .insert_resource(PerformanceMetrics::new(self.window_size));
+        .insert_resource(PerformanceMetrics::new(self.window_size))
+        .insert_resource(TelemetryData::default());
 
         // Register systems
         // Always update metrics (minimal overhead)
@@ -100,6 +106,9 @@ impl Plugin for TelemetryHudPlugin {
             Update,
             (
                 update_metrics,
+                update_cache_stats,
+                update_memory_stats,
+                update_hint_stats,
                 toggle_hud,
                 render_hud,
             )

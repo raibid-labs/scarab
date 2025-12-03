@@ -1,36 +1,39 @@
 # Scarab Testing Guide
 
-This guide covers how to run and write tests for Scarab terminal emulator.
+Comprehensive testing documentation for Scarab terminal emulator.
 
-## Quick Start
+## Quick Reference
 
-Run all tests:
-```bash
-cargo test --workspace
-```
+All test commands at a glance:
 
-Run tests with output visible:
-```bash
-cargo test --workspace -- --nocapture
-```
+| Test Type | Command | Description |
+|-----------|---------|-------------|
+| **All Tests** | `cargo test --workspace` | Run all workspace tests |
+| **Unit Tests** | `cargo test --workspace --lib` | Run all unit tests |
+| **Integration Tests** | `cargo test --workspace --test '*'` | Run all integration tests |
+| **Golden Tests** | `cargo test -p scarab-client --test golden_tests` | Snapshot regression tests |
+| **Nav Smoke Tests** | `just nav-smoke` or `./scripts/nav-smoke-test.sh` | Navigation system validation |
+| **Headless Tests** | `cargo test -p scarab-client --test headless_harness` | Bevy UI tests without GPU |
+| **E2E Tests** | `cargo test -p scarab-client --test e2e` | Full daemon-client integration |
+| **Workspace E2E** | `cargo test --test full_stack_test` | Workspace-level E2E tests |
+| **Benchmarks** | `cargo bench --workspace` | Performance benchmarks |
+| **CI Suite** | `just ci` | Format check + clippy + tests |
+| **Quick Check** | `just quick` | Check + test (fast iteration) |
 
-Run navigation smoke test:
-```bash
-just nav-smoke
-```
+---
 
-## Test Suites
+## Test Types
 
-### Unit Tests
+### 1. Unit Tests
 
 Unit tests are embedded within source files using `#[cfg(test)]` modules or in separate test modules.
 
-Run all workspace unit tests:
+**Run all unit tests:**
 ```bash
 cargo test --workspace --lib
 ```
 
-Run tests for a specific crate:
+**Run tests for a specific crate:**
 ```bash
 cargo test -p scarab-client --lib
 cargo test -p scarab-daemon --lib
@@ -38,113 +41,93 @@ cargo test -p scarab-protocol --lib
 cargo test -p scarab-config --lib
 cargo test -p scarab-platform --lib
 cargo test -p scarab-plugin-api --lib
+cargo test -p scarab-session --lib
+cargo test -p scarab-themes --lib
 ```
 
-### Navigation Tests
-
-Run navigation-specific tests:
+**Run specific test modules:**
 ```bash
+# Navigation tests
 cargo test -p scarab-client --lib navigation
+
+# VTE parser tests
+cargo test -p scarab-daemon --lib vte
+
+# Config parsing tests
+cargo test -p scarab-config --lib parser
 ```
 
-Run the full navigation smoke test suite:
-```bash
-just nav-smoke
-```
+**What unit tests cover:**
+- Component-level logic (functions, structs, methods)
+- Edge cases and error handling
+- Data structure operations
+- Parser correctness
+- State management
 
-The navigation smoke test (`scripts/nav-smoke-test.sh`) runs:
-1. **Navigation Unit Tests** - Mode switching, focus management, per-pane state
-2. **Golden Tests** - Snapshot validation for rendering
-3. **Headless Harness Tests** - E2E navigation workflows
+---
 
-Navigation tests cover:
-- Mode switching (Normal, Hint, Insert)
-- Focusable detection (URLs, paths, emails)
-- Per-pane navigation state isolation
-- Plugin bridge interactions
-- OSC 133 prompt marker integration
+### 2. Integration Tests
 
-See [Navigation Developer Guide](docs/navigation/developer-guide.md) for more details.
+Integration tests verify component interactions within individual crates. Located in `crates/<crate>/tests/`.
 
-### Integration Tests
-
-Integration tests verify component interactions within individual crates.
-
-Run all integration tests:
+**Run all integration tests:**
 ```bash
 cargo test --workspace --test '*'
 ```
 
-Run specific integration test suites:
+**Client integration tests:**
 ```bash
-# Client integration tests
 cargo test -p scarab-client --test integration_e2e
 cargo test -p scarab-client --test ui_tests
 cargo test -p scarab-client --test command_palette_ui_tests
 cargo test -p scarab-client --test link_hints_tests
 cargo test -p scarab-client --test selection_tests
 cargo test -p scarab-client --test overlay_tests
+```
 
-# Daemon integration tests
+**Daemon integration tests:**
+```bash
 cargo test -p scarab-daemon --test ipc_integration
 cargo test -p scarab-daemon --test session_integration
 cargo test -p scarab-daemon --test plugin_integration
 cargo test -p scarab-daemon --test vte_conformance
 cargo test -p scarab-daemon --test tab_pane_multiplexing
+```
 
-# Platform integration tests
+**Platform integration tests:**
+```bash
 cargo test -p scarab-platform --test platform_tests
+```
 
-# Config integration tests
+**Config integration tests:**
+```bash
 cargo test -p scarab-config --test integration_tests
+```
 
-# Theme integration tests
+**Theme integration tests:**
+```bash
 cargo test -p scarab-themes --test integration_test
 ```
 
-### E2E (End-to-End) Tests
+**What integration tests cover:**
+- Multi-module interactions
+- Subsystem integration
+- API contracts
+- Feature workflows
+- Platform-specific behavior
 
-E2E tests spawn actual daemon and client processes to test the complete stack including IPC, PTY, and rendering.
+---
 
-Run all E2E tests (excluding ignored stress tests):
-```bash
-cargo test -p scarab-client --test e2e
-```
+### 3. Golden Tests
 
-Run specific E2E test suites:
-```bash
-cargo test -p scarab-client --test e2e basic_workflow
-cargo test -p scarab-client --test e2e vim_editing -- --ignored
-cargo test -p scarab-client --test e2e color_rendering
-cargo test -p scarab-client --test e2e scrollback
-cargo test -p scarab-client --test e2e session_persist
-cargo test -p scarab-client --test e2e input_forward
-cargo test -p scarab-client --test e2e resize_handling
-cargo test -p scarab-client --test e2e stress_test -- --ignored
-```
+Golden tests capture terminal grid snapshots for visual regression testing.
 
-E2E tests cover:
-- **Basic Workflow**: Echo commands, environment variables, clear screen
-- **Vim Editing**: Text editing, save/quit, navigation (requires vim)
-- **Color Rendering**: ANSI colors, 256 color mode, true color
-- **Scrollback**: Large output handling, continuous updates
-- **Session Persistence**: Client disconnect/reconnect, state preservation
-- **Input Forwarding**: Control sequences, arrow keys, Unicode
-- **Resize Handling**: Dynamic terminal resizing, content preservation
-- **Stress Testing**: Long-running stability tests (marked with `#[ignore]`)
-
-See [E2E Test Framework README](crates/scarab-client/tests/e2e/README.md) for detailed documentation.
-
-### Golden Tests
-
-Golden tests capture terminal grid snapshots for regression testing.
-
-Run golden tests:
+**Run golden tests:**
 ```bash
 cargo test -p scarab-client --test golden_tests
 ```
 
-Golden tests verify:
+**What golden tests verify:**
 - Basic text rendering
 - ANSI color output
 - Unicode character support
@@ -154,48 +137,249 @@ Golden tests verify:
 - Grid boundary handling
 - Terminal session simulation
 
-All golden tests run in headless mode without GPU or window requirements.
+**Notes:**
+- All golden tests run in headless mode (no GPU/window required)
+- Snapshots are compared against saved reference outputs
+- Use `--nocapture` to see diff details on failure
 
-### Headless Harness Tests
+---
 
-The headless test harness allows testing Bevy UI systems without a display server.
+### 4. Navigation Smoke Tests
 
-Run headless harness tests:
+Comprehensive navigation system validation suite.
+
+**Run navigation smoke tests:**
+```bash
+just nav-smoke
+```
+
+Or directly:
+```bash
+./scripts/nav-smoke-test.sh
+```
+
+**What the smoke test includes:**
+1. **Navigation Unit Tests** - Mode switching, focus management, per-pane state
+2. **Golden Tests** - Snapshot validation for rendering
+3. **Headless Harness Tests** - E2E navigation workflows
+
+**Navigation features tested:**
+- Mode switching (Normal, Hint, Insert)
+- Focusable detection (URLs, paths, emails)
+- Per-pane navigation state isolation
+- Plugin bridge interactions
+- OSC 133 prompt marker integration
+
+**Exit codes:**
+- `0` - All tests passed
+- `1` - Navigation unit tests failed
+- `2` - Golden tests failed
+- `3` - Headless harness tests failed
+
+See [Navigation Developer Guide](docs/navigation/developer-guide.md) for more details.
+
+---
+
+### 5. Headless Tests
+
+Bevy UI system tests without display server requirements.
+
+**Run all headless harness tests:**
 ```bash
 cargo test -p scarab-client --test headless_harness
+```
+
+**Run specific headless tests:**
+```bash
+cargo test -p scarab-client --test headless_harness -- test_name
 cargo test -p scarab-client --test headless_poc
 cargo test -p scarab-client --test harness_examples
 cargo test -p scarab-client --test harness_standalone
 ```
 
-The headless harness provides:
+**What headless tests provide:**
 - Mock terminal grid with programmable content
 - Grid snapshot capture for verification
 - Bevy ECS testing without GPU
 - Terminal state simulation
+- Deterministic system execution
 
-See the harness documentation in `crates/scarab-client/tests/headless_harness.rs` for API details.
+**Use cases:**
+- CI environments without display servers
+- Fast UI component testing
+- System interaction validation
+- State management verification
 
-### Full Stack Tests
+See `crates/scarab-client/tests/headless_harness.rs` for API documentation.
 
-Full stack tests at the workspace root verify complete daemon-client workflows:
+---
 
+### 6. E2E (End-to-End) Tests
+
+Full daemon-client integration tests spawning actual processes.
+
+**Run all E2E tests (excluding stress tests):**
+```bash
+cargo test -p scarab-client --test e2e
+```
+
+**Run specific E2E test suites:**
+```bash
+# Basic workflow tests
+cargo test -p scarab-client --test e2e basic_workflow
+
+# Vim editing tests (requires vim installed)
+cargo test -p scarab-client --test e2e vim_editing -- --ignored
+
+# Color rendering tests
+cargo test -p scarab-client --test e2e color_rendering
+
+# Scrollback tests
+cargo test -p scarab-client --test e2e scrollback
+
+# Session persistence tests
+cargo test -p scarab-client --test e2e session_persist
+
+# Input forwarding tests
+cargo test -p scarab-client --test e2e input_forward
+
+# Resize handling tests
+cargo test -p scarab-client --test e2e resize_handling
+
+# Stress tests (long-running)
+cargo test -p scarab-client --test e2e stress_test -- --ignored
+```
+
+**What E2E tests cover:**
+- **Basic Workflow**: Echo commands, environment variables, clear screen
+- **Vim Editing**: Text editing, save/quit, navigation
+- **Color Rendering**: ANSI colors, 256 color mode, true color
+- **Scrollback**: Large output handling, continuous updates
+- **Session Persistence**: Client disconnect/reconnect, state preservation
+- **Input Forwarding**: Control sequences, arrow keys, Unicode
+- **Resize Handling**: Dynamic terminal resizing, content preservation
+- **Stress Testing**: Long-running stability tests
+
+**Requirements:**
+- Built binaries: `cargo build --workspace` (E2E tests spawn actual processes)
+- Some tests require external tools (e.g., `vim`)
+
+See [E2E Test Framework README](crates/scarab-client/tests/e2e/README.md) for detailed documentation.
+
+---
+
+### 7. Workspace E2E Tests
+
+Full stack tests at the workspace root verify complete daemon-client workflows.
+
+**Run workspace E2E tests:**
 ```bash
 cargo test --test full_stack_test
 cargo test --test program_interactions
 ```
 
+**What workspace E2E tests cover:**
+- Complete daemon-client communication
+- IPC protocol validation
+- PTY interaction
+- Real program execution
+- Multi-session scenarios
+
+---
+
+### 8. Benchmarks
+
+Performance and regression testing.
+
+**Run all benchmarks:**
+```bash
+cargo bench --workspace
+```
+
+Or via justfile:
+```bash
+just bench
+```
+
+**Run benchmarks for specific crate:**
+```bash
+cargo bench -p scarab-daemon
+cargo bench -p scarab-client
+```
+
+**What benchmarks measure:**
+- Rendering performance
+- VTE parsing speed
+- IPC throughput
+- Plugin execution time
+- Memory allocations
+
+---
+
 ## Just Commands
 
 The `justfile` provides convenient shortcuts for common test operations:
 
-| Command | Description |
-|---------|-------------|
-| `just test` | Run all workspace tests |
-| `just test-verbose` | Run all tests with output visible |
-| `just nav-smoke` | Run navigation smoke test suite |
-| `just quick` | Run check + test (fast iteration) |
-| `just ci` | Run full CI suite (format check, clippy, tests) |
+| Command | Equivalent | Description |
+|---------|-----------|-------------|
+| `just test` | `cargo test --workspace` | Run all workspace tests |
+| `just test-verbose` | `cargo test --workspace -- --nocapture` | Run tests with output visible |
+| `just nav-smoke` | `./scripts/nav-smoke-test.sh` | Navigation smoke test suite |
+| `just bench` | `cargo bench --workspace` | Run all benchmarks |
+| `just quick` | `cargo check --workspace && cargo test --workspace` | Quick iteration (check + test) |
+| `just ci` | `cargo fmt --all -- --check && cargo clippy --workspace -- -D warnings && cargo test --workspace` | Full CI suite |
+
+---
+
+## Test Organization
+
+Tests are organized by type and scope:
+
+```
+scarab/
+├── tests/                          # Workspace-level tests
+│   ├── integration/
+│   │   └── full_stack_test.rs     # Complete daemon+client tests
+│   └── e2e/
+│       └── program_interactions.rs # Real program interactions
+│
+├── scripts/
+│   └── nav-smoke-test.sh          # Navigation smoke test script
+│
+└── crates/
+    ├── scarab-client/
+    │   ├── src/
+    │   │   └── navigation/
+    │   │       └── tests.rs        # Navigation unit tests
+    │   └── tests/
+    │       ├── e2e/                # E2E test framework
+    │       │   ├── harness.rs
+    │       │   ├── basic_workflow.rs
+    │       │   ├── vim_editing.rs
+    │       │   └── ...
+    │       ├── golden_tests.rs     # Snapshot tests
+    │       ├── headless_harness.rs # Headless test infra
+    │       ├── ui_tests.rs         # UI component tests
+    │       └── ...
+    │
+    ├── scarab-daemon/
+    │   ├── src/
+    │   │   └── tests/
+    │   │       ├── mod.rs
+    │   │       └── vte_tests.rs
+    │   └── tests/
+    │       ├── ipc_integration.rs
+    │       ├── session_integration.rs
+    │       ├── plugin_integration.rs
+    │       ├── vte_conformance.rs
+    │       └── tab_pane_multiplexing.rs
+    │
+    └── scarab-*/
+        └── tests/                  # Per-crate integration tests
+            └── integration_tests.rs
+```
+
+---
 
 ## Writing Tests
 
@@ -288,50 +472,7 @@ fn test_e2e_scenario() -> anyhow::Result<()> {
 7. **Mark slow tests** - Use `#[ignore]` for long-running tests
 8. **Document requirements** - Note any external dependencies (vim, etc.)
 
-## Test Organization
-
-Tests are organized by type and scope:
-
-```
-scarab/
-├── tests/                          # Workspace-level tests
-│   ├── integration/
-│   │   └── full_stack_test.rs     # Complete daemon+client tests
-│   └── e2e/
-│       └── program_interactions.rs # Real program interactions
-│
-└── crates/
-    ├── scarab-client/
-    │   ├── src/
-    │   │   └── navigation/
-    │   │       └── tests.rs        # Navigation unit tests
-    │   └── tests/
-    │       ├── e2e/                # E2E test framework
-    │       │   ├── harness.rs
-    │       │   ├── basic_workflow.rs
-    │       │   ├── vim_editing.rs
-    │       │   └── ...
-    │       ├── golden_tests.rs     # Snapshot tests
-    │       ├── headless_harness.rs # Headless test infra
-    │       ├── ui_tests.rs         # UI component tests
-    │       └── ...
-    │
-    ├── scarab-daemon/
-    │   ├── src/
-    │   │   └── tests/
-    │   │       ├── mod.rs
-    │   │       └── vte_tests.rs
-    │   └── tests/
-    │       ├── ipc_integration.rs
-    │       ├── session_integration.rs
-    │       ├── plugin_integration.rs
-    │       ├── vte_conformance.rs
-    │       └── tab_pane_multiplexing.rs
-    │
-    └── scarab-*/
-        └── tests/                  # Per-crate integration tests
-            └── integration_tests.rs
-```
+---
 
 ## CI Integration
 
@@ -382,6 +523,8 @@ test:
     # E2E tests (excluding stress tests)
     - run: cargo test -p scarab-client --test e2e
 ```
+
+---
 
 ## Troubleshooting
 
@@ -454,6 +597,8 @@ just clean-shm
 just kill
 ```
 
+---
+
 ## Performance Testing
 
 ### Benchmarks
@@ -481,7 +626,9 @@ Run with profiling enabled:
 just run-profile
 ```
 
-See [BENCHMARK_GUIDE.md](docs/BENCHMARK_GUIDE.md) for detailed profiling instructions.
+See [BENCHMARK_GUIDE.md](docs/BENCHMARK_GUIDE.md) for detailed profiling instructions (if available).
+
+---
 
 ## Test Coverage
 
@@ -498,6 +645,8 @@ cargo tarpaulin --workspace --out Html --output-dir coverage/
 open coverage/index.html
 ```
 
+---
+
 ## Further Reading
 
 - [Navigation Developer Guide](docs/navigation/developer-guide.md) - Navigation system testing
@@ -505,6 +654,10 @@ open coverage/index.html
 - [Headless Testing Quickstart](docs/testing/HEADLESS_TESTING_QUICKSTART.md) - Headless test infrastructure
 - [Configuration Guide](docs/configuration.md) - Test configuration
 - [Developer Architecture Guide](docs/developer/architecture.md) - System architecture
+- [CLAUDE.md](./CLAUDE.md) - Project overview and build commands
+- [ROADMAP.md](./ROADMAP.md) - Development roadmap
+
+---
 
 ## Contributing
 
@@ -519,4 +672,4 @@ When adding new tests:
 
 ---
 
-*Last updated: 2025-12-03*
+**Last updated**: 2025-12-03

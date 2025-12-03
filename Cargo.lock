@@ -6844,8 +6844,10 @@ version = "0.1.0-alpha.15"
 dependencies = [
  "anyhow",
  "arboard",
+ "base64 0.22.1",
  "bevy",
  "bevy_egui",
+ "chrono",
  "clap",
  "cosmic-text 0.11.2",
  "criterion",
@@ -6867,6 +6869,7 @@ dependencies = [
  "scarab-nav-protocol",
  "scarab-plugin-api",
  "scarab-protocol",
+ "scarab-telemetry-hud",
  "serde",
  "serde_json",
  "shared_memory",

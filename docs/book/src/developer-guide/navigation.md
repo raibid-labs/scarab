@@ -1,5 +1,16 @@
 # Navigation System
 
+> **DEPRECATION NOTICE**: This document is part of the legacy mdBook documentation structure and may be outdated.
+>
+> For current navigation system documentation, see:
+> - **Developer Guide**: [docs/navigation/developer-guide.md](../../navigation/developer-guide.md)
+> - **Architecture Overview**: [docs/navigation.md](../../navigation.md)
+> - **User Guide**: [docs/navigation/user-guide.md](../../navigation/user-guide.md)
+>
+> Last updated: 2025-12-03
+
+---
+
 Scarab's navigation system is built on Bevy's Entity Component System (ECS).
 
 ## Overview
@@ -13,9 +24,9 @@ The navigation system provides:
 ## Design Documents
 
 For comprehensive navigation system documentation, see:
-- [Navigation README](../../navigation/README.md)
-- [Navigation Specification](../../navigation/NAVIGATION_SPEC.md)
-- [Test Plan](../../navigation/TEST_PLAN.md)
+- **[Navigation Developer Guide](../../navigation/developer-guide.md)** - Current developer documentation
+- **[Navigation Architecture](../../navigation.md)** - Complete ECS-native architecture
+- **[Navigation User Guide](../../navigation/user-guide.md)** - User-facing documentation
 
 ## Architecture
 

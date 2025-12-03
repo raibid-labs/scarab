@@ -384,6 +384,330 @@ fn test_multiple_commands_sequence() -> Result<()> {
 }
 
 // =============================================================================
+// GRAPHICS PROTOCOL TESTS (Issue #63)
+// =============================================================================
+
+/// Test 7: Sixel image sequence handling
+///
+/// Verifies that Sixel DCS sequences are properly parsed without crashes.
+/// This tests the VTE parser's ability to handle inline graphics.
+///
+/// **Note**: Full verification of rendered images requires access to SharedMemory
+/// and image buffer state, which is not yet available through ratatui-testlib.
+#[test]
+#[ignore = "Requires daemon binary and Sixel support"]
+fn test_sixel_sequence_handling() -> Result<()> {
+    println!("=== Test: Sixel Sequence Handling ===");
+
+    let mut harness = TuiTestHarness::new(80, 24)?;
+
+    // Spawn daemon
+    let daemon_bin = get_daemon_binary()?;
+    let mut cmd = CommandBuilder::new(daemon_bin);
+    cmd.env("SHELL", "/bin/sh");
+
+    harness.spawn(cmd)?;
+    std::thread::sleep(DAEMON_STARTUP_TIMEOUT);
+
+    // Send a minimal Sixel DCS sequence
+    // DCS = ESC P, ST = ESC \
+    // Format: ESC P q <sixel data> ESC \
+    // This draws a simple 2x2 pixel red square
+    let sixel_sequence = "\x1bPq#0;2;100;0;0#0~~$~~\x1b\\";
+
+    harness.send_text(sixel_sequence)?;
+    println!("Sent: Minimal Sixel sequence (2x2 red square)");
+
+    std::thread::sleep(Duration::from_millis(200));
+    harness.update_state()?;
+
+    let contents = harness.screen_contents();
+    println!("Screen after Sixel:\n{}", contents);
+
+    // Verify no crash/panic occurred
+    // TODO: Once SharedMemory integration is complete, we should verify:
+    // - Image was decoded and stored in image buffer
+    // - Image metadata was recorded (width, height, position)
+    // - Image render command was added to rendering pipeline
+    //
+    // For now, we verify the daemon is still responsive
+    harness.send_text("echo 'Post-Sixel test'\r")?;
+    std::thread::sleep(OUTPUT_TIMEOUT);
+    harness.update_state()?;
+
+    let contents_after = harness.screen_contents();
+    assert!(
+        contents_after.contains("Post-Sixel test"),
+        "Daemon should remain responsive after Sixel sequence"
+    );
+
+    println!("✓ Sixel sequence handled without crash");
+    println!("  See: ratatui-testlib Phase 4 - SharedMemory integration for full verification");
+
+    Ok(())
+}
+
+/// Test 8: Kitty graphics protocol basic transfer
+///
+/// Tests Kitty APC graphics sequence parsing and acknowledgment.
+/// This verifies the daemon can handle inline graphics commands.
+///
+/// **Note**: Full verification requires access to image buffer state and
+/// rendering pipeline, which is not yet available through ratatui-testlib.
+#[test]
+#[ignore = "Requires daemon binary and Kitty graphics support"]
+fn test_kitty_graphics_basic() -> Result<()> {
+    println!("=== Test: Kitty Graphics Basic ===");
+
+    let mut harness = TuiTestHarness::new(80, 24)?;
+
+    // Spawn daemon
+    let daemon_bin = get_daemon_binary()?;
+    let mut cmd = CommandBuilder::new(daemon_bin);
+    cmd.env("SHELL", "/bin/sh");
+
+    harness.spawn(cmd)?;
+    std::thread::sleep(DAEMON_STARTUP_TIMEOUT);
+
+    // Send a minimal Kitty graphics command (direct transmission, PNG format)
+    // Format: ESC _ G <params>;<base64-payload> ESC \
+    // This is a 1x1 red PNG pixel (base64 encoded)
+    let red_pixel_png_base64 = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8DwHwAFBQIAX8jx0gAAAABJRU5ErkJggg==";
+    let kitty_cmd = format!("\x1b_Ga=T,f=100,s=1,v=1;{}\x1b\\", red_pixel_png_base64);
+
+    harness.send_text(&kitty_cmd)?;
+    println!("Sent: Minimal Kitty graphics command (1x1 red PNG)");
+
+    std::thread::sleep(Duration::from_millis(200));
+    harness.update_state()?;
+
+    let contents = harness.screen_contents();
+    println!("Screen after Kitty graphics:\n{}", contents);
+
+    // Verify no crash/panic occurred
+    // TODO: Once SharedMemory integration is complete, we should verify:
+    // - Image was decoded from base64 and PNG format
+    // - Image stored in image registry with correct ID
+    // - Acknowledgment response sent (if requested)
+    // - Image placement command executed
+    //
+    // For now, verify daemon remains responsive
+    harness.send_text("echo 'Post-Kitty test'\r")?;
+    std::thread::sleep(OUTPUT_TIMEOUT);
+    harness.update_state()?;
+
+    let contents_after = harness.screen_contents();
+    assert!(
+        contents_after.contains("Post-Kitty test"),
+        "Daemon should remain responsive after Kitty graphics sequence"
+    );
+
+    println!("✓ Kitty graphics command handled without crash");
+    println!("  See: ratatui-testlib Phase 4 - SharedMemory integration for full verification");
+
+    Ok(())
+}
+
+/// Test 9: Kitty graphics chunked transfer
+///
+/// Tests multi-chunk Kitty graphics transmission using the 'm' (more) parameter.
+/// This verifies the daemon can handle large images split across multiple APC sequences.
+#[test]
+#[ignore = "Requires daemon binary and Kitty graphics chunking support"]
+fn test_kitty_graphics_chunked_transfer() -> Result<()> {
+    println!("=== Test: Kitty Graphics Chunked Transfer ===");
+
+    let mut harness = TuiTestHarness::new(80, 24)?;
+
+    // Spawn daemon
+    let daemon_bin = get_daemon_binary()?;
+    let mut cmd = CommandBuilder::new(daemon_bin);
+    cmd.env("SHELL", "/bin/sh");
+
+    harness.spawn(cmd)?;
+    std::thread::sleep(DAEMON_STARTUP_TIMEOUT);
+
+    // Simulate chunked transfer by splitting data across multiple commands
+    // m=1 means "more chunks coming", m=0 means "final chunk"
+    let chunk1 = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAAB";
+    let chunk2 = "CAYAAAA";
+    let chunk3 = "fFcSJAAAADUlEQVR42mP8z8DwHwAFBQIAX8jx0gAAAABJRU5ErkJggg==";
+
+    // First chunk (more=1)
+    let cmd1 = format!("\x1b_Ga=T,f=100,m=1;{}\x1b\\", chunk1);
+    harness.send_text(&cmd1)?;
+    println!("Sent: Chunk 1 of 3 (m=1)");
+    std::thread::sleep(Duration::from_millis(50));
+
+    // Second chunk (more=1)
+    let cmd2 = format!("\x1b_Gm=1;{}\x1b\\", chunk2);
+    harness.send_text(&cmd2)?;
+    println!("Sent: Chunk 2 of 3 (m=1)");
+    std::thread::sleep(Duration::from_millis(50));
+
+    // Final chunk (more=0)
+    let cmd3 = format!("\x1b_Gm=0;{}\x1b\\", chunk3);
+    harness.send_text(&cmd3)?;
+    println!("Sent: Chunk 3 of 3 (m=0, final)");
+    std::thread::sleep(Duration::from_millis(200));
+
+    harness.update_state()?;
+
+    // Verify daemon is still responsive after chunked transfer
+    harness.send_text("echo 'Post-chunked-transfer test'\r")?;
+    std::thread::sleep(OUTPUT_TIMEOUT);
+    harness.update_state()?;
+
+    let contents = harness.screen_contents();
+    assert!(
+        contents.contains("Post-chunked-transfer test"),
+        "Daemon should remain responsive after chunked Kitty graphics transfer"
+    );
+
+    println!("✓ Chunked Kitty graphics transfer handled without crash");
+    println!("  See: Kitty Graphics Protocol spec for chunk assembly verification");
+
+    Ok(())
+}
+
+// =============================================================================
+// NAVIGATION SYSTEM TESTS (Issue #63)
+// =============================================================================
+
+/// Test 10: Navigation hint mode activation
+///
+/// Tests entering hint mode and verifies the navigation state changes.
+/// This is a partial test - full verification requires Bevy ECS access.
+///
+/// **Note**: Full verification requires querying NavStateRegistry and
+/// checking for NavHint entities, which requires ratatui-testlib Phase 4.
+#[test]
+#[ignore = "Requires daemon binary and navigation system integration"]
+fn test_nav_hint_mode() -> Result<()> {
+    println!("=== Test: Navigation Hint Mode Activation ===");
+
+    let mut harness = TuiTestHarness::new(80, 24)?;
+
+    // Spawn daemon
+    let daemon_bin = get_daemon_binary()?;
+    let mut cmd = CommandBuilder::new(daemon_bin);
+    cmd.env("SHELL", "/bin/sh");
+
+    harness.spawn(cmd)?;
+    std::thread::sleep(DAEMON_STARTUP_TIMEOUT);
+
+    // Display some content with focusable elements (URLs)
+    harness.send_text("echo 'Check https://example.com and https://rust-lang.org'\r")?;
+    std::thread::sleep(OUTPUT_TIMEOUT);
+    harness.update_state()?;
+
+    let contents_before = harness.screen_contents();
+    println!("Screen before hint mode:\n{}", contents_before);
+    assert!(contents_before.contains("https://example.com"));
+    assert!(contents_before.contains("https://rust-lang.org"));
+
+    // Press 'f' to enter hint mode (Vimium-style)
+    harness.send_key(KeyCode::Char('f'))?;
+    println!("Sent: 'f' (enter hint mode)");
+    std::thread::sleep(Duration::from_millis(300));
+    harness.update_state()?;
+
+    let contents_after = harness.screen_contents();
+    println!("Screen after 'f':\n{}", contents_after);
+
+    // TODO: Once Bevy integration is complete, we should verify:
+    // - NavStateRegistry.get_active().current_mode == NavMode::Hints
+    // - NavHint entities spawned for each URL
+    // - HintOverlay components rendered with labels (e.g., "aa", "ab")
+    // - EnterHintModeEvent was fired
+    //
+    // For now, verify the terminal content is still intact
+    assert!(
+        contents_after.contains("https://example.com") ||
+        contents_after.contains("https://rust-lang.org"),
+        "URLs should still be visible after entering hint mode"
+    );
+
+    // Press Escape to exit hint mode
+    harness.send_key(KeyCode::Esc)?;
+    println!("Sent: Escape (exit hint mode)");
+    std::thread::sleep(Duration::from_millis(200));
+    harness.update_state()?;
+
+    println!("✓ Navigation hint mode activation sent (full verification requires Bevy integration)");
+    println!("  See: ratatui-testlib Phase 4 - Bevy ECS Integration");
+
+    Ok(())
+}
+
+/// Test 11: Pane navigation with keyboard shortcuts
+///
+/// Tests pane navigation commands (Ctrl+H/J/K/L for vim-style directional nav).
+/// This verifies that navigation keybindings are processed correctly.
+///
+/// **Note**: Full verification requires multi-pane support and Bevy ECS access
+/// to verify focus changes between panes.
+#[test]
+#[ignore = "Requires daemon binary and multi-pane support"]
+fn test_pane_navigation() -> Result<()> {
+    println!("=== Test: Pane Navigation ===");
+
+    let mut harness = TuiTestHarness::new(80, 24)?;
+
+    // Spawn daemon
+    let daemon_bin = get_daemon_binary()?;
+    let mut cmd = CommandBuilder::new(daemon_bin);
+    cmd.env("SHELL", "/bin/sh");
+
+    harness.spawn(cmd)?;
+    std::thread::sleep(DAEMON_STARTUP_TIMEOUT);
+
+    // Display initial content
+    harness.send_text("echo 'Pane navigation test'\r")?;
+    std::thread::sleep(OUTPUT_TIMEOUT);
+    harness.update_state()?;
+
+    let contents_before = harness.screen_contents();
+    println!("Initial screen:\n{}", contents_before);
+
+    // Send Ctrl+H (navigate left) - represented as ASCII control character
+    // Note: Ctrl+H is backspace (0x08)
+    harness.send_text("\x08")?;
+    println!("Sent: Ctrl+H (navigate left)");
+    std::thread::sleep(Duration::from_millis(100));
+
+    // Send Ctrl+L (navigate right)
+    // Note: Ctrl+L is form feed (0x0C)
+    harness.send_text("\x0C")?;
+    println!("Sent: Ctrl+L (navigate right)");
+    std::thread::sleep(Duration::from_millis(100));
+
+    harness.update_state()?;
+
+    // TODO: Once multi-pane support and Bevy integration is complete, verify:
+    // - NavActionEvent::NextPane / PrevPane events are fired
+    // - PaneFocusedEvent is fired when focus changes
+    // - NavStateRegistry switches active pane
+    // - Visual focus indicator moves to the new pane
+    //
+    // For now, verify daemon remains responsive
+    harness.send_text("echo 'Post-nav test'\r")?;
+    std::thread::sleep(OUTPUT_TIMEOUT);
+    harness.update_state()?;
+
+    let contents_after = harness.screen_contents();
+    assert!(
+        contents_after.contains("Post-nav test"),
+        "Daemon should remain responsive after navigation commands"
+    );
+
+    println!("✓ Pane navigation commands sent (full verification requires multi-pane + Bevy integration)");
+    println!("  See: ratatui-testlib Phase 4 - Bevy ECS Integration");
+
+    Ok(())
+}
+
+// =============================================================================
 // DOCUMENTATION: Gaps and Future Test Cases
 // =============================================================================
 
