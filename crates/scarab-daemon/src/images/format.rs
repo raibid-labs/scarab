@@ -11,6 +11,7 @@ pub enum ImageFormat {
     Png,
     Jpeg,
     Gif,
+    Rgba,    // Raw RGBA pixel data (used for Sixel)
     Unknown,
 }
 
@@ -21,6 +22,7 @@ impl ImageFormat {
             ImageFormat::Png => 0,
             ImageFormat::Jpeg => 1,
             ImageFormat::Gif => 2,
+            ImageFormat::Rgba => 3,
             ImageFormat::Unknown => 0, // Fallback to PNG
         }
     }

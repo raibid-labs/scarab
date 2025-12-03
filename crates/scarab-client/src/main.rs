@@ -3,7 +3,7 @@ use bevy::render::camera::OrthographicProjection;
 use scarab_client::integration::{IntegrationPlugin, SharedMemWrapper, SharedMemoryReader};
 use scarab_client::{
     AdvancedUIPlugin, CopyModePlugin, EventsPlugin, ImagesPlugin, ScriptingPlugin,
-    ScrollbackPlugin, TutorialPlugin,
+    ScrollbackPlugin, ScarabEffectsPlugin, TutorialPlugin,
 };
 use scarab_client::navigation::{NavigationPlugin, FocusablePlugin};
 use scarab_client::rendering::HintOverlayPlugin;
@@ -128,6 +128,7 @@ fn main() {
         .add_plugins(ScriptingPlugin) // Add client-side scripting
         .add_plugins(IntegrationPlugin) // Add text rendering
         .add_plugins(TutorialPlugin) // Add interactive tutorial system
+        .add_plugins(ScarabEffectsPlugin) // Add post-processing effects (blur, glow)
         .insert_resource(reader)
         .insert_resource(config) // Make initial config available (will be updated by plugin)
         .insert_resource(NavInputRouter::new(NavStyle::VimiumStyle)) // Initialize navigation input router with Vimium-style keybindings

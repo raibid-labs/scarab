@@ -15,6 +15,10 @@ pub mod manifest;
 pub mod security;
 pub mod types;
 
+#[cfg(test)]
+#[cfg(feature = "registry")]
+mod tests_integration;
+
 pub use cache::RegistryCache;
 pub use client::RegistryClient;
 pub use installer::PluginInstaller;
@@ -94,11 +98,11 @@ impl RegistryManager {
         let download = self.client.download_plugin(name, version).await?;
 
         // Verify signature and checksum
-        self.verifier
+        let verification_status = self.verifier
             .verify(&download.content, &entry, version)?;
 
-        // Install plugin
-        let installed = self.installer.install(name, version, download.content)?;
+        // Install plugin with verification status
+        let installed = self.installer.install(name, version, download.content, verification_status)?;
 
         Ok(installed)
     }

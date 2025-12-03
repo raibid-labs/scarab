@@ -2,6 +2,17 @@ use async_trait::async_trait;
 use scarab_plugin_api::{Plugin, PluginContext, PluginMetadata, Result};
 use scarab_protocol::ModalItem;
 
+// Domain abstraction for terminal multiplexing
+pub mod domain;
+pub mod local_domain;
+pub mod ssh_domain;
+
+pub use domain::{
+    Domain, DomainId, DomainPaneHandle, DomainRegistry, DomainStats, DomainType, PaneConfig,
+};
+pub use local_domain::LocalDomain;
+pub use ssh_domain::{SshAuth, SshDomain, SshDomainConfig};
+
 pub struct SessionPlugin {
     metadata: PluginMetadata,
 }

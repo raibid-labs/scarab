@@ -16,7 +16,7 @@ pub mod plugin;
 pub use config::{
     ScarabConfig, TerminalConfig, FontConfig, ColorConfig, ColorPalette,
     KeyBindings, UiConfig, TabPosition, CursorStyle, PluginConfig, SessionConfig,
-    NavConfig, NavStyle
+    NavConfig, NavStyle, SshDomainConfig, SshAuthConfig
 };
 pub use error::{ConfigError, Result};
 pub use fusabi_loader::FusabiConfigLoader;

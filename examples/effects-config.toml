@@ -1,0 +1,104 @@
+# Scarab Terminal - Post-Processing Effects Configuration Example
+#
+# This file demonstrates all available post-processing effect options.
+# Copy relevant sections to your ~/.config/scarab/config.toml
+
+[effects]
+# ===== Background Blur for Overlays =====
+# Blurs the terminal content when overlays (command palette, search, etc.) are active
+overlay_blur_enabled = true
+
+# Blur radius in pixels (higher = more blurred, but more expensive)
+# Recommended values:
+#   2.0 = Subtle blur, minimal performance impact
+#   4.0 = Moderate blur (default, good balance)
+#   8.0 = Heavy blur, noticeable performance cost
+overlay_blur_radius = 4.0
+
+# Blur intensity (0.0 = no effect, 1.0 = full blur)
+# You can reduce this to blend original and blurred content
+overlay_blur_intensity = 0.8
+
+# ===== Glow Effect for Focused Overlays =====
+# Adds a subtle glow around the edges of focused overlay elements
+overlay_glow_enabled = true
+
+# Glow radius in pixels
+# Recommended: 4.0-8.0 for subtle to prominent glow
+overlay_glow_radius = 6.0
+
+# Glow color in hexadecimal RGB format
+# Examples:
+#   "#8be9fd" = Dracula cyan (default)
+#   "#ff79c6" = Dracula pink
+#   "#50fa7b" = Dracula green
+#   "#ffffff" = White
+#   "#ff0000" = Red
+overlay_glow_color = "#8be9fd"
+
+# Glow intensity (0.0 = no glow, 1.0 = full intensity)
+overlay_glow_intensity = 0.7
+
+# ===== Low-Power Mode =====
+# Disables ALL post-processing effects to save GPU resources and battery
+# Useful for laptops, embedded systems, or when running on battery
+low_power_mode = false
+
+# ===== Performance Presets (commented examples) =====
+
+# Preset 1: Maximum Visual Quality (powerful desktop GPUs)
+# [effects]
+# overlay_blur_enabled = true
+# overlay_blur_radius = 8.0
+# overlay_blur_intensity = 1.0
+# overlay_glow_enabled = true
+# overlay_glow_radius = 8.0
+# overlay_glow_color = "#8be9fd"
+# overlay_glow_intensity = 1.0
+# low_power_mode = false
+
+# Preset 2: Balanced (default, works well on most systems)
+# [effects]
+# overlay_blur_enabled = true
+# overlay_blur_radius = 4.0
+# overlay_blur_intensity = 0.8
+# overlay_glow_enabled = true
+# overlay_glow_radius = 6.0
+# overlay_glow_color = "#8be9fd"
+# overlay_glow_intensity = 0.7
+# low_power_mode = false
+
+# Preset 3: Performance Mode (integrated GPUs, older hardware)
+# [effects]
+# overlay_blur_enabled = true
+# overlay_blur_radius = 2.0
+# overlay_blur_intensity = 0.5
+# overlay_glow_enabled = false
+# low_power_mode = false
+
+# Preset 4: Battery Saver (disable all effects)
+# [effects]
+# low_power_mode = true
+
+# ===== Theme-Specific Glow Colors =====
+
+# Dracula theme (default)
+# overlay_glow_color = "#8be9fd"  # Cyan
+
+# Nord theme
+# overlay_glow_color = "#88c0d0"  # Frost
+
+# Gruvbox theme
+# overlay_glow_color = "#83a598"  # Blue
+
+# Solarized Dark
+# overlay_glow_color = "#268bd2"  # Blue
+
+# Monokai
+# overlay_glow_color = "#66d9ef"  # Cyan
+
+# One Dark
+# overlay_glow_color = "#61afef"  # Blue
+
+# Tokyo Night
+# overlay_glow_color = "#7aa2f7"  # Blue

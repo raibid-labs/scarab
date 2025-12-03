@@ -1,9 +1,9 @@
-use crate::images::{parse_iterm2_image, ImagePlacementState};
-use scarab_protocol::{Cell, SharedState, GRID_HEIGHT, GRID_WIDTH};
+use crate::images::{parse_iterm2_image, parse_sixel_dcs, ImageFormat, ImagePlacementState, ImageSize};
+use scarab_protocol::{Cell, SharedState, GRID_HEIGHT, GRID_WIDTH, ZoneTracker};
 use std::collections::VecDeque;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
-use std::time::Instant;
+use std::time::{Instant, SystemTime, UNIX_EPOCH};
 
 /// VTE (Virtual Terminal Emulator) Parser Integration
 ///
@@ -212,6 +212,12 @@ pub struct TerminalState {
     pub max_markers: usize,
     /// Maximum images per pane (for eviction)
     pub max_images: usize,
+    /// DCS sequence buffer for Sixel graphics
+    dcs_buffer: Vec<u8>,
+    /// Whether we're currently in a DCS sequence
+    in_dcs: bool,
+    /// Semantic zone tracker for deep shell integration
+    pub zone_tracker: ZoneTracker,
 }
 
 impl TerminalState {
@@ -235,6 +241,9 @@ impl TerminalState {
             prompt_markers: Vec::new(),
             max_markers: 1000, // Keep last 1000 markers
             max_images: MAX_IMAGES_PER_PANE,
+            dcs_buffer: Vec::new(),
+            in_dcs: false,
+            zone_tracker: ZoneTracker::new(500), // Keep last 500 command blocks
         }
     }
 
@@ -300,6 +309,14 @@ impl TerminalState {
     /// Returns: scrollback_lines + current_y
     fn absolute_line(&self) -> usize {
         self.scrollback.len() + self.cursor_y as usize
+    }
+
+    /// Get current timestamp in microseconds since UNIX epoch
+    fn current_timestamp_micros() -> u64 {
+        SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .map(|d| d.as_micros() as u64)
+            .unwrap_or(0)
     }
 
     /// Add a shell integration marker at the current cursor position
@@ -476,6 +493,10 @@ impl TerminalState {
 
         // Update image positions when scrolling
         self.image_state.scroll(lines as i32);
+
+        // Update zone line numbers when scrolling
+        // Lines move into scrollback, so absolute line numbers increase
+        self.zone_tracker.adjust_for_scroll(lines as i32);
     }
 
     /// Clear the screen
@@ -603,12 +624,92 @@ impl Perform for TerminalState {
         }
     }
 
-    fn hook(&mut self, _params: &vte::Params, _intermediates: &[u8], _ignore: bool, _action: char) {
+    fn hook(&mut self, params: &vte::Params, _intermediates: &[u8], _ignore: bool, action: char) {
+        // DCS (Device Control String) hook - starts a DCS sequence
+        // For Sixel: ESC P <params> q <sixel_data> ST
+        // action will be 'q' for Sixel graphics
+
+        if action == 'q' {
+            // This is a Sixel graphics sequence
+            self.in_dcs = true;
+            self.dcs_buffer.clear();
+
+            // Store the parameters (e.g., "1;1" for aspect ratio)
+            for param in params.iter() {
+                for &value in param {
+                    self.dcs_buffer.extend_from_slice(value.to_string().as_bytes());
+                    self.dcs_buffer.push(b';');
+                }
+            }
+            // Remove trailing semicolon if present
+            if self.dcs_buffer.last() == Some(&b';') {
+                self.dcs_buffer.pop();
+            }
+            // Add the 'q' marker
+            self.dcs_buffer.push(b'q');
+
+            log::debug!("Sixel DCS sequence started with params: {:?}",
+                       std::str::from_utf8(&self.dcs_buffer).unwrap_or("<invalid>"));
+        }
     }
 
-    fn put(&mut self, _byte: u8) {}
+    fn put(&mut self, byte: u8) {
+        // Accumulate DCS data bytes
+        if self.in_dcs {
+            self.dcs_buffer.push(byte);
+        }
+    }
 
-    fn unhook(&mut self) {}
+    fn unhook(&mut self) {
+        // DCS sequence complete - process the data
+        if self.in_dcs {
+            self.in_dcs = false;
+
+            log::debug!("Sixel DCS sequence complete, buffer size: {} bytes", self.dcs_buffer.len());
+
+            // Try to parse as Sixel
+            if let Some(sixel_data) = parse_sixel_dcs(&self.dcs_buffer) {
+                // Convert Sixel to ImageData format for placement
+                if sixel_data.width > 0 && sixel_data.height > 0 {
+                    let image_data = crate::images::ImageData {
+                        data: sixel_data.pixels,
+                        width: ImageSize::Pixels(sixel_data.width),
+                        height: ImageSize::Pixels(sixel_data.height),
+                        preserve_aspect_ratio: true,
+                        inline: true,
+                        do_not_move_cursor: false,
+                        filename: None,
+                    };
+
+                    log::debug!(
+                        "Parsed Sixel image: {}x{} pixels ({} bytes)",
+                        sixel_data.width, sixel_data.height, image_data.data.len()
+                    );
+
+                    // Add the image using the existing infrastructure
+                    self.add_image(image_data);
+
+                    // Move cursor down by the image height (in cells)
+                    // Assume ~20 pixels per cell height
+                    let height_cells = ((sixel_data.height + 19) / 20) as u16;
+                    self.cursor_y = (self.cursor_y + height_cells).min(self.rows - 1);
+                    if self.cursor_y >= self.rows - 1 {
+                        // If image is tall, may need to scroll
+                        let scroll_amount = height_cells.saturating_sub(self.rows - 1 - self.cursor_y);
+                        if scroll_amount > 0 {
+                            self.scroll_up(scroll_amount as usize);
+                        }
+                    }
+                } else {
+                    log::warn!("Sixel parsed but resulted in empty image");
+                }
+            } else {
+                log::warn!("Failed to parse Sixel DCS sequence");
+            }
+
+            self.dcs_buffer.clear();
+        }
+    }
 
     fn osc_dispatch(&mut self, params: &[&[u8]], _bell_terminated: bool) {
         // Handle OSC sequences
@@ -621,18 +722,24 @@ impl Perform for TerminalState {
         // Handle OSC 133 - Shell Integration (FinalTerm/VS Code)
         if first == b"133" {
             if let Some(code) = params.get(1) {
+                let line = self.absolute_line() as u32;
+                let timestamp = Self::current_timestamp_micros();
+
                 match *code {
                     b"A" => {
                         // Prompt start
                         self.add_prompt_marker(PromptMarkerType::PromptStart);
+                        self.zone_tracker.mark_prompt_start(line, timestamp);
                     }
                     b"B" => {
                         // Command start / input begins
                         self.add_prompt_marker(PromptMarkerType::CommandStart);
+                        self.zone_tracker.mark_command_start(line, timestamp);
                     }
                     b"C" => {
                         // Command executed / output begins
                         self.add_prompt_marker(PromptMarkerType::CommandExecuted);
+                        self.zone_tracker.mark_command_executed(line, timestamp);
                     }
                     b"D" => {
                         // Command finished with exit code
@@ -646,6 +753,7 @@ impl Perform for TerminalState {
                             0
                         };
                         self.add_prompt_marker(PromptMarkerType::CommandFinished { exit_code });
+                        self.zone_tracker.mark_command_finished(line, exit_code, timestamp);
                     }
                     _ => {
                         log::debug!("Unknown OSC 133 code: {:?}", code);

@@ -17,6 +17,8 @@ pub struct ScarabConfig {
     pub sessions: SessionConfig,
     pub telemetry: TelemetryConfig,
     pub navigation: NavConfig,
+    pub effects: EffectsConfig,
+    pub ssh_domains: Vec<SshDomainConfig>,
 }
 
 impl Default for ScarabConfig {
@@ -31,6 +33,8 @@ impl Default for ScarabConfig {
             sessions: SessionConfig::default(),
             navigation: NavConfig::default(),
             telemetry: TelemetryConfig::default(),
+            effects: EffectsConfig::default(),
+            ssh_domains: Vec::new(),
         }
     }
 }
@@ -495,6 +499,216 @@ mod tests {
     }
 }
 
+/// Visual effects configuration
+/// Post-processing visual effects configuration
+///
+/// Controls GPU-accelerated shader effects for overlays and focused elements.
+/// All effects can be disabled for performance or low-power mode.
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
+#[serde(default)]
+pub struct EffectsConfig {
+    /// Enable background blur when overlays are visible
+    pub overlay_blur_enabled: bool,
+
+    /// Blur radius in pixels (higher = more blurred, more expensive)
+    ///
+    /// Typical values:
+    /// - 2.0: Subtle blur, minimal performance impact
+    /// - 4.0: Moderate blur (default)
+    /// - 8.0: Heavy blur, noticeable performance cost
+    pub overlay_blur_radius: f32,
+
+    /// Blur intensity (0.0 = no effect, 1.0 = full blur)
+    pub overlay_blur_intensity: f32,
+
+    /// Enable glow effect on focused overlay borders
+    pub overlay_glow_enabled: bool,
+
+    /// Glow radius in pixels
+    pub overlay_glow_radius: f32,
+
+    /// Glow color (hex RGB format, e.g., "#8be9fd")
+    pub overlay_glow_color: String,
+
+    /// Glow intensity (0.0 = no glow, 1.0 = full intensity)
+    pub overlay_glow_intensity: f32,
+
+    /// Low-power mode: disables all effects to save GPU resources
+    ///
+    /// When enabled, all post-processing effects are skipped regardless
+    /// of individual settings. Useful for battery-powered devices.
+    pub low_power_mode: bool,
+}
+
+impl Default for EffectsConfig {
+    fn default() -> Self {
+        Self {
+            overlay_blur_enabled: true,
+            overlay_blur_radius: 4.0,
+            overlay_blur_intensity: 0.8,
+            overlay_glow_enabled: true,
+            overlay_glow_radius: 6.0,
+            overlay_glow_color: "#8be9fd".to_string(), // Dracula cyan
+            overlay_glow_intensity: 0.7,
+            low_power_mode: false,
+        }
+    }
+}
+
+impl EffectsConfig {
+    /// Check if any effects are enabled (respecting low_power_mode)
+    pub fn has_effects_enabled(&self) -> bool {
+        !self.low_power_mode && (self.overlay_blur_enabled || self.overlay_glow_enabled)
+    }
+
+    /// Check if blur should be rendered
+    pub fn should_render_blur(&self) -> bool {
+        !self.low_power_mode && self.overlay_blur_enabled && self.overlay_blur_intensity > 0.0
+    }
+
+    /// Check if glow should be rendered
+    pub fn should_render_glow(&self) -> bool {
+        !self.low_power_mode && self.overlay_glow_enabled && self.overlay_glow_intensity > 0.0
+    }
+
+    /// Parse glow color from hex string to RGB values
+    pub fn glow_color_rgb(&self) -> (f32, f32, f32) {
+        // Parse hex color (e.g., "#8be9fd" or "8be9fd")
+        let color_str = self.overlay_glow_color.trim_start_matches('#');
+
+        if color_str.len() != 6 {
+            // Invalid color, return default cyan
+            return (0.545, 0.914, 0.992);
+        }
+
+        let r = u8::from_str_radix(&color_str[0..2], 16).unwrap_or(139) as f32 / 255.0;
+        let g = u8::from_str_radix(&color_str[2..4], 16).unwrap_or(233) as f32 / 255.0;
+        let b = u8::from_str_radix(&color_str[4..6], 16).unwrap_or(253) as f32 / 255.0;
+
+        (r, g, b)
+    }
+}
+
+#[cfg(test)]
+mod effects_tests {
+    use super::*;
+
+    #[test]
+    fn test_effects_config_default() {
+        let config = EffectsConfig::default();
+        assert!(config.overlay_blur_enabled);
+        assert!(config.overlay_glow_enabled);
+        assert!(!config.low_power_mode);
+        assert_eq!(config.overlay_blur_radius, 4.0);
+        assert_eq!(config.overlay_glow_color, "#8be9fd");
+    }
+
+    #[test]
+    fn test_effects_enabled_check() {
+        let mut config = EffectsConfig::default();
+        assert!(config.has_effects_enabled());
+
+        config.low_power_mode = true;
+        assert!(!config.has_effects_enabled());
+
+        config.low_power_mode = false;
+        config.overlay_blur_enabled = false;
+        config.overlay_glow_enabled = false;
+        assert!(!config.has_effects_enabled());
+    }
+
+    #[test]
+    fn test_should_render_blur() {
+        let mut config = EffectsConfig::default();
+        assert!(config.should_render_blur());
+
+        config.low_power_mode = true;
+        assert!(!config.should_render_blur());
+
+        config.low_power_mode = false;
+        config.overlay_blur_enabled = false;
+        assert!(!config.should_render_blur());
+
+        config.overlay_blur_enabled = true;
+        config.overlay_blur_intensity = 0.0;
+        assert!(!config.should_render_blur());
+    }
+
+    #[test]
+    fn test_should_render_glow() {
+        let mut config = EffectsConfig::default();
+        assert!(config.should_render_glow());
+
+        config.low_power_mode = true;
+        assert!(!config.should_render_glow());
+
+        config.low_power_mode = false;
+        config.overlay_glow_enabled = false;
+        assert!(!config.should_render_glow());
+
+        config.overlay_glow_enabled = true;
+        config.overlay_glow_intensity = 0.0;
+        assert!(!config.should_render_glow());
+    }
+
+    #[test]
+    fn test_glow_color_parsing() {
+        let mut config = EffectsConfig::default();
+
+        // Test default cyan color
+        let (r, g, b) = config.glow_color_rgb();
+        assert!((r - 0.545).abs() < 0.01);
+        assert!((g - 0.914).abs() < 0.01);
+        assert!((b - 0.992).abs() < 0.01);
+
+        // Test white
+        config.overlay_glow_color = "#ffffff".to_string();
+        let (r, g, b) = config.glow_color_rgb();
+        assert_eq!(r, 1.0);
+        assert_eq!(g, 1.0);
+        assert_eq!(b, 1.0);
+
+        // Test without # prefix
+        config.overlay_glow_color = "ff0000".to_string();
+        let (r, g, b) = config.glow_color_rgb();
+        assert_eq!(r, 1.0);
+        assert_eq!(g, 0.0);
+        assert_eq!(b, 0.0);
+
+        // Test invalid color (should return default)
+        config.overlay_glow_color = "invalid".to_string();
+        let (r, g, b) = config.glow_color_rgb();
+        assert!((r - 0.545).abs() < 0.01);
+    }
+
+    #[test]
+    fn test_effects_config_serialization() {
+        let config = EffectsConfig::default();
+        let toml = toml::to_string(&config).unwrap();
+        let parsed: EffectsConfig = toml::from_str(&toml).unwrap();
+        assert_eq!(config, parsed);
+    }
+
+    #[test]
+    fn test_effects_config_in_scarab_config() {
+        let toml = r##"
+            [effects]
+            overlay_blur_enabled = false
+            overlay_blur_radius = 8.0
+            overlay_glow_enabled = true
+            overlay_glow_color = "#ff00ff"
+            low_power_mode = true
+        "##;
+
+        let config: ScarabConfig = toml::from_str(toml).unwrap();
+        assert!(!config.effects.overlay_blur_enabled);
+        assert_eq!(config.effects.overlay_blur_radius, 8.0);
+        assert!(config.effects.overlay_glow_enabled);
+        assert_eq!(config.effects.overlay_glow_color, "#ff00ff");
+        assert!(config.effects.low_power_mode);
+    }
+}
+
 /// Navigation style defining the keymap philosophy
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize)]
 #[serde(rename_all = "lowercase")]
@@ -615,3 +829,155 @@ impl Default for NavConfig {
             Some(&"Ctrl+Space".to_string())
         );
     }
+
+/// SSH domain configuration
+///
+/// Defines a remote SSH server that can host terminal panes.
+/// Multiple SSH domains can be configured for different servers.
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
+#[serde(default)]
+pub struct SshDomainConfig {
+    /// Unique identifier for this SSH domain
+    pub id: String,
+
+    /// Human-readable name
+    pub name: String,
+
+    /// SSH server hostname or IP address
+    pub host: String,
+
+    /// SSH server port (default: 22)
+    pub port: u16,
+
+    /// SSH username
+    pub user: String,
+
+    /// Authentication method
+    #[serde(flatten)]
+    pub auth: SshAuthConfig,
+
+    /// Connection timeout in seconds
+    pub connect_timeout: u64,
+
+    /// Enable SSH agent forwarding
+    pub forward_agent: bool,
+
+    /// Default remote working directory
+    pub remote_cwd: Option<String>,
+}
+
+impl Default for SshDomainConfig {
+    fn default() -> Self {
+        Self {
+            id: "ssh-default".to_string(),
+            name: "SSH Server".to_string(),
+            host: "localhost".to_string(),
+            port: 22,
+            user: std::env::var("USER").unwrap_or_else(|_| "root".to_string()),
+            auth: SshAuthConfig::default(),
+            connect_timeout: 10,
+            forward_agent: false,
+            remote_cwd: None,
+        }
+    }
+}
+
+/// SSH authentication configuration
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
+#[serde(tag = "auth_type", rename_all = "lowercase")]
+pub enum SshAuthConfig {
+    /// SSH agent authentication (default)
+    Agent,
+
+    /// Public key file authentication
+    PublicKey {
+        /// Path to private key file
+        key_path: String,
+        /// Optional passphrase for encrypted keys
+        passphrase: Option<String>,
+    },
+
+    /// Password authentication (least secure)
+    Password {
+        /// Password (consider using environment variable)
+        password: String,
+    },
+}
+
+impl Default for SshAuthConfig {
+    fn default() -> Self {
+        Self::Agent
+    }
+}
+
+#[cfg(test)]
+mod ssh_config_tests {
+    use super::*;
+
+    #[test]
+    fn test_ssh_domain_config_default() {
+        let config = SshDomainConfig::default();
+        assert_eq!(config.port, 22);
+        assert_eq!(config.connect_timeout, 10);
+        assert!(!config.forward_agent);
+        assert!(matches!(config.auth, SshAuthConfig::Agent));
+    }
+
+    #[test]
+    fn test_ssh_domain_config_deserialize() {
+        let toml = r#"
+            id = "myserver"
+            name = "My Server"
+            host = "example.com"
+            port = 2222
+            user = "alice"
+            auth_type = "publickey"
+            key_path = "/home/alice/.ssh/id_rsa"
+            connect_timeout = 30
+            forward_agent = true
+            remote_cwd = "/home/alice/projects"
+        "#;
+
+        let config: SshDomainConfig = toml::from_str(toml).unwrap();
+        assert_eq!(config.id, "myserver");
+        assert_eq!(config.name, "My Server");
+        assert_eq!(config.host, "example.com");
+        assert_eq!(config.port, 2222);
+        assert_eq!(config.user, "alice");
+        assert_eq!(config.connect_timeout, 30);
+        assert!(config.forward_agent);
+        assert_eq!(config.remote_cwd, Some("/home/alice/projects".to_string()));
+
+        match config.auth {
+            SshAuthConfig::PublicKey { key_path, .. } => {
+                assert_eq!(key_path, "/home/alice/.ssh/id_rsa");
+            }
+            _ => panic!("Expected PublicKey auth"),
+        }
+    }
+
+    #[test]
+    fn test_scarab_config_with_ssh_domains() {
+        let toml = r#"
+            [[ssh_domains]]
+            id = "dev"
+            name = "Development Server"
+            host = "dev.example.com"
+            user = "developer"
+            auth_type = "agent"
+
+            [[ssh_domains]]
+            id = "prod"
+            name = "Production Server"
+            host = "prod.example.com"
+            user = "admin"
+            auth_type = "publickey"
+            key_path = "/root/.ssh/prod_key"
+        "#;
+
+        let config: ScarabConfig = toml::from_str(toml).unwrap();
+        assert_eq!(config.ssh_domains.len(), 2);
+        assert_eq!(config.ssh_domains[0].id, "dev");
+        assert_eq!(config.ssh_domains[1].id, "prod");
+    }
+}

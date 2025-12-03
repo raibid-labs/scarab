@@ -23,3 +23,6 @@ pub use scrollback_render::generate_scrollback_mesh;
 pub use text::{
     generate_terminal_mesh, update_terminal_mesh_system, DirtyRegion, TerminalMesh, TextRenderer,
 };
+
+// Re-export shader effects from parent shaders module
+pub use crate::shaders::{BlurSettings, GlowSettings, ScarabEffectsPlugin};

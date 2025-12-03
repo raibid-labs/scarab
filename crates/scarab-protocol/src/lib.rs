@@ -8,6 +8,10 @@ use bytemuck::{Pod, Zeroable};
 pub mod terminal_state;
 pub use terminal_state::TerminalStateReader;
 
+// Semantic zones for deep shell integration
+pub mod zones;
+pub use zones::{SemanticZone, ZoneType, CommandBlock, ZoneTracker};
+
 pub const SHMEM_PATH: &str = "/scarab_shm_v1";
 pub const GRID_WIDTH: usize = 200;
 pub const GRID_HEIGHT: usize = 100;
@@ -319,6 +323,23 @@ pub enum ControlMessage {
         plugin_name: alloc::string::String,
         focusable_id: u64,
     },
+
+    // Semantic zone commands (deep shell integration)
+    /// Request semantic zones update from daemon
+    ZonesRequest,
+
+    /// Copy the output from the last completed command
+    CopyLastOutput,
+
+    /// Select a specific zone by ID
+    SelectZone {
+        zone_id: u64,
+    },
+
+    /// Extract text from a zone
+    ExtractZoneText {
+        zone_id: u64,
+    },
 }
 
 // Session response messages
@@ -400,6 +421,27 @@ pub struct PluginInspectorInfo {
     pub emoji: Option<alloc::string::String>,
     /// Plugin color as hex code (e.g., "#FF5733")
     pub color: Option<alloc::string::String>,
+    /// Verification status
+    pub verification: PluginVerificationStatus,
+}
+
+/// Verification status for plugins (zero-copy compatible)
+#[derive(Debug, Clone, rkyv::Archive, rkyv::Serialize, rkyv::Deserialize)]
+#[archive(check_bytes)]
+pub enum PluginVerificationStatus {
+    /// Plugin was verified with valid GPG signature
+    Verified {
+        key_fingerprint: alloc::string::String,
+        signature_timestamp: u64,
+    },
+    /// Plugin checksum was verified but no signature
+    ChecksumOnly {
+        checksum: alloc::string::String,
+    },
+    /// Plugin was installed without verification
+    Unverified {
+        warning: alloc::string::String,
+    },
 }
 
 // Status bar side specification
@@ -530,6 +572,18 @@ pub enum DaemonMessage {
     PromptMarkersUpdate {
         /// List of current prompt markers from daemon
         markers: alloc::vec::Vec<PromptMarkerInfo>,
+    },
+
+    // Semantic zones update (deep shell integration)
+    SemanticZonesUpdate {
+        /// List of current semantic zones (prompt, input, output regions)
+        zones: alloc::vec::Vec<SemanticZone>,
+    },
+
+    // Command blocks update (grouped command sequences)
+    CommandBlocksUpdate {
+        /// List of completed command blocks
+        blocks: alloc::vec::Vec<CommandBlock>,
     },
 
     // Event forwarding to clients

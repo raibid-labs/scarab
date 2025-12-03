@@ -1,0 +1,85 @@
+# Example Scarab configuration with SSH domains
+# Copy to ~/.config/scarab/config.toml
+
+[terminal]
+default_shell = "/bin/zsh"
+scrollback_lines = 10000
+columns = 120
+rows = 40
+
+[font]
+family = "JetBrains Mono"
+size = 14.0
+
+# SSH Domain Examples
+# Multiple SSH domains can be configured for different servers
+
+# Example 1: Development server with SSH agent authentication
+[[ssh_domains]]
+id = "dev"
+name = "Development Server"
+host = "dev.example.com"
+port = 22
+user = "developer"
+auth_type = "agent"
+connect_timeout = 10
+forward_agent = false
+remote_cwd = "/home/developer/projects"
+
+# Example 2: Production server with public key authentication
+[[ssh_domains]]
+id = "prod"
+name = "Production Server"
+host = "prod.example.com"
+port = 22
+user = "admin"
+auth_type = "publickey"
+key_path = "/home/user/.ssh/prod_key"
+# passphrase = "optional_passphrase"  # Uncomment if key is encrypted
+connect_timeout = 15
+forward_agent = false
+remote_cwd = "/var/www"
+
+# Example 3: Jump host with agent forwarding
+[[ssh_domains]]
+id = "jumphost"
+name = "Jump Host"
+host = "jump.datacenter.com"
+port = 22
+user = "ops"
+auth_type = "agent"
+connect_timeout = 10
+forward_agent = true  # Forward agent to access other servers from jump host
+
+# Example 4: Testing server on non-standard port
+[[ssh_domains]]
+id = "test"
+name = "Test Server"
+host = "test.internal"
+port = 2222
+user = "tester"
+auth_type = "agent"
+connect_timeout = 5
+
+# Example 5: Legacy server with password auth (not recommended for production)
+# [[ssh_domains]]
+# id = "legacy"
+# name = "Legacy Server"
+# host = "legacy.oldnetwork.com"
+# user = "legacy_user"
+# auth_type = "password"
+# password = "changeme"  # Use environment variable instead: ${LEGACY_PASSWORD}
+
+# Usage:
+# 1. Start Scarab: scarab-client
+# 2. Open command palette: Ctrl+Shift+P
+# 3. Select "New Pane in Domain"
+# 4. Choose domain: local, dev, prod, jumphost, or test
+# 5. Pane spawns in selected domain
+
+# Tips:
+# - Use SSH agent for best security and convenience
+# - Set up SSH config (~/.ssh/config) for host aliases
+# - Test SSH connection manually before configuring domain
+# - Use remote_cwd to set working directory for new panes
+# - Enable forward_agent only when necessary (security consideration)

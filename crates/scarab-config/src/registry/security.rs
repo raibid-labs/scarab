@@ -1,6 +1,6 @@
 //! Security verification for plugin downloads
 
-use super::types::{PluginEntry, SecurityConfig};
+use super::types::{PluginEntry, SecurityConfig, VerificationStatus};
 use crate::error::{ConfigError, Result};
 use sha2::{Digest, Sha256};
 
@@ -23,7 +23,7 @@ impl PluginVerifier {
     }
 
     /// Verify plugin content against entry metadata
-    pub fn verify(&self, content: &[u8], entry: &PluginEntry, version: &str) -> Result<()> {
+    pub fn verify(&self, content: &[u8], entry: &PluginEntry, version: &str) -> Result<VerificationStatus> {
         // Find version metadata
         let version_meta = entry
             .versions
@@ -33,6 +33,8 @@ impl PluginVerifier {
                 ConfigError::ValidationError(format!("Version {} not found", version))
             })?;
 
+        let checksum = Self::compute_checksum(content);
+
         // Verify checksum if required
         if self.config.require_checksum {
             self.verify_checksum(content, &version_meta.checksum)?;
@@ -41,15 +43,31 @@ impl PluginVerifier {
         // Verify signature if required
         if self.config.require_signature {
             if let Some(signature) = &version_meta.signature {
-                self.verify_signature(content, signature)?;
+                let sig_info = self.verify_signature(content, signature)?;
+                return Ok(VerificationStatus::Verified {
+                    key_fingerprint: sig_info.fingerprint,
+                    signature_timestamp: sig_info.timestamp,
+                });
             } else if !self.config.allow_unsigned {
                 return Err(ConfigError::SecurityError(
                     "Plugin signature required but not provided".to_string(),
                 ));
+            } else {
+                // Signature required but allow_unsigned is true - show warning
+                return Ok(VerificationStatus::Unverified {
+                    warning: "Plugin is unsigned but allow_unsigned is enabled".to_string(),
+                });
             }
         }
 
-        Ok(())
+        // No signature verification, but checksum was verified
+        if self.config.require_checksum {
+            Ok(VerificationStatus::ChecksumOnly { checksum })
+        } else {
+            Ok(VerificationStatus::Unverified {
+                warning: "No verification performed (checksum and signature checks disabled)".to_string(),
+            })
+        }
     }
 
     /// Verify SHA256 checksum
@@ -82,7 +100,7 @@ impl PluginVerifier {
     /// 5. Validates signature age
     /// 6. Checks key expiration and revocation
     #[cfg(feature = "registry")]
-    fn verify_signature(&self, content: &[u8], signature_b64: &str) -> Result<()> {
+    fn verify_signature(&self, content: &[u8], signature_b64: &str) -> Result<SignatureInfo> {
         use openpgp::policy::StandardPolicy;
 
         // Check if we have trusted keys configured
@@ -114,12 +132,13 @@ impl PluginVerifier {
             certs,
             config: &self.config,
             good_signatures: Vec::new(),
+            signature_timestamp: None,
         };
 
         match Self::verify_detached_signature(helper, &policy, content, &signature_bytes) {
-            Ok(fingerprints) => {
-                tracing::info!("Successfully verified signature(s) from key(s): {:?}", fingerprints);
-                Ok(())
+            Ok((fingerprint, timestamp)) => {
+                tracing::info!("Successfully verified signature from key: {}", fingerprint);
+                Ok(SignatureInfo { fingerprint, timestamp })
             }
             Err(e) => Err(ConfigError::SecurityError(format!(
                 "Signature verification failed: {}",
@@ -130,7 +149,7 @@ impl PluginVerifier {
 
     /// Fallback when registry feature is not enabled
     #[cfg(not(feature = "registry"))]
-    fn verify_signature(&self, _content: &[u8], _signature: &str) -> Result<()> {
+    fn verify_signature(&self, _content: &[u8], _signature: &str) -> Result<SignatureInfo> {
         Err(ConfigError::SecurityError(
             "GPG signature verification requires 'registry' feature to be enabled".to_string(),
         ))
@@ -261,7 +280,7 @@ impl PluginVerifier {
         policy: &openpgp::policy::StandardPolicy,
         content: &[u8],
         signature_bytes: &[u8],
-    ) -> std::result::Result<Vec<String>, String> {
+    ) -> std::result::Result<(String, u64), String> {
         use openpgp::parse::Parse;
         use openpgp::parse::stream::DetachedVerifierBuilder;
 
@@ -279,9 +298,11 @@ impl PluginVerifier {
         // Get the helper back and check results
         let helper_ref = verifier.into_helper();
 
-        // Return the collected good signatures
+        // Return the first good signature and timestamp
         if !helper_ref.good_signatures.is_empty() {
-            return Ok(helper_ref.good_signatures.clone());
+            let fingerprint = helper_ref.good_signatures[0].clone();
+            let timestamp = helper_ref.signature_timestamp.unwrap_or(0);
+            return Ok((fingerprint, timestamp));
         }
 
         Err("No valid signatures found".to_string())
@@ -326,12 +347,22 @@ pub enum PluginFormat {
     FusabiSource,
 }
 
+/// Signature verification information
+#[derive(Debug, Clone)]
+pub struct SignatureInfo {
+    /// Key fingerprint that created the signature
+    pub fingerprint: String,
+    /// Signature creation timestamp (Unix epoch)
+    pub timestamp: u64,
+}
+
 /// Verification helper implementation for sequoia-openpgp
 #[cfg(feature = "registry")]
 struct VerificationHelperImpl<'a> {
     certs: Vec<openpgp::Cert>,
     config: &'a SecurityConfig,
     good_signatures: Vec<String>,
+    signature_timestamp: Option<u64>,
 }
 
 #[cfg(feature = "registry")]
@@ -386,6 +417,9 @@ impl<'a> openpgp::parse::stream::VerificationHelper for VerificationHelperImpl<'
                                                 self.config.max_signature_age_days
                                             ));
                                         }
+
+                                        // Store the timestamp for later retrieval
+                                        self.signature_timestamp = Some(sig_timestamp);
                                     }
                                 }
 
@@ -460,7 +494,8 @@ mod tests {
         let checksum = PluginVerifier::compute_checksum(content);
 
         let entry = create_test_entry(&checksum);
-        assert!(verifier.verify(content, &entry, "1.0.0").is_ok());
+        let result = verifier.verify(content, &entry, "1.0.0").unwrap();
+        assert!(matches!(result, VerificationStatus::ChecksumOnly { .. }));
     }
 
     #[test]
@@ -526,8 +561,9 @@ mod tests {
         let checksum = PluginVerifier::compute_checksum(content);
 
         let entry = create_test_entry(&checksum);
-        // Should succeed because allow_unsigned is true
-        assert!(verifier.verify(content, &entry, "1.0.0").is_ok());
+        // Should succeed because allow_unsigned is true, but return Unverified status
+        let result = verifier.verify(content, &entry, "1.0.0").unwrap();
+        assert!(matches!(result, VerificationStatus::Unverified { .. }));
     }
 
     #[cfg(feature = "registry")]

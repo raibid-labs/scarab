@@ -1,6 +1,6 @@
 //! Plugin installation and management
 
-use super::types::InstalledPlugin;
+use super::types::{InstalledPlugin, VerificationStatus};
 use crate::error::{ConfigError, Result};
 use std::collections::HashMap;
 use std::fs;
@@ -35,7 +35,7 @@ impl PluginInstaller {
     }
 
     /// Install plugin from content
-    pub fn install(&mut self, name: &str, version: &str, content: Vec<u8>) -> Result<InstalledPlugin> {
+    pub fn install(&mut self, name: &str, version: &str, content: Vec<u8>, verification: VerificationStatus) -> Result<InstalledPlugin> {
         // Determine file extension based on content
         let extension = if content.starts_with(b"FZB\x00") {
             "fzb"
@@ -64,6 +64,7 @@ impl PluginInstaller {
                 .as_secs(),
             enabled: true,
             config: HashMap::new(),
+            verification,
         };
 
         // Update index
@@ -185,7 +186,10 @@ mod tests {
 
         // Install plugin
         let content = b"module TestPlugin\nlet version = 1.0".to_vec();
-        let installed = installer.install("test-plugin", "1.0.0", content).unwrap();
+        let verification = VerificationStatus::ChecksumOnly {
+            checksum: "test_checksum".to_string(),
+        };
+        let installed = installer.install("test-plugin", "1.0.0", content, verification).unwrap();
 
         assert_eq!(installed.name, "test-plugin");
         assert_eq!(installed.version, "1.0.0");
@@ -209,7 +213,10 @@ mod tests {
         let mut installer = PluginInstaller::new(temp_dir.path().to_path_buf()).unwrap();
 
         let content = b"module TestPlugin".to_vec();
-        installer.install("test-plugin", "1.0.0", content).unwrap();
+        let verification = VerificationStatus::ChecksumOnly {
+            checksum: "test_checksum".to_string(),
+        };
+        installer.install("test-plugin", "1.0.0", content, verification).unwrap();
 
         // Disable
         installer.disable("test-plugin").unwrap();
@@ -231,7 +238,10 @@ mod tests {
         {
             let mut installer = PluginInstaller::new(plugin_dir.clone()).unwrap();
             let content = b"module TestPlugin".to_vec();
-            installer.install("test-plugin", "1.0.0", content).unwrap();
+            let verification = VerificationStatus::ChecksumOnly {
+                checksum: "test_checksum".to_string(),
+            };
+            installer.install("test-plugin", "1.0.0", content, verification).unwrap();
         }
 
         // Verify persistence in new instance

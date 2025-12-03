@@ -6,18 +6,22 @@ pub mod terminal;
 pub mod ui;
 pub mod ui_stub;
 
+pub mod context_menu;
 pub mod copy_mode;
 pub mod events;
 pub mod input;
 pub mod integration;
 pub mod ipc;
+pub mod marketplace;
 pub mod navigation;
 pub mod plugin_host;
 pub mod prompt_markers;
 pub mod ratatui_bridge;
 pub mod rendering;
 pub mod scripting;
+pub mod shaders;
 pub mod tutorial;
+pub mod zones;
 
 #[cfg(feature = "plugin-inspector")]
 pub mod plugin_inspector;
@@ -68,6 +72,12 @@ pub use ratatui_bridge::{
     CommandPaletteState, CommandSelected, PaletteCommand,
 };
 
+// Re-export context menu system
+pub use context_menu::{
+    ContextMenuPlugin, ContextMenuState, ShowContextMenuEvent, ContextMenuItemSelected,
+    ContextMenuAction,
+};
+
 // Re-export plugin host system
 pub use plugin_host::{
     PluginNotification, PluginOverlay, PluginRegistry, PluginStatusItem, RegisteredPlugin,
@@ -87,6 +97,23 @@ pub use prompt_markers::{
     PromptMarkersPlugin, PromptZoneFocusedEvent,
 };
 
+// Re-export marketplace system
+pub use marketplace::{
+    InstallPluginEvent, MarketplaceEvent, MarketplaceOverlay, MarketplacePlugin, MarketplaceState,
+    MarketplaceView, PluginListCache,
+};
+
 // Re-export plugin inspector (feature-gated)
 #[cfg(feature = "plugin-inspector")]
 pub use plugin_inspector::{PluginInspectorPlugin, PluginInspectorState};
+
+// Re-export shaders and effects system
+pub use shaders::{
+    BlurSettings, BlurShaderNode, GlowSettings, GlowShaderNode, ScarabEffectsPlugin,
+};
+
+// // Re-export zones system
+// pub use zones::{
+//     ZoneAction, ZoneEvent, ZoneManager, ZoneMembership, ZonePlugin, ZoneProperties, ZoneRole,
+//     ZoneState,
+// };

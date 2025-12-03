@@ -36,6 +36,7 @@ crossbeam = { workspace = true }
 regex = "1.10"
 fuzzy-matcher = "0.3"
 arboard = "3.3"
+open = "5.0"
 image = "0.25"
 prost = "0.12"
 clap = { version = "4.4", features = ["derive"] }

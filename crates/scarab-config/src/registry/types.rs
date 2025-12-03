@@ -168,6 +168,39 @@ pub struct InstalledPlugin {
     pub enabled: bool,
     /// Plugin-specific configuration
     pub config: HashMap<String, serde_json::Value>,
+    /// Verification status from installation
+    #[serde(default)]
+    pub verification: VerificationStatus,
+}
+
+/// Plugin verification status
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub enum VerificationStatus {
+    /// Plugin was verified with valid signature
+    Verified {
+        /// GPG key fingerprint that signed the plugin
+        key_fingerprint: String,
+        /// When the signature was created
+        signature_timestamp: u64,
+    },
+    /// Plugin checksum was verified but no signature present
+    ChecksumOnly {
+        /// SHA256 checksum
+        checksum: String,
+    },
+    /// Plugin was installed without verification (unsafe!)
+    Unverified {
+        /// Warning message explaining why
+        warning: String,
+    },
+}
+
+impl Default for VerificationStatus {
+    fn default() -> Self {
+        Self::Unverified {
+            warning: "Verification status unknown (installed before tracking was added)".to_string(),
+        }
+    }
 }
 
 /// Filter for searching plugins

@@ -10,7 +10,7 @@
 
 use bevy::prelude::*;
 use bevy_egui::{egui, EguiContexts, EguiPlugin};
-use scarab_protocol::{ControlMessage, DaemonMessage, PluginInspectorInfo};
+use scarab_protocol::{ControlMessage, DaemonMessage, PluginInspectorInfo, PluginVerificationStatus};
 use std::collections::VecDeque;
 use std::time::{Duration, Instant};
 
@@ -56,6 +56,7 @@ pub struct InspectedPlugin {
     pub failure_count: u32,
     pub api_version: String,
     pub min_scarab_version: String,
+    pub verification: PluginVerificationStatus,
     /// Computed metrics
     pub total_executions: u64,
     pub total_execution_time: Duration,
@@ -74,6 +75,7 @@ impl From<PluginInspectorInfo> for InspectedPlugin {
             failure_count: info.failure_count,
             api_version: info.api_version.to_string(),
             min_scarab_version: info.min_scarab_version.to_string(),
+            verification: info.verification,
             total_executions: 0,
             total_execution_time: Duration::ZERO,
             last_error: None,
@@ -396,6 +398,14 @@ fn render_plugin_list(ui: &mut egui::Ui, state: &mut PluginInspectorState) {
                         // Status indicator
                         ui.colored_label(color, "●");
 
+                        // Verification indicator
+                        let verification_icon = match &plugin.verification {
+                            PluginVerificationStatus::Verified { .. } => ("✓", egui::Color32::GREEN),
+                            PluginVerificationStatus::ChecksumOnly { .. } => ("✓", egui::Color32::from_rgb(255, 200, 0)),
+                            PluginVerificationStatus::Unverified { .. } => ("⚠", egui::Color32::RED),
+                        };
+                        ui.colored_label(verification_icon.1, verification_icon.0);
+
                         // Plugin name button
                         if ui
                             .selectable_label(is_selected, &plugin.name)
@@ -607,7 +617,45 @@ fn render_metadata_tab(ui: &mut egui::Ui, plugin: &InspectedPlugin) {
             ui.label(egui::RichText::new("Min Scarab Version:").strong());
             ui.label(&plugin.min_scarab_version);
             ui.end_row();
+
+            // Verification status
+            ui.label(egui::RichText::new("Verification:").strong());
+            render_verification_status(ui, &plugin.verification);
+            ui.end_row();
         });
+}
+
+fn render_verification_status(ui: &mut egui::Ui, verification: &PluginVerificationStatus) {
+    match verification {
+        PluginVerificationStatus::Verified { key_fingerprint, signature_timestamp } => {
+            ui.horizontal(|ui| {
+                ui.colored_label(egui::Color32::GREEN, "✓ GPG Signed");
+                ui.label("|");
+                ui.small(format!("Key: {}...", &key_fingerprint[..std::cmp::min(16, key_fingerprint.len())]));
+                if *signature_timestamp > 0 {
+                    // Format timestamp as date (simple format without external deps)
+                    let days_since_epoch = signature_timestamp / 86400;
+                    let year = 1970 + (days_since_epoch / 365);
+                    ui.label("|");
+                    ui.small(format!("Signed: ~{}", year));
+                }
+            });
+        }
+        PluginVerificationStatus::ChecksumOnly { checksum } => {
+            ui.horizontal(|ui| {
+                ui.colored_label(egui::Color32::from_rgb(255, 200, 0), "⚠ Checksum Only");
+                ui.label("|");
+                ui.small(format!("SHA256: {}...", &checksum[..std::cmp::min(16, checksum.len())]));
+            });
+        }
+        PluginVerificationStatus::Unverified { warning } => {
+            ui.horizontal(|ui| {
+                ui.colored_label(egui::Color32::RED, "✖ Unverified");
+                ui.label("|");
+                ui.small(warning.as_str());
+            });
+        }
+    }
 }
 
 fn render_hooks_tab(ui: &mut egui::Ui, plugin: &InspectedPlugin, state: &PluginInspectorState) {

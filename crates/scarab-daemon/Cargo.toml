@@ -42,6 +42,7 @@ uuid = { version = "1.6", features = ["v4", "serde"] }
 lru = "0.12"
 rand = "0.8"
 base64 = "0.21"
+png = "0.17"
 
 # Profiling dependencies
 tracy-client = { workspace = true, optional = true }
