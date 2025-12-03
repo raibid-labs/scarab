@@ -35,7 +35,10 @@ pub use key_tables::{
     SearchAction, SplitDirection,
 };
 pub use menu::{MenuAction, MenuItem};
-pub use navigation::{NavigationExt, PluginFocusable, PluginFocusableAction};
+pub use navigation::{
+    validate_focusable, NavigationExt, PluginFocusable, PluginFocusableAction,
+    PluginNavCapabilities, ValidationError,
+};
 pub use object_model::{ObjectError, ObjectHandle, ObjectRegistry, ObjectType, RegistryEntry};
 pub use plugin::{Plugin, PluginMetadata};
 pub use status_bar::{

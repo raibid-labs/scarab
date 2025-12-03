@@ -16,6 +16,7 @@ pub struct ScarabConfig {
     pub plugins: PluginConfig,
     pub sessions: SessionConfig,
     pub telemetry: TelemetryConfig,
+    pub navigation: NavConfig,
 }
 
 impl Default for ScarabConfig {
@@ -28,6 +29,7 @@ impl Default for ScarabConfig {
             ui: UiConfig::default(),
             plugins: PluginConfig::default(),
             sessions: SessionConfig::default(),
+            navigation: NavConfig::default(),
             telemetry: TelemetryConfig::default(),
         }
     }
@@ -70,6 +72,14 @@ impl ScarabConfig {
 
         // Telemetry
         if other.telemetry != TelemetryConfig::default() {
+        }
+
+        // Navigation
+        if other.navigation != NavConfig::default() {
+            self.navigation = other.navigation;
+        } else {
+            // Merge custom keybindings even if rest is default
+            self.navigation.keybindings.extend(other.navigation.keybindings);
             self.telemetry = other.telemetry;
         }
     }
@@ -482,5 +492,60 @@ mod tests {
         config.fps_log_interval_secs = 0;
         config.log_pane_events = true;
         assert!(config.is_enabled());
+    }
+}
+
+/// Navigation style defining the keymap philosophy
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize)]
+#[serde(rename_all = "lowercase")]
+pub enum NavStyle {
+    /// Vimium-style: f for hints, Esc to cancel, letter keys for hint selection
+    Vimium,
+    /// Cosmos-style: space as leader key, then navigation submodes
+    Cosmos,
+    /// Spacemacs-style: SPC prefix for commands
+    Spacemacs,
+}
+
+impl Default for NavStyle {
+    fn default() -> Self {
+        Self::Vimium
+    }
+}
+
+/// Navigation configuration
+///
+/// Controls keyboard navigation behavior including hint mode, focusable elements,
+/// and custom keybindings. Supports plugin conflict resolution.
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
+#[serde(default)]
+pub struct NavConfig {
+    /// Navigation style (vimium, cosmos, spacemacs)
+    pub style: NavStyle,
+
+    /// Allow plugins to enter hint mode (conflict resolution)
+    ///
+    /// If false, only the built-in navigation system can trigger hints.
+    /// Set to false if you have a plugin that conflicts with hint mode.
+    pub allow_plugin_hint_mode: bool,
+
+    /// Allow plugins to register focusable elements
+    ///
+    /// If false, plugins cannot add custom focusable elements to the navigation system.
+    /// Set to prevent plugins from interfering with navigation.
+    pub allow_plugin_focusables: bool,
+
+    /// Custom keybindings (action_name -> key_combo)
+    pub keybindings: HashMap<String, String>,
+}
+
+impl Default for NavConfig {
+    fn default() -> Self {
+        Self {
+            style: NavStyle::default(),
+            allow_plugin_hint_mode: true,
+            allow_plugin_focusables: true,
+            keybindings: HashMap::new(),
+        }
     }
 }

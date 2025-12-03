@@ -63,6 +63,40 @@ pub struct NavMetrics {
     /// Timing samples for navigation input latency (microseconds)
     nav_input_latency: Mutex<TimingSamples>,
 
+    // Pane switch metrics
+    /// Total number of pane switches
+    pub pane_switches: AtomicU64,
+
+    /// Timing samples for pane switch operations (microseconds)
+    pane_switch_times: Mutex<TimingSamples>,
+
+    /// Number of focusables restored during pane switches
+    pub focusables_restored: AtomicU64,
+
+    /// Number of focusables dropped during pane switches
+    pub focusables_dropped: AtomicU64,
+
+    // Plugin navigation metrics
+    /// Number of plugin navigation actions accepted
+    pub plugin_actions_accepted: AtomicU64,
+
+    /// Number of plugin navigation actions rejected
+    pub plugin_actions_rejected: AtomicU64,
+
+    /// Number of plugin focusables registered
+    pub plugin_focusables_registered: AtomicU64,
+            pane_switches: AtomicU64::new(0),
+            pane_switch_times: Mutex::new(TimingSamples::new()),
+            focusables_restored: AtomicU64::new(0),
+            focusables_dropped: AtomicU64::new(0),
+            plugin_actions_accepted: AtomicU64::new(0),
+            plugin_actions_rejected: AtomicU64::new(0),
+            plugin_focusables_registered: AtomicU64::new(0),
+            plugin_rate_limit_hits: AtomicU64::new(0),
+
+    /// Number of rate limit hits (from any source)
+    pub plugin_rate_limit_hits: AtomicU64,
+
     /// Timestamp of last metrics report
     last_report: Mutex<Instant>,
 

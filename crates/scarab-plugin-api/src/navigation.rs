@@ -28,7 +28,131 @@
 //! }
 //! ```
 
+use thiserror::Error;
+
 use crate::error::Result;
+
+/// Security capabilities for plugin navigation APIs
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct PluginNavCapabilities {
+    pub can_enter_hint_mode: bool,
+    pub can_register_focusables: bool,
+    pub max_focusables: usize,
+    pub can_trigger_actions: bool,
+}
+
+impl Default for PluginNavCapabilities {
+    fn default() -> Self {
+        Self {
+            can_enter_hint_mode: true,
+            can_register_focusables: true,
+            max_focusables: 50,
+            can_trigger_actions: true,
+        }
+    }
+}
+
+/// Errors that can occur during navigation API validation
+#[derive(Error, Debug, Clone, PartialEq, Eq)]
+pub enum ValidationError {
+    #[error("Focusable coordinates out of bounds: x={x}, y={y} (max: {max})")]
+    CoordinatesOutOfBounds { x: u16, y: u16, max: u16 },
+    #[error("Invalid focusable dimensions: width={width}, height={height}")]
+    InvalidDimensions { width: u16, height: u16 },
+    #[error("Dangerous URL protocol detected: {protocol}")]
+    DangerousProtocol { protocol: String },
+    #[error("Malformed URL: {url}")]
+    MalformedUrl { url: String },
+    #[error("Dangerous file path pattern: {path}")]
+    DangerousPath { path: String },
+    #[error("Invalid label: {reason}")]
+    InvalidLabel { reason: String },
+}
+
+pub fn validate_focusable(region: &PluginFocusable) -> std::result::Result<(), ValidationError> {
+    const MAX_COORDINATE: u16 = 1000;
+    if region.x >= MAX_COORDINATE || region.y >= MAX_COORDINATE {
+        return Err(ValidationError::CoordinatesOutOfBounds {
+            x: region.x,
+            y: region.y,
+            max: MAX_COORDINATE,
+        });
+    }
+    if region.width == 0 || region.height == 0 {
+        return Err(ValidationError::InvalidDimensions {
+            width: region.width,
+            height: region.height,
+        });
+    }
+    if region.width > MAX_COORDINATE || region.height > MAX_COORDINATE {
+        return Err(ValidationError::InvalidDimensions {
+            width: region.width,
+            height: region.height,
+        });
+    }
+    if region.label.is_empty() {
+        return Err(ValidationError::InvalidLabel {
+            reason: "Label cannot be empty".to_string(),
+        });
+    }
+    if region.label.len() > 256 {
+        return Err(ValidationError::InvalidLabel {
+            reason: format!("Label too long: {} chars (max: 256)", region.label.len()),
+        });
+    }
+    match &region.action {
+        PluginFocusableAction::OpenUrl(url) => validate_url(url)?,
+        PluginFocusableAction::OpenFile(path) => validate_file_path(path)?,
+        PluginFocusableAction::Custom(_) => {}
+    }
+    Ok(())
+}
+
+fn validate_url(url: &str) -> std::result::Result<(), ValidationError> {
+    let url_lower = url.to_lowercase();
+    const DANGEROUS_PROTOCOLS: &[&str] = &["javascript:", "data:", "vbscript:", "about:", "blob:"];
+    for protocol in DANGEROUS_PROTOCOLS {
+        if url_lower.starts_with(protocol) {
+            return Err(ValidationError::DangerousProtocol {
+                protocol: protocol.to_string(),
+            });
+        }
+    }
+    if !url_lower.starts_with("http://") && !url_lower.starts_with("https://") && !url_lower.starts_with("file://") {
+        return Err(ValidationError::MalformedUrl {
+            url: url.to_string(),
+        });
+    }
+    if url.len() < 10 {
+        return Err(ValidationError::MalformedUrl {
+            url: url.to_string(),
+        });
+    }
+    Ok(())
+}
+
+fn validate_file_path(path: &str) -> std::result::Result<(), ValidationError> {
+    if path.contains("..") {
+        return Err(ValidationError::DangerousPath {
+            path: path.to_string(),
+        });
+    }
+    if path.is_empty() {
+        return Err(ValidationError::DangerousPath {
+            path: "empty path".to_string(),
+        });
+    }
+    let path_lower = path.to_lowercase();
+    const SENSITIVE_PATTERNS: &[&str] = &["/etc/passwd", "/etc/shadow", "/proc/", "/sys/", "\\.ssh", "/root/"];
+    for pattern in SENSITIVE_PATTERNS {
+        if path_lower.contains(pattern) {
+            return Err(ValidationError::DangerousPath {
+                path: path.to_string(),
+            });
+        }
+    }
+    Ok(())
+}
 
 /// Navigation extension trait for plugin contexts
 ///
@@ -189,5 +313,45 @@ mod tests {
 
         let cloned = focusable.clone();
         assert_eq!(focusable, cloned);
+    }
+
+    #[test]
+    fn test_validate_focusable_valid() {
+        let focusable = PluginFocusable {
+            x: 10,
+            y: 5,
+            width: 20,
+            height: 1,
+            label: "GitHub".to_string(),
+            action: PluginFocusableAction::OpenUrl("https://github.com".to_string()),
+        };
+        assert!(validate_focusable(&focusable).is_ok());
+    }
+
+    #[test]
+    fn test_validate_focusable_out_of_bounds() {
+        let focusable = PluginFocusable {
+            x: 1000,
+            y: 5,
+            width: 20,
+            height: 1,
+            label: "Test".to_string(),
+            action: PluginFocusableAction::OpenUrl("https://example.com".to_string()),
+        };
+        assert!(matches!(
+            validate_focusable(&focusable).unwrap_err(),
+            ValidationError::CoordinatesOutOfBounds { .. }
+        ));
+    }
+
+    #[test]
+    fn test_validate_url_dangerous_protocol() {
+        assert!(validate_url("javascript:alert('xss')").is_err());
+        assert!(validate_url("data:text/html,<script>alert('xss')</script>").is_err());
+    }
+
+    #[test]
+    fn test_validate_file_path_traversal() {
+        assert!(validate_file_path("../../../etc/passwd").is_err());
     }
 }

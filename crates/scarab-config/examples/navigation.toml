@@ -1,0 +1,77 @@
+# Navigation Configuration Example
+# Demonstrates all available navigation options including keymaps and plugin conflict resolution
+
+[navigation]
+# Navigation style: "vimium", "cosmos", or "spacemacs"
+# - vimium: f for hints, Esc to cancel, letter keys for selection
+# - cosmos: Space as leader key, then navigation submodes
+# - spacemacs: SPC prefix for commands
+style = "vimium"
+
+# Plugin conflict resolution flags
+# Set to false if you have plugins that conflict with navigation features
+
+# Allow plugins to trigger hint mode (default: true)
+# Set to false if you have a plugin that conflicts with hint mode
+allow_plugin_hint_mode = true
+
+# Allow plugins to register focusable elements (default: true)
+# Set to false to prevent plugins from adding custom focusables
+allow_plugin_focusables = true
+
+# Custom keybindings override the defaults for the selected style
+# Format: action_name = "Key+Modifier"
+[navigation.keybindings]
+# Mode transitions
+enter_hints = "Ctrl+F"          # Enter hint mode for link selection
+enter_copy = "Ctrl+Shift+C"     # Enter copy mode for text selection
+enter_search = "Ctrl+Slash"     # Enter search mode
+enter_command_palette = "Ctrl+P" # Open command palette
+exit_mode = "Escape"            # Exit current mode, return to parent
+cancel = "Ctrl+G"               # Cancel all modes, return to Normal
+
+# Prompt navigation (jumping between shell prompts)
+prev_prompt = "Ctrl+Up"         # Jump to previous shell prompt
+next_prompt = "Ctrl+Down"       # Jump to next shell prompt
+
+# Hint mode actions
+activate_hint = "Enter"         # Activate selected hint
+
+# Copy mode actions
+copy_mode_toggle_selection = "Space"  # Toggle visual selection
+copy_mode_exit = "y"                  # Exit copy mode and copy selection
+
+# Search actions
+search_forward = "/"            # Search forward
+search_backward = "?"           # Search backward
+next_search_match = "n"         # Next match
+prev_search_match = "N"         # Previous match (Shift+n)
+
+# Command palette actions
+execute_command = "Enter"       # Execute selected command
+filter_commands = "Ctrl+F"      # Filter command list
+
+
+# Example: Cosmos style configuration
+# [navigation]
+# style = "cosmos"
+# [navigation.keybindings]
+# enter_hints = "Space+f"
+# enter_copy = "Space+c"
+# enter_search = "Space+/"
+
+
+# Example: Spacemacs style configuration
+# [navigation]
+# style = "spacemacs"
+# [navigation.keybindings]
+# enter_hints = "Space+s+f"
+# enter_copy = "Space+c+c"
+# command_palette = "Space+Space"
+
+
+# Example: Disable plugin navigation features
+# [navigation]
+# style = "vimium"
+# allow_plugin_hint_mode = false
+# allow_plugin_focusables = false

@@ -1,0 +1,289 @@
+╔════════════════════════════════════════════════════════════════════════════════╗
+║                 SCARAB EXECUTION PLAN - DEPENDENCY DIAGRAM                      ║
+║                        14 Issues in 2 Sequential Waves                          ║
+╚════════════════════════════════════════════════════════════════════════════════╝
+
+
+WAVE 1: AUDIT 003 - NAVIGATION FOUNDATION (2-3 Weeks, 6 Issues)
+═════════════════════════════════════════════════════════════════════════════════
+
+                              ┌─────────────────┐
+                              │    #45: Tests   │
+                              │ (3-4 days)      │
+                              │ Foundation      │
+                              └────────┬────────┘
+                                       │
+                                       ▼
+                    ┌──────────────────────────────────┐
+                    │  #46: State Lifecycle (4-5 days) │
+                    │  CRITICAL PATH ITEM              │
+                    │  (Pane activate/deactivate)      │
+                    └────────────┬─────────────────────┘
+                                 │
+                 ┌───────────────┼───────────────┐
+                 │               │               │
+                 ▼               ▼               ▼
+        ┌──────────────┐  ┌──────────────┐  ┌──────────────┐
+        │  #47: Sec.   │  │  #48: Config │  │  #49: Metrics│
+        │ (3-4 days)   │  │ (2-3 days)   │  │ (2-3 days)   │
+        │ PARALLEL     │  │ PARALLEL     │  │ PARALLEL     │
+        └──────┬───────┘  └──────┬───────┘  └──────┬───────┘
+               │                  │                  │
+               └──────────────────┼──────────────────┘
+                                  │
+                                  ▼
+                      ┌──────────────────────┐
+                      │   #50: Docs (1-2d)   │
+                      │  Final Documentation │
+                      └──────────────────────┘
+
+
+TIMELINE BREAKDOWN
+═════════════════════════════════════════════════════════════════════════════════
+
+Week 1:
+  Mon-Wed:  #45 (Tests) - Core foundation
+  Wed-Fri:  #46 (Lifecycle) - Starts Wed, overlaps with #45 final days
+  Mon-Fri:  #47 (Security) - Parallel with #46
+  Mon-Fri:  #48 (Config) - Parallel with #46
+  Mon-Fri:  #49 (Metrics) - Parallel with #46
+
+Week 2:
+  Mon-Tue:  Integration & bug fixes
+  Wed-Fri:  #50 (Documentation) - Final documentation pass
+
+Week 3:
+  Mon:      Audit review
+  Tue-Fri:  Pre-staging for Wave 2
+
+
+CRITICAL PATH ANALYSIS
+═════════════════════════════════════════════════════════════════════════════════
+
+Minimum Duration = #45 (3-4d) + #46 (4-5d) + #50 (1-2d) = 8-11 days
+
+Wall-clock Time with 6 engineers:
+  - Days 1-4:   #45 in parallel with prep for #46
+  - Days 5-9:   #46 + {#47, #48, #49 parallel}
+  - Days 10-12: #50 + integration
+  ────────────────────────────────────────
+  TOTAL:        2-3 weeks
+
+
+WAVE 2: PRE-EXISTING FEATURES (4-5 Weeks, 8 Issues)
+═════════════════════════════════════════════════════════════════════════════════
+
+                  Independent Stream          Depends on Wave 1
+                  ════════════════════        ══════════════════
+
+┌──────────────┐
+│ #28: Sixel   │
+│ (5-6 days)   │
+└──────┬───────┘
+       │
+       ▼
+┌──────────────────┐
+│ #29: Kitty Gfx   │
+│ (4-5 days)       │
+└──────────────────┘
+
+
+┌──────────────┐                    ┌─────────────────────┐
+│ #32: Mkt UI  │                    │ #30: SSH Mux        │
+│ (3-4 days)   │                    │ (4-5 days)          │
+└──────────────┘                    │ Needs: State iso #46│
+                                    └─────────────────────┘
+
+┌──────────────┐                    ┌─────────────────────┐
+│ #33: GPG     │                    │ #31: Context Menu   │
+│ (2-3 days)   │                    │ (3-4 days)          │
+└──────────────┘                    │ Needs: Config #48   │
+                                    └─────────────────────┘
+
+┌──────────────┐                    ┌─────────────────────┐
+│ #35: Shaders │                    │ #36: Shell Integ    │
+│ (3-4 days)   │                    │ (4-5 days)          │
+└──────────────┘                    │ Needs: State iso #46│
+                                    └─────────────────────┘
+
+
+PARALLELIZATION MATRIX
+═════════════════════════════════════════════════════════════════════════════════
+
+WAVE 1 (Can be 100% Parallel in Week 1):
+  ┌─────────┬─────────┬─────────┬─────────┬─────────┐
+  │  Team1  │  Team2  │  Team3  │  Team4  │  Team5  │
+  │  #45    │  #46*   │  #47    │  #48    │  #49    │
+  │  Tests  │ Lifecycle│Security │ Config  │ Metrics │
+  └─────────┴─────────┴─────────┴─────────┴─────────┘
+  *#46 starts after #45 mid-point (Wednesday)
+  All #47-49 can start immediately, depend on #46 design
+
+WAVE 2 (Can batch into parallel groups):
+  Week 1: {#28, #32, #33} + {#30, #36} start when blocked
+  Week 2: {#29, #35}
+  Week 3: Integration & cleanup
+
+
+RISK DEPENDENCY TREE
+═════════════════════════════════════════════════════════════════════════════════
+
+Critical Risk: #46 State Lifecycle Bugs
+├─ Mitigation: Extensive property-based testing in #45
+├─ Blocks: #47 (security), #30 (mux), #36 (shell)
+└─ Impact: 3-day delay = 6-day total Wave 1 delay
+
+Medium Risk: #47 Security Bypass
+├─ Mitigation: Security code review + fuzzing harness
+├─ Blocks: Shipping Wave 1
+└─ Impact: 2-day delay = 2-day total delay
+
+Medium Risk: #48 Config Parse Issues
+├─ Mitigation: Schema validation tests
+├─ Blocks: #31 (context menu)
+└─ Impact: 1-day delay = 1-day total delay (parallel stream)
+
+
+EFFORT DISTRIBUTION
+═════════════════════════════════════════════════════════════════════════════════
+
+Wave 1 Total: ~15-20 person-days
+  #45: 3-4 days   [Test Engineer]
+  #46: 4-5 days   [Core Specialist]
+  #47: 3-4 days   [Security Specialist]
+  #48: 2-3 days   [Config Specialist]
+  #49: 2-3 days   [Observability Expert]
+  #50: 1-2 days   [Technical Writer]
+  ─────────────────────────────────────────
+  Total: 15-21 person-days, 2-3 weeks wall-clock
+
+Wave 2 Total: ~25-30 person-days
+  #28: 5-6 days   [Graphics Specialist]
+  #29: 4-5 days   [Graphics Specialist]
+  #30: 4-5 days   [Networking Specialist]
+  #31: 3-4 days   [UI Specialist]
+  #32: 3-4 days   [Frontend Specialist]
+  #33: 2-3 days   [Security Specialist]
+  #35: 3-4 days   [Graphics/Shader Specialist]
+  #36: 4-5 days   [Shell Integration Specialist]
+  ─────────────────────────────────────────
+  Total: 28-36 person-days, 4-5 weeks wall-clock
+
+
+CODE REVIEW FLOW
+═════════════════════════════════════════════════════════════════════════════════
+
+#45 Approved
+    │
+    ▼ (enables parallel work)
+┌──────────────────────────────────────┐
+│ #46 in review                        │
+│ #47, #48, #49 waiting on #46 merge  │
+└──────────────────────────────────────┘
+    │
+    ├─ #46 Approved → #47, #48, #49 start integration
+    │
+    ├─ #47 Approved → Integration with #46 complete
+    ├─ #48 Approved → Integration with #46 complete
+    └─ #49 Approved → Integration with #46 complete
+    │
+    ▼
+┌──────────────────────────────────────┐
+│ All #45-49 merged to main            │
+│ #50 starts final documentation       │
+└──────────────────────────────────────┘
+    │
+    ▼
+#50 Approved → Wave 1 Complete
+
+
+TESTING GATES
+═════════════════════════════════════════════════════════════════════════════════
+
+Before merging #45 (Tests):
+  ✓ All tests pass
+  ✓ Coverage ≥95%
+  ✓ No sanitizer warnings
+
+Before merging #46 (Lifecycle):
+  ✓ All #45 tests still passing
+  ✓ Integration tests for state machine
+  ✓ <50ms pane switch latency
+  ✓ Security review sign-off
+
+Before merging #47 (Security):
+  ✓ All tests pass
+  ✓ Security fuzzing complete
+  ✓ Code review from security team
+
+Before merging #48 (Config):
+  ✓ Config schema validated
+  ✓ Hot-reload tested
+  ✓ Default config provided
+
+Before merging #49 (Metrics):
+  ✓ Prometheus scrape endpoint working
+  ✓ Metrics overhead <1%
+  ✓ Grafana dashboard template provided
+
+Before merging #50 (Docs):
+  ✓ Examples compile and run
+  ✓ API reference complete
+  ✓ Team lead approval
+
+
+CHECKPOINTS & DECISION GATES
+═════════════════════════════════════════════════════════════════════════════════
+
+Monday 2025-12-08:  Kickoff - GO/NO-GO for Wave 1
+Friday 2025-12-12:  Week 1 review - #45 merged, #46 in review
+Friday 2025-12-19:  Week 2 review - #46-49 merged, #50 in progress
+Friday 2025-12-26:  Wave 1 complete - All 6 issues merged
+Monday 2026-01-02:  Wave 1 staging - GO/NO-GO for Wave 2
+
+
+KEY METRICS TO TRACK
+═════════════════════════════════════════════════════════════════════════════════
+
+By Issue:
+  - Code review turnaround (target: 4 hours)
+  - Test pass rate (target: 100%)
+  - Test coverage (target: ≥95%)
+
+By Wave:
+  - Actual days vs. estimated days
+  - Bugs found in testing vs. production
+  - Team velocity (person-days/week)
+
+By System:
+  - Pane switch latency p50/p95/p99
+  - Plugin navigation command rate
+  - Security audit findings (target: 0 critical/high)
+
+
+ESCALATION PROTOCOL
+═════════════════════════════════════════════════════════════════════════════════
+
+BLOCKER (Same Day)
+  ├─ Any red test
+  ├─ Any "security could be bypassed" finding
+  ├─ Any panic/crash in core (#46)
+  └─ Action: Escalate immediately to Tech Lead
+
+MAJOR (Next Day)
+  ├─ >5% performance regression
+  ├─ >2 day schedule slip
+  ├─ Design disagreement between specialists
+  └─ Action: Escalate to Tech Lead, may adjust roadmap
+
+MINOR (Weekly Review)
+  ├─ <5% performance regression
+  ├─ Documentation clarifications needed
+  ├─ Code style questions
+  └─ Action: Review in standup, can wait for next sync
+
+
+═════════════════════════════════════════════════════════════════════════════════
+                            STATUS: READY FOR EXECUTION
+                    Distribution: Team leads, issue owners, stakeholders
+═════════════════════════════════════════════════════════════════════════════════
