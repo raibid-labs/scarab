@@ -351,6 +351,28 @@ pub fn prompt_navigation(
     }
 }
 
+/// System to handle NavAction events and convert JumpPrompt to JumpToPromptEvent
+///
+/// This system bridges the navigation module's NavActionEvent with the
+/// prompt marker system's JumpToPromptEvent, enabling integration between
+/// hint mode and prompt navigation.
+pub fn handle_nav_jump_actions(
+    mut nav_events: EventReader<crate::navigation::NavActionEvent>,
+    mut jump_events: EventWriter<JumpToPromptEvent>,
+) {
+    for event in nav_events.read() {
+        if let crate::navigation::NavAction::JumpPrompt(line) = event.action {
+            // Convert NavAction::JumpPrompt to JumpToPromptEvent
+            jump_events.send(JumpToPromptEvent {
+                target_line: line,
+                anchor_type: PromptAnchorType::PromptStart,
+            });
+
+            println!("NavAction::JumpPrompt({}) -> JumpToPromptEvent", line);
+        }
+    }
+}
+
 /// System to handle jump-to-prompt events and update scrollback position
 ///
 /// This system listens for JumpToPromptEvent and scrolls the viewport to
@@ -472,6 +494,7 @@ pub fn receive_prompt_markers(
 /// - Gutter rendering system
 /// - NavAnchor spawning system
 /// - Keyboard navigation system with event emission
+/// - NavAction::JumpPrompt handler (bridges navigation to prompt system)
 /// - Jump-to-prompt scrollback handler system
 /// - Prompt zone filtering system for hint mode
 /// - IPC message receiver system
@@ -489,10 +512,11 @@ impl Plugin for PromptMarkersPlugin {
                     render_gutter_markers,
                     spawn_nav_anchors,
                     prompt_navigation,
-                    handle_jump_to_prompt, // New: Handle jump events and scroll viewport
+                    handle_nav_jump_actions,  // New: Convert NavAction::JumpPrompt to JumpToPromptEvent
+                    handle_jump_to_prompt,     // Handle jump events and scroll viewport
                     prompt_zone_filtering,
                 )
-                    .chain(), // Run in order: receive -> render -> spawn anchors -> navigate -> jump -> filter
+                    .chain(), // Run in order: receive -> render -> spawn -> navigate -> convert -> jump -> filter
             );
     }
 }
