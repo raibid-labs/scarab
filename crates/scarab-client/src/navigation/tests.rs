@@ -12,6 +12,7 @@ use std::sync::Arc;
 use crate::integration::SharedMemoryReader;
 use crate::prompt_markers::{NavAnchor, PromptAnchorType, PromptMarkers, PromptZoneFocusedEvent};
 use crate::safe_state::MockTerminalState;
+use crate::events::{PaneCreatedEvent, PaneFocusedEvent, PaneClosedEvent};
 
 use super::*;
 use super::focusable::*;
@@ -1358,5 +1359,473 @@ fn test_pane_lifecycle_integration() {
         assert_eq!(registry.pane_count(), 1);
         assert!(!registry.has_pane(1));
         assert_eq!(registry.active_pane(), Some(2));
+    }
+}
+
+// ==================== State Isolation Integration Tests (GitHub Issue #45) ====================
+
+#[test]
+fn test_pane_switch_preserves_hint_mode() {
+    use scarab_plugin_api::object_model::{ObjectHandle, ObjectType};
+
+    let mut app = build_test_app();
+
+    // Add events
+    app.add_event::<PaneCreatedEvent>();
+    app.add_event::<PaneFocusedEvent>();
+
+    // Create Pane A
+    app.world_mut().send_event(PaneCreatedEvent {
+        window: ObjectHandle::new(ObjectType::Window, 1, 0),
+        tab: ObjectHandle::new(ObjectType::Tab, 1, 0),
+        pane: ObjectHandle::new(ObjectType::Pane, 1, 0),
+    });
+
+    app.update();
+
+    // Focus Pane A
+    app.world_mut().send_event(PaneFocusedEvent {
+        window: ObjectHandle::new(ObjectType::Window, 1, 0),
+        tab: ObjectHandle::new(ObjectType::Tab, 1, 0),
+        pane: ObjectHandle::new(ObjectType::Pane, 1, 0),
+    });
+
+    app.update();
+
+    // Set Pane A to Hints mode with filter "ab"
+    {
+        let mut registry = app.world_mut().resource_mut::<NavStateRegistry>();
+        let state_a = registry.get_mut(1).unwrap();
+        state_a.current_mode = NavMode::Hints;
+        state_a.hint_filter = "ab".to_string();
+    }
+
+    // Verify Pane A is in Hints mode
+    {
+        let registry = app.world().resource::<NavStateRegistry>();
+        assert_eq!(registry.active_pane(), Some(1));
+        let state_a = registry.get(1).unwrap();
+        assert_eq!(state_a.current_mode, NavMode::Hints);
+        assert_eq!(state_a.hint_filter, "ab");
+    }
+
+    // Create Pane B
+    app.world_mut().send_event(PaneCreatedEvent {
+        window: ObjectHandle::new(ObjectType::Window, 1, 0),
+        tab: ObjectHandle::new(ObjectType::Tab, 1, 0),
+        pane: ObjectHandle::new(ObjectType::Pane, 2, 0),
+    });
+
+    app.update();
+
+    // Switch to Pane B
+    app.world_mut().send_event(PaneFocusedEvent {
+        window: ObjectHandle::new(ObjectType::Window, 1, 0),
+        tab: ObjectHandle::new(ObjectType::Tab, 1, 0),
+        pane: ObjectHandle::new(ObjectType::Pane, 2, 0),
+    });
+
+    app.update();
+
+    // Verify Pane B is in Normal mode
+    {
+        let registry = app.world().resource::<NavStateRegistry>();
+        assert_eq!(registry.active_pane(), Some(2));
+        let state_b = registry.get(2).unwrap();
+        assert_eq!(state_b.current_mode, NavMode::Normal);
+        assert!(state_b.hint_filter.is_empty());
+    }
+
+    // Verify Pane A still has its Hints mode and filter
+    {
+        let registry = app.world().resource::<NavStateRegistry>();
+        let state_a = registry.get(1).unwrap();
+        assert_eq!(state_a.current_mode, NavMode::Hints);
+        assert_eq!(state_a.hint_filter, "ab");
+    }
+
+    // Switch back to Pane A
+    app.world_mut().send_event(PaneFocusedEvent {
+        window: ObjectHandle::new(ObjectType::Window, 1, 0),
+        tab: ObjectHandle::new(ObjectType::Tab, 1, 0),
+        pane: ObjectHandle::new(ObjectType::Pane, 1, 0),
+    });
+
+    app.update();
+
+    // Verify Pane A still in Hints mode with filter "ab"
+    {
+        let registry = app.world().resource::<NavStateRegistry>();
+        assert_eq!(registry.active_pane(), Some(1));
+        let state_a = registry.get(1).unwrap();
+        assert_eq!(state_a.current_mode, NavMode::Hints);
+        assert_eq!(state_a.hint_filter, "ab");
+    }
+
+    // Verify Pane B still in Normal mode
+    {
+        let registry = app.world().resource::<NavStateRegistry>();
+        let state_b = registry.get(2).unwrap();
+        assert_eq!(state_b.current_mode, NavMode::Normal);
+        assert!(state_b.hint_filter.is_empty());
+    }
+}
+
+#[test]
+fn test_plugin_focusables_in_hint_mode() {
+    use scarab_plugin_api::object_model::{ObjectHandle, ObjectType};
+
+    let mut app = build_test_app();
+
+    // Add events
+    app.add_event::<PaneCreatedEvent>();
+    app.add_event::<PaneFocusedEvent>();
+
+    // Create and focus a pane
+    app.world_mut().send_event(PaneCreatedEvent {
+        window: ObjectHandle::new(ObjectType::Window, 1, 0),
+        tab: ObjectHandle::new(ObjectType::Tab, 1, 0),
+        pane: ObjectHandle::new(ObjectType::Pane, 1, 0),
+    });
+
+    app.world_mut().send_event(PaneFocusedEvent {
+        window: ObjectHandle::new(ObjectType::Window, 1, 0),
+        tab: ObjectHandle::new(ObjectType::Tab, 1, 0),
+        pane: ObjectHandle::new(ObjectType::Pane, 1, 0),
+    });
+
+    app.update();
+
+    // Register 3 focusables via plugin action (simulated)
+    let focusable1 = app.world_mut().spawn((
+        FocusableRegion {
+            region_type: FocusableType::Widget,
+            grid_start: (10, 5),
+            grid_end: (20, 5),
+            content: "Button 1".to_string(),
+            source: FocusableSource::Ratatui,
+            screen_position: Some(Vec2::new(100.0, 50.0)),
+        },
+        NavHint {
+            label: "aa".to_string(),
+            position: Vec2::new(100.0, 50.0),
+            action: NavAction::Click(10, 5),
+        },
+    )).id();
+
+    let focusable2 = app.world_mut().spawn((
+        FocusableRegion {
+            region_type: FocusableType::Widget,
+            grid_start: (10, 10),
+            grid_end: (20, 10),
+            content: "Button 2".to_string(),
+            source: FocusableSource::Ratatui,
+            screen_position: Some(Vec2::new(100.0, 100.0)),
+        },
+        NavHint {
+            label: "ab".to_string(),
+            position: Vec2::new(100.0, 100.0),
+            action: NavAction::Click(10, 10),
+        },
+    )).id();
+
+    let focusable3 = app.world_mut().spawn((
+        FocusableRegion {
+            region_type: FocusableType::Widget,
+            grid_start: (10, 15),
+            grid_end: (20, 15),
+            content: "Button 3".to_string(),
+            source: FocusableSource::Ratatui,
+            screen_position: Some(Vec2::new(100.0, 150.0)),
+        },
+        NavHint {
+            label: "ac".to_string(),
+            position: Vec2::new(100.0, 150.0),
+            action: NavAction::Click(10, 15),
+        },
+    )).id();
+
+    app.update();
+
+    // Enter Hint mode
+    app.world_mut().resource_mut::<NavStateRegistry>()
+        .get_active_mut()
+        .unwrap()
+        .current_mode = NavMode::Hints;
+
+    app.world_mut().send_event(EnterHintModeEvent);
+    app.update();
+
+    // Verify 3 hints appear
+    let mut hint_query = app.world_mut().query::<(&NavHint, &FocusableRegion)>();
+    let hints: Vec<_> = hint_query.iter(app.world()).collect();
+
+    assert_eq!(hints.len(), 3, "Should have 3 hints registered");
+
+    // Verify hint labels
+    let labels: Vec<_> = hints.iter().map(|(h, _)| h.label.as_str()).collect();
+    assert!(labels.contains(&"aa"));
+    assert!(labels.contains(&"ab"));
+    assert!(labels.contains(&"ac"));
+
+    // Simulate hint activation (click on "ab")
+    let hint_ab = hints.iter().find(|(h, _)| h.label == "ab").unwrap();
+    if let NavAction::Click(col, row) = hint_ab.0.action {
+        assert_eq!(col, 10);
+        assert_eq!(row, 10);
+
+        // Send action event
+        app.world_mut().send_event(NavActionEvent::new(
+            NavAction::Click(col, row)
+        ));
+
+        app.update();
+
+        // Verify event was sent
+        let events = app.world().resource::<Events<NavActionEvent>>();
+        let mut cursor = events.get_cursor();
+        let action_events: Vec<_> = cursor.read(events).collect();
+
+        assert!(action_events.len() > 0, "Should have action events");
+        let last_event = action_events.last().unwrap();
+        assert_eq!(last_event.action, NavAction::Click(10, 10));
+    } else {
+        panic!("Expected Click action for hint 'ab'");
+    }
+}
+
+#[test]
+fn test_navstate_restoration_on_switch() {
+    use scarab_plugin_api::object_model::{ObjectHandle, ObjectType};
+
+    let mut app = build_test_app();
+
+    // Add events
+    app.add_event::<PaneCreatedEvent>();
+    app.add_event::<PaneFocusedEvent>();
+
+    // Create Pane A
+    app.world_mut().send_event(PaneCreatedEvent {
+        window: ObjectHandle::new(ObjectType::Window, 1, 0),
+        tab: ObjectHandle::new(ObjectType::Tab, 1, 0),
+        pane: ObjectHandle::new(ObjectType::Pane, 1, 0),
+    });
+
+    app.update();
+
+    // Focus Pane A
+    app.world_mut().send_event(PaneFocusedEvent {
+        window: ObjectHandle::new(ObjectType::Window, 1, 0),
+        tab: ObjectHandle::new(ObjectType::Tab, 1, 0),
+        pane: ObjectHandle::new(ObjectType::Pane, 1, 0),
+    });
+
+    app.update();
+
+    // Create entities to track focus
+    let entity1 = app.world_mut().spawn_empty().id();
+    let entity2 = app.world_mut().spawn_empty().id();
+    let entity3 = app.world_mut().spawn_empty().id();
+
+    // Build focus history for Pane A
+    {
+        let mut registry = app.world_mut().resource_mut::<NavStateRegistry>();
+        let state_a = registry.get_mut(1).unwrap();
+        state_a.record_focus(entity1);
+        state_a.record_focus(entity2);
+        state_a.record_focus(entity3);
+    }
+
+    // Build mode stack for Pane A
+    {
+        let mut registry = app.world_mut().resource_mut::<NavStateRegistry>();
+        let state_a = registry.get_mut(1).unwrap();
+        state_a.push_mode(NavMode::Hints);
+        state_a.push_mode(NavMode::CommandPalette);
+    }
+
+    // Verify Pane A state
+    {
+        let registry = app.world().resource::<NavStateRegistry>();
+        let state_a = registry.get(1).unwrap();
+        assert_eq!(state_a.focus_history.len(), 3);
+        assert_eq!(state_a.focus_history[0], entity1);
+        assert_eq!(state_a.focus_history[1], entity2);
+        assert_eq!(state_a.focus_history[2], entity3);
+        assert_eq!(state_a.current_mode, NavMode::CommandPalette);
+        assert_eq!(state_a.mode_stack.len(), 2);
+        assert_eq!(state_a.mode_stack[0], NavMode::Normal);
+        assert_eq!(state_a.mode_stack[1], NavMode::Hints);
+    }
+
+    // Create Pane B
+    app.world_mut().send_event(PaneCreatedEvent {
+        window: ObjectHandle::new(ObjectType::Window, 1, 0),
+        tab: ObjectHandle::new(ObjectType::Tab, 1, 0),
+        pane: ObjectHandle::new(ObjectType::Pane, 2, 0),
+    });
+
+    app.update();
+
+    // Switch to Pane B
+    app.world_mut().send_event(PaneFocusedEvent {
+        window: ObjectHandle::new(ObjectType::Window, 1, 0),
+        tab: ObjectHandle::new(ObjectType::Tab, 1, 0),
+        pane: ObjectHandle::new(ObjectType::Pane, 2, 0),
+    });
+
+    app.update();
+
+    // Verify Pane B has empty state
+    {
+        let registry = app.world().resource::<NavStateRegistry>();
+        assert_eq!(registry.active_pane(), Some(2));
+        let state_b = registry.get(2).unwrap();
+        assert_eq!(state_b.focus_history.len(), 0);
+        assert_eq!(state_b.current_mode, NavMode::Normal);
+        assert_eq!(state_b.mode_stack.len(), 0);
+    }
+
+    // Switch back to Pane A
+    app.world_mut().send_event(PaneFocusedEvent {
+        window: ObjectHandle::new(ObjectType::Window, 1, 0),
+        tab: ObjectHandle::new(ObjectType::Tab, 1, 0),
+        pane: ObjectHandle::new(ObjectType::Pane, 1, 0),
+    });
+
+    app.update();
+
+    // Verify focus_history intact
+    {
+        let registry = app.world().resource::<NavStateRegistry>();
+        assert_eq!(registry.active_pane(), Some(1));
+        let state_a = registry.get(1).unwrap();
+        assert_eq!(state_a.focus_history.len(), 3);
+        assert_eq!(state_a.focus_history[0], entity1);
+        assert_eq!(state_a.focus_history[1], entity2);
+        assert_eq!(state_a.focus_history[2], entity3);
+    }
+
+    // Verify mode_stack preserved
+    {
+        let registry = app.world().resource::<NavStateRegistry>();
+        let state_a = registry.get(1).unwrap();
+        assert_eq!(state_a.current_mode, NavMode::CommandPalette);
+        assert_eq!(state_a.mode_stack.len(), 2);
+        assert_eq!(state_a.mode_stack[0], NavMode::Normal);
+        assert_eq!(state_a.mode_stack[1], NavMode::Hints);
+    }
+}
+
+#[test]
+fn test_rapid_pane_switching_no_race() {
+    use scarab_plugin_api::object_model::{ObjectHandle, ObjectType};
+
+    let mut app = build_test_app();
+
+    // Add events
+    app.add_event::<PaneCreatedEvent>();
+    app.add_event::<PaneFocusedEvent>();
+
+    // Create 3 panes with different states
+    for pane_id in 1..=3 {
+        app.world_mut().send_event(PaneCreatedEvent {
+            window: ObjectHandle::new(ObjectType::Window, 1, 0),
+            tab: ObjectHandle::new(ObjectType::Tab, 1, 0),
+            pane: ObjectHandle::new(ObjectType::Pane, pane_id, 0),
+        });
+
+        app.update();
+
+        app.world_mut().send_event(PaneFocusedEvent {
+            window: ObjectHandle::new(ObjectType::Window, 1, 0),
+            tab: ObjectHandle::new(ObjectType::Tab, 1, 0),
+            pane: ObjectHandle::new(ObjectType::Pane, pane_id, 0),
+        });
+
+        app.update();
+    }
+
+    // Set different modes for each pane
+    {
+        let mut registry = app.world_mut().resource_mut::<NavStateRegistry>();
+        registry.get_mut(1).unwrap().current_mode = NavMode::Hints;
+        registry.get_mut(1).unwrap().hint_filter = "pane1".to_string();
+
+        registry.get_mut(2).unwrap().current_mode = NavMode::Insert;
+        registry.get_mut(2).unwrap().hint_filter = "pane2".to_string();
+
+        registry.get_mut(3).unwrap().current_mode = NavMode::CommandPalette;
+        registry.get_mut(3).unwrap().hint_filter = "pane3".to_string();
+    }
+
+    // Add focus history to each pane
+    for pane_id in 1..=3 {
+        let entities: Vec<Entity> = (0..5)
+            .map(|_| app.world_mut().spawn_empty().id())
+            .collect();
+
+        let mut registry = app.world_mut().resource_mut::<NavStateRegistry>();
+        let state = registry.get_mut(pane_id).unwrap();
+        for entity in entities {
+            state.record_focus(entity);
+        }
+    }
+
+    // Verify initial states are set correctly
+    {
+        let registry = app.world().resource::<NavStateRegistry>();
+        assert_eq!(registry.get(1).unwrap().current_mode, NavMode::Hints);
+        assert_eq!(registry.get(2).unwrap().current_mode, NavMode::Insert);
+        assert_eq!(registry.get(3).unwrap().current_mode, NavMode::CommandPalette);
+        assert_eq!(registry.get(1).unwrap().focus_history.len(), 5);
+        assert_eq!(registry.get(2).unwrap().focus_history.len(), 5);
+        assert_eq!(registry.get(3).unwrap().focus_history.len(), 5);
+    }
+
+    // Rapid switch between panes 20 times
+    for i in 0..20 {
+        let pane_id = (i % 3) + 1;
+
+        app.world_mut().send_event(PaneFocusedEvent {
+            window: ObjectHandle::new(ObjectType::Window, 1, 0),
+            tab: ObjectHandle::new(ObjectType::Tab, 1, 0),
+            pane: ObjectHandle::new(ObjectType::Pane, pane_id, 0),
+        });
+
+        app.update();
+
+        // Verify no panics and active pane is correct
+        let registry = app.world().resource::<NavStateRegistry>();
+        assert_eq!(registry.active_pane(), Some(pane_id));
+    }
+
+    // Verify states correctly isolated after rapid switching
+    {
+        let registry = app.world().resource::<NavStateRegistry>();
+
+        // Pane 1 should still be in Hints mode
+        let state1 = registry.get(1).unwrap();
+        assert_eq!(state1.current_mode, NavMode::Hints);
+        assert_eq!(state1.hint_filter, "pane1");
+        assert_eq!(state1.focus_history.len(), 5);
+
+        // Pane 2 should still be in Insert mode
+        let state2 = registry.get(2).unwrap();
+        assert_eq!(state2.current_mode, NavMode::Insert);
+        assert_eq!(state2.hint_filter, "pane2");
+        assert_eq!(state2.focus_history.len(), 5);
+
+        // Pane 3 should still be in CommandPalette mode
+        let state3 = registry.get(3).unwrap();
+        assert_eq!(state3.current_mode, NavMode::CommandPalette);
+        assert_eq!(state3.hint_filter, "pane3");
+        assert_eq!(state3.focus_history.len(), 5);
+    }
+
+    // Verify memory stable (no leaks) - check registry size
+    {
+        let registry = app.world().resource::<NavStateRegistry>();
+        assert_eq!(registry.pane_count(), 3);
     }
 }
