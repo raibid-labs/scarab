@@ -62,6 +62,10 @@ These were accurate when written but may be outdated:
 - `ui-implementation-status.md` - UI implementation snapshot
 - `task-c9-plugin-port-completion.md` - Plugin port completion report
 
+### Superseded Build Instructions
+
+- `mdbook-instructions.md` - Legacy mdBook build instructions (docs now built externally)
+
 ## Questions?
 
 If you're looking for specific information and can't find it in the current documentation:
