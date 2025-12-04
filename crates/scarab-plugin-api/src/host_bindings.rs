@@ -53,6 +53,7 @@
 use crate::context::PluginContext;
 use crate::error::{PluginError, Result};
 use crate::navigation::{PluginFocusable, PluginFocusableAction, PluginNavCapabilities, validate_focusable};
+use crate::types::{JumpDirection, OverlayConfig, StatusBarItem};
 use std::sync::atomic::{AtomicU32, AtomicU64, Ordering};
 use std::time::Instant;
 use parking_lot::Mutex;
@@ -301,6 +302,10 @@ pub struct HostBindings {
     resources: ResourceCounter,
     /// Next focusable ID
     next_focusable_id: AtomicU64,
+    /// Next overlay ID
+    next_overlay_id: AtomicU64,
+    /// Next status item ID
+    next_status_item_id: AtomicU64,
     /// Selected nav style
     nav_style: Mutex<NavStyle>,
     /// Selected nav keymap
@@ -316,6 +321,8 @@ impl HostBindings {
             capabilities,
             resources: ResourceCounter::default(),
             next_focusable_id: AtomicU64::new(1),
+            next_overlay_id: AtomicU64::new(1),
+            next_status_item_id: AtomicU64::new(1),
             nav_style: Mutex::new(NavStyle::default()),
             nav_keymap: Mutex::new(NavKeymap::default()),
         }
@@ -505,6 +512,180 @@ impl HostBindings {
     /// Reset rate limiter (useful for testing)
     pub fn reset_rate_limit(&self) {
         self.rate_limiter.reset();
+    }
+
+    // ========================================================================
+    // New ECS-safe UI/Nav Bindings (Fusabi 0.21.0)
+    // ========================================================================
+
+    /// Spawn an overlay at the given position
+    ///
+    /// Creates a floating overlay element at the specified terminal coordinates.
+    /// Overlays are useful for tooltips, popups, and other transient UI elements.
+    ///
+    /// # Arguments
+    ///
+    /// * `ctx` - Plugin context
+    /// * `config` - Overlay configuration (position, content, style)
+    ///
+    /// # Returns
+    ///
+    /// Unique ID for this overlay (can be used to remove it later)
+    ///
+    /// # Errors
+    ///
+    /// Returns error if:
+    /// - Plugin has reached `max_overlays` quota
+    /// - Rate limit exceeded
+    /// - Overlay position is out of bounds
+    pub fn spawn_overlay(&self, ctx: &PluginContext, config: OverlayConfig) -> Result<u64> {
+        let current = self.resources.overlays();
+        if current >= self.limits.max_overlays as u64 {
+            return Err(PluginError::QuotaExceeded {
+                resource: "overlays".into(),
+                current: current as usize,
+                limit: self.limits.max_overlays,
+            });
+        }
+
+        if self.limits.bounds_check
+            && (config.x >= self.limits.max_coordinate || config.y >= self.limits.max_coordinate)
+        {
+            return Err(PluginError::ValidationError(format!(
+                "Overlay position ({}, {}) exceeds max coordinate {}",
+                config.x, config.y, self.limits.max_coordinate
+            )));
+        }
+
+        self.check_rate_limit()?;
+
+        let overlay_id = self.next_overlay_id.fetch_add(1, Ordering::SeqCst);
+        self.resources.add_overlay();
+
+        ctx.queue_command(crate::types::RemoteCommand::SpawnOverlay {
+            plugin_name: ctx.logger_name.clone(),
+            overlay_id,
+            config,
+        });
+
+        Ok(overlay_id)
+    }
+
+    /// Remove a previously spawned overlay
+    ///
+    /// Removes an overlay by its ID. If the overlay doesn't exist, this is a no-op.
+    ///
+    /// # Arguments
+    ///
+    /// * `ctx` - Plugin context
+    /// * `overlay_id` - ID returned from `spawn_overlay`
+    ///
+    /// # Errors
+    ///
+    /// Returns error if rate limit exceeded
+    pub fn remove_overlay(&self, ctx: &PluginContext, overlay_id: u64) -> Result<()> {
+        self.check_rate_limit()?;
+
+        self.resources.remove_overlay();
+
+        ctx.queue_command(crate::types::RemoteCommand::RemoveOverlay {
+            plugin_name: ctx.logger_name.clone(),
+            overlay_id,
+        });
+
+        Ok(())
+    }
+
+    /// Add a status bar item
+    ///
+    /// Adds an item to the terminal status bar. Status items are positioned
+    /// based on their priority (higher priority = further right).
+    ///
+    /// # Arguments
+    ///
+    /// * `ctx` - Plugin context
+    /// * `item` - Status bar item configuration
+    ///
+    /// # Returns
+    ///
+    /// Unique ID for this status item (can be used to remove it later)
+    ///
+    /// # Errors
+    ///
+    /// Returns error if:
+    /// - Plugin has reached `max_status_items` quota
+    /// - Rate limit exceeded
+    pub fn add_status_item(&self, ctx: &PluginContext, item: StatusBarItem) -> Result<u64> {
+        let current = self.resources.status_items();
+        if current >= self.limits.max_status_items as u64 {
+            return Err(PluginError::QuotaExceeded {
+                resource: "status_items".into(),
+                current: current as usize,
+                limit: self.limits.max_status_items,
+            });
+        }
+
+        self.check_rate_limit()?;
+
+        let item_id = self.next_status_item_id.fetch_add(1, Ordering::SeqCst);
+        self.resources.add_status_item();
+
+        ctx.queue_command(crate::types::RemoteCommand::AddStatusItem {
+            plugin_name: ctx.logger_name.clone(),
+            item_id,
+            item,
+        });
+
+        Ok(item_id)
+    }
+
+    /// Remove a status bar item
+    ///
+    /// Removes a status bar item by its ID. If the item doesn't exist, this is a no-op.
+    ///
+    /// # Arguments
+    ///
+    /// * `ctx` - Plugin context
+    /// * `item_id` - ID returned from `add_status_item`
+    ///
+    /// # Errors
+    ///
+    /// Returns error if rate limit exceeded
+    pub fn remove_status_item(&self, ctx: &PluginContext, item_id: u64) -> Result<()> {
+        self.check_rate_limit()?;
+
+        self.resources.remove_status_item();
+
+        ctx.queue_command(crate::types::RemoteCommand::RemoveStatusItem {
+            plugin_name: ctx.logger_name.clone(),
+            item_id,
+        });
+
+        Ok(())
+    }
+
+    /// Trigger prompt jump navigation
+    ///
+    /// Navigates the terminal viewport to the previous/next command prompt
+    /// in the scrollback buffer. Useful for quickly navigating command history.
+    ///
+    /// # Arguments
+    ///
+    /// * `ctx` - Plugin context
+    /// * `direction` - Direction to jump (Up, Down, First, Last)
+    ///
+    /// # Errors
+    ///
+    /// Returns error if rate limit exceeded
+    pub fn prompt_jump(&self, ctx: &PluginContext, direction: JumpDirection) -> Result<()> {
+        self.check_rate_limit()?;
+
+        ctx.queue_command(crate::types::RemoteCommand::PromptJump {
+            plugin_name: ctx.logger_name.clone(),
+            direction,
+        });
+
+        Ok(())
     }
 }
 

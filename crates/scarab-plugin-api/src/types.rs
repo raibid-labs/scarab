@@ -3,6 +3,78 @@
 pub use scarab_protocol::{ModalItem, OverlayStyle};
 use serde::{Deserialize, Serialize};
 
+/// Configuration for spawning an overlay
+#[derive(Debug, Clone, PartialEq)]
+pub struct OverlayConfig {
+    /// X position (column) for the overlay
+    pub x: u16,
+    /// Y position (row) for the overlay
+    pub y: u16,
+    /// Content to display in the overlay
+    pub content: String,
+    /// Visual style for the overlay
+    pub style: OverlayStyle,
+}
+
+impl OverlayConfig {
+    /// Create a new overlay config
+    pub fn new(x: u16, y: u16, content: impl Into<String>) -> Self {
+        Self {
+            x,
+            y,
+            content: content.into(),
+            style: OverlayStyle::default(),
+        }
+    }
+
+    /// Set the style for this overlay
+    pub fn with_style(mut self, style: OverlayStyle) -> Self {
+        self.style = style;
+        self
+    }
+}
+
+/// Configuration for a status bar item
+#[derive(Debug, Clone, PartialEq)]
+pub struct StatusBarItem {
+    /// Label/identifier for this item
+    pub label: String,
+    /// Content to display
+    pub content: String,
+    /// Priority (higher = further right)
+    pub priority: i32,
+}
+
+impl StatusBarItem {
+    /// Create a new status bar item
+    pub fn new(label: impl Into<String>, content: impl Into<String>) -> Self {
+        Self {
+            label: label.into(),
+            content: content.into(),
+            priority: 0,
+        }
+    }
+
+    /// Set the priority for this status bar item
+    pub fn with_priority(mut self, priority: i32) -> Self {
+        self.priority = priority;
+        self
+    }
+}
+
+/// Direction for prompt jump navigation
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum JumpDirection {
+    /// Jump to previous prompt
+    Up,
+    /// Jump to next prompt
+    Down,
+    /// Jump to first prompt in buffer
+    First,
+    /// Jump to last prompt in buffer
+    Last,
+}
+
 /// Command sent from plugin to daemon/client
 #[derive(Debug, Clone)]
 pub enum RemoteCommand {
@@ -52,6 +124,33 @@ pub enum RemoteCommand {
     NavUnregisterFocusable {
         plugin_name: String,
         focusable_id: u64,
+    },
+    /// Spawn an overlay at a given position
+    SpawnOverlay {
+        plugin_name: String,
+        overlay_id: u64,
+        config: OverlayConfig,
+    },
+    /// Remove a previously spawned overlay
+    RemoveOverlay {
+        plugin_name: String,
+        overlay_id: u64,
+    },
+    /// Add a status bar item
+    AddStatusItem {
+        plugin_name: String,
+        item_id: u64,
+        item: StatusBarItem,
+    },
+    /// Remove a status bar item
+    RemoveStatusItem {
+        plugin_name: String,
+        item_id: u64,
+    },
+    /// Trigger prompt jump navigation
+    PromptJump {
+        plugin_name: String,
+        direction: JumpDirection,
     },
 }
 

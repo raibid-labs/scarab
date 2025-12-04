@@ -309,6 +309,26 @@ rtl-smoke:
     echo "🧪 Running ratatui-testlib smoke tests..."
     cargo test -p scarab-client --test ratatui_testlib_smoke -- --ignored
 
+# Run ratatui-testlib tests with all features (gated)
+rtl-full:
+    #!/usr/bin/env bash
+    if [ "${SCARAB_TEST_RTL:-0}" != "1" ]; then
+        echo "⚠️  Skipping full ratatui-testlib tests (set SCARAB_TEST_RTL=1 to enable)"
+        exit 0
+    fi
+    echo "🧪 Running full ratatui-testlib test suite..."
+    cargo test -p scarab-client --test ratatui_testlib_smoke -- --include-ignored
+
+# Run graphics protocol tests only
+rtl-graphics:
+    #!/usr/bin/env bash
+    if [ "${SCARAB_TEST_RTL:-0}" != "1" ]; then
+        echo "⚠️  Skipping graphics tests (set SCARAB_TEST_RTL=1 to enable)"
+        exit 0
+    fi
+    cargo test -p scarab-client --test ratatui_testlib_smoke test_sixel -- --ignored
+    cargo test -p scarab-client --test ratatui_testlib_smoke test_kitty -- --ignored
+
 # Run benchmarks
 bench:
     cargo bench --workspace

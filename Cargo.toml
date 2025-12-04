@@ -29,7 +29,9 @@ rust-version = "1.75"
 
 [workspace.dependencies]
 # Official Fusabi dependencies (from crates.io)
-# Updated to 0.17.0 to match bevy-fusabi requirements
+# Note: bevy-fusabi 0.1.4 depends on fusabi-vm 0.17.0, so we must stay on 0.17.0
+# until bevy-fusabi releases a compatible update. ECS/UI bindings are implemented
+# in host_bindings.rs independent of Fusabi version.
 fusabi-vm = { version = "0.17.0", features = ["serde"] }
 fusabi-frontend = "0.17.0"
 bevy-fusabi = "0.1.4"

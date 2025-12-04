@@ -300,6 +300,64 @@ impl PluginManager {
                         })
                         .await;
                 }
+                RemoteCommand::SpawnOverlay { plugin_name, overlay_id, config } => {
+                    log::debug!("Plugin {} spawning overlay {} at ({}, {})", plugin_name, overlay_id, config.x, config.y);
+                    self.client_registry
+                        .broadcast(DaemonMessage::SpawnOverlay {
+                            plugin_name: plugin_name.into(),
+                            overlay_id,
+                            x: config.x,
+                            y: config.y,
+                            content: config.content.into(),
+                            style: config.style,
+                        })
+                        .await;
+                }
+                RemoteCommand::RemoveOverlay { plugin_name, overlay_id } => {
+                    log::debug!("Plugin {} removing overlay {}", plugin_name, overlay_id);
+                    self.client_registry
+                        .broadcast(DaemonMessage::RemoveOverlay {
+                            plugin_name: plugin_name.into(),
+                            overlay_id,
+                        })
+                        .await;
+                }
+                RemoteCommand::AddStatusItem { plugin_name, item_id, item } => {
+                    log::debug!("Plugin {} adding status item {}: {}", plugin_name, item_id, item.label);
+                    self.client_registry
+                        .broadcast(DaemonMessage::AddStatusItem {
+                            plugin_name: plugin_name.into(),
+                            item_id,
+                            label: item.label.into(),
+                            content: item.content.into(),
+                            priority: item.priority,
+                        })
+                        .await;
+                }
+                RemoteCommand::RemoveStatusItem { plugin_name, item_id } => {
+                    log::debug!("Plugin {} removing status item {}", plugin_name, item_id);
+                    self.client_registry
+                        .broadcast(DaemonMessage::RemoveStatusItem {
+                            plugin_name: plugin_name.into(),
+                            item_id,
+                        })
+                        .await;
+                }
+                RemoteCommand::PromptJump { plugin_name, direction } => {
+                    log::debug!("Plugin {} triggering prompt jump {:?}", plugin_name, direction);
+                    let proto_direction = match direction {
+                        scarab_plugin_api::types::JumpDirection::Up => scarab_protocol::PromptJumpDirection::Up,
+                        scarab_plugin_api::types::JumpDirection::Down => scarab_protocol::PromptJumpDirection::Down,
+                        scarab_plugin_api::types::JumpDirection::First => scarab_protocol::PromptJumpDirection::First,
+                        scarab_plugin_api::types::JumpDirection::Last => scarab_protocol::PromptJumpDirection::Last,
+                    };
+                    self.client_registry
+                        .broadcast(DaemonMessage::PromptJump {
+                            plugin_name: plugin_name.into(),
+                            direction: proto_direction,
+                        })
+                        .await;
+                }
             }
         }
     }

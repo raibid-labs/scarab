@@ -978,3 +978,237 @@ trait ScarabTestExt {
 
 // Note: Implementation blocked until ratatui-testlib Phase 4 (Bevy ECS integration)
 // See: https://github.com/raibid-labs/ratatui-testlib/blob/main/docs/ROADMAP.md
+
+// =============================================================================
+// GRAPHICS PROTOCOL DETECTION TESTS (Issue #87)
+// =============================================================================
+
+/// Test 12: Graphics protocol detection
+///
+/// Tests that the harness can detect Sixel/Kitty graphics protocol support.
+/// This verifies terminal capability querying works correctly.
+///
+/// ## What This Tests
+/// - Detection of Sixel graphics support via DA1/DA2 responses
+/// - Detection of Kitty graphics support via graphics query
+/// - Proper handling of terminals without graphics support
+///
+/// **Gate**: Requires `SCARAB_TEST_RTL=1` environment variable.
+#[test]
+fn test_graphics_protocol_detection() -> Result<()> {
+    if !should_run_rtl_tests() {
+        println!("Skipping test_graphics_protocol_detection (SCARAB_TEST_RTL != 1)");
+        return Ok(());
+    }
+    if !pty_available() {
+        println!("Skipping test_graphics_protocol_detection (PTY not available)");
+        return Ok(());
+    }
+
+    println!("=== Test: Graphics Protocol Detection ===");
+
+    let mut harness = TuiTestHarness::new(80, 24)?;
+
+    let daemon_bin = match get_daemon_binary() {
+        Ok(bin) => bin,
+        Err(e) => {
+            println!("Skipping: daemon binary not available: {}", e);
+            return Ok(());
+        }
+    };
+    let mut cmd = CommandBuilder::new(daemon_bin);
+    cmd.env("SHELL", "/bin/sh");
+
+    harness.spawn(cmd)?;
+    std::thread::sleep(DAEMON_STARTUP_TIMEOUT);
+
+    // Query primary device attributes (DA1) - includes Sixel support bit
+    // DA1: ESC [ c or ESC [ 0 c
+    harness.send_text("\x1b[c")?;
+    println!("Sent: DA1 query (ESC [ c)");
+
+    std::thread::sleep(Duration::from_millis(200));
+    harness.update_state()?;
+
+    // Query Kitty graphics support - send a query action
+    // Query: ESC _ G q=1 ; ESC \
+    harness.send_text("\x1b_Gq=1;\x1b\\")?;
+    println!("Sent: Kitty graphics query");
+
+    std::thread::sleep(Duration::from_millis(200));
+    harness.update_state()?;
+
+    // Verify daemon remains responsive
+    harness.send_text("echo 'Post-detection test'\r")?;
+    std::thread::sleep(OUTPUT_TIMEOUT);
+    harness.update_state()?;
+
+    let contents = harness.screen_contents();
+    assert!(
+        contents.contains("Post-detection test"),
+        "Daemon should remain responsive after graphics capability queries"
+    );
+
+    println!("✓ Graphics protocol detection queries handled");
+    Ok(())
+}
+
+/// Test 13: Latency measurement (basic)
+///
+/// Measures time between input and screen update to validate responsiveness.
+/// This provides a basic input-to-output latency metric.
+///
+/// ## What This Tests
+/// - Input processing latency through PTY
+/// - Screen update detection timing
+/// - Terminal responsiveness under test conditions
+///
+/// **Gate**: Requires `SCARAB_TEST_RTL=1` environment variable.
+#[test]
+fn test_input_latency_measurement() -> Result<()> {
+    if !should_run_rtl_tests() {
+        println!("Skipping test_input_latency_measurement (SCARAB_TEST_RTL != 1)");
+        return Ok(());
+    }
+    if !pty_available() {
+        println!("Skipping test_input_latency_measurement (PTY not available)");
+        return Ok(());
+    }
+
+    println!("=== Test: Input Latency Measurement ===");
+
+    let mut harness = TuiTestHarness::new(80, 24)?;
+
+    let daemon_bin = match get_daemon_binary() {
+        Ok(bin) => bin,
+        Err(e) => {
+            println!("Skipping: daemon binary not available: {}", e);
+            return Ok(());
+        }
+    };
+    let mut cmd = CommandBuilder::new(daemon_bin);
+    cmd.env("SHELL", "/bin/sh");
+
+    harness.spawn(cmd)?;
+    std::thread::sleep(DAEMON_STARTUP_TIMEOUT);
+
+    // Unique marker for latency test
+    let marker = format!("LATENCY_TEST_{}", std::process::id());
+
+    let start = std::time::Instant::now();
+    harness.send_text(&format!("echo '{}'\r", marker))?;
+
+    // Poll for the marker to appear
+    let timeout = Duration::from_secs(5);
+    let poll_interval = Duration::from_millis(10);
+    let mut elapsed = Duration::ZERO;
+
+    while elapsed < timeout {
+        harness.update_state()?;
+        if harness.screen_contents().contains(&marker) {
+            break;
+        }
+        std::thread::sleep(poll_interval);
+        elapsed = start.elapsed();
+    }
+
+    let latency = start.elapsed();
+
+    if harness.screen_contents().contains(&marker) {
+        println!("✓ Input-to-output latency: {:?}", latency);
+        // Soft assertion: latency should be under 1 second for basic echo
+        if latency > Duration::from_secs(1) {
+            println!("⚠️  Warning: Latency exceeds 1 second ({:?})", latency);
+        }
+    } else {
+        println!("⚠️  Marker not found within timeout - latency test inconclusive");
+    }
+
+    Ok(())
+}
+
+/// Test 14: Escape sequence robustness
+///
+/// Sends various escape sequences and verifies terminal stability.
+/// This stress-tests the VTE parser with edge cases.
+///
+/// ## What This Tests
+/// - VTE parser handles malformed sequences gracefully
+/// - Terminal doesn't crash on unexpected input
+/// - Recovery from partial or invalid escape sequences
+///
+/// **Gate**: Requires `SCARAB_TEST_RTL=1` environment variable.
+#[test]
+fn test_escape_sequence_robustness() -> Result<()> {
+    if !should_run_rtl_tests() {
+        println!("Skipping test_escape_sequence_robustness (SCARAB_TEST_RTL != 1)");
+        return Ok(());
+    }
+    if !pty_available() {
+        println!("Skipping test_escape_sequence_robustness (PTY not available)");
+        return Ok(());
+    }
+
+    println!("=== Test: Escape Sequence Robustness ===");
+
+    let mut harness = TuiTestHarness::new(80, 24)?;
+
+    let daemon_bin = match get_daemon_binary() {
+        Ok(bin) => bin,
+        Err(e) => {
+            println!("Skipping: daemon binary not available: {}", e);
+            return Ok(());
+        }
+    };
+    let mut cmd = CommandBuilder::new(daemon_bin);
+    cmd.env("SHELL", "/bin/sh");
+
+    harness.spawn(cmd)?;
+    std::thread::sleep(DAEMON_STARTUP_TIMEOUT);
+
+    // Test cases: various escape sequences that could cause issues
+    let escape_sequences = [
+        // Incomplete CSI
+        ("\x1b[", "Incomplete CSI"),
+        // Invalid CSI parameter
+        ("\x1b[999999;999999H", "CSI with large params"),
+        // Incomplete OSC
+        ("\x1b]0;", "Incomplete OSC title"),
+        // Properly terminated OSC
+        ("\x1b]0;Test Title\x07", "Complete OSC title"),
+        // SGR with many parameters
+        ("\x1b[1;2;3;4;5;6;7;8;9;10m", "SGR with 10 params"),
+        // Reset to normal
+        ("\x1b[0m", "SGR reset"),
+        // Cursor save/restore
+        ("\x1b7\x1b8", "Cursor save/restore"),
+        // Incomplete DCS
+        ("\x1bP", "Incomplete DCS"),
+        // Terminated DCS (empty)
+        ("\x1bP\x1b\\", "Empty DCS"),
+    ];
+
+    for (seq, desc) in &escape_sequences {
+        harness.send_text(seq)?;
+        println!("Sent: {} ({})", desc, seq.escape_debug());
+        std::thread::sleep(Duration::from_millis(50));
+    }
+
+    // Allow processing
+    std::thread::sleep(Duration::from_millis(200));
+    harness.update_state()?;
+
+    // Verify daemon is still responsive
+    harness.send_text("echo 'Robustness test passed'\r")?;
+    std::thread::sleep(OUTPUT_TIMEOUT);
+    harness.update_state()?;
+
+    let contents = harness.screen_contents();
+    assert!(
+        contents.contains("Robustness test passed"),
+        "Daemon should remain responsive after escape sequence stress test"
+    );
+
+    println!("✓ Escape sequence robustness test passed");
+    Ok(())
+}

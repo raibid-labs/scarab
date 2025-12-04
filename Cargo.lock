@@ -6265,6 +6265,7 @@ checksum = "93d627139dd5c393766134ef7b76fc7e29ec22accb3e4c10f1ad1760ab47d1ba"
 dependencies = [
  "anyhow",
  "bitflags 2.10.0",
+ "image",
  "portable-pty",
  "termwiz",
  "thiserror 2.0.17",

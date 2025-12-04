@@ -619,6 +619,48 @@ pub enum DaemonMessage {
         plugin_name: alloc::string::String,
         focusable_id: u64,
     },
+    /// Spawn an overlay at a given position
+    SpawnOverlay {
+        plugin_name: alloc::string::String,
+        overlay_id: u64,
+        x: u16,
+        y: u16,
+        content: alloc::string::String,
+        style: OverlayStyle,
+    },
+    /// Remove a previously spawned overlay
+    RemoveOverlay {
+        plugin_name: alloc::string::String,
+        overlay_id: u64,
+    },
+    /// Add a status bar item
+    AddStatusItem {
+        plugin_name: alloc::string::String,
+        item_id: u64,
+        label: alloc::string::String,
+        content: alloc::string::String,
+        priority: i32,
+    },
+    /// Remove a status bar item
+    RemoveStatusItem {
+        plugin_name: alloc::string::String,
+        item_id: u64,
+    },
+    /// Trigger prompt jump navigation
+    PromptJump {
+        plugin_name: alloc::string::String,
+        direction: PromptJumpDirection,
+    },
+}
+
+/// Direction for prompt jump navigation
+#[derive(Debug, Clone, Copy, PartialEq, Eq, rkyv::Archive, rkyv::Serialize, rkyv::Deserialize)]
+#[archive(check_bytes)]
+pub enum PromptJumpDirection {
+    Up,
+    Down,
+    First,
+    Last,
 }
 
 /// Event message for IPC forwarding
@@ -639,7 +681,7 @@ pub struct EventMessage {
     pub timestamp_micros: u64,
 }
 
-#[derive(Debug, Clone, Copy, rkyv::Archive, rkyv::Serialize, rkyv::Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, rkyv::Archive, rkyv::Serialize, rkyv::Deserialize)]
 #[archive(check_bytes)]
 pub struct OverlayStyle {
     pub fg: u32, // RGBA
