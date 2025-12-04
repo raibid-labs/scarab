@@ -225,7 +225,29 @@ let navConfig = {
 
 ## Fusabi Version Note
 
-Scarab uses Fusabi v0.17.0 due to `bevy-fusabi 0.1.4` dependency constraint. Issue #88 requested v0.32.x but this version does not exist on crates.io (latest is v0.21.0). All ECS-safe UI/nav bindings are implemented independent of Fusabi version. The version will auto-upgrade when bevy-fusabi releases a compatible update.
+**Current Status (Issue #88):**
+
+| Component | Pinned | Latest on crates.io |
+|-----------|--------|---------------------|
+| fusabi-vm | 0.17.0 | 0.21.0 |
+| fusabi-frontend | 0.17.0 | 0.21.0 |
+| bevy-fusabi | 0.1.4 | 0.1.4 |
+
+Scarab uses Fusabi v0.17.0 due to `bevy-fusabi 0.1.4` requiring `^0.17.0`. Issue #88 requested v0.32.x which **does not exist** on crates.io (latest is v0.21.0).
+
+**Upgrade Path Options:**
+1. ✅ **Wait for bevy-fusabi update** - Recommended, no maintenance burden
+2. ⚠️ **Fork bevy-fusabi** - Patch dependency, adds maintenance burden
+3. ❌ **Remove bevy-fusabi** - Loses hot-reloadable config asset integration
+
+**What Works Today:**
+- All ECS-safe UI/nav bindings in `host_bindings.rs` are version-independent
+- Fusabi script plugins (.fsx) work correctly
+- Fusabi bytecode plugins (.fzb) work correctly
+- Hot-reloading works via bevy-fusabi integration
+
+**When to Upgrade:**
+The version will auto-upgrade when bevy-fusabi releases a compatible update with fusabi-vm 0.21+.
 
 ## See Also
 
