@@ -29,9 +29,19 @@ rust-version = "1.75"
 
 [workspace.dependencies]
 # Official Fusabi dependencies (from crates.io)
-# Note: bevy-fusabi 0.1.4 depends on fusabi-vm 0.17.0, so we must stay on 0.17.0
-# until bevy-fusabi releases a compatible update. ECS/UI bindings are implemented
-# in host_bindings.rs independent of Fusabi version.
+#
+# VERSION CONSTRAINT (Issue #88):
+# - Latest fusabi-vm/fusabi-frontend on crates.io: 0.21.0
+# - bevy-fusabi 0.1.4 requires: fusabi-vm/fusabi-frontend ^0.17.0
+# - Issue #88 requested v0.32.x which does NOT exist (latest is v0.21.0)
+#
+# UPGRADE PATH:
+# 1. Wait for bevy-fusabi to release with fusabi 0.21+ support, OR
+# 2. Fork bevy-fusabi and patch the dependency (adds maintenance burden), OR
+# 3. Remove bevy-fusabi and use fusabi-vm/frontend directly (loses Bevy asset integration)
+#
+# Currently using bevy-fusabi for hot-reloadable config assets in scarab-config.
+# ECS/UI/nav bindings in scarab-plugin-api/src/host_bindings.rs work with any Fusabi version.
 fusabi-vm = { version = "0.17.0", features = ["serde"] }
 fusabi-frontend = "0.17.0"
 bevy-fusabi = "0.1.4"

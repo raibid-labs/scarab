@@ -824,6 +824,174 @@ mod value_marshaling_tests {
     }
 }
 
+mod nav_action_tests {
+    use super::*;
+    use scarab_plugin_api::host_bindings::{HostBindingLimits, HostBindings, NavStyle, NavKeymap};
+    use scarab_plugin_api::navigation::{PluginFocusable, PluginFocusableAction, PluginNavCapabilities};
+    use scarab_plugin_api::types::{JumpDirection, OverlayConfig, StatusBarItem};
+
+    fn make_nav_ctx() -> PluginContext {
+        let state = Arc::new(parking_lot::Mutex::new(PluginSharedState::new(80, 24)));
+        PluginContext::new(Default::default(), state, "nav_test_plugin")
+    }
+
+    #[test]
+    fn test_fusabi_script_can_trigger_enter_hint_mode() {
+        let ctx = make_nav_ctx();
+        let bindings = HostBindings::with_defaults();
+
+        let result = bindings.enter_hint_mode(&ctx);
+        assert!(result.is_ok(), "Should trigger hint mode from Fusabi context");
+
+        let commands = ctx.commands.lock();
+        assert!(commands.iter().any(|cmd| matches!(cmd, RemoteCommand::NavEnterHintMode { .. })));
+    }
+
+    #[test]
+    fn test_fusabi_script_can_register_focusable() {
+        let ctx = make_nav_ctx();
+        let bindings = HostBindings::with_defaults();
+
+        let focusable = PluginFocusable {
+            x: 10,
+            y: 5,
+            width: 20,
+            height: 1,
+            label: "GitHub Link".to_string(),
+            action: PluginFocusableAction::OpenUrl("https://github.com".to_string()),
+        };
+
+        let result = bindings.register_focusable(&ctx, focusable);
+        assert!(result.is_ok(), "Should register focusable from Fusabi context");
+        assert_eq!(result.unwrap(), 1, "First focusable should have ID 1");
+
+        let commands = ctx.commands.lock();
+        assert!(commands.iter().any(|cmd| matches!(cmd, RemoteCommand::NavRegisterFocusable { label, .. } if label == "GitHub Link")));
+    }
+
+    #[test]
+    fn test_fusabi_script_can_spawn_overlay() {
+        let ctx = make_nav_ctx();
+        let bindings = HostBindings::with_defaults();
+
+        let overlay = OverlayConfig::new(15, 10, "Hello from Fusabi!");
+
+        let result = bindings.spawn_overlay(&ctx, overlay);
+        assert!(result.is_ok(), "Should spawn overlay from Fusabi context");
+
+        let commands = ctx.commands.lock();
+        assert!(commands.iter().any(|cmd| matches!(cmd, RemoteCommand::SpawnOverlay { config, .. } if config.content == "Hello from Fusabi!")));
+    }
+
+    #[test]
+    fn test_fusabi_script_can_add_status_item() {
+        let ctx = make_nav_ctx();
+        let bindings = HostBindings::with_defaults();
+
+        let status = StatusBarItem::new("git", "main").with_priority(10);
+
+        let result = bindings.add_status_item(&ctx, status);
+        assert!(result.is_ok(), "Should add status item from Fusabi context");
+
+        let commands = ctx.commands.lock();
+        assert!(commands.iter().any(|cmd| matches!(cmd, RemoteCommand::AddStatusItem { item, .. } if item.label == "git")));
+    }
+
+    #[test]
+    fn test_fusabi_script_can_prompt_jump() {
+        let ctx = make_nav_ctx();
+        let bindings = HostBindings::with_defaults();
+
+        for direction in [JumpDirection::Up, JumpDirection::Down, JumpDirection::First, JumpDirection::Last] {
+            bindings.reset_rate_limit();
+            let result = bindings.prompt_jump(&ctx, direction);
+            assert!(result.is_ok(), "Should trigger prompt jump from Fusabi context");
+        }
+
+        let commands = ctx.commands.lock();
+        assert!(commands.iter().filter(|cmd| matches!(cmd, RemoteCommand::PromptJump { .. })).count() >= 4);
+    }
+
+    #[test]
+    fn test_fusabi_nav_style_selection() {
+        let bindings = HostBindings::with_defaults();
+
+        bindings.set_nav_style(NavStyle::HomeRow);
+        assert_eq!(bindings.nav_style(), NavStyle::HomeRow);
+        assert_eq!(bindings.nav_style().hint_chars(), "asdfghjkl");
+
+        bindings.set_nav_style(NavStyle::Numeric);
+        assert_eq!(bindings.nav_style().hint_chars(), "1234567890");
+
+        bindings.set_nav_style(NavStyle::Custom("xyz".to_string()));
+        assert_eq!(bindings.nav_style().hint_chars(), "xyz");
+    }
+
+    #[test]
+    fn test_fusabi_nav_keymap_selection() {
+        let bindings = HostBindings::with_defaults();
+
+        bindings.set_nav_keymap(NavKeymap::Vim);
+        assert_eq!(bindings.nav_keymap(), NavKeymap::Vim);
+
+        bindings.set_nav_keymap(NavKeymap::Emacs);
+        assert_eq!(bindings.nav_keymap(), NavKeymap::Emacs);
+
+        let custom = NavKeymap::Custom(vec![
+            ("f".to_string(), "enter_hints".to_string()),
+            ("q".to_string(), "cancel".to_string()),
+        ]);
+        bindings.set_nav_keymap(custom.clone());
+        assert_eq!(bindings.nav_keymap(), custom);
+    }
+
+    #[test]
+    fn test_fusabi_capability_enforcement() {
+        let ctx = make_nav_ctx();
+        let caps = PluginNavCapabilities {
+            can_enter_hint_mode: false,
+            can_register_focusables: false,
+            ..Default::default()
+        };
+        let bindings = HostBindings::new(HostBindingLimits::default(), caps);
+
+        let hint_result = bindings.enter_hint_mode(&ctx);
+        assert!(hint_result.is_err(), "Should deny hint mode without capability");
+
+        let focusable = PluginFocusable {
+            x: 0, y: 0, width: 10, height: 1,
+            label: "test".to_string(),
+            action: PluginFocusableAction::Custom("test".to_string()),
+        };
+        let focusable_result = bindings.register_focusable(&ctx, focusable);
+        assert!(focusable_result.is_err(), "Should deny focusable registration without capability");
+    }
+
+    #[test]
+    fn test_fusabi_quota_enforcement() {
+        let ctx = make_nav_ctx();
+        let caps = PluginNavCapabilities {
+            max_focusables: 2,
+            ..Default::default()
+        };
+        let bindings = HostBindings::new(HostBindingLimits::default(), caps);
+
+        let focusable = PluginFocusable {
+            x: 0, y: 0, width: 10, height: 1,
+            label: "test".to_string(),
+            action: PluginFocusableAction::Custom("test".to_string()),
+        };
+
+        assert!(bindings.register_focusable(&ctx, focusable.clone()).is_ok());
+        bindings.reset_rate_limit();
+        assert!(bindings.register_focusable(&ctx, focusable.clone()).is_ok());
+        bindings.reset_rate_limit();
+        
+        let result = bindings.register_focusable(&ctx, focusable);
+        assert!(result.is_err(), "Should deny focusable when quota exceeded");
+    }
+}
+
 mod discovery_tests {
     use super::*;
     use std::io::Write;
