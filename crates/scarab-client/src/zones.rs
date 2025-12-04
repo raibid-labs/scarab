@@ -130,7 +130,7 @@ pub fn render_zone_indicators(
         }
 
         let status = if zone.is_success() {
-            "✓ SUCCESS"
+            "✓ SUCCESS".to_string()
         } else if zone.is_failure() {
             format!("✗ FAILED (exit code: {})", zone.exit_code.unwrap_or(-1))
         } else {

@@ -459,6 +459,9 @@ async fn handle_message(
                                     failure_count: p.failure_count,
                                     emoji: p.emoji.clone().map(|s| s.into()),
                                     color: p.color.clone().map(|s| s.into()),
+                                    verification: scarab_protocol::PluginVerificationStatus::Unverified {
+                                        warning: "Verification not yet implemented".into(),
+                                    },
                                 })
                                 .collect();
 
@@ -530,6 +533,9 @@ async fn handle_message(
                     failure_count: p.failure_count,
                     emoji: p.emoji.clone().map(|s| s.into()),
                     color: p.color.clone().map(|s| s.into()),
+                    verification: scarab_protocol::PluginVerificationStatus::Unverified {
+                        warning: "Verification not yet implemented".into(),
+                    },
                 })
                 .collect();
 
@@ -810,6 +816,9 @@ async fn handle_message(
                                     failure_count: p.failure_count,
                                     emoji: p.emoji.clone().map(|s| s.into()),
                                     color: p.color.clone().map(|s| s.into()),
+                                    verification: scarab_protocol::PluginVerificationStatus::Unverified {
+                                        warning: "Verification not yet implemented".into(),
+                                    },
                                 })
                                 .collect();
 
@@ -880,6 +889,31 @@ async fn handle_message(
         | ControlMessage::PluginNotify { .. } => {
             // These are internal messages sent BY plugins, not received FROM clients
             log::warn!("Received internal-only message from client {}", client_id);
+        }
+        // Navigation API commands - handled by client, not daemon
+        ControlMessage::NavEnterHintMode { .. }
+        | ControlMessage::NavExitMode { .. }
+        | ControlMessage::NavRegisterFocusable { .. }
+        | ControlMessage::NavUnregisterFocusable { .. } => {
+            // Navigation is handled client-side; daemon ignores these
+            log::debug!("Received nav command from client {} - handled client-side", client_id);
+        }
+        // Semantic zone commands
+        ControlMessage::ZonesRequest => {
+            log::debug!("Client {} requested zones update", client_id);
+            // TODO: Send ZonesUpdate response with current zones
+        }
+        ControlMessage::CopyLastOutput => {
+            log::debug!("Client {} requested last output copy", client_id);
+            // TODO: Copy last command output to clipboard
+        }
+        ControlMessage::SelectZone { zone_id } => {
+            log::debug!("Client {} selected zone {}", client_id, zone_id);
+            // TODO: Handle zone selection
+        }
+        ControlMessage::ExtractZoneText { zone_id } => {
+            log::debug!("Client {} requested zone {} text", client_id, zone_id);
+            // TODO: Extract and send zone text
         }
     }
 

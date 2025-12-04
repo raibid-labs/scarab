@@ -10,15 +10,27 @@ All test commands at a glance:
 |-----------|---------|-------------|
 | **All Tests** | `cargo test --workspace` | Run all workspace tests |
 | **Unit Tests** | `cargo test --workspace --lib` | Run all unit tests |
+| **Nav/Core Tests** | `just nav-tests` | Navigation + core unit tests |
 | **Integration Tests** | `cargo test --workspace --test '*'` | Run all integration tests |
-| **Golden Tests** | `cargo test -p scarab-client --test golden_tests` | Snapshot regression tests |
-| **Nav Smoke Tests** | `just nav-smoke` or `./scripts/nav-smoke-test.sh` | Navigation system validation |
-| **Headless Tests** | `cargo test -p scarab-client --test headless_harness` | Bevy UI tests without GPU |
-| **E2E Tests** | `cargo test -p scarab-client --test e2e` | Full daemon-client integration |
+| **Golden Tests** | `just golden` | Snapshot regression tests |
+| **Nav Smoke Tests** | `just nav-smoke` | Navigation system validation |
+| **Headless Tests** | `just headless` | Bevy UI tests without GPU |
+| **RTL Smoke Tests** | `just rtl-smoke` | ratatui-testlib PTY tests (env-gated) |
+| **E2E Tests** | `just e2e` | Full daemon-client integration |
 | **Workspace E2E** | `cargo test --test full_stack_test` | Workspace-level E2E tests |
-| **Benchmarks** | `cargo bench --workspace` | Performance benchmarks |
+| **Benchmarks** | `just bench` | Performance benchmarks |
 | **CI Suite** | `just ci` | Format check + clippy + tests |
 | **Quick Check** | `just quick` | Check + test (fast iteration) |
+
+### Just Targets Summary
+
+```bash
+just nav-tests   # Nav/core unit tests
+just golden      # Golden/headless visual tests
+just rtl-smoke   # ratatui-testlib PTY smoke tests (requires SCARAB_TEST_RTL=1)
+just test-all    # All test suites combined
+just test-quick  # Fast iteration subset
+```
 
 ---
 
@@ -180,7 +192,42 @@ See [Navigation Developer Guide](docs/navigation/developer-guide.md) for more de
 
 ---
 
-### 5. Headless Tests
+### 5. Ratatui-Testlib Smoke Tests
+
+PTY-level fidelity tests using [ratatui-testlib](https://github.com/raibid-labs/ratatui-testlib).
+
+**Run ratatui-testlib smoke tests (env-gated):**
+```bash
+# Must set SCARAB_TEST_RTL=1 to run PTY tests
+SCARAB_TEST_RTL=1 just rtl-smoke
+
+# Or run all ignored tests directly
+cargo test -p scarab-client --test ratatui_testlib_smoke -- --ignored
+```
+
+**Environment Variables:**
+| Variable | Description |
+|----------|-------------|
+| `SCARAB_TEST_RTL=1` | Enable ratatui-testlib PTY tests |
+
+**What ratatui-testlib tests cover:**
+- PTY output passthrough (VTE → SharedMemory → Rendering)
+- Grid text rendering and positioning
+- Color and attribute handling via PTY
+- Navigation hotkey escape sequence verification
+- Real process interaction testing
+
+**Limitations:**
+- Requires PTY allocation (may fail in some CI environments)
+- Tests are `#[ignore]` by default - use `--ignored` flag
+- Currently PTY-only; Bevy ECS integration pending upstream
+
+**Test file:** `crates/scarab-client/tests/ratatui_testlib_smoke.rs`  
+**Documentation:** `crates/scarab-client/tests/README_RATATUI_TESTLIB.md`
+
+---
+
+### 6. Headless Tests
 
 Bevy UI system tests without display server requirements.
 
@@ -214,7 +261,7 @@ See `crates/scarab-client/tests/headless_harness.rs` for API documentation.
 
 ---
 
-### 6. E2E (End-to-End) Tests
+### 7. E2E (End-to-End) Tests
 
 Full daemon-client integration tests spawning actual processes.
 
@@ -268,7 +315,7 @@ See [E2E Test Framework README](crates/scarab-client/tests/e2e/README.md) for de
 
 ---
 
-### 7. Workspace E2E Tests
+### 8. Workspace E2E Tests
 
 Full stack tests at the workspace root verify complete daemon-client workflows.
 
@@ -287,7 +334,7 @@ cargo test --test program_interactions
 
 ---
 
-### 8. Benchmarks
+### 9. Benchmarks
 
 Performance and regression testing.
 
@@ -324,10 +371,18 @@ The `justfile` provides convenient shortcuts for common test operations:
 |---------|-----------|-------------|
 | `just test` | `cargo test --workspace` | Run all workspace tests |
 | `just test-verbose` | `cargo test --workspace -- --nocapture` | Run tests with output visible |
-| `just nav-smoke` | `./scripts/nav-smoke-test.sh` | Navigation smoke test suite |
+| `just nav-tests` | Navigation unit tests | Nav/core unit tests |
+| `just nav-smoke` | `nu scripts/nav-smoke-test.nu` | Navigation smoke test suite |
+| `just golden` | `cargo test -p scarab-client --test golden_tests` | Golden/snapshot tests |
+| `just headless` | Headless harness tests | Bevy UI without GPU |
+| `just rtl-smoke` | ratatui-testlib PTY tests | Env-gated (SCARAB_TEST_RTL=1) |
+| `just testlib` | `cargo test -p scarab-client --test ratatui_testlib_smoke` | ratatui-testlib (non-ignored) |
+| `just e2e` | E2E integration tests | Full daemon-client tests |
+| `just test-all` | All test suites | Comprehensive test run |
+| `just test-quick` | Unit + headless | Fast iteration subset |
 | `just bench` | `cargo bench --workspace` | Run all benchmarks |
-| `just quick` | `cargo check --workspace && cargo test --workspace` | Quick iteration (check + test) |
-| `just ci` | `cargo fmt --all -- --check && cargo clippy --workspace -- -D warnings && cargo test --workspace` | Full CI suite |
+| `just quick` | `cargo check && cargo test` | Quick iteration (check + test) |
+| `just ci` | fmt-check + clippy + test | Full CI suite |
 
 ---
 
@@ -672,4 +727,4 @@ When adding new tests:
 
 ---
 
-**Last updated**: 2025-12-03
+**Last updated**: 2025-12-04

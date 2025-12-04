@@ -136,7 +136,7 @@ pub struct CommandExecutedEvent {
 
 /// Component for palette UI elements
 #[derive(Component)]
-struct PaletteUI;
+pub struct PaletteUI;
 
 /// Component for command list item
 #[derive(Component)]

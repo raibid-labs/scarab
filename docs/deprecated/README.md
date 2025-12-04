@@ -1,38 +1,46 @@
 # Deprecated Documentation
 
-This folder contains outdated documentation files that have been superseded by newer, more comprehensive documentation. These files are kept for historical reference only and should not be used for current development or usage guidance.
+This folder contains outdated documentation files that have been **superseded by ECS-native implementations** and current documentation. These files are kept for historical reference only and should not be used for current development or usage guidance.
 
-## Purpose
+## Why These Are Deprecated
 
-Files in this directory fall into one or more of these categories:
-
-1. **Superseded Documentation** - Replaced by more comprehensive or restructured guides
-2. **Point-in-Time Reports** - Completion reports and summaries from specific development phases
-3. **Historical Analysis** - Legacy architectural analysis from earlier development stages
+Scarab has migrated to a fully **ECS-native architecture** using Bevy. Legacy documentation referenced:
+- Event-driven patterns (replaced by Bevy ECS systems and events)
+- Non-Bevy plugin APIs (replaced by ECS-native plugin host)
+- Pre-integration navigation systems (replaced by ECS components/resources)
 
 ## Finding Current Documentation
 
-For current, maintained documentation, please see:
+For current, maintained documentation:
 
-- **[Documentation Index](../README.md)** - Central hub for all current documentation
-- **[mdBook Portal](../book/)** - Comprehensive user and developer guide
-- **[Plugin Development Guide](../plugin-development/README.md)** - Current plugin development documentation
-- **[Architecture Overview](../developer/architecture.md)** - Current system architecture
+| Topic | Current Location |
+|-------|------------------|
+| **Documentation Index** | [`docs/README.md`](../README.md) |
+| **Navigation System** | [`docs/navigation.md`](../navigation.md) (ECS-native) |
+| **Navigation User Guide** | [`docs/navigation/user-guide.md`](../navigation/user-guide.md) |
+| **Navigation Developer Guide** | [`docs/navigation/developer-guide.md`](../navigation/developer-guide.md) |
+| **Plugin Development** | [`docs/plugin-development/README.md`](../plugin-development/README.md) |
+| **Plugin API Reference** | [`docs/plugin-development/api-reference/`](../plugin-development/api-reference/) |
+| **Architecture** | [`docs/developer/architecture.md`](../developer/architecture.md) |
+| **Rustdoc API** | Run `cargo doc --workspace --open` |
+| **External Docs Site** | Built from `~/raibid-labs/docs` |
 
 ## Contents
 
 ### Superseded Plugin Development Guides
 
-These have been replaced by the comprehensive plugin development guide:
+These have been replaced by the ECS-native plugin development guide:
 
-- `plugin-api.md` - See [plugin-development/api-reference/](../plugin-development/api-reference/) instead
-- `plugin-development-guide.md` - See [plugin-development/README.md](../plugin-development/README.md) instead
-- `PLUGIN_DEVELOPMENT.md` - See [plugin-development/README.md](../plugin-development/README.md) instead
-- `guides-plugin-development.md` - See [plugin-development/README.md](../plugin-development/README.md) instead
+| Deprecated File | Replacement |
+|----------------|-------------|
+| `plugin-api.md` | [`plugin-development/api-reference/`](../plugin-development/api-reference/) |
+| `plugin-development-guide.md` | [`plugin-development/README.md`](../plugin-development/README.md) |
+| `PLUGIN_DEVELOPMENT.md` | [`plugin-development/README.md`](../plugin-development/README.md) |
+| `guides-plugin-development.md` | [`plugin-development/README.md`](../plugin-development/README.md) |
 
 ### Completion Reports (Historical)
 
-Point-in-time completion reports from development phases:
+Point-in-time completion reports from development phases (accurate when written, now historical):
 
 - `AUDIT_REPORT_PASS_2.md` - Phase 2 audit completion
 - `AUDIT_REPORT_PASS_3.md` - Phase 3 audit completion
@@ -59,12 +67,12 @@ These were accurate when written but may be outdated:
 If you're looking for specific information and can't find it in the current documentation:
 
 1. Check the [Documentation Index](../README.md)
-2. Search the [mdBook Portal](../book/)
+2. Run `cargo doc --workspace --open` for API reference
 3. Check recent [Audits](../audits/) for architectural updates
 4. Open an issue if documentation is missing
 
 ---
 
-**Last Updated:** 2025-12-03
+**Last Updated:** 2025-12-04
 
-*These files are preserved for historical reference. For current documentation, always refer to the main documentation index.*
+*These files are preserved for historical reference. For current documentation, always refer to the main [documentation index](../README.md).*

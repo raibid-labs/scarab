@@ -8,6 +8,7 @@ This document describes the release management process for Scarab Terminal, incl
 - [Version Numbering](#version-numbering)
 - [Branch Strategy](#branch-strategy)
 - [Release Cadence](#release-cadence)
+- [Beta Promotion Requirements](#beta-promotion-requirements)
 - [Release Workflow](#release-workflow)
 - [Rollback Procedure](#rollback-procedure)
 - [Communication Plan](#communication-plan)
@@ -282,6 +283,60 @@ feature  ├─────┘            └────────
 - Team available for support
 
 **Avoid**: Holidays, weekends, major conferences
+
+## Beta Promotion Requirements
+
+Transitioning from alpha to beta requires explicit gate verification. Beta represents an API/ABI stability commitment.
+
+### Beta Gate Checklist
+
+Before promoting any alpha to beta, verify:
+
+1. **CI Health**: All CI jobs green for 3 consecutive runs
+   - `navigation-tests`, `test`, `ratatui-testlib`, `lint`, `build-release`, `security`, `docs`
+   - See [ci.yml](../.github/workflows/ci.yml) for job definitions
+
+2. **Documentation Complete**:
+   - Docs index present and links valid
+   - Legacy docs flagged with deprecation banners
+   - External docs site referenced
+   - Keymaps and configuration documented
+
+3. **API/ABI Frozen**:
+   - Plugin ABI frozen (no breaking trait changes)
+   - Navigation API frozen
+   - Config schema finalized
+
+4. **Telemetry Counters**:
+   - Navigation, render, and image counters implemented
+   - Counters documented in TELEMETRY.md
+
+5. **Bug Triage**:
+   - No P0/P1 bugs open with target milestone
+   - Known issues documented in CHANGELOG.md
+
+### Version-Specific Gate Documents
+
+For each major release, maintain explicit gate criteria:
+
+- **v0.2.0**: [releases/v0.2.0-beta-gate.md](releases/v0.2.0-beta-gate.md)
+
+### Beta Promotion Process
+
+```bash
+# 1. Verify beta gate (all items checked)
+cat docs/releases/v0.2.0-beta-gate.md
+
+# 2. Run pre-beta checklist
+cat docs/releases/v0.2.0-beta-checklist.md
+
+# 3. Bump version to beta
+./scripts/bump-version.sh 0.2.0-beta.0
+
+# 4. Tag and push
+git tag -a v0.2.0-beta.0 -m "Release v0.2.0-beta.0"
+git push origin v0.2.0-beta.0
+```
 
 ## Release Workflow
 

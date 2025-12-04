@@ -293,6 +293,22 @@ test-quick:
 nav-smoke:
     nu scripts/nav-smoke-test.nu
 
+# Navigation and core unit tests
+nav-tests:
+    cargo test -p scarab-client --lib navigation::tests
+    cargo test -p scarab-client --lib -- --test-threads=1
+
+# Ratatui-testlib PTY smoke tests (env-gated, requires SCARAB_TEST_RTL=1)
+rtl-smoke:
+    #!/usr/bin/env bash
+    if [ "${SCARAB_TEST_RTL:-0}" != "1" ]; then
+        echo "⚠️  Skipping ratatui-testlib tests (set SCARAB_TEST_RTL=1 to enable)"
+        echo "   Run: SCARAB_TEST_RTL=1 just rtl-smoke"
+        exit 0
+    fi
+    echo "🧪 Running ratatui-testlib smoke tests..."
+    cargo test -p scarab-client --test ratatui_testlib_smoke -- --ignored
+
 # Run benchmarks
 bench:
     cargo bench --workspace

@@ -140,8 +140,8 @@ fn apply_effects_to_overlays(
         Entity,
         (
             Or<(
-                With<crate::ui::command_palette::CommandPaletteState>,
-                With<crate::ui::search_overlay::SearchOverlayState>,
+                With<crate::ui::command_palette::PaletteUI>,
+                With<crate::ui::search_overlay::SearchOverlay>,
                 With<crate::ui::overlays::RemoteOverlay>,
             )>,
             Without<EffectsTarget>,
@@ -188,8 +188,8 @@ pub fn update_overlay_visibility(
     overlay_query: Query<
         (Entity, &Visibility),
         Or<(
-            With<crate::ui::command_palette::CommandPaletteState>,
-            With<crate::ui::search_overlay::SearchOverlayState>,
+            With<crate::ui::command_palette::PaletteUI>,
+            With<crate::ui::search_overlay::SearchOverlay>,
             With<crate::ui::overlays::RemoteOverlay>,
         )>,
     >,

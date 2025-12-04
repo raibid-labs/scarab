@@ -2,6 +2,45 @@
 
 Welcome to the Scarab terminal emulator documentation. This is the central index for all project documentation.
 
+---
+
+## 📚 Documentation Sources
+
+### External Documentation Site
+
+The comprehensive Scarab documentation is hosted externally and built from a separate repository:
+
+- **External docs repo:** `~/raibid-labs/docs`
+- **Published site:** (deployment details in external repo)
+
+The external site includes browsable guides, tutorials, and API documentation with full-text search.
+
+### Rustdoc (API Reference)
+
+Generate and view the Rust API documentation locally:
+
+```bash
+cargo doc --workspace --open
+```
+
+This opens the generated rustdoc in your browser, providing complete API reference for all crates:
+- `scarab-client` - Bevy GUI client
+- `scarab-daemon` - Headless server with PTY handling
+- `scarab-protocol` - IPC definitions and shared memory layout
+- `scarab-plugin-api` - Plugin traits and interfaces
+- `scarab-config` - Configuration management
+
+### In-Repo Documentation
+
+This `docs/` folder contains canonical reference documentation:
+- **[Navigation System](./navigation.md)** - ECS-native navigation architecture (current)
+- **[Plugin Development](./plugin-development/README.md)** - Plugin host and Fusabi guides (current)
+- **[Testing Guide](../TESTING.md)** - Comprehensive testing reference
+
+> **Note:** Legacy navigation and plugin documentation has been moved to [`deprecated/`](./deprecated/). See [deprecated/README.md](./deprecated/README.md) for details.
+
+---
+
 ## Quick Navigation
 
 | Category | Description | Key Documents |
@@ -435,6 +474,6 @@ For detailed documentation standards, see [CONTRIBUTING-DOCS.md](./CONTRIBUTING-
 
 ---
 
-**Documentation index last updated: 2025-12-03**
+**Documentation index last updated: 2025-12-04**
 
 *This is the canonical documentation index for Scarab. All documentation should be reachable from this page within 2 clicks.*
