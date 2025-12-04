@@ -223,7 +223,8 @@ cargo test -p scarab-client --test ratatui_testlib_smoke -- --ignored
 - Currently PTY-only; Bevy ECS integration pending upstream
 
 **Test file:** `crates/scarab-client/tests/ratatui_testlib_smoke.rs`  
-**Documentation:** `crates/scarab-client/tests/README_RATATUI_TESTLIB.md`
+**Documentation:** `crates/scarab-client/tests/README_RATATUI_TESTLIB.md`  
+**CI Workflow:** `.github/workflows/test-rtl.yml` (runs on push to `main` and PRs with `run-rtl-tests` label)
 
 ---
 
@@ -578,6 +579,15 @@ test:
     # E2E tests (excluding stress tests)
     - run: cargo test -p scarab-client --test e2e
 ```
+
+### Ratatui-testlib CI Workflow
+
+A dedicated workflow for PTY-based ratatui-testlib tests is defined in `.github/workflows/test-rtl.yml`:
+
+- **Triggers**: Push to `main`, PRs with `run-rtl-tests` label
+- **Environment**: Sets `SCARAB_TEST_RTL=1` to enable gated tests
+- **Command**: `cargo test -p scarab-client --test ratatui_testlib_smoke -- --ignored`
+- **Note**: Uses `continue-on-error: true` since PTY allocation may fail in some CI runners
 
 ---
 

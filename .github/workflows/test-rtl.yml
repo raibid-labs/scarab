@@ -47,13 +47,18 @@ jobs:
       - name: Build scarab-daemon
         run: cargo build -p scarab-daemon
 
-      - name: Run RTL smoke tests
+      - name: Run RTL basic tests (no PTY required)
+        run: cargo test -p scarab-client --test ratatui_testlib_smoke test_snapshot test_cell_attributes
+        continue-on-error: true
+
+      - name: Run RTL PTY smoke tests
         env:
           SCARAB_TEST_RTL: "1"
-        run: cargo test -p scarab-client --test ratatui_testlib_smoke
+        run: cargo test -p scarab-client --test ratatui_testlib_smoke -- --ignored
         continue-on-error: true
 
       - name: Report test status
         if: always()
         run: |
-          echo "::notice::RTL smoke tests completed. PTY allocation may fail in some CI runners."
+          echo "::notice::RTL tests completed (mvp features: bevy, async-tokio, snapshot-insta, sixel)."
+          echo "::notice::PTY allocation may fail in some CI runners."
