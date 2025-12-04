@@ -33,7 +33,8 @@
 //! - Test coordinate conversion without rendering
 //! - Validate LinkHintsState and NavState resources
 //!
-//! See: https://github.com/raibid-labs/ratatui-testlib/blob/main/docs/ROADMAP.md#phase-4-bevy-ecs-integration
+//! See integration plan: /home/beengud/raibid-labs/scarab/docs/testing/RATATUI_TESTLIB_INTEGRATION_PLAN.md
+//! Upstream tracking: https://github.com/raibid-labs/ratatui-testlib/blob/main/docs/ROADMAP.md#phase-4-bevy-ecs-integration
 
 use anyhow::{Context, Result};
 use ratatui_testlib::{CommandBuilder, KeyCode, TuiTestHarness};
@@ -248,6 +249,8 @@ fn test_nav_hotkey_sequences() -> Result<()> {
     //
     // For now, we can only check that the terminal state changed
     // (which is a weak proxy for actual navigation state)
+    //
+    // See: docs/testing/RATATUI_TESTLIB_INTEGRATION_PLAN.md (Phase 2)
 
     // Verify the URL still appears
     assert!(
@@ -425,6 +428,8 @@ fn test_sixel_sequence_handling() -> Result<()> {
     // - Image metadata was recorded (width, height, position)
     // - Image render command was added to rendering pipeline
     //
+    // See: docs/testing/RATATUI_TESTLIB_INTEGRATION_PLAN.md (Phase 3)
+    //
     // For now, we verify the daemon is still responsive
     harness.send_text("echo 'Post-Sixel test'\r")?;
     std::thread::sleep(OUTPUT_TIMEOUT);
@@ -485,6 +490,8 @@ fn test_kitty_graphics_basic() -> Result<()> {
     // - Image stored in image registry with correct ID
     // - Acknowledgment response sent (if requested)
     // - Image placement command executed
+    //
+    // See: docs/testing/RATATUI_TESTLIB_INTEGRATION_PLAN.md (Phase 3)
     //
     // For now, verify daemon remains responsive
     harness.send_text("echo 'Post-Kitty test'\r")?;
@@ -616,6 +623,8 @@ fn test_nav_hint_mode() -> Result<()> {
     // - HintOverlay components rendered with labels (e.g., "aa", "ab")
     // - EnterHintModeEvent was fired
     //
+    // See: docs/testing/RATATUI_TESTLIB_INTEGRATION_PLAN.md (Phase 2)
+    //
     // For now, verify the terminal content is still intact
     assert!(
         contents_after.contains("https://example.com") ||
@@ -685,6 +694,8 @@ fn test_pane_navigation() -> Result<()> {
     // - NavStateRegistry switches active pane
     // - Visual focus indicator moves to the new pane
     //
+    // See: docs/testing/RATATUI_TESTLIB_INTEGRATION_PLAN.md (Phase 2)
+    //
     // For now, verify daemon remains responsive
     harness.send_text("echo 'Post-nav test'\r")?;
     std::thread::sleep(OUTPUT_TIMEOUT);
@@ -734,6 +745,7 @@ fn test_pane_navigation() -> Result<()> {
 /// }
 /// ```
 ///
+/// **Integration Plan**: See docs/testing/RATATUI_TESTLIB_INTEGRATION_PLAN.md
 /// **Upstream Issue**: https://github.com/raibid-labs/ratatui-testlib/issues/TBD
 
 /// **GAP 2: SharedMemory Direct Access**
@@ -763,6 +775,7 @@ fn test_pane_navigation() -> Result<()> {
 /// }
 /// ```
 ///
+/// **Integration Plan**: See docs/testing/RATATUI_TESTLIB_INTEGRATION_PLAN.md
 /// **Upstream Issue**: Requires hybrid PTY + SharedMemory harness
 
 /// **GAP 3: Navigation State Verification**

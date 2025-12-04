@@ -56,6 +56,7 @@
   - [Headless Testing](./developer-guide/headless-testing.md)
   - [Benchmarking](./developer-guide/benchmarking.md)
 - [Contributing](./developer-guide/contributing.md)
+  - [Documentation Sources](./developer-guide/documentation-sources.md)
   - [Code Style](./developer-guide/code-style.md)
   - [Pull Request Process](./developer-guide/pr-process.md)
 

@@ -9,8 +9,9 @@ The next release transitioning from perpetual alpha (v0.1.0-alpha.X) to structur
 ### Quick Access
 
 - **[Quick Summary](./v0.2.0-alpha-SUMMARY.md)** - At-a-glance status and commands (4.7 KB, 167 lines)
-- **[Release Plan](./v0.2.0-alpha-plan.md)** - Comprehensive planning document (13 KB, 361 lines)
+- **[Release Plan](./v0.2.0-alpha-plan.md)** - Comprehensive planning document (13 KB, 379 lines)
 - **[Detailed Checklist](./v0.2.0-alpha.0-checklist.md)** - Step-by-step verification (6.0 KB, 163 lines)
+- **[Beta Criteria](./v0.2.0-beta-criteria.md)** - Requirements for beta transition (Issue #79)
 
 ### Document Purpose
 
@@ -19,6 +20,7 @@ The next release transitioning from perpetual alpha (v0.1.0-alpha.X) to structur
 | SUMMARY.md | Quick reference, key commands | Developers, Release Managers | Daily standup, quick checks |
 | Plan.md | Comprehensive planning, timeline | Project Managers, Stakeholders | Sprint planning, status reviews |
 | Checklist.md | Detailed verification steps | Release Managers, QA | During release process |
+| Beta Criteria | Beta readiness requirements | Release Team, Leadership | Evaluating beta transition |
 
 ### Related Documentation
 
@@ -32,7 +34,7 @@ The next release transitioning from perpetual alpha (v0.1.0-alpha.X) to structur
 **Target Version**: v0.2.0-alpha.0
 **Status**: Ready for stabilization sprint
 **Blocking Issues**: 1 (navigation IPC handler)
-**GitHub Issue**: [#72](https://github.com/raibid-labs/scarab/issues/72)
+**GitHub Issues**: [#72](https://github.com/raibid-labs/scarab/issues/72) (alpha release), [#79](https://github.com/raibid-labs/scarab/issues/79) (beta criteria)
 
 ### Progress Overview
 
@@ -56,6 +58,42 @@ The next release transitioning from perpetual alpha (v0.1.0-alpha.X) to structur
 - 🟡 Verify full test suite passes
 - 🟡 Run all CI gates
 - 🟡 Version bump and CHANGELOG update
+
+## Release Roadmap
+
+### Alpha Phase (Current)
+**Goal**: Stabilize core features and infrastructure
+
+- **v0.2.0-alpha.0**: Initial structured release (audit 007 consolidation)
+- **v0.2.0-alpha.1+**: Iterative improvements, bug fixes, feature completion
+
+**Duration**: 4-6 weeks of alpha releases
+
+### Beta Phase (Next)
+**Goal**: Production-ready code suitable for community testing
+
+See [v0.2.0-beta-criteria.md](./v0.2.0-beta-criteria.md) for comprehensive requirements.
+
+**Key Beta Requirements**:
+- All CI jobs green (test, lint, docs, security)
+- Plugin ABI frozen (no breaking changes)
+- Navigation system stable
+- Configuration schema finalized
+- IPC protocol versioned
+- Full documentation deployed
+- Migration guide complete
+- Zero P0/P1 bugs
+
+**Duration**: 2-week minimum stability period
+
+### Stable Phase (Future)
+**Goal**: Public release suitable for production use
+
+- No breaking changes from beta
+- Community feedback incorporated
+- Security audit passed
+- Performance baselines met
+- Package manager submissions
 
 ## Quick Commands
 
@@ -85,6 +123,21 @@ cargo audit                # Security audit
 - Create release branch
 - Tag and publish
 
+**Weeks 3-8**: Alpha iterations
+- Bug fixes and improvements
+- Feature completion
+- Community feedback
+
+**Weeks 9-10**: Beta stabilization
+- Beta release
+- Community testing
+- Final bug fixes
+
+**Week 11+**: Stable release
+- Production release
+- Package manager submissions
+- Public announcement
+
 ## Key Decisions
 
 ### Scope
@@ -98,11 +151,28 @@ cargo audit                # Security audit
 - IPC protocol extended
 
 ### Success Criteria
+
+#### Alpha Success Criteria
 - All blocking issues resolved
 - All CI gates pass
 - Documentation complete
 - CHANGELOG updated
 - No P0 bugs open
+
+#### Beta Success Criteria
+See [v0.2.0-beta-criteria.md](./v0.2.0-beta-criteria.md) for comprehensive list:
+- All quality gates pass
+- Feature freeze (ABI/API stable)
+- Security audit complete
+- Documentation deployed
+- 100+ community testers
+
+#### Stable Success Criteria
+- 2-week beta stability period
+- Zero P0/P1 bugs
+- Community feedback positive (>75%)
+- Performance baselines met
+- Package manager ready
 
 ## Document Maintenance
 
@@ -111,18 +181,23 @@ cargo audit                # Security audit
 - **SUMMARY.md**: Daily during sprint, after status changes
 - **Plan.md**: Weekly, or when scope/timeline changes
 - **Checklist.md**: During release execution, mark items complete
+- **Beta Criteria**: When evaluating beta readiness
+- **README.md**: When release status/roadmap changes
 
 ### Version History
 
 | Date | Version | Status | Notes |
 |------|---------|--------|-------|
 | 2025-12-03 | v0.2.0-alpha.0 | Planning | Initial release plan created |
+| 2025-12-03 | v0.2.0-beta.0 | Planning | Beta criteria documented (Issue #79) |
 
 ## References
 
 - **Process Documentation**: `../RELEASE_PROCESS.md`, `../RELEASE_CHECKLIST.md`
 - **Audit Reports**: `../audits/codex-2025-12-02-docs-testlib-007/`
-- **GitHub Issues**: [#72 (stabilization sprint)](https://github.com/raibid-labs/scarab/issues/72)
+- **GitHub Issues**:
+  - [#72 (stabilization sprint)](https://github.com/raibid-labs/scarab/issues/72)
+  - [#79 (beta criteria)](https://github.com/raibid-labs/scarab/issues/79)
 - **Closed Issues**: #61, #62, #63, #64, #65, #66, #67, #69, #70, #71
 - **Open Issues**: #68 (accessibility)
 
@@ -130,7 +205,7 @@ cargo audit                # Security audit
 
 For questions about this release:
 - Review the planning documents in this directory
-- Check GitHub Issue #72 for latest status
+- Check GitHub Issues #72 (alpha) and #79 (beta) for latest status
 - Refer to `docs/RELEASE_PROCESS.md` for general process questions
 
 ---
