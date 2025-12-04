@@ -51,7 +51,7 @@ profiling = { workspace = true, optional = true }
 
 [dev-dependencies]
 tokio-test = "0.4"
-ratatui-testlib = { version = "0.1.0", features = ["sixel"] }
+ratatui-testlib = { version = "0.1.0", features = ["mvp"] }
 tempfile = "3.23.0"
 
 [features]
