@@ -34,6 +34,22 @@ pub enum PluginError {
     #[error("Plugin not found: {0}")]
     NotFound(String),
 
+    #[error("Capability denied: {0}")]
+    CapabilityDenied(String),
+
+    #[error("Quota exceeded for {resource}: {current}/{limit}")]
+    QuotaExceeded {
+        resource: String,
+        current: usize,
+        limit: usize,
+    },
+
+    #[error("Rate limit exceeded: {current} actions (limit: {limit}/sec)")]
+    RateLimitExceeded { current: u32, limit: u32 },
+
+    #[error("Validation error: {0}")]
+    ValidationError(String),
+
     #[error("Other error: {0}")]
     Other(#[from] anyhow::Error),
 }
@@ -77,6 +93,27 @@ impl PluginError {
                 "The plugin exceeded the maximum failure count",
                 "Try fixing the plugin and restarting Scarab",
                 "You can re-enable it in plugins.toml once fixed",
+            ],
+            PluginError::CapabilityDenied(_) => vec![
+                "The plugin lacks the required capability for this action",
+                "Check the plugin's manifest for declared capabilities",
+                "Request additional capabilities in plugin.toml",
+            ],
+            PluginError::QuotaExceeded { .. } => vec![
+                "The plugin has exceeded its resource quota",
+                "Reduce the number of registered resources",
+                "Unregister unused focusables or overlays",
+                "Request higher quotas in plugin configuration",
+            ],
+            PluginError::RateLimitExceeded { .. } => vec![
+                "The plugin is making too many API calls per second",
+                "Add delays between API calls",
+                "Batch operations where possible",
+            ],
+            PluginError::ValidationError(_) => vec![
+                "Check the input data against validation constraints",
+                "Ensure coordinates are within terminal bounds",
+                "Verify URLs use allowed protocols (http/https)",
             ],
             _ => vec!["Check the plugin documentation for more help"],
         }

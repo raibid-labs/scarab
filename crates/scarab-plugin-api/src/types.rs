@@ -3,7 +3,7 @@
 pub use scarab_protocol::{ModalItem, OverlayStyle};
 use serde::{Deserialize, Serialize};
 
-/// Command sent from plugin to daemon
+/// Command sent from plugin to daemon/client
 #[derive(Debug, Clone)]
 pub enum RemoteCommand {
     DrawOverlay {
@@ -32,6 +32,26 @@ pub enum RemoteCommand {
     },
     ThemeUpdate {
         theme_json: String,
+    },
+    // Navigation commands (ECS-safe host bindings)
+    NavEnterHintMode {
+        plugin_name: String,
+    },
+    NavExitMode {
+        plugin_name: String,
+    },
+    NavRegisterFocusable {
+        plugin_name: String,
+        x: u16,
+        y: u16,
+        width: u16,
+        height: u16,
+        label: String,
+        action: scarab_protocol::NavFocusableAction,
+    },
+    NavUnregisterFocusable {
+        plugin_name: String,
+        focusable_id: u64,
     },
 }
 
