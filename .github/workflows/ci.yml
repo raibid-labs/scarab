@@ -96,6 +96,14 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y libxkbcommon-dev libwayland-dev libxcb-shape0-dev libxcb-xfixes0-dev
 
+      - name: Install just command runner
+        uses: extractions/setup-just@v2
+
+      - name: Install Nushell
+        uses: hustcer/setup-nu@v3
+        with:
+          version: '0.98.0'
+
       - name: Run navigation unit tests
         run: cargo test -p scarab-client --lib navigation::tests
 
@@ -106,7 +114,46 @@ jobs:
         run: cargo test -p scarab-client --test headless_harness
 
       - name: Run navigation smoke test script
-        run: bash scripts/nav-smoke-test.sh
+        run: just nav-smoke
+
+  ratatui-testlib:
+    name: Ratatui PTY Tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo registry
+        uses: actions/cache@v4
+        with:
+          path: ~/.cargo/registry
+          key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Cache cargo index
+        uses: actions/cache@v4
+        with:
+          path: ~/.cargo/git
+          key: ${{ runner.os }}-cargo-git-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Cache cargo build
+        uses: actions/cache@v4
+        with:
+          path: target
+          key: ${{ runner.os }}-cargo-build-target-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libxkbcommon-dev libwayland-dev libxcb-shape0-dev libxcb-xfixes0-dev
+
+      - name: Build scarab-daemon
+        run: cargo build -p scarab-daemon
+
+      - name: Run ratatui-testlib smoke tests
+        run: cargo test -p scarab-client --test ratatui_testlib_smoke
 
   coverage:
     name: Code Coverage
@@ -175,13 +222,57 @@ jobs:
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
 
-      - name: Build documentation
+      - name: Cache cargo registry
+        uses: actions/cache@v4
+        with:
+          path: ~/.cargo/registry
+          key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Cache cargo index
+        uses: actions/cache@v4
+        with:
+          path: ~/.cargo/git
+          key: ${{ runner.os }}-cargo-git-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Cache cargo build
+        uses: actions/cache@v4
+        with:
+          path: target
+          key: ${{ runner.os }}-cargo-build-target-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Build Rust documentation
         run: cargo doc --workspace --no-deps --all-features
         env:
           RUSTDOCFLAGS: -D warnings
 
-      - name: Check doc links
+      - name: Check Rust doc links
         run: cargo doc --workspace --no-deps --all-features
+
+      - name: Install mdBook
+        run: |
+          mkdir -p ~/.cargo/bin
+          curl -sSL https://github.com/rust-lang/mdBook/releases/download/v0.4.40/mdbook-v0.4.40-x86_64-unknown-linux-gnu.tar.gz | tar -xz --directory=~/.cargo/bin
+          chmod +x ~/.cargo/bin/mdbook
+          echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+
+      - name: Build mdBook documentation portal
+        run: mdbook build docs/book
+
+      - name: Verify mdBook output
+        run: |
+          if [ ! -f "docs/book/book/index.html" ]; then
+            echo "Error: mdBook build did not produce expected output"
+            exit 1
+          fi
+          echo "mdBook documentation built successfully"
+
+      - name: Upload documentation artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: documentation
+          path: |
+            target/doc/
+            docs/book/book/
 
   security:
     name: Security Audit

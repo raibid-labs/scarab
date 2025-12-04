@@ -40,13 +40,15 @@ copyable = true
 line-numbers = false
 
 # Rustdoc integration
-[output.html.redirect]
-"/api" = "https://raibid-labs.github.io/scarab/rustdoc/scarab/"
-"/api/daemon" = "https://raibid-labs.github.io/scarab/rustdoc/scarab_daemon/"
-"/api/client" = "https://raibid-labs.github.io/scarab/rustdoc/scarab_client/"
-"/api/protocol" = "https://raibid-labs.github.io/scarab/rustdoc/scarab_protocol/"
-"/api/plugin-api" = "https://raibid-labs.github.io/scarab/rustdoc/scarab_plugin_api/"
-"/api/config" = "https://raibid-labs.github.io/scarab/rustdoc/scarab_config/"
+# Note: Redirects commented out due to conflict with reference/api.md
+# Consider renaming reference/api.md or using different redirect paths
+# [output.html.redirect]
+# "/rustdoc" = "https://raibid-labs.github.io/scarab/rustdoc/scarab/"
+# "/rustdoc/daemon" = "https://raibid-labs.github.io/scarab/rustdoc/scarab_daemon/"
+# "/rustdoc/client" = "https://raibid-labs.github.io/scarab/rustdoc/scarab_client/"
+# "/rustdoc/protocol" = "https://raibid-labs.github.io/scarab/rustdoc/scarab_protocol/"
+# "/rustdoc/plugin-api" = "https://raibid-labs.github.io/scarab/rustdoc/scarab_plugin_api/"
+# "/rustdoc/config" = "https://raibid-labs.github.io/scarab/rustdoc/scarab_config/"
 
 # Uncomment when mdbook-linkcheck is installed
 # [output.linkcheck]
