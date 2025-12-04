@@ -604,6 +604,21 @@ pub enum DaemonMessage {
     NavModeExited {
         plugin_name: alloc::string::String,
     },
+    /// Forward focusable registration from daemon to client
+    NavRegisterFocusable {
+        plugin_name: alloc::string::String,
+        x: u16,
+        y: u16,
+        width: u16,
+        height: u16,
+        label: alloc::string::String,
+        action: NavFocusableAction,
+    },
+    /// Forward focusable unregistration from daemon to client
+    NavUnregisterFocusable {
+        plugin_name: alloc::string::String,
+        focusable_id: u64,
+    },
 }
 
 /// Event message for IPC forwarding

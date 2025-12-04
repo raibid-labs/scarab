@@ -2,6 +2,13 @@
 //!
 //! This crate provides the core plugin API for the Scarab terminal emulator.
 //! It defines traits, types, and utilities for building 3rd-party plugins.
+//!
+//! # ECS-Safe Host Bindings
+//!
+//! Fusabi plugins interact with Scarab's ECS through the [`host_bindings`] module,
+//! which provides safe APIs with capability checks, quotas, and rate limiting.
+//!
+//! See [`host_bindings::HostBindings`] for the main entry point.
 
 pub mod config;
 pub mod context;
@@ -9,6 +16,7 @@ pub mod copy_mode;
 pub mod delight;
 pub mod error;
 pub mod events;
+pub mod host_bindings;
 pub mod key_tables;
 pub mod menu;
 pub mod navigation;
@@ -38,6 +46,10 @@ pub use menu::{MenuAction, MenuItem};
 pub use navigation::{
     validate_focusable, NavigationExt, PluginFocusable, PluginFocusableAction,
     PluginNavCapabilities, ValidationError,
+};
+pub use host_bindings::{
+    HostBindings, HostBindingLimits, NavStyle, NavKeymap, ResourceUsage,
+    DEFAULT_RATE_LIMIT, DEFAULT_MAX_FOCUSABLES, DEFAULT_MAX_OVERLAYS, DEFAULT_MAX_STATUS_ITEMS,
 };
 pub use object_model::{ObjectError, ObjectHandle, ObjectRegistry, ObjectType, RegistryEntry};
 pub use plugin::{Plugin, PluginMetadata};

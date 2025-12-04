@@ -264,6 +264,42 @@ impl PluginManager {
                         })
                         .await;
                 }
+                // Navigation commands are handled client-side, not by daemon
+                // Forward them to clients for ECS processing
+                RemoteCommand::NavEnterHintMode { plugin_name } => {
+                    log::debug!("Plugin {} requesting hint mode", plugin_name);
+                    // Navigation is handled client-side via PluginAction events
+                }
+                RemoteCommand::NavExitMode { plugin_name } => {
+                    log::debug!("Plugin {} exiting nav mode", plugin_name);
+                }
+                RemoteCommand::NavRegisterFocusable {
+                    plugin_name,
+                    x, y, width, height, label, action,
+                } => {
+                    log::debug!(
+                        "Plugin {} registering focusable at ({}, {}) {}x{}: {}",
+                        plugin_name, x, y, width, height, label
+                    );
+                    // Forward to clients for ECS processing
+                    self.client_registry
+                        .broadcast(DaemonMessage::NavRegisterFocusable {
+                            plugin_name: plugin_name.into(),
+                            x, y, width, height,
+                            label: label.into(),
+                            action,
+                        })
+                        .await;
+                }
+                RemoteCommand::NavUnregisterFocusable { plugin_name, focusable_id } => {
+                    log::debug!("Plugin {} unregistering focusable {}", plugin_name, focusable_id);
+                    self.client_registry
+                        .broadcast(DaemonMessage::NavUnregisterFocusable {
+                            plugin_name: plugin_name.into(),
+                            focusable_id,
+                        })
+                        .await;
+                }
             }
         }
     }
