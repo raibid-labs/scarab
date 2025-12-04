@@ -306,7 +306,7 @@ rtl-smoke:
         echo "   Run: SCARAB_TEST_RTL=1 just rtl-smoke"
         exit 0
     fi
-    echo "🧪 Running ratatui-testlib smoke tests..."
+    echo "🧪 Running ratatui-testlib smoke tests (mvp features enabled)..."
     cargo test -p scarab-client --test ratatui_testlib_smoke -- --ignored
 
 # Run ratatui-testlib tests with all features (gated)
@@ -316,18 +316,26 @@ rtl-full:
         echo "⚠️  Skipping full ratatui-testlib tests (set SCARAB_TEST_RTL=1 to enable)"
         exit 0
     fi
-    echo "🧪 Running full ratatui-testlib test suite..."
+    echo "🧪 Running full ratatui-testlib test suite (includes bevy, async-tokio, snapshot-insta)..."
     cargo test -p scarab-client --test ratatui_testlib_smoke -- --include-ignored
 
-# Run graphics protocol tests only
+# Run graphics protocol tests only (Sixel placement, Kitty graphics)
 rtl-graphics:
     #!/usr/bin/env bash
     if [ "${SCARAB_TEST_RTL:-0}" != "1" ]; then
         echo "⚠️  Skipping graphics tests (set SCARAB_TEST_RTL=1 to enable)"
         exit 0
     fi
+    echo "🧪 Running graphics protocol tests (sixel-image enabled)..."
     cargo test -p scarab-client --test ratatui_testlib_smoke test_sixel -- --ignored
     cargo test -p scarab-client --test ratatui_testlib_smoke test_kitty -- --ignored
+
+# Run ECS and snapshot tests
+rtl-ecs:
+    #!/usr/bin/env bash
+    echo "🧪 Running ECS and snapshot integration tests..."
+    cargo test -p scarab-client --test ratatui_testlib_smoke test_snapshot -- --nocapture
+    cargo test -p scarab-client --test ratatui_testlib_smoke test_cell_attributes -- --nocapture
 
 # Run benchmarks
 bench:
