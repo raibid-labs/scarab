@@ -849,7 +849,7 @@ See the [Fusabi Guide](FUSABI_GUIDE.md) for details.
 ## Related Documentation
 
 - [Navigation System](navigation.md) - Detailed navigation configuration
-- [Plugin Development Guide](plugin-development-guide.md) - Plugin capabilities and API
+- [Plugin Development Guide](plugin-development/README.md) - Plugin capabilities and API
 - [Telemetry Quick Reference](TELEMETRY_QUICK_REFERENCE.md) - Telemetry metrics
 - [Fusabi Guide](FUSABI_GUIDE.md) - Fusabi scripting for configuration
 

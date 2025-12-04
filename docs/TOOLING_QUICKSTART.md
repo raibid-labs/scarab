@@ -243,14 +243,14 @@ just plugin-validate examples/fusabi/my-plugin.fsx
 
 ## Next Steps
 
-1. Read full guide: `docs/PLUGIN_DEVELOPMENT.md`
+1. Read full guide: `docs/plugin-development/README.md`
 2. Study examples: `examples/fusabi/README.md`
 3. Review template: `examples/fusabi/TEMPLATE.fsx`
 4. Join development: Create PRs with new plugins!
 
 ## Resources
 
-- **Full Documentation**: `/home/beengud/raibid-labs/scarab/docs/PLUGIN_DEVELOPMENT.md`
+- **Full Documentation**: `/home/beengud/raibid-labs/scarab/docs/plugin-development/README.md`
 - **Examples**: `/home/beengud/raibid-labs/scarab/examples/fusabi/`
 - **API Reference**: `/home/beengud/raibid-labs/scarab/crates/scarab-plugin-api/`
 - **CI Configuration**: `/home/beengud/raibid-labs/scarab/.github/workflows/plugins.yml`

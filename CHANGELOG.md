@@ -5,6 +5,167 @@ All notable changes to the Scarab terminal emulator will be documented in this f
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.0-alpha.0] - 2025-12-03
+
+### Added - Documentation & Testing Infrastructure (Audit 006-008)
+
+**Documentation Portal** (#61, #62, #71, #76)
+- mdBook documentation portal with comprehensive user and developer guides (docs/book/)
+- Central documentation index (docs/README.md) with organized hierarchical structure
+- Navigation guides split into user and developer sections
+  - docs/navigation/user-guide.md with quickstart and keymaps
+  - docs/navigation/developer-guide.md with ECS patterns
+- Configuration reference (docs/configuration.md)
+- Contributing guide for documentation (CONTRIBUTING-DOCS.md)
+- Deprecated docs moved to docs/deprecated/ for clarity
+
+**Testing Infrastructure** (#63, #64, #65, #73, #74)
+- Comprehensive TESTING.md guide (757 lines) with one-line commands
+- ratatui-testlib integration for smoke tests and widget verification
+- Component isolation test patterns
+- PTY-level validation framework
+- BevyTuiTestHarness stubs for future ECS integration
+- CI integration for testlib validation (#73)
+- Nushell nav-smoke script integration (#74)
+- mdBook build verification in CI (#75)
+- justfile test targets:
+  - `just test-all` - Comprehensive test suite
+  - `just nav-smoke` - Navigation smoke tests
+  - `just golden` - Visual regression tests
+  - `just headless` - Headless harness tests
+  - `just testlib` - ratatui-testlib tests
+  - `just test-quick` - Fast iteration subset
+  - `just ci` - All quality checks
+
+**Developer Tools** (#66, #67, #69, #70)
+- Telemetry HUD plugin for real-time performance monitoring
+  - FPS and frame time display
+  - Navigation metrics tracking (hint count, focus changes)
+  - Cache hit/miss statistics
+  - Hot-reloadable overlay
+  - Configurable telemetry settings in config
+- Diagnostics recorder/replay for debugging
+  - Terminal session recording
+  - Issue reproduction via replay
+  - Export/import diagnostics data
+- Graphics inspector for image protocols
+  - Sixel/Kitty/iTerm2 protocol debugging
+  - Image placement and bounds visualization
+  - Protocol validation tools
+- Bevy UI inspector overlay
+  - ECS entity browser
+  - Component inspection
+  - Resource viewer
+  - Query debugging
+
+### Added - Navigation System Enhancements
+
+**Per-Pane Navigation State Isolation**
+- PaneId integration in navigation components
+- Independent navigation state per pane
+- Proper cleanup when panes are destroyed
+
+**Plugin Navigation API Security**
+- Rate limiting for plugin actions (10/sec default)
+- Validation for plugin-sourced focusables
+- Bounded storage for plugin-registered focusables
+- Security guardrails documentation
+
+**Navigation Metrics**
+- Performance tracking for navigation operations
+- Timing samples for pane switches
+- Telemetry integration
+
+### Changed
+
+**Documentation Structure** (#76)
+- Reorganized documentation into logical hierarchy
+- Centralized index with clear navigation (docs/README.md)
+- Separate user and developer content
+- mdBook for browsable documentation with search
+- Legacy docs moved to docs/deprecated/
+
+**Navigation Architecture**
+- ECS-native navigation now production-ready
+- Stabilized navigation system with per-pane state isolation
+- Improved documentation and examples
+- Better integration with multiplexing system
+
+**Testing Organization**
+- Test suite organized with clear patterns
+- One-line commands for all test types
+- CI pipeline enhanced with comprehensive checks
+- Documentation for writing new tests
+
+### Fixed
+
+**Navigation State Isolation**
+- Fixed navigation state leaking between panes
+- Each pane now maintains independent navigation state
+- Proper PaneId tracking in all navigation components
+
+**Plugin Security**
+- Added validation for plugin navigation API
+- Rate limiting prevents abuse
+- Focusable validation ensures safety
+
+**Documentation Gaps**
+- Resolved all documentation gaps from audit 007
+- Consolidated scattered documentation
+- Created single source of truth for guides
+
+### Documentation
+
+**Navigation Guides**
+- User guide: Quickstart, keymaps, common workflows
+- Developer guide: ECS patterns, custom actions, integration
+
+**Testing Guide**
+- Comprehensive TESTING.md (757 lines)
+- Test organization and patterns
+- Running tests and CI integration
+- Writing new tests for ECS components
+
+**Configuration Reference**
+- docs/configuration.md (19KB)
+- All configuration options documented
+- Navigation settings explained
+- Telemetry configuration
+
+**mdBook Portal**
+- Hierarchical organization
+- Search functionality
+- Easy navigation between topics
+- User and developer sections
+
+### Testing
+
+**ratatui-testlib Integration**
+- Smoke tests for widgets
+- CI validation (#73)
+- Component isolation tests
+- PTY-level assertions
+
+**CI Pipeline Enhancements**
+- Nushell nav-smoke integration (#74)
+- mdBook build verification (#75)
+- Testlib validation (#73)
+- Comprehensive quality checks
+
+### Contributors
+
+This release consolidates work from audits 006-008:
+- Documentation portal implementation
+- Testing infrastructure setup
+- Developer tooling (telemetry, diagnostics, inspectors)
+- Navigation system stabilization
+- Plugin security enhancements
+- CI pipeline improvements
+
+Co-Authored-By: Claude <noreply@anthropic.com>
+
+---
+
 ## [0.1.0-alpha.15] - 2025-12-03
 
 ### Added - ECS Navigation System
@@ -81,98 +242,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Documentation
 - Added deep technical audit and gap analysis against WezTerm.
 - Added developer instructions for Fusabi Object Model implementation.
-
-## [Unreleased]
-
-## [0.2.0-alpha.0] - TBD
-
-### Added - Documentation & Testing Infrastructure
-- **mdBook Documentation Portal**: Comprehensive documentation site (docs/book/)
-  - User and developer guides with examples
-  - Navigation system documentation
-  - Plugin development guides
-  - Configuration reference
-  - Organized hierarchical structure
-- **Testing Infrastructure**: ratatui-testlib integration
-  - Smoke tests for widget verification
-  - Component isolation test patterns
-  - TESTING.md comprehensive guide (757 lines)
-  - Test harness for Bevy integration
-- **Telemetry HUD Plugin**: Real-time performance monitoring
-  - FPS and frame time display
-  - Navigation metrics tracking
-  - Hot-reloadable telemetry overlay
-  - Configurable telemetry settings in config
-- **Documentation Consolidation**
-  - docs/README.md as central documentation index
-  - Navigation guides split into user and developer sections
-  - docs/navigation/user-guide.md with quickstart and keymaps
-  - docs/navigation/developer-guide.md with ECS patterns
-  - docs/configuration.md comprehensive configuration reference
-  - CONTRIBUTING-DOCS.md for documentation contributors
-
-### Added - Navigation System Enhancements
-- **Per-Pane Navigation State Isolation**
-  - `PaneId` integration in navigation components
-  - Independent navigation state per pane
-  - Proper cleanup when panes are destroyed
-- **Plugin Navigation API Security**
-  - Rate limiting for plugin actions (10/sec default)
-  - Validation for plugin-sourced focusables
-  - Bounded storage for plugin-registered focusables
-  - Security guardrails documentation
-- **Navigation Metrics**
-  - Performance tracking for navigation operations
-  - Timing samples for pane switches
-  - Telemetry integration
-
-### Changed
-- **Navigation Architecture**: Stabilization and refinement
-  - ECS-native navigation now production-ready
-  - Improved documentation and examples
-  - Better integration with multiplexing system
-- **Documentation Structure**: Reorganized for better discoverability
-  - Centralized index with clear navigation
-  - Separate user and developer content
-  - mdBook for browsable documentation
-
-### Fixed
-- **Navigation State Isolation**: Fixed state leaking between panes
-  - Each pane now maintains independent navigation state
-  - Proper PaneId tracking in all navigation components
-- **Plugin Security**: Added validation for plugin navigation API
-  - Rate limiting prevents abuse
-  - Focusable validation ensures safety
-
-### Documentation
-- **Navigation Guides**: Complete documentation for users and developers
-  - User guide: Quickstart, keymaps, common workflows
-  - Developer guide: ECS patterns, custom actions, integration
-- **Testing Guide**: Comprehensive TESTING.md (757 lines)
-  - Test organization and patterns
-  - Running tests and CI integration
-  - Writing new tests for ECS components
-- **Configuration Reference**: docs/configuration.md (19KB)
-  - All configuration options documented
-  - Navigation settings explained
-  - Telemetry configuration
-- **mdBook Portal**: Browsable documentation site
-  - Hierarchical organization
-  - Search functionality
-  - Easy navigation between topics
-
-### Known Issues
-- Navigation IPC handler incomplete (4 missing match arms)
-  - `NavEnterHintMode`, `NavExitMode`, `NavRegisterFocusable`, `NavUnregisterFocusable`
-  - Blocks compilation, must be fixed before release
-- Compiler warnings present (non-blocking)
-  - Various unused code warnings
-  - Clippy style suggestions
-
-### Testing
-- **ratatui-testlib Integration**: Smoke tests for widgets
-- **Component Tests**: Navigation component isolation tests
-- **Documentation Tests**: Code examples in docs are verified
 
 ## [0.1.0-alpha.7] - 2025-11-24
 
@@ -801,5 +870,14 @@ Co-Authored-By: Claude <noreply@anthropic.com>
 
 ---
 
-[Unreleased]: https://github.com/raibid-labs/scarab/compare/v0.1.0-alpha.1...HEAD
+[Unreleased]: https://github.com/raibid-labs/scarab/compare/v0.2.0-alpha.0...HEAD
+[0.2.0-alpha.0]: https://github.com/raibid-labs/scarab/compare/v0.1.0-alpha.15...v0.2.0-alpha.0
+[0.1.0-alpha.15]: https://github.com/raibid-labs/scarab/compare/v0.1.0-alpha.14...v0.1.0-alpha.15
+[0.1.0-alpha.14]: https://github.com/raibid-labs/scarab/compare/v0.1.0-alpha.7...v0.1.0-alpha.14
+[0.1.0-alpha.7]: https://github.com/raibid-labs/scarab/compare/v0.1.0-alpha.6...v0.1.0-alpha.7
+[0.1.0-alpha.6]: https://github.com/raibid-labs/scarab/compare/v0.1.0-alpha.5...v0.1.0-alpha.6
+[0.1.0-alpha.5]: https://github.com/raibid-labs/scarab/compare/v0.1.0-alpha.4...v0.1.0-alpha.5
+[0.1.0-alpha.4]: https://github.com/raibid-labs/scarab/compare/v0.1.0-alpha.3...v0.1.0-alpha.4
+[0.1.0-alpha.3]: https://github.com/raibid-labs/scarab/compare/v0.1.0-alpha.2...v0.1.0-alpha.3
+[0.1.0-alpha.2]: https://github.com/raibid-labs/scarab/compare/v0.1.0-alpha.1...v0.1.0-alpha.2
 [0.1.0-alpha.1]: https://github.com/raibid-labs/scarab/releases/tag/v0.1.0-alpha.1

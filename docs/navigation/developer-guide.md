@@ -895,6 +895,6 @@ fn debug_plugin_rejections(
 ## Further Reading
 
 - [User Navigation Guide](../navigation.md) - End-user documentation
-- [Plugin Development Guide](../plugin-development-guide.md) - Building plugins with navigation
+- [Plugin Development Guide](../plugin-development/README.md) - Building plugins with navigation
 - [Bevy ECS Documentation](https://docs.rs/bevy/latest/bevy/ecs/) - Understanding Bevy's ECS
 - [Vimium Browser Extension](https://github.com/philc/vimium) - Inspiration for hint mode

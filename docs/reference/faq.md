@@ -296,7 +296,7 @@ GDK_BACKEND=x11 scarab-client
 
 **Resources**:
 - [Plugin Examples](../examples/plugins/) - Real-world plugins
-- [API Reference](../api/plugin-api.md) - Complete API docs
+- [API Reference](../plugin-development/api-reference/) - Complete API docs
 - [Plugin Template](../examples/plugin-template/) - Starter template
 
 ---

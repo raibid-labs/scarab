@@ -128,7 +128,6 @@ fn get_daemon_binary() -> Result<PathBuf> {
 /// Verifies that text sent through the daemon's PTY appears in the terminal grid.
 /// This tests the VTE parsing → SharedMemory → Rendering pipeline.
 #[test]
-#[ignore = "Requires daemon binary and PTY support"]
 fn test_pty_output_passthrough() -> Result<()> {
     println!("=== Test: PTY Output Passthrough ===");
 
@@ -176,7 +175,6 @@ fn test_pty_output_passthrough() -> Result<()> {
 /// Spawns a command that outputs text and verifies it renders at the correct positions
 /// in the terminal grid.
 #[test]
-#[ignore = "Requires daemon binary and PTY support"]
 fn test_grid_text_rendering() -> Result<()> {
     println!("=== Test: Grid Text Rendering ===");
 
@@ -267,7 +265,6 @@ fn test_nav_hotkey_sequences() -> Result<()> {
 ///
 /// Verifies that cursor position is correctly tracked as commands are executed.
 #[test]
-#[ignore = "Requires daemon binary and PTY support"]
 fn test_cursor_position_tracking() -> Result<()> {
     println!("=== Test: Cursor Position Tracking ===");
 
@@ -306,7 +303,6 @@ fn test_cursor_position_tracking() -> Result<()> {
 ///
 /// Tests the wait_for helper to ensure we can wait for specific text to appear.
 #[test]
-#[ignore = "Requires daemon binary and PTY support"]
 fn test_wait_for_text_condition() -> Result<()> {
     println!("=== Test: Wait for Text Condition ===");
 
@@ -341,7 +337,6 @@ fn test_wait_for_text_condition() -> Result<()> {
 ///
 /// Verifies that multiple commands can be executed and their output correctly captured.
 #[test]
-#[ignore = "Requires daemon binary and PTY support"]
 fn test_multiple_commands_sequence() -> Result<()> {
     println!("=== Test: Multiple Commands Sequence ===");
 

@@ -368,51 +368,16 @@ These documents are actively maintained and represent the current state of Scara
 #### User Documentation
 - All files in `user/`, `tutorials/`, `reference/`, `migration/`
 
-### Legacy and Historical Documents
+### Deprecated Documentation
 
-The following documents contain outdated information or have been superseded. They are kept for historical reference.
+Legacy and outdated documentation has been moved to the `deprecated/` folder for historical reference.
 
-#### Superseded by plugin-development/
+**See [deprecated/README.md](./deprecated/README.md)** for:
+- Superseded plugin development guides
+- Point-in-time completion reports
+- Historical implementation summaries
 
-These documents have been replaced by the comprehensive plugin development guide:
-
-- `plugin-api.md` → See `plugin-development/api-reference/` instead
-- `plugin-development-guide.md` → See `plugin-development/README.md` instead
-- `PLUGIN_DEVELOPMENT.md` → See `plugin-development/README.md` instead
-- `guides/plugin-development.md` → See `plugin-development/README.md` instead
-
-#### Completion Reports (Historical)
-
-Point-in-time completion reports from development phases:
-
-- `AUDIT_REPORT_PASS_2.md`
-- `AUDIT_REPORT_PASS_3.md`
-- `PHASE4_COMPLETION_REPORT.md`
-- `phase4-final-report.md`
-- `phase4-summary.md`
-- `reference/COMPLETION_REPORT.md`
-- `memory/phase1-vte-completion-report.md`
-- `TUTORIAL_IMPLEMENTATION_SUMMARY.md`
-- `REGISTRY_IMPLEMENTATION_SUMMARY.md`
-- `TEST_PLAN_MIMIC.md`
-
-#### Implementation Summaries (Point-in-Time)
-
-These were accurate when written but may be outdated:
-
-- `implementation-summary-fusabi-vm.md`
-- `integration-status.md`
-- `ui-implementation-status.md`
-- `implementation-status/task-c9-plugin-port-completion.md`
-
-#### Analysis Documents (Historical)
-
-Legacy analysis from earlier development phases:
-
-- `analysis/gemini-deep-audit-2025-11-25.md`
-- `analysis/gemini-audit-2025-12-01/`
-- `analysis/todo-audit-report.md`
-- `reviews/gemini-2025-11-24.md`
+These files are preserved for historical context but should not be used for current development or usage guidance.
 
 ### Deprecation Notices
 

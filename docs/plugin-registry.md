@@ -461,7 +461,7 @@ scarab-plugin --registry https://mirror.scarab.dev search <query>
 
 To contribute to the registry system:
 
-1. Review the [Plugin API Documentation](./plugin-api.md)
+1. Review the [Plugin API Documentation](./plugin-development/api-reference/)
 2. Submit plugins via PR to the registry repository
 3. Report issues on GitHub
 4. Suggest features in discussions

@@ -170,4 +170,4 @@ just plugin-new my-plugin
 just dev-mode my-plugin
 ```
 
-See [PLUGIN_DEVELOPMENT.md](PLUGIN_DEVELOPMENT.md) for more details.
+See [Plugin Development Guide](plugin-development/README.md) for more details.
