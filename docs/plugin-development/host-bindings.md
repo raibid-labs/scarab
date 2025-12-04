@@ -68,6 +68,16 @@ let bindings = HostBindings::new(
 | `exit_nav_mode()` | Exit navigation mode | (none) |
 | `register_focusable()` | Register a navigation target | `can_register_focusables` |
 | `unregister_focusable()` | Remove a navigation target | (none) |
+| `prompt_jump()` | Navigate to previous/next prompt | (none) |
+
+#### UI Methods
+
+| Method | Description | Quota |
+|--------|-------------|-------|
+| `spawn_overlay()` | Create floating overlay at position | `max_overlays` (default: 10) |
+| `remove_overlay()` | Remove overlay by ID | (none) |
+| `add_status_item()` | Add status bar item | `max_status_items` (default: 5) |
+| `remove_status_item()` | Remove status item by ID | (none) |
 
 #### Configuration Methods
 
@@ -212,6 +222,10 @@ let navConfig = {
     MaxFocusables = 25
 }
 ```
+
+## Fusabi Version Note
+
+Scarab uses Fusabi v0.17.0 due to `bevy-fusabi 0.1.4` dependency constraint. Issue #88 requested v0.32.x but this version does not exist on crates.io (latest is v0.21.0). All ECS-safe UI/nav bindings are implemented independent of Fusabi version. The version will auto-upgrade when bevy-fusabi releases a compatible update.
 
 ## See Also
 

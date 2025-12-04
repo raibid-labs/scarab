@@ -2,79 +2,38 @@
 
 Thank you for helping improve Scarab's documentation!
 
-## Prerequisites
+## Documentation Architecture
 
-### Install mdBook
+Scarab uses a **multi-source documentation model**:
 
-```bash
-cargo install mdbook
-```
+| Source | Purpose | Location |
+|--------|---------|----------|
+| **External Docs Site** | User guides, tutorials, browsable docs | `~/raibid-labs/docs` (separate repo) |
+| **Rustdoc** | API reference, inline code docs | `cargo doc --workspace --open` |
+| **In-Repo Docs** | Canonical references, implementation notes | `docs/` folder |
 
-### Optional Tools
+> **Note:** The in-repo `docs/book/` folder contains legacy mdBook scaffolding. For mdBook-specific instructions, see [deprecated/mdbook-instructions.md](./deprecated/mdbook-instructions.md).
 
-```bash
-# Link checking
-cargo install mdbook-linkcheck
+## In-Repo Documentation
 
-# Mermaid diagrams
-cargo install mdbook-mermaid
-```
+This `docs/` folder contains:
 
-## Building Documentation
+- **Canonical references** - Navigation system, plugin development, architecture
+- **Implementation notes** - Design decisions, status tracking
+- **Audits & research** - Code reviews, gap analyses
+- **Deprecation notices** - Superseded documentation
 
-### Build the book
-
-```bash
-cd docs/book
-mdbook build
-```
-
-Or use the justfile target:
-
-```bash
-just docs-build
-```
-
-Output is generated in `docs/book/build/`.
-
-## Local Preview
-
-### Serve with live reload
-
-```bash
-cd docs/book
-mdbook serve --open
-```
-
-Or use the justfile target:
-
-```bash
-just docs-serve
-```
-
-This will:
-1. Build the documentation
-2. Start a local web server (default: http://localhost:3000)
-3. Open your browser
-4. Watch for changes and auto-reload
-
-## Documentation Structure
+### Structure
 
 ```
 docs/
-├── book/                          # mdBook source
-│   ├── book.toml                 # mdBook configuration
-│   ├── src/                      # Markdown source files
-│   │   ├── SUMMARY.md           # Table of contents
-│   │   ├── introduction.md      # Landing page
-│   │   ├── user-guide/          # User documentation
-│   │   ├── developer-guide/     # Developer documentation
-│   │   └── reference/           # API and reference docs
-│   └── build/                   # Generated HTML (gitignored)
-├── navigation/                   # Navigation system docs
-├── audits/                       # Code audit reports
-├── configuration.md              # Configuration guide
-└── CONTRIBUTING-DOCS.md         # This file
+├── README.md                     # Documentation index (start here)
+├── navigation/                   # Navigation system (current)
+├── plugin-development/           # Plugin development (current)
+├── developer/                    # Architecture, implementation
+├── deprecated/                   # Superseded documentation
+├── audits/                       # Code audits and reviews
+└── ...                           # Other reference docs
 ```
 
 ## Content Guidelines
@@ -102,101 +61,19 @@ fn main() {
 ```bash
 cargo build --release
 ```
-
-```toml
-[package]
-name = "scarab"
-```
 ````
 
 #### Links
 
 - **Internal links**: Use relative paths
   ```markdown
-  [Configuration](./user-guide/configuration.md)
+  [Configuration](./configuration.md)
   ```
 
 - **External links**: Use full URLs
   ```markdown
   [Bevy](https://bevyengine.org)
   ```
-
-- **Existing docs**: Link rather than duplicate
-  ```markdown
-  For details, see [Navigation Spec](../../navigation/NAVIGATION_SPEC.md)
-  ```
-
-#### Headings
-
-Use hierarchical headings:
-
-```markdown
-# Top Level (Page Title)
-
-## Major Section
-
-### Subsection
-
-#### Detail Section
-```
-
-### File Organization
-
-- **One topic per page**: Keep pages focused
-- **Descriptive filenames**: Use kebab-case (e.g., `getting-started.md`)
-- **Update SUMMARY.md**: Add new pages to the table of contents
-
-## Adding New Pages
-
-1. **Create the markdown file**:
-   ```bash
-   touch docs/book/src/user-guide/new-feature.md
-   ```
-
-2. **Add to SUMMARY.md**:
-   ```markdown
-   # User Guide
-   - [Getting Started](./user-guide/getting-started.md)
-   - [New Feature](./user-guide/new-feature.md)  # Add this
-   ```
-
-3. **Write content**: Follow the guidelines above
-
-4. **Test locally**:
-   ```bash
-   just docs-serve
-   ```
-
-## Linking to Existing Documentation
-
-Scarab has extensive standalone documentation. **Don't duplicate content** - link to it:
-
-### Example
-
-Instead of copying navigation documentation:
-
-```markdown
-# Navigation
-
-## Spatial Navigation
-
-[Full navigation specification](../../navigation/NAVIGATION_SPEC.md)
-
-## Quick Reference
-
-- Use arrow keys to move between panes
-- See [Navigation README](../../navigation/README.md) for details
-```
-
-### Existing Documentation
-
-- `docs/navigation/` - Navigation system design and specs
-- `docs/configuration.md` - Configuration guide
-- `docs/audits/` - Code audit reports
-- `CLAUDE.md` - Project architecture and constraints
-- `README.md` - Project overview
-
-## Style Consistency
 
 ### Terminology
 
@@ -215,92 +92,71 @@ Use consistent terms:
 - **Paths**: Use code formatting: `/home/user/.config/scarab/`
 - **Keyboard**: Use kbd notation: `Ctrl+Shift+T`
 
-## Documentation Types
+## Adding Documentation
 
-### User Guide
+### Adding to In-Repo Docs
 
-- Focus on **what** and **how**
-- Provide step-by-step instructions
-- Include screenshots where helpful
-- Assume no Rust knowledge
+1. **Choose the right location**:
+   - User-facing → `user/`, `tutorials/`, `reference/`
+   - Developer → `developer/`, `architecture/`, `plugin-development/`
+   - Historical → `audits/`, `deprecated/`
 
-### Developer Guide
+2. **Update docs/README.md**: Add links to new documents
 
-- Focus on **why** and **how it works**
-- Explain architecture and design decisions
-- Link to code when relevant
-- Assume Rust knowledge
+3. **Use descriptive filenames**: kebab-case (e.g., `getting-started.md`)
 
-### Reference
+### Marking Documentation as Deprecated
 
-- Complete, authoritative information
-- Structured for lookup, not learning
-- Include all options and parameters
-- Keep up-to-date with code
+When documentation is superseded:
 
-## Testing Documentation
+1. **Move to `deprecated/`** folder
+2. **Add deprecation notice** at the top:
+   ```markdown
+   > **DEPRECATED**: This document has been superseded by [Current Doc](../path/to/current.md).
+   ```
+3. **Update deprecated/README.md** to list the file
 
-### Check for broken links
+## Rustdoc Guidelines
 
-```bash
-# If mdbook-linkcheck is installed
-mdbook build
+For API documentation in Rust code:
 
-# Manual check
-grep -r "\.md" docs/book/src/ | grep -o "\[.*\](.*)"
+```rust
+/// Creates a new terminal session with the given configuration.
+/// 
+/// # Arguments
+/// 
+/// * `config` - Session configuration options
+/// 
+/// # Examples
+/// 
+/// ```rust
+/// let session = Session::new(SessionConfig::default());
+/// ```
+pub fn new(config: SessionConfig) -> Self { ... }
 ```
 
-### Verify code examples
-
-Run any shell commands or code examples to ensure they work:
+Generate and view:
 
 ```bash
-# Test a command from the docs
-cargo build -p scarab-daemon
+cargo doc --workspace --open
 ```
 
 ## Review Process
 
 Before submitting documentation changes:
 
-1. **Build locally**: Ensure no errors
-   ```bash
-   just docs-build
-   ```
-
-2. **Preview**: Check formatting and links
-   ```bash
-   just docs-serve
-   ```
-
-3. **Spell check**: Use a spell checker
-
-4. **Cross-references**: Verify all links work
-
-5. **Update SUMMARY.md**: If adding new pages
-
-## Continuous Improvement
-
-Documentation is never finished. Look for:
-
-- Outdated information
-- Confusing explanations
-- Missing examples
-- Broken links
-- Typos and grammar issues
-
-Submit improvements, no matter how small!
+1. **Verify links work**: Check relative paths
+2. **Spell check**: Use a spell checker
+3. **Update index**: Add to docs/README.md if needed
+4. **Test code examples**: Ensure they run
 
 ## Getting Help
 
-Questions about documentation?
-
 - Open an issue on GitHub
-- Ask in project chat
-- Check existing documentation for patterns
+- Check the [documentation index](./README.md)
+- Review existing documentation patterns
 
 ## Resources
 
-- [mdBook Documentation](https://rust-lang.github.io/mdBook/)
 - [Markdown Guide](https://www.markdownguide.org/)
 - [Rust Documentation Guidelines](https://doc.rust-lang.org/book/ch14-02-publishing-to-crates-io.html#documentation-comments-as-tests)
