@@ -11,15 +11,15 @@
 
 # Scarab Terminal Emulator
 
-**Next-Generation GPU-Accelerated Terminal with F# Plugins**
+**Next-Generation GPU-Accelerated Terminal with Fusabi LTS Plugins**
 
 [![Build Status](https://github.com/raibid-labs/scarab/workflows/CI/badge.svg)](https://github.com/raibid-labs/scarab/actions)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Rust](https://img.shields.io/badge/rust-1.75%2B-orange.svg)](https://www.rust-lang.org/)
-[![Fusabi](https://img.shields.io/badge/Fusabi-0.17.0-purple.svg)](https://github.com/fusabi-lang/fusabi)
+[![Fusabi](https://img.shields.io/badge/Fusabi-LTS-purple.svg)](https://github.com/fusabi-lang/fusabi)
 [![Bevy](https://img.shields.io/badge/Bevy-0.15-blue.svg)](https://bevyengine.org/)
 
-[Features](#-features) | [Installation](#-installation) | [Quick Start](#-quick-start) | [Plugins](#-plugin-system) | [Documentation](#-documentation) | [Contributing](#-contributing)
+[Features](#-features) | [Installation](#-installation) | [Quick Start](#-quick-start) | [Plugins](#-plugin-system) | [Documentation](#-documentation) | [Testing](TESTING.md) | [Contributing](#-contributing)
 
 </div>
 
