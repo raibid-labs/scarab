@@ -20,7 +20,7 @@ fn test_session_creation_and_persistence() {
 
     // Create new manager instance to test persistence
     let manager2 = SessionManager::new(db_path).unwrap();
-    manager2.restore_sessions().unwrap();
+    manager2.restore_sessions("/bin/sh", 80, 24).unwrap();
 
     assert_eq!(manager2.session_count(), 2);
 
@@ -98,7 +98,7 @@ fn test_session_rename() {
 
     // Verify rename persisted
     let manager2 = SessionManager::new(db_path).unwrap();
-    manager2.restore_sessions().unwrap();
+    manager2.restore_sessions("/bin/sh", 80, 24).unwrap();
 
     let session = manager2.get_session(&id).unwrap();
     assert_eq!(session.name, "new_name");
@@ -209,7 +209,7 @@ fn test_session_resurrection() {
     // Second daemon instance - should resurrect sessions
     {
         let manager = SessionManager::new(db_path).unwrap();
-        manager.restore_sessions().unwrap();
+        manager.restore_sessions("/bin/sh", 80, 24).unwrap();
 
         assert_eq!(manager.session_count(), 2);
 

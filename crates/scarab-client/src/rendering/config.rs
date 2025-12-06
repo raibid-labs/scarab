@@ -136,22 +136,28 @@ impl Default for TextAttributes {
 pub mod color {
     use bevy::prelude::{Color, ColorToComponents};
 
-    /// Convert u32 RGBA to Bevy Color
-    pub fn from_rgba(rgba: u32) -> Color {
-        let r = ((rgba >> 24) & 0xFF) as f32 / 255.0;
-        let g = ((rgba >> 16) & 0xFF) as f32 / 255.0;
-        let b = ((rgba >> 8) & 0xFF) as f32 / 255.0;
-        let a = (rgba & 0xFF) as f32 / 255.0;
+    /// Convert u32 ARGB to Bevy Color
+    ///
+    /// The daemon uses ARGB format (0xAARRGGBB):
+    /// - High byte (bits 24-31): Alpha
+    /// - Next byte (bits 16-23): Red
+    /// - Next byte (bits 8-15): Green
+    /// - Low byte (bits 0-7): Blue
+    pub fn from_rgba(argb: u32) -> Color {
+        let a = ((argb >> 24) & 0xFF) as f32 / 255.0;
+        let r = ((argb >> 16) & 0xFF) as f32 / 255.0;
+        let g = ((argb >> 8) & 0xFF) as f32 / 255.0;
+        let b = (argb & 0xFF) as f32 / 255.0;
         Color::srgba(r, g, b, a)
     }
 
-    /// Convert Bevy Color to u32 RGBA
+    /// Convert Bevy Color to u32 ARGB
     pub fn to_rgba(color: Color) -> u32 {
         let [r, g, b, a] = color.to_srgba().to_f32_array();
+        let a = (a * 255.0) as u32;
         let r = (r * 255.0) as u32;
         let g = (g * 255.0) as u32;
         let b = (b * 255.0) as u32;
-        let a = (a * 255.0) as u32;
-        (r << 24) | (g << 16) | (b << 8) | a
+        (a << 24) | (r << 16) | (g << 8) | b
     }
 }

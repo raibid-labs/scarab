@@ -417,15 +417,16 @@ fn render_glyph(
     let fg_array = fg.to_srgba().to_f32_array();
 
     // Add glyph quad
-    // Position is based on cell grid (x, y), but size is actual glyph dimensions
-    let glyph_width = atlas_rect.width as f32;
-    let glyph_height = atlas_rect.height as f32;
+    // Use CELL dimensions for positioning, not glyph dimensions
+    // This ensures all characters are in a fixed grid
+    let cell_width = renderer.cell_width;
+    let cell_height = renderer.cell_height;
 
     positions.extend_from_slice(&[
         [x, y, LAYER_TERMINAL_TEXT], // Above background
-        [x + glyph_width, y, LAYER_TERMINAL_TEXT],
-        [x + glyph_width, y - glyph_height, LAYER_TERMINAL_TEXT],
-        [x, y - glyph_height, LAYER_TERMINAL_TEXT],
+        [x + cell_width, y, LAYER_TERMINAL_TEXT],
+        [x + cell_width, y - cell_height, LAYER_TERMINAL_TEXT],
+        [x, y - cell_height, LAYER_TERMINAL_TEXT],
     ]);
 
     // Use normal UVs (no flip)
