@@ -1,0 +1,32 @@
+# Example Plugin Manifest
+# This file demonstrates the plugin manifest schema for Scarab plugins
+
+name = "example-plugin"
+version = "1.0.0"
+description = "An example plugin demonstrating manifest usage"
+author = "Scarab Team"
+homepage = "https://github.com/raibid-labs/scarab"
+
+# API version this plugin requires (must match major version)
+api-version = "0.1.0"
+
+# Minimum Scarab version required
+min-scarab-version = "0.1.0"
+
+# Optional visual metadata
+emoji = "🔌"
+color = "#FF5733"
+catchphrase = "Power to the plugins!"
+
+# Required capabilities - plugins must declare what they intend to do
+capabilities = [
+    "output-filtering",    # Can intercept and modify terminal output
+    "ui-overlay",          # Can draw overlays on client UI
+    "menu-registration",   # Can register menu items
+]
+
+# Required modules from fusabi-stdlib-ext
+required-modules = [
+    "terminal",  # Terminal I/O operations
+    "text",      # Text processing utilities
+]

@@ -18,6 +18,7 @@ pub mod error;
 pub mod events;
 pub mod host_bindings;
 pub mod key_tables;
+pub mod manifest;
 pub mod menu;
 pub mod navigation;
 pub mod object_model;
@@ -42,6 +43,7 @@ pub use key_tables::{
     KeyModifiers, KeyTable, KeyTableActivation, KeyTableStack, LeaderKeyConfig, LeaderKeyState,
     SearchAction, SplitDirection,
 };
+pub use manifest::{Capability, FusabiModule, ManifestError, PluginManifest};
 pub use menu::{MenuAction, MenuItem};
 pub use navigation::{
     validate_focusable, NavigationExt, PluginFocusable, PluginFocusableAction,
