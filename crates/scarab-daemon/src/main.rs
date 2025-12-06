@@ -62,7 +62,11 @@ async fn main() -> Result<()> {
     let session_manager = std::sync::Arc::new(SessionManager::new(db_path)?);
 
     // Restore sessions from previous daemon runs
-    session_manager.restore_sessions()?;
+    session_manager.restore_sessions(
+        &config.terminal.default_shell,
+        config.terminal.columns,
+        config.terminal.rows,
+    )?;
     println!(
         "Session Manager: Active ({} sessions)",
         session_manager.session_count()

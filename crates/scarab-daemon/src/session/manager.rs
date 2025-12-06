@@ -92,6 +92,38 @@ impl Session {
         }
     }
 
+    /// Ensure the session has at least one tab with a PTY
+    ///
+    /// Called after restoration to spawn a new shell for restored sessions.
+    /// Returns Ok(true) if a tab was created, Ok(false) if tabs already existed.
+    pub fn ensure_default_tab(&self, shell: &str, cols: u16, rows: u16) -> Result<bool> {
+        // Check if we already have tabs
+        if self.tab_count() > 0 {
+            return Ok(false);
+        }
+
+        // Create initial tab with a single pane
+        let tab = Tab::new(1, "Tab 1".to_string(), shell, cols, rows)?;
+
+        {
+            let mut tabs = self.tabs.write();
+            tabs.insert(1, tab);
+        }
+
+        {
+            let mut active = self.active_tab_id.write();
+            *active = 1;
+        }
+
+        {
+            let mut next_id = self.next_tab_id.write();
+            *next_id = 2;
+        }
+
+        log::info!("Restored session {} with new tab and PTY ({}x{})", self.id, cols, rows);
+        Ok(true)
+    }
+
     // ==================== Tab Management ====================
 
     /// Create a new tab
@@ -336,11 +368,21 @@ impl SessionManager {
     }
 
     /// Initialize from persisted sessions
-    pub fn restore_sessions(&self) -> Result<()> {
+    ///
+    /// This restores session metadata from the database and spawns new PTYs
+    /// for each session. The shell, columns, and rows parameters are used
+    /// to configure the new terminal instances.
+    pub fn restore_sessions(&self, shell: &str, cols: u16, rows: u16) -> Result<()> {
         let persisted = self.store.load_sessions()?;
 
         let mut sessions = self.sessions.write();
         for session in persisted {
+            // Spawn a new PTY for the restored session
+            if let Err(e) = session.ensure_default_tab(shell, cols, rows) {
+                log::warn!("Failed to spawn PTY for restored session {}: {}", session.id, e);
+                // Continue anyway - session exists but won't have PTY
+            }
+
             let session = Arc::new(session);
             sessions.insert(session.id.clone(), session);
         }
