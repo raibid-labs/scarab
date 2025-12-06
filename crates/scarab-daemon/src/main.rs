@@ -1,8 +1,8 @@
 use anyhow::Result;
 use portable_pty::PtySize;
 use scarab_config::ConfigLoader;
-use scarab_protocol::{SharedImageBuffer, SharedImagePlacement, SharedState, IMAGE_SHMEM_PATH, MAX_IMAGES, SHMEM_PATH};
-use shared_memory::ShmemConf;
+use scarab_protocol::{SharedImageBuffer, SharedImagePlacement, SharedState, IMAGE_SHMEM_PATH, IMAGE_SHMEM_PATH_ENV, MAX_IMAGES, SHMEM_PATH, SHMEM_PATH_ENV};
+use shared_memory::{ShmemConf, ShmemError};
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
 use tokio::sync::mpsc;
@@ -91,30 +91,51 @@ async fn main() -> Result<()> {
     );
 
     // 2. Initialize Shared Memory
+    // Support environment variable override for sandboxed environments
+    let shmem_path = std::env::var(SHMEM_PATH_ENV).unwrap_or_else(|_| SHMEM_PATH.to_string());
+
     // Try to create new shared memory, or open existing if it already exists
+    // Only fall back to open() for MappingIdExists; other errors are fatal
     let shmem = match ShmemConf::new()
         .size(std::mem::size_of::<SharedState>())
-        .os_id(SHMEM_PATH)
+        .os_id(&shmem_path)
         .create()
     {
         Ok(shmem) => {
-            println!("Created shared memory at: {}", SHMEM_PATH);
+            println!("Created shared memory at: {}", shmem_path);
             shmem
         }
-        Err(_) => {
-            // Shared memory already exists, try to open it
-            println!("Shared memory already exists, attempting to open...");
-            match ShmemConf::new().os_id(SHMEM_PATH).open() {
+        Err(ShmemError::MappingIdExists) => {
+            // Shared memory already exists from a previous daemon run - open it
+            println!("Shared memory already exists at {}, attempting to open...", shmem_path);
+            match ShmemConf::new().os_id(&shmem_path).open() {
                 Ok(shmem) => {
-                    println!("Opened existing shared memory at: {}", SHMEM_PATH);
+                    println!("Opened existing shared memory at: {}", shmem_path);
                     shmem
                 }
                 Err(e) => {
-                    eprintln!("Failed to open existing shared memory: {}", e);
-                    eprintln!("Try cleaning up with: ipcrm -M $(ipcs -m | grep scarab | awk '{{print $1}}')");
+                    eprintln!("Failed to open existing shared memory at {}: {}", shmem_path, e);
+                    eprintln!("Try cleaning up with: rm -f /dev/shm{}", shmem_path);
                     return Err(e.into());
                 }
             }
+        }
+        Err(ShmemError::MapCreateFailed(os_err)) => {
+            eprintln!("Failed to create shared memory at {}: OS error {}", shmem_path, os_err);
+            eprintln!("This may indicate:");
+            eprintln!("  - Permission denied (sandbox/namespace restriction)");
+            eprintln!("  - /dev/shm not mounted or not writable");
+            eprintln!("");
+            eprintln!("To use a custom path, set the {} environment variable:", SHMEM_PATH_ENV);
+            eprintln!("  export {}=/my_custom_shm_path", SHMEM_PATH_ENV);
+            return Err(ShmemError::MapCreateFailed(os_err).into());
+        }
+        Err(e) => {
+            eprintln!("Failed to create shared memory at {}: {}", shmem_path, e);
+            eprintln!("");
+            eprintln!("To use a custom path, set the {} environment variable:", SHMEM_PATH_ENV);
+            eprintln!("  export {}=/my_custom_shm_path", SHMEM_PATH_ENV);
+            return Err(e.into());
         }
     };
 
@@ -127,29 +148,49 @@ async fn main() -> Result<()> {
     let sequence_counter = Arc::new(AtomicU64::new(0));
 
     // Initialize SharedImageBuffer for iTerm2 image protocol
+    // Support environment variable override for sandboxed environments
+    let image_shmem_path = std::env::var(IMAGE_SHMEM_PATH_ENV).unwrap_or_else(|_| IMAGE_SHMEM_PATH.to_string());
+
     let image_shmem = match ShmemConf::new()
         .size(std::mem::size_of::<SharedImageBuffer>())
-        .os_id(IMAGE_SHMEM_PATH)
+        .os_id(&image_shmem_path)
         .create()
     {
         Ok(shmem) => {
             println!("Created image shared memory at: {} ({} bytes)",
-                IMAGE_SHMEM_PATH, std::mem::size_of::<SharedImageBuffer>());
+                image_shmem_path, std::mem::size_of::<SharedImageBuffer>());
             shmem
         }
-        Err(_) => {
-            println!("Image shared memory already exists, attempting to open...");
-            match ShmemConf::new().os_id(IMAGE_SHMEM_PATH).open() {
+        Err(ShmemError::MappingIdExists) => {
+            println!("Image shared memory already exists at {}, attempting to open...", image_shmem_path);
+            match ShmemConf::new().os_id(&image_shmem_path).open() {
                 Ok(shmem) => {
-                    println!("Opened existing image shared memory at: {}", IMAGE_SHMEM_PATH);
+                    println!("Opened existing image shared memory at: {}", image_shmem_path);
                     shmem
                 }
                 Err(e) => {
-                    eprintln!("Failed to open existing image shared memory: {}", e);
-                    eprintln!("Try cleaning up with: ipcrm -M $(ipcs -m | grep scarab | awk '{{print $1}}')");
+                    eprintln!("Failed to open existing image shared memory at {}: {}", image_shmem_path, e);
+                    eprintln!("Try cleaning up with: rm -f /dev/shm{}", image_shmem_path);
                     return Err(e.into());
                 }
             }
+        }
+        Err(ShmemError::MapCreateFailed(os_err)) => {
+            eprintln!("Failed to create image shared memory at {}: OS error {}", image_shmem_path, os_err);
+            eprintln!("This may indicate:");
+            eprintln!("  - Permission denied (sandbox/namespace restriction)");
+            eprintln!("  - /dev/shm not mounted or not writable");
+            eprintln!("");
+            eprintln!("To use a custom path, set the {} environment variable:", IMAGE_SHMEM_PATH_ENV);
+            eprintln!("  export {}=/my_custom_img_shm_path", IMAGE_SHMEM_PATH_ENV);
+            return Err(ShmemError::MapCreateFailed(os_err).into());
+        }
+        Err(e) => {
+            eprintln!("Failed to create image shared memory at {}: {}", image_shmem_path, e);
+            eprintln!("");
+            eprintln!("To use a custom path, set the {} environment variable:", IMAGE_SHMEM_PATH_ENV);
+            eprintln!("  export {}=/my_custom_img_shm_path", IMAGE_SHMEM_PATH_ENV);
+            return Err(e.into());
         }
     };
 

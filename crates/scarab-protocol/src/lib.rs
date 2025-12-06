@@ -12,7 +12,16 @@ pub use terminal_state::TerminalStateReader;
 pub mod zones;
 pub use zones::{SemanticZone, ZoneType, CommandBlock, ZoneTracker};
 
+/// Default shared memory path for terminal state.
+/// Can be overridden via SCARAB_SHMEM_PATH environment variable.
 pub const SHMEM_PATH: &str = "/scarab_shm_v1";
+
+/// Environment variable to override the shared memory path.
+/// Useful for sandboxed environments where /dev/shm is not writable.
+pub const SHMEM_PATH_ENV: &str = "SCARAB_SHMEM_PATH";
+
+/// Environment variable to override the image shared memory path.
+pub const IMAGE_SHMEM_PATH_ENV: &str = "SCARAB_IMAGE_SHMEM_PATH";
 pub const GRID_WIDTH: usize = 200;
 pub const GRID_HEIGHT: usize = 100;
 pub const BUFFER_SIZE: usize = GRID_WIDTH * GRID_HEIGHT;
@@ -65,7 +74,8 @@ pub const MAX_IMAGES: usize = 64;
 /// Maximum total image buffer size (16MB)
 pub const IMAGE_BUFFER_SIZE: usize = 16 * 1024 * 1024;
 
-/// Shared memory path for image buffer (separate from terminal state)
+/// Default shared memory path for image buffer (separate from terminal state).
+/// Can be overridden via SCARAB_IMAGE_SHMEM_PATH environment variable.
 pub const IMAGE_SHMEM_PATH: &str = "/scarab_img_shm_v1";
 
 /// Image placement metadata for shared memory
