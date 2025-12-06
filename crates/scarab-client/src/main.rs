@@ -12,7 +12,7 @@ use scarab_client::input::{NavInputRouter, ModeStack, NavStyle};
 use scarab_config::{ConfigLoader, FusabiConfigLoader};
 // Uncomment to enable hot-reloading config via bevy-fusabi:
 // use scarab_config::ScarabConfigPlugin;
-use scarab_protocol::{SharedState, SHMEM_PATH};
+use scarab_protocol::{SharedState, SHMEM_PATH, SHMEM_PATH_ENV};
 use shared_memory::ShmemConf;
 use std::sync::Arc;
 
@@ -59,20 +59,27 @@ fn main() {
     };
 
     // Initialize shared memory before Bevy app starts
+    // Support environment variable override for sandboxed environments
+    let shmem_path = std::env::var(SHMEM_PATH_ENV).unwrap_or_else(|_| SHMEM_PATH.to_string());
+
     let shmem = match ShmemConf::new()
         .size(std::mem::size_of::<SharedState>())
-        .os_id(SHMEM_PATH)
+        .os_id(&shmem_path)
         .open()
     {
         Ok(m) => {
-            println!("Connected to shared memory at: {}", SHMEM_PATH);
+            println!("Connected to shared memory at: {}", shmem_path);
             Arc::new(m)
         }
         Err(e) => {
             eprintln!(
-                "Failed to open shared memory: {}. Is the daemon running?",
-                e
+                "Failed to open shared memory at {}: {}",
+                shmem_path, e
             );
+            eprintln!("Is the daemon running?");
+            eprintln!("");
+            eprintln!("If using a custom shared memory path, ensure both daemon and client");
+            eprintln!("use the same {} setting.", SHMEM_PATH_ENV);
             std::process::exit(1);
         }
     };
