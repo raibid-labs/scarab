@@ -208,6 +208,18 @@ fn sync_terminal_state_system(mut state_reader: ResMut<SharedMemoryReader>) {
     let safe_state = state_reader.get_safe_state();
     let current_seq = safe_state.sequence();
 
+    // Log initial sequence on first check
+    static FIRST_CHECK: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(true);
+    if FIRST_CHECK.swap(false, std::sync::atomic::Ordering::SeqCst) {
+        // Also check what cells contain
+        let cells = safe_state.cells();
+        let non_empty = cells.iter().filter(|c| c.char_codepoint != 0 && c.char_codepoint != 32).count();
+        info!(
+            "Initial shared state: seq={}, non_empty_cells={}, dirty={}",
+            current_seq, non_empty, safe_state.is_dirty()
+        );
+    }
+
     if current_seq != state_reader.last_sequence {
         // State has been updated by daemon
         let (cursor_x, cursor_y) = safe_state.cursor_pos();
