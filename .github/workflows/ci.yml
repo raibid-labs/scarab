@@ -160,7 +160,9 @@ jobs:
       - name: Run ratatui-testlib smoke tests
         env:
           SCARAB_TEST_RTL: "1"
-        run: cargo test -p scarab-client --test ratatui_testlib_smoke -- --ignored
+        run: |
+          cargo test -p scarab-client --test smoke_tests
+          cargo test -p scarab-daemon --test smoke_tests
         continue-on-error: true  # PTY allocation may fail in some CI runners
 
       - name: Report test status
