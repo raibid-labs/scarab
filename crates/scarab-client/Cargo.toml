@@ -24,6 +24,7 @@ scarab-mouse = { path = "../scarab-mouse" }
 scarab-telemetry-hud = { path = "../scarab-telemetry-hud" }
 scarab-nav-protocol = "0.1.0"
 fusabi-frontend = { workspace = true }
+fusabi-tui = { workspace = true }
 bevy = { workspace = true }
 bevy_egui = { version = "0.31" }
 serde = { workspace = true }
@@ -52,7 +53,7 @@ profiling = { workspace = true, optional = true }
 
 [dev-dependencies]
 criterion = { workspace = true }
-ratatui-testlib = { version = "0.1.0", features = ["mvp", "sixel-image"] }
+ratatui-testlib = { workspace = true, features = ["mvp", "sixel-image"] }
 tempfile = "3.8"
 insta = "1.34"
 
