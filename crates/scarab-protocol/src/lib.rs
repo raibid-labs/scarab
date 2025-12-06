@@ -31,8 +31,8 @@ impl Default for Cell {
     fn default() -> Self {
         Self {
             char_codepoint: b' ' as u32,
-            fg: 0xFFFFFFFF, // White
-            bg: 0x000000FF, // Black
+            fg: 0xFFFFFFFF, // White (ARGB: A=FF, R=FF, G=FF, B=FF)
+            bg: 0xFF000000, // Black (ARGB: A=FF, R=00, G=00, B=00)
             flags: 0,
             _padding: [0; 3],
         }

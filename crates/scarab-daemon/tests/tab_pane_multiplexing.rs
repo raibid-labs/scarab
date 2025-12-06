@@ -724,7 +724,7 @@ fn test_session_with_tabs_persistence() {
     // Restore and verify
     {
         let manager = SessionManager::new(db_path).unwrap();
-        manager.restore_sessions().unwrap();
+        manager.restore_sessions("/bin/sh", 80, 24).unwrap();
 
         let session = manager.get_session(&session_id).unwrap();
         assert_eq!(session.name, "persistent");
