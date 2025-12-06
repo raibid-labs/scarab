@@ -469,7 +469,8 @@ impl Plugin for ScrollbackPlugin {
         // Initialize resources
         app.insert_resource(ScrollbackBuffer::default())
             .insert_resource(ScrollbackState::new(25)) // 25 lines per page default
-            // Note: ScrollbackScrollEvent is registered by MousePlugin
+            // Register the scroll event (MousePlugin may also register it, but that's harmless)
+            .add_event::<ScrollbackScrollEvent>()
             .add_systems(
                 Update,
                 (
