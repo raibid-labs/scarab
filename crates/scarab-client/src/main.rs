@@ -13,6 +13,7 @@ use scarab_config::{ConfigLoader, FusabiConfigLoader};
 // Uncomment to enable hot-reloading config via bevy-fusabi:
 // use scarab_config::ScarabConfigPlugin;
 use scarab_protocol::{SharedState, SHMEM_PATH, SHMEM_PATH_ENV};
+use scarab_protocol::terminal_state::TerminalStateReader;
 use shared_memory::ShmemConf;
 use std::sync::Arc;
 
@@ -31,6 +32,10 @@ struct Args {
     /// Command to execute on startup (sends input to the running shell)
     #[arg(long)]
     command: Option<String>,
+
+    /// Run in headless mode (no window, dump terminal grid and exit)
+    #[arg(long)]
+    headless: bool,
 }
 
 fn main() {
@@ -97,6 +102,58 @@ fn main() {
     let window_width = config.terminal.columns as f32 * char_width;
     let window_height = config.terminal.rows as f32 * char_height;
 
+    // Branch: Headless mode vs Normal windowed mode
+    if args.headless {
+        run_headless(reader, args.command);
+    } else {
+        run_windowed(reader, config, window_width, window_height, args.command);
+    }
+}
+
+/// Run in headless mode (no window, dump terminal grid and exit)
+fn run_headless(reader: SharedMemoryReader, command: Option<String>) {
+    println!("Running in headless mode");
+
+    let mut app = App::new();
+
+    // Use MinimalPlugins for headless operation
+    app.add_plugins(MinimalPlugins);
+
+    // Add IPC plugin for command injection
+    app.add_plugins(IpcPlugin);
+
+    // Insert shared memory reader
+    app.insert_resource(reader);
+
+    // Insert startup command if provided
+    if let Some(cmd) = command {
+        println!("Startup command: {}", cmd);
+        app.insert_resource(StartupCommand(cmd));
+    }
+
+    // Add headless mode marker resource
+    app.insert_resource(HeadlessMode {
+        startup_time: std::time::Instant::now(),
+        max_wait_secs: 5.0,
+        command_sent: false,
+        initial_sequence: 0,
+    });
+
+    // Add headless system to dump grid and exit
+    app.add_systems(Update, headless_dump_and_exit);
+
+    println!("Headless mode initialized, waiting for terminal output...");
+    app.run();
+}
+
+/// Run in normal windowed mode
+fn run_windowed(
+    reader: SharedMemoryReader,
+    config: scarab_config::ScarabConfig,
+    window_width: f32,
+    window_height: f32,
+    command: Option<String>,
+) {
     // Window icon loading note: Bevy 0.15 window icon support requires platform-specific handling
     // and may not be available in all backends. For now, we log if an icon path is configured.
     if let Some(icon_path) = &config.ui.window_icon {
@@ -106,7 +163,7 @@ fn main() {
 
     let mut app = App::new();
 
-    if let Some(cmd) = args.command {
+    if let Some(cmd) = command {
         app.insert_resource(StartupCommand(cmd));
     }
 
@@ -169,6 +226,88 @@ fn main() {
     }
 
     app.run();
+}
+
+/// Headless mode state tracker
+#[derive(Resource)]
+struct HeadlessMode {
+    startup_time: std::time::Instant,
+    max_wait_secs: f32,
+    command_sent: bool,
+    initial_sequence: u64,
+}
+
+/// System that waits for terminal updates, dumps grid, and exits
+fn headless_dump_and_exit(
+    mut headless: ResMut<HeadlessMode>,
+    reader: Res<SharedMemoryReader>,
+    mut app_exit: EventWriter<bevy::app::AppExit>,
+) {
+    // Get safe state wrapper
+    let safe_state = reader.get_safe_state();
+    let current_seq = safe_state.sequence();
+
+    // Initialize initial sequence on first run
+    if !headless.command_sent {
+        headless.initial_sequence = current_seq;
+        headless.command_sent = true;
+        println!("Initial sequence number: {}", current_seq);
+        return;
+    }
+
+    // Check if terminal has been updated (sequence changed)
+    let has_output = current_seq > headless.initial_sequence;
+
+    // Calculate elapsed time
+    let elapsed = headless.startup_time.elapsed().as_secs_f32();
+
+    // Exit conditions:
+    // 1. Terminal has output and we've waited a bit for it to stabilize (0.5s)
+    // 2. Timeout reached (5 seconds by default)
+    if (has_output && elapsed > 0.5) || elapsed > headless.max_wait_secs {
+        if has_output {
+            println!("Terminal output detected (seq: {} -> {}), dumping grid...", headless.initial_sequence, current_seq);
+        } else {
+            println!("Timeout reached after {:.1}s, dumping grid anyway...", elapsed);
+        }
+
+        // Dump terminal grid to stdout
+        dump_terminal_grid(&safe_state);
+
+        // Exit the app
+        println!("Headless mode complete, exiting.");
+        app_exit.send(bevy::app::AppExit::Success);
+    }
+}
+
+/// Dump the terminal grid to stdout
+fn dump_terminal_grid(state: &impl TerminalStateReader) {
+
+    let (cols, rows) = state.dimensions();
+    let (cursor_x, cursor_y) = state.cursor_pos();
+
+    println!("=== TERMINAL GRID DUMP ===");
+    println!("Dimensions: {}x{}", cols, rows);
+    println!("Cursor: ({}, {})", cursor_x, cursor_y);
+    println!("Sequence: {}", state.sequence());
+    println!("--- GRID CONTENT ---");
+
+    for row in 0..rows {
+        for col in 0..cols {
+            if let Some(cell) = state.cell(row, col) {
+                let ch = if cell.char_codepoint == 0 || cell.char_codepoint == 32 {
+                    ' '
+                } else {
+                    char::from_u32(cell.char_codepoint).unwrap_or('?')
+                };
+                print!("{}", ch);
+            } else {
+                print!(" ");
+            }
+        }
+        println!();
+    }
+    println!("=== END GRID DUMP ===");
 }
 
 fn setup(mut commands: Commands, windows: Query<&Window, With<bevy::window::PrimaryWindow>>) {
