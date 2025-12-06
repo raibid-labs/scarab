@@ -298,6 +298,12 @@ nav-tests:
     cargo test -p scarab-client --lib navigation::tests
     cargo test -p scarab-client --lib -- --test-threads=1
 
+# Smoke test - verify daemon can start, accept input, and update shared memory
+smoke:
+    #!/usr/bin/env bash
+    echo "🧪 Running smoke test harness..."
+    cargo run -p scarab-daemon --example smoke_harness
+
 # Ratatui-testlib PTY smoke tests (env-gated, requires SCARAB_TEST_RTL=1)
 rtl-smoke:
     #!/usr/bin/env bash
