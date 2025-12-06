@@ -310,22 +310,22 @@ async fn main() -> Result<()> {
                         let terminal_state_arc = active_pane.terminal_state();
                         let terminal_state = terminal_state_arc.read();
 
-                        // Only blit if there's been a change (check sequence)
-                        // The orchestrator updates terminal state, we just blit
-                        let current_seq = sequence_counter.load(Ordering::SeqCst);
-                        if current_seq != last_sequence || last_sequence == 0 {
-                            // Log sequence change if enabled
-                            if telemetry.log_sequence_changes {
-                                log::debug!("Sequence: {} -> {}", last_sequence, current_seq);
-                            }
+                        // Always blit to shared memory
+                        // The sequence check was broken: it compared the sequence counter
+                        // to itself, since the counter is only incremented in blit_to_shm().
+                        // The orchestrator updates terminal_state but doesn't signal this.
+                        // Blitting every frame is cheap (memcpy) and ensures the client
+                        // always sees the latest content.
+                        terminal_state.blit_to_shm(shared_ptr, &sequence_counter);
 
-                            terminal_state.blit_to_shm(shared_ptr, &sequence_counter);
+                        // Blit images to SharedImageBuffer
+                        blit_images_to_shm(&terminal_state, image_ptr);
 
-                            // Blit images to SharedImageBuffer
-                            blit_images_to_shm(&terminal_state, image_ptr);
-
-                            last_sequence = sequence_counter.load(Ordering::SeqCst);
+                        let new_seq = sequence_counter.load(Ordering::SeqCst);
+                        if telemetry.log_sequence_changes && new_seq != last_sequence {
+                            log::debug!("Sequence: {} -> {}", last_sequence, new_seq);
                         }
+                        last_sequence = new_seq;
                     }
                 }
             }
