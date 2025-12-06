@@ -645,8 +645,8 @@ checksum = "a9a7ac77c028f5370165b3ed1d918453bd35f7f94bf81a4bf6949e40864b64e0"
 dependencies = [
  "anyhow",
  "bevy 0.15.1",
- "fusabi-frontend",
- "fusabi-vm",
+ "fusabi-frontend 0.17.0",
+ "fusabi-vm 0.17.0",
  "serde",
  "thiserror 1.0.69",
  "tracing",
@@ -2902,6 +2902,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "dashmap"
+version = "5.5.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "978747c1d849a7d2ee5e8adc0159961c48fb7e5db2f06af6723b80123bb53856"
+dependencies = [
+ "cfg-if",
+ "hashbrown 0.14.5",
+ "lock_api",
+ "once_cell",
+ "parking_lot_core",
+]
+
+[[package]]
 name = "data-encoding"
 version = "2.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3690,12 +3703,103 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e6d5a32815ae3f33302d95fdcb2ce17862f8c65363dcfd29360480ba1001fc9c"
 
 [[package]]
+name = "fusabi"
+version = "0.16.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "141c355328910f87694d55048bf12ab2b318223d375b00b82a22859032337e58"
+dependencies = [
+ "colored",
+ "fusabi-frontend 0.16.0",
+ "fusabi-vm 0.16.0",
+]
+
+[[package]]
+name = "fusabi-frontend"
+version = "0.16.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f55f31e8c0eede440aa638d8bfa0c9f19f53b74d00abe277f85defd918c0b086"
+dependencies = [
+ "fusabi-vm 0.16.0",
+]
+
+[[package]]
 name = "fusabi-frontend"
 version = "0.17.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "90c2e9c1ad85e4e711060f57249d90d5b7a8695332eb85dcf4a368f833cd86d3"
 dependencies = [
- "fusabi-vm",
+ "fusabi-vm 0.17.0",
+]
+
+[[package]]
+name = "fusabi-host"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "46e16761dcaeddc0ec696ac266c20aae8f780948d2e9ba9d461863b233462d2a"
+dependencies = [
+ "base64 0.22.1",
+ "crossbeam-channel",
+ "parking_lot",
+ "serde",
+ "serde_json",
+ "thiserror 1.0.69",
+ "tracing",
+]
+
+[[package]]
+name = "fusabi-plugin-runtime"
+version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "79384d34637c713a1f6e56263f902f338ae67361fc24c5edc7a5c0ff61dc50b7"
+dependencies = [
+ "dashmap",
+ "fusabi-host",
+ "parking_lot",
+ "serde",
+ "serde_json",
+ "thiserror 1.0.69",
+ "toml",
+ "tracing",
+]
+
+[[package]]
+name = "fusabi-stdlib-ext"
+version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "bc690415a63d4d605174baf662cef9b7b5ae7ccc780a914166c2e9b8534549c8"
+dependencies = [
+ "fusabi-host",
+ "parking_lot",
+ "thiserror 1.0.69",
+ "tokio",
+ "tracing",
+]
+
+[[package]]
+name = "fusabi-tui"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a487f5dd7b912c4e91bd8e173c5cae3ebdfd301a9917b414699a2ec9f91e1077"
+dependencies = [
+ "anyhow",
+ "crossterm",
+ "fusabi",
+ "fusabi-vm 0.16.0",
+ "ratatui 0.28.1",
+ "serde",
+ "serde_json",
+ "tracing",
+]
+
+[[package]]
+name = "fusabi-vm"
+version = "0.16.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1b5b52961ac4903dfaa2910a085c91f8ecba163c42715af6e7e88463cd6d99a3"
+dependencies = [
+ "bincode",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]
@@ -7332,7 +7436,8 @@ dependencies = [
  "cosmic-text 0.11.2",
  "criterion",
  "crossbeam",
- "fusabi-frontend",
+ "fusabi-frontend 0.17.0",
+ "fusabi-tui",
  "fuzzy-matcher",
  "image",
  "insta",
@@ -7381,8 +7486,8 @@ dependencies = [
  "bevy-fusabi",
  "bevy_ecs 0.15.1",
  "dirs 5.0.1",
- "fusabi-frontend",
- "fusabi-vm",
+ "fusabi-frontend 0.17.0",
+ "fusabi-vm 0.17.0",
  "notify",
  "reqwest",
  "sequoia-openpgp",
@@ -7405,8 +7510,10 @@ dependencies = [
  "base64 0.21.7",
  "crossbeam",
  "env_logger",
- "fusabi-frontend",
- "fusabi-vm",
+ "fusabi-frontend 0.17.0",
+ "fusabi-plugin-runtime",
+ "fusabi-stdlib-ext",
+ "fusabi-vm 0.17.0",
  "log",
  "lru",
  "parking_lot",
@@ -7525,6 +7632,8 @@ dependencies = [
  "async-trait",
  "bitflags 2.10.0",
  "chrono",
+ "fusabi-plugin-runtime",
+ "fusabi-stdlib-ext",
  "log",
  "parking_lot",
  "rand 0.8.5",
@@ -7545,8 +7654,8 @@ dependencies = [
  "bincode",
  "clap",
  "colored",
- "fusabi-frontend",
- "fusabi-vm",
+ "fusabi-frontend 0.17.0",
+ "fusabi-vm 0.17.0",
  "serde",
 ]
 
