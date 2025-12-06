@@ -1,7 +1,10 @@
 use anyhow::Result;
 use portable_pty::PtySize;
 use scarab_config::ConfigLoader;
-use scarab_protocol::{SharedImageBuffer, SharedImagePlacement, SharedState, IMAGE_SHMEM_PATH, IMAGE_SHMEM_PATH_ENV, MAX_IMAGES, SHMEM_PATH, SHMEM_PATH_ENV};
+use scarab_protocol::{
+    SharedImageBuffer, SharedImagePlacement, SharedState, IMAGE_SHMEM_PATH, IMAGE_SHMEM_PATH_ENV,
+    MAX_IMAGES, SHMEM_PATH, SHMEM_PATH_ENV,
+};
 use shared_memory::{ShmemConf, ShmemError};
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
@@ -12,6 +15,7 @@ use scarab_daemon::orchestrator::PaneOrchestrator;
 use scarab_daemon::plugin_manager::PluginManager;
 use scarab_daemon::session::SessionManager;
 use scarab_daemon::vte::TerminalState;
+use scarab_protocol::{GRID_HEIGHT, GRID_WIDTH};
 
 use scarab_plugin_api::context::PluginSharedState;
 use scarab_plugin_api::PluginContext;
@@ -26,21 +30,31 @@ async fn main() -> Result<()> {
 
     // 0. Load Configuration (Fusabi-based)
     let home_dir = std::env::var("HOME").unwrap_or_else(|_| ".".to_string());
-    let fusabi_config_path = std::path::PathBuf::from(&home_dir)
-        .join(".config/scarab/config.fsx");
-    let toml_config_path = std::path::PathBuf::from(&home_dir)
-        .join(".config/scarab/config.toml");
+    let fusabi_config_path = std::path::PathBuf::from(&home_dir).join(".config/scarab/config.fsx");
+    let toml_config_path = std::path::PathBuf::from(&home_dir).join(".config/scarab/config.toml");
 
     let config = if fusabi_config_path.exists() {
-        println!("Loading Fusabi config from: {}", fusabi_config_path.display());
+        println!(
+            "Loading Fusabi config from: {}",
+            fusabi_config_path.display()
+        );
         scarab_config::FusabiConfigLoader::from_file(&fusabi_config_path)?
     } else if toml_config_path.exists() {
-        println!("⚠️  Loading legacy TOML config from: {}", toml_config_path.display());
-        println!("💡 Consider migrating to Fusabi config: {}", fusabi_config_path.display());
+        println!(
+            "⚠️  Loading legacy TOML config from: {}",
+            toml_config_path.display()
+        );
+        println!(
+            "💡 Consider migrating to Fusabi config: {}",
+            fusabi_config_path.display()
+        );
         ConfigLoader::from_file(&toml_config_path)?
     } else {
         println!("No config found (tried .fsx and .toml), using defaults");
-        println!("Create {} to customize your terminal", fusabi_config_path.display());
+        println!(
+            "Create {} to customize your terminal",
+            fusabi_config_path.display()
+        );
         scarab_config::ScarabConfig::default()
     };
 
@@ -48,7 +62,8 @@ async fn main() -> Result<()> {
     let telemetry = config.telemetry.from_env();
 
     if telemetry.is_enabled() {
-        log::info!("Telemetry enabled: fps={}, seq={}, dirty={}, panes={}",
+        log::info!(
+            "Telemetry enabled: fps={}, seq={}, dirty={}, panes={}",
             telemetry.fps_log_interval_secs,
             telemetry.log_sequence_changes,
             telemetry.log_dirty_regions,
@@ -56,41 +71,7 @@ async fn main() -> Result<()> {
         );
     }
 
-    // 1. Initialize Session Manager
-    let db_path = std::path::PathBuf::from(&home_dir).join(".local/share/scarab/sessions.db");
-
-    let session_manager = std::sync::Arc::new(SessionManager::new(db_path)?);
-
-    // Restore sessions from previous daemon runs
-    session_manager.restore_sessions(
-        &config.terminal.default_shell,
-        config.terminal.columns,
-        config.terminal.rows,
-    )?;
-    println!(
-        "Session Manager: Active ({} sessions)",
-        session_manager.session_count()
-    );
-
-    // Create default session if none exist
-    if session_manager.session_count() == 0 {
-        let cols = config.terminal.columns;
-        let rows = config.terminal.rows;
-        let session_id = session_manager.create_session("default".to_string(), cols, rows)?;
-        println!(
-            "Created default session: {} ({}x{})",
-            session_id, cols, rows
-        );
-    }
-
-    // PTY is now managed per-pane by SessionManager
-    // The active pane's PTY master is accessed via session_manager.get_default_session()
-    println!(
-        "Terminal configuration: {}x{} (shell: {})",
-        config.terminal.columns, config.terminal.rows, config.terminal.default_shell
-    );
-
-    // 2. Initialize Shared Memory
+    // 1. Initialize Shared Memory early so we can render errors even if PTY fails
     // Support environment variable override for sandboxed environments
     let shmem_path = std::env::var(SHMEM_PATH_ENV).unwrap_or_else(|_| SHMEM_PATH.to_string());
 
@@ -107,33 +88,48 @@ async fn main() -> Result<()> {
         }
         Err(ShmemError::MappingIdExists) => {
             // Shared memory already exists from a previous daemon run - open it
-            println!("Shared memory already exists at {}, attempting to open...", shmem_path);
+            println!(
+                "Shared memory already exists at {}, attempting to open...",
+                shmem_path
+            );
             match ShmemConf::new().os_id(&shmem_path).open() {
                 Ok(shmem) => {
                     println!("Opened existing shared memory at: {}", shmem_path);
                     shmem
                 }
                 Err(e) => {
-                    eprintln!("Failed to open existing shared memory at {}: {}", shmem_path, e);
+                    eprintln!(
+                        "Failed to open existing shared memory at {}: {}",
+                        shmem_path, e
+                    );
                     eprintln!("Try cleaning up with: rm -f /dev/shm{}", shmem_path);
                     return Err(e.into());
                 }
             }
         }
         Err(ShmemError::MapCreateFailed(os_err)) => {
-            eprintln!("Failed to create shared memory at {}: OS error {}", shmem_path, os_err);
+            eprintln!(
+                "Failed to create shared memory at {}: OS error {}",
+                shmem_path, os_err
+            );
             eprintln!("This may indicate:");
             eprintln!("  - Permission denied (sandbox/namespace restriction)");
             eprintln!("  - /dev/shm not mounted or not writable");
             eprintln!("");
-            eprintln!("To use a custom path, set the {} environment variable:", SHMEM_PATH_ENV);
+            eprintln!(
+                "To use a custom path, set the {} environment variable:",
+                SHMEM_PATH_ENV
+            );
             eprintln!("  export {}=/my_custom_shm_path", SHMEM_PATH_ENV);
             return Err(ShmemError::MapCreateFailed(os_err).into());
         }
         Err(e) => {
             eprintln!("Failed to create shared memory at {}: {}", shmem_path, e);
             eprintln!("");
-            eprintln!("To use a custom path, set the {} environment variable:", SHMEM_PATH_ENV);
+            eprintln!(
+                "To use a custom path, set the {} environment variable:",
+                SHMEM_PATH_ENV
+            );
             eprintln!("  export {}=/my_custom_shm_path", SHMEM_PATH_ENV);
             return Err(e.into());
         }
@@ -149,7 +145,8 @@ async fn main() -> Result<()> {
 
     // Initialize SharedImageBuffer for iTerm2 image protocol
     // Support environment variable override for sandboxed environments
-    let image_shmem_path = std::env::var(IMAGE_SHMEM_PATH_ENV).unwrap_or_else(|_| IMAGE_SHMEM_PATH.to_string());
+    let image_shmem_path =
+        std::env::var(IMAGE_SHMEM_PATH_ENV).unwrap_or_else(|_| IMAGE_SHMEM_PATH.to_string());
 
     let image_shmem = match ShmemConf::new()
         .size(std::mem::size_of::<SharedImageBuffer>())
@@ -157,38 +154,62 @@ async fn main() -> Result<()> {
         .create()
     {
         Ok(shmem) => {
-            println!("Created image shared memory at: {} ({} bytes)",
-                image_shmem_path, std::mem::size_of::<SharedImageBuffer>());
+            println!(
+                "Created image shared memory at: {} ({} bytes)",
+                image_shmem_path,
+                std::mem::size_of::<SharedImageBuffer>()
+            );
             shmem
         }
         Err(ShmemError::MappingIdExists) => {
-            println!("Image shared memory already exists at {}, attempting to open...", image_shmem_path);
+            println!(
+                "Image shared memory already exists at {}, attempting to open...",
+                image_shmem_path
+            );
             match ShmemConf::new().os_id(&image_shmem_path).open() {
                 Ok(shmem) => {
-                    println!("Opened existing image shared memory at: {}", image_shmem_path);
+                    println!(
+                        "Opened existing image shared memory at: {}",
+                        image_shmem_path
+                    );
                     shmem
                 }
                 Err(e) => {
-                    eprintln!("Failed to open existing image shared memory at {}: {}", image_shmem_path, e);
+                    eprintln!(
+                        "Failed to open existing image shared memory at {}: {}",
+                        image_shmem_path, e
+                    );
                     eprintln!("Try cleaning up with: rm -f /dev/shm{}", image_shmem_path);
                     return Err(e.into());
                 }
             }
         }
         Err(ShmemError::MapCreateFailed(os_err)) => {
-            eprintln!("Failed to create image shared memory at {}: OS error {}", image_shmem_path, os_err);
+            eprintln!(
+                "Failed to create image shared memory at {}: OS error {}",
+                image_shmem_path, os_err
+            );
             eprintln!("This may indicate:");
             eprintln!("  - Permission denied (sandbox/namespace restriction)");
             eprintln!("  - /dev/shm not mounted or not writable");
             eprintln!("");
-            eprintln!("To use a custom path, set the {} environment variable:", IMAGE_SHMEM_PATH_ENV);
+            eprintln!(
+                "To use a custom path, set the {} environment variable:",
+                IMAGE_SHMEM_PATH_ENV
+            );
             eprintln!("  export {}=/my_custom_img_shm_path", IMAGE_SHMEM_PATH_ENV);
             return Err(ShmemError::MapCreateFailed(os_err).into());
         }
         Err(e) => {
-            eprintln!("Failed to create image shared memory at {}: {}", image_shmem_path, e);
+            eprintln!(
+                "Failed to create image shared memory at {}: {}",
+                image_shmem_path, e
+            );
             eprintln!("");
-            eprintln!("To use a custom path, set the {} environment variable:", IMAGE_SHMEM_PATH_ENV);
+            eprintln!(
+                "To use a custom path, set the {} environment variable:",
+                IMAGE_SHMEM_PATH_ENV
+            );
             eprintln!("  export {}=/my_custom_img_shm_path", IMAGE_SHMEM_PATH_ENV);
             return Err(e.into());
         }
@@ -199,6 +220,60 @@ async fn main() -> Result<()> {
     unsafe {
         std::ptr::write_bytes(image_ptr, 0, 1);
     }
+
+    // 2. Initialize Session Manager (after shared memory is ready)
+    let db_path = std::path::PathBuf::from(&home_dir).join(".local/share/scarab/sessions.db");
+
+    let session_manager = std::sync::Arc::new(SessionManager::new(db_path)?);
+
+    // Restore sessions from previous daemon runs
+    if let Err(e) = session_manager.restore_sessions(
+        &config.terminal.default_shell,
+        config.terminal.columns,
+        config.terminal.rows,
+    ) {
+        emit_error_grid(
+            shared_ptr,
+            &sequence_counter,
+            &format!("ERROR: Failed to restore sessions: {e}"),
+        );
+        std::thread::sleep(std::time::Duration::from_secs(5));
+        return Err(e);
+    }
+    println!(
+        "Session Manager: Active ({} sessions)",
+        session_manager.session_count()
+    );
+
+    // Create default session if none exist
+    if session_manager.session_count() == 0 {
+        let cols = config.terminal.columns;
+        let rows = config.terminal.rows;
+        match session_manager.create_session("default".to_string(), cols, rows) {
+            Ok(session_id) => {
+                println!(
+                    "Created default session: {} ({}x{})",
+                    session_id, cols, rows
+                );
+            }
+            Err(e) => {
+                emit_error_grid(
+                    shared_ptr,
+                    &sequence_counter,
+                    &format!("ERROR: Failed to create session/PTy: {e}"),
+                );
+                std::thread::sleep(std::time::Duration::from_secs(5));
+                return Err(e);
+            }
+        }
+    }
+
+    // PTY is now managed per-pane by SessionManager
+    // The active pane's PTY master is accessed via session_manager.get_default_session()
+    println!(
+        "Terminal configuration: {}x{} (shell: {})",
+        config.terminal.columns, config.terminal.rows, config.terminal.default_shell
+    );
 
     // VTE parser is now per-pane (inside TerminalState owned by each Pane)
     // The active pane's terminal state is blitted to shared memory
@@ -437,8 +512,13 @@ fn blit_images_to_shm(state: &TerminalState, image_ptr: *mut SharedImageBuffer) 
 
             // Check if fits in buffer
             if (blob_offset + blob_size) as usize > IMAGE_BUFFER_SIZE {
-                log::warn!("Image {} too large for buffer ({}+{} > {}), skipping",
-                    placement.id, blob_offset, blob_size, IMAGE_BUFFER_SIZE);
+                log::warn!(
+                    "Image {} too large for buffer ({}+{} > {}), skipping",
+                    placement.id,
+                    blob_offset,
+                    blob_size,
+                    IMAGE_BUFFER_SIZE
+                );
                 break; // Can't fit, stop adding images
             }
 
@@ -472,10 +552,72 @@ fn blit_images_to_shm(state: &TerminalState, image_ptr: *mut SharedImageBuffer) 
         image_buffer.sequence_number += 1;
 
         if image_buffer.count > 0 {
-            log::debug!("Blitted {} images to shared memory (sequence: {})",
-                image_buffer.count, image_buffer.sequence_number);
+            log::debug!(
+                "Blitted {} images to shared memory (sequence: {})",
+                image_buffer.count,
+                image_buffer.sequence_number
+            );
         }
     }
+}
+
+/// Write a legible error banner into shared memory so the client/headless modes
+/// can display a readable message even when PTY/SHM setup fails.
+fn emit_error_grid(shared_ptr: *mut SharedState, sequence_counter: &Arc<AtomicU64>, message: &str) {
+    let lines: Vec<String> = wrap_error_text(message, GRID_WIDTH)
+        .into_iter()
+        .take(GRID_HEIGHT)
+        .collect();
+
+    unsafe {
+        let state = &mut *shared_ptr;
+
+        // Clear
+        for cell in state.cells.iter_mut() {
+            cell.char_codepoint = b' ' as u32;
+            cell.fg = 0xFFFFFFFF;
+            cell.bg = 0xFF000000;
+            cell.flags = 0;
+        }
+
+        for (row, line) in lines.iter().enumerate() {
+            for (col, ch) in line.chars().take(GRID_WIDTH).enumerate() {
+                let idx = row * GRID_WIDTH + col;
+                state.cells[idx].char_codepoint = ch as u32;
+            }
+        }
+
+        state.cursor_x = 0;
+        state.cursor_y = lines.len().saturating_sub(1) as u16;
+        state.dirty_flag = 1;
+        let new_seq = sequence_counter.fetch_add(1, Ordering::SeqCst) + 1;
+        state.sequence_number = new_seq;
+    }
+    eprintln!("{message}");
+}
+
+fn wrap_error_text(message: &str, width: usize) -> Vec<String> {
+    let mut out = Vec::new();
+    for para in message.split('\n') {
+        let mut line = String::new();
+        for word in para.split_whitespace() {
+            if line.len() + 1 + word.len() > width {
+                out.push(line);
+                line = String::new();
+            }
+            if !line.is_empty() {
+                line.push(' ');
+            }
+            line.push_str(word);
+        }
+        if !line.is_empty() {
+            out.push(line);
+        }
+    }
+    if out.is_empty() {
+        out.push("ERROR".to_string());
+    }
+    out
 }
 
 /// FPS tracking for compositor performance monitoring
