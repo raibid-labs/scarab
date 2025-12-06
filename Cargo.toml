@@ -19,7 +19,7 @@ members = [
 ]
 
 [workspace.package]
-version = "0.2.0-alpha.9"
+version = "0.2.0-alpha.10"
 authors = ["Scarab Team <team@raibid-labs.com>"]
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/raibid-labs/scarab"
