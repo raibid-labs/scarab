@@ -540,6 +540,10 @@ impl Plugin for FocusablePlugin {
             // Register generation tracking resource
             .init_resource::<FocusableGeneration>()
 
+            // Register events this plugin depends on
+            // (PromptMarkersPlugin may also register these, but that's harmless)
+            .add_event::<PromptZoneFocusedEvent>()
+
             // Initialize detector at startup
             .add_systems(Startup, initialize_focusable_detector)
 
