@@ -18,7 +18,7 @@
 [![Rust](https://img.shields.io/badge/rust-1.75%2B-orange.svg)](https://www.rust-lang.org/)
 [![Fusabi](https://img.shields.io/badge/Fusabi-0.17.0-purple.svg)](https://github.com/fusabi-lang/fusabi)
 [![Bevy](https://img.shields.io/badge/Bevy-0.15-blue.svg)](https://bevyengine.org/)
-[![Version](https://img.shields.io/badge/version-0.2.0--alpha.3-green.svg)](https://github.com/raibid-labs/scarab/releases)
+[![Version](https://img.shields.io/badge/version-0.2.0--alpha.4-green.svg)](https://github.com/raibid-labs/scarab/releases)
 
 [Features](#-features) | [Installation](#-installation) | [Quick Start](#-quick-start) | [Plugins](#-plugin-system) | [Documentation](#-documentation) | [Contributing](#-contributing)
 
