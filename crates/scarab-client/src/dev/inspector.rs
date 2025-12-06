@@ -28,7 +28,6 @@
 // where available.
 
 use bevy::prelude::*;
-use bevy::ecs::world::World;
 use bevy::window::PrimaryWindow;
 use ratatui::{
     buffer::Buffer,
@@ -43,6 +42,19 @@ use crate::ratatui_bridge::{
     RatatuiBridgePlugin, RatatuiSurface, SurfaceBuffers, SurfaceInputEvent, RatEvent, RatKeyCode,
 };
 
+/// Cached information about an entity for display purposes
+#[derive(Debug, Clone)]
+pub struct EntityInfo {
+    /// The entity ID
+    pub entity: Entity,
+    /// Display name (from Name component or formatted entity ID)
+    pub name: String,
+    /// Number of components on this entity
+    pub component_count: usize,
+    /// Names of all components on this entity
+    pub component_names: Vec<String>,
+}
+
 // Inspector state resource
 #[derive(Resource, Default)]
 pub struct BevyInspectorState {
@@ -50,8 +62,8 @@ pub struct BevyInspectorState {
     pub visible: bool,
     /// Currently selected entity index in the list
     pub selected_index: usize,
-    /// List of all entities in the world (cached)
-    pub entities: Vec<Entity>,
+    /// Cached entity information (updated each frame when visible)
+    pub entity_infos: Vec<EntityInfo>,
     /// Set of expanded entities (for hierarchical view)
     pub expanded_entities: HashSet<Entity>,
     /// Search query for filtering entities
@@ -86,10 +98,10 @@ impl BevyInspectorState {
     }
 
     pub fn select_next(&mut self) {
-        if self.entities.is_empty() {
+        if self.entity_infos.is_empty() {
             return;
         }
-        self.selected_index = (self.selected_index + 1).min(self.entities.len() - 1);
+        self.selected_index = (self.selected_index + 1).min(self.entity_infos.len() - 1);
     }
 
     pub fn select_prev(&mut self) {
@@ -98,8 +110,8 @@ impl BevyInspectorState {
         }
     }
 
-    pub fn selected_entity(&self) -> Option<Entity> {
-        self.entities.get(self.selected_index).copied()
+    pub fn selected_entity_info(&self) -> Option<&EntityInfo> {
+        self.entity_infos.get(self.selected_index)
     }
 
     pub fn toggle_expanded(&mut self, entity: Entity) {
@@ -119,15 +131,6 @@ impl BevyInspectorState {
     }
 }
 
-// Entity information snapshot (for display)
-#[derive(Debug, Clone)]
-struct EntitySnapshot {
-    entity: Entity,
-    name: Option<String>,
-    component_count: usize,
-    component_names: Vec<String>,
-}
-
 // Plugin definition
 pub struct BevyInspectorPlugin;
 
@@ -141,7 +144,7 @@ impl Plugin for BevyInspectorPlugin {
         app.init_resource::<BevyInspectorState>()
             .add_systems(Update, (
                 toggle_inspector_input,
-                update_entity_list,
+                update_entity_list_exclusive,
                 spawn_inspector_surface,
                 render_inspector,
                 handle_inspector_input,
@@ -171,51 +174,83 @@ fn toggle_inspector_input(
     }
 }
 
-// System: Update entity list from world
-fn update_entity_list(
-    mut state: ResMut<BevyInspectorState>,
-    world: &World,
-) {
-    if !state.visible {
+// Exclusive system: Update entity list from world
+// This is an exclusive system because it needs full world access to inspect entities
+fn update_entity_list_exclusive(world: &mut World) {
+    // Check if visible (need to access resource)
+    let visible = world
+        .get_resource::<BevyInspectorState>()
+        .map(|s| s.visible)
+        .unwrap_or(false);
+
+    if !visible {
         return;
     }
 
-    // Only update when visible (performance optimization)
-    // In a real implementation, you might want to throttle this further
+    // Get search query
+    let search_query = world
+        .get_resource::<BevyInspectorState>()
+        .map(|s| s.search_query.clone())
+        .unwrap_or_default();
 
-    // Collect all entities
-    let mut entities: Vec<Entity> = world.iter_entities()
-        .map(|entity_ref| entity_ref.id())
+    // Collect all entity information
+    let mut entity_infos: Vec<EntityInfo> = world
+        .iter_entities()
+        .map(|entity_ref| {
+            let entity = entity_ref.id();
+
+            // Get name
+            let name = entity_ref
+                .get::<Name>()
+                .map(|n| n.to_string())
+                .unwrap_or_else(|| format!("{:?}", entity));
+
+            // Get component count and names
+            let archetype = entity_ref.archetype();
+            let component_count = archetype.component_count();
+
+            let component_names: Vec<String> = archetype
+                .components()
+                .filter_map(|component_id| {
+                    world.components().get_info(component_id).map(|info| info.name().to_string())
+                })
+                .collect();
+
+            EntityInfo {
+                entity,
+                name,
+                component_count,
+                component_names,
+            }
+        })
         .collect();
 
     // Sort entities by index for consistent ordering
-    entities.sort_by_key(|e| (e.index(), e.generation()));
+    entity_infos.sort_by_key(|info| (info.entity.index(), info.entity.generation()));
 
     // Apply search filter if active
-    if !state.search_query.is_empty() {
-        let query_lower = state.search_query.to_lowercase();
-        entities.retain(|entity| {
-            if let Ok(entity_ref) = world.get_entity(*entity) {
-                // Check if name contains query
-                if let Some(name) = entity_ref.get::<Name>() {
-                    if name.to_string().to_lowercase().contains(&query_lower) {
-                        return true;
-                    }
-                }
-                // Check if entity ID contains query
-                if format!("{:?}", entity).to_lowercase().contains(&query_lower) {
-                    return true;
-                }
+    if !search_query.is_empty() {
+        let query_lower = search_query.to_lowercase();
+        entity_infos.retain(|info| {
+            // Check if name contains query
+            if info.name.to_lowercase().contains(&query_lower) {
+                return true;
+            }
+            // Check if entity ID contains query
+            if format!("{:?}", info.entity).to_lowercase().contains(&query_lower) {
+                return true;
             }
             false
         });
     }
 
-    state.entities = entities;
-
-    // Clamp selected index
-    if state.selected_index >= state.entities.len() && !state.entities.is_empty() {
-        state.selected_index = state.entities.len() - 1;
+    // Update state
+    if let Some(mut state) = world.get_resource_mut::<BevyInspectorState>() {
+        // Clamp selected index
+        if state.selected_index >= entity_infos.len() && !entity_infos.is_empty() {
+            state.selected_index = entity_infos.len() - 1;
+        }
+        state.entity_infos = entity_infos;
     }
 }
 
@@ -272,9 +307,9 @@ fn spawn_inspector_surface(
 struct InspectorSurfaceMarker;
 
 // System: Render inspector UI using Ratatui
+// Note: Uses cached entity info from state, no &World access needed
 fn render_inspector(
     state: Res<BevyInspectorState>,
-    world: &World,
     mut buffers: ResMut<SurfaceBuffers>,
     surfaces: Query<(Entity, &RatatuiSurface), With<InspectorSurfaceMarker>>,
 ) {
@@ -286,10 +321,9 @@ fn render_inspector(
         let buffer = buffers.get_or_create(entity, surface.width, surface.height);
         let area = surface.rect();
 
-        // Render the inspector widget
+        // Render the inspector widget using cached entity info
         InspectorWidget {
             state: &state,
-            world,
         }.render(area, buffer);
     }
 }
@@ -297,7 +331,6 @@ fn render_inspector(
 // Custom Ratatui widget for the inspector
 struct InspectorWidget<'a> {
     state: &'a BevyInspectorState,
-    world: &'a World,
 }
 
 impl<'a> Widget for InspectorWidget<'a> {
@@ -325,7 +358,7 @@ impl<'a> Widget for InspectorWidget<'a> {
 impl<'a> InspectorWidget<'a> {
     fn render_entity_list(&self, area: Rect, buf: &mut Buffer) {
         let title = match self.state.view_mode {
-            InspectorViewMode::Entities => format!("Entities ({})", self.state.entities.len()),
+            InspectorViewMode::Entities => format!("Entities ({})", self.state.entity_infos.len()),
             InspectorViewMode::Components => "Components".to_string(),
             InspectorViewMode::Resources => "Resources".to_string(),
             InspectorViewMode::Systems => "Systems".to_string(),
@@ -339,30 +372,18 @@ impl<'a> InspectorWidget<'a> {
         let inner = block.inner(area);
         block.render(area, buf);
 
-        // Build entity list items
-        let items: Vec<ListItem> = self.state.entities.iter().enumerate()
-            .map(|(idx, entity)| {
-                let entity_ref = self.world.get_entity(*entity).ok();
-                let name = entity_ref
-                    .as_ref()
-                    .and_then(|e| e.get::<Name>())
-                    .map(|n| n.to_string())
-                    .unwrap_or_else(|| "(unnamed)".to_string());
-
-                let component_count = entity_ref
-                    .as_ref()
-                    .map(|e| e.archetype().component_count())
-                    .unwrap_or(0);
-
+        // Build entity list items from cached info
+        let items: Vec<ListItem> = self.state.entity_infos.iter().enumerate()
+            .map(|(idx, info)| {
                 let is_selected = idx == self.state.selected_index;
-                let is_expanded = self.state.expanded_entities.contains(entity);
+                let is_expanded = self.state.expanded_entities.contains(&info.entity);
 
                 let prefix = if is_expanded { "[-] " } else { "[+] " };
-                let text = format!("{}{} | {} ({} components)",
+                let text = format!("{}{:?} | {} ({} components)",
                     prefix,
-                    format!("{:?}", entity),
-                    name,
-                    component_count
+                    info.entity,
+                    info.name,
+                    info.component_count
                 );
 
                 let style = if is_selected {
@@ -391,55 +412,42 @@ impl<'a> InspectorWidget<'a> {
         let inner = block.inner(area);
         block.render(area, buf);
 
-        if let Some(entity) = self.state.selected_entity() {
-            if let Ok(entity_ref) = self.world.get_entity(entity) {
-                let mut lines = vec![
-                    Line::from(vec![
-                        Span::styled("Entity: ", Style::default().add_modifier(Modifier::BOLD)),
-                        Span::raw(format!("{:?}", entity)),
-                    ]),
-                    Line::from(""),
-                ];
+        if let Some(info) = self.state.selected_entity_info() {
+            let mut lines = vec![
+                Line::from(vec![
+                    Span::styled("Entity: ", Style::default().add_modifier(Modifier::BOLD)),
+                    Span::raw(format!("{:?}", info.entity)),
+                ]),
+                Line::from(""),
+            ];
 
-                // Add entity name if available
-                if let Some(name) = entity_ref.get::<Name>() {
-                    lines.push(Line::from(vec![
-                        Span::styled("Name: ", Style::default().add_modifier(Modifier::BOLD)),
-                        Span::styled(name.to_string(), Style::default().fg(Color::Green)),
-                    ]));
-                    lines.push(Line::from(""));
-                }
+            // Add entity name
+            lines.push(Line::from(vec![
+                Span::styled("Name: ", Style::default().add_modifier(Modifier::BOLD)),
+                Span::styled(&info.name, Style::default().fg(Color::Green)),
+            ]));
+            lines.push(Line::from(""));
 
-                // List components
+            // List components
+            lines.push(Line::from(vec![
+                Span::styled("Components:", Style::default().add_modifier(Modifier::BOLD).fg(Color::Yellow)),
+            ]));
+
+            for component_name in &info.component_names {
                 lines.push(Line::from(vec![
-                    Span::styled("Components:", Style::default().add_modifier(Modifier::BOLD).fg(Color::Yellow)),
+                    Span::raw("  - "),
+                    Span::styled(component_name.as_str(), Style::default().fg(Color::Cyan)),
                 ]));
-
-                let archetype = entity_ref.archetype();
-                for component_id in archetype.components() {
-                    if let Some(info) = self.world.components().get_info(component_id) {
-                        let component_name = info.name();
-                        lines.push(Line::from(vec![
-                            Span::raw("  - "),
-                            Span::styled(component_name, Style::default().fg(Color::Cyan)),
-                        ]));
-                    }
-                }
-
-                // Handle scrolling
-                let visible_lines: Vec<Line> = lines.into_iter()
-                    .skip(self.state.detail_scroll)
-                    .take(inner.height as usize)
-                    .collect();
-
-                let paragraph = Paragraph::new(visible_lines);
-                paragraph.render(inner, buf);
-            } else {
-                let text = vec![
-                    Line::from("Entity not found or was despawned"),
-                ];
-                Paragraph::new(text).render(inner, buf);
             }
+
+            // Handle scrolling
+            let visible_lines: Vec<Line> = lines.into_iter()
+                .skip(self.state.detail_scroll)
+                .take(inner.height as usize)
+                .collect();
+
+            let paragraph = Paragraph::new(visible_lines);
+            paragraph.render(inner, buf);
         } else {
             let text = vec![
                 Line::from("Select an entity to view details"),
@@ -469,10 +477,10 @@ impl<'a> InspectorWidget<'a> {
 
         // Clear the status bar area
         for x in status_area.x..status_area.x + status_area.width {
-            buf.cell_mut((x, status_area.y))
-                .unwrap()
-                .set_char(' ')
-                .set_style(Style::default().bg(Color::White));
+            if let Some(cell) = buf.cell_mut((x, status_area.y)) {
+                cell.set_char(' ')
+                    .set_style(Style::default().bg(Color::White));
+            }
         }
 
         // Render status text
@@ -480,10 +488,10 @@ impl<'a> InspectorWidget<'a> {
         for span in status.spans {
             let text = span.content.to_string();
             for ch in text.chars().take((status_area.width - (x_offset - status_area.x)) as usize) {
-                buf.cell_mut((x_offset, status_area.y))
-                    .unwrap()
-                    .set_char(ch)
-                    .set_style(span.style);
+                if let Some(cell) = buf.cell_mut((x_offset, status_area.y)) {
+                    cell.set_char(ch)
+                        .set_style(span.style);
+                }
                 x_offset += 1;
             }
         }
@@ -536,13 +544,14 @@ fn handle_navigation_input(state: &mut BevyInspectorState, key: &ratatui::crosst
         }
         RatKeyCode::Char('h') | RatKeyCode::Left => {
             // Collapse selected entity
-            if let Some(entity) = state.selected_entity() {
+            if let Some(entity) = state.selected_entity_info().map(|i| i.entity) {
                 state.expanded_entities.remove(&entity);
             }
         }
         RatKeyCode::Char('l') | RatKeyCode::Right => {
             // Expand selected entity
-            if let Some(entity) = state.selected_entity() {
+            if let Some(info) = state.selected_entity_info() {
+                let entity = info.entity;
                 state.expanded_entities.insert(entity);
             }
         }
