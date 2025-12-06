@@ -182,6 +182,71 @@ uninstall PREFIX="~/.local":
 # Run both daemon and client in parallel (main development command)
 run: daemon client
 
+# Clean, rebuild from scratch, then run daemon + client (release binaries)
+fresh-run:
+    #!/usr/bin/env bash
+    set -euo pipefail
+
+    BIN_DIR="${CARGO_TARGET_DIR:-target}/release"
+    BIN_DIR="${BIN_DIR/#\~/$HOME}"
+
+    echo "🧹 Cleaning build + shared memory..."
+    pkill -f scarab-daemon 2>/dev/null || true
+    pkill -f scarab-client 2>/dev/null || true
+    rm -f /dev/shm/scarab_shm_v1 /dev/shm/scarab_img_shm_v1 2>/dev/null || true
+    cargo clean
+
+    echo "🔨 Building release binaries..."
+    cargo build --release -p scarab-daemon -p scarab-client
+
+    if [ ! -x "$BIN_DIR/scarab-daemon" ] || [ ! -x "$BIN_DIR/scarab-client" ]; then
+        echo "❌ Release binaries not found in $BIN_DIR after build."
+        echo "   If you use a custom target dir, set CARGO_TARGET_DIR before running this recipe."
+        exit 1
+    fi
+
+    echo "🚀 Starting daemon (release)..."
+    "$BIN_DIR/scarab-daemon" > /tmp/scarab-daemon.log 2>&1 &
+    DAEMON_PID=$!
+
+    sleep 2
+
+    echo "🖥️  Starting client (release)..."
+    "$BIN_DIR/scarab-client"
+
+    echo "🧽 Stopping daemon..."
+    kill $DAEMON_PID 2>/dev/null || true
+
+# Run daemon + client using existing release build (no clean/rebuild)
+run-release:
+    #!/usr/bin/env bash
+    set -euo pipefail
+
+    BIN_DIR="${CARGO_TARGET_DIR:-target}/release"
+    BIN_DIR="${BIN_DIR/#\~/$HOME}"
+
+    if [ ! -x "$BIN_DIR/scarab-daemon" ] || [ ! -x "$BIN_DIR/scarab-client" ]; then
+        echo "Release binaries not found in $BIN_DIR. Build them first with: cargo build --release -p scarab-daemon -p scarab-client"
+        exit 1
+    fi
+
+    echo "🧹 Killing any running instances..."
+    pkill -f scarab-daemon 2>/dev/null || true
+    pkill -f scarab-client 2>/dev/null || true
+    rm -f /dev/shm/scarab_shm_v1 /dev/shm/scarab_img_shm_v1 2>/dev/null || true
+
+    echo "🚀 Starting daemon (release)..."
+    "$BIN_DIR/scarab-daemon" > /tmp/scarab-daemon.log 2>&1 &
+    DAEMON_PID=$!
+
+    sleep 2
+
+    echo "🖥️  Starting client (release)..."
+    "$BIN_DIR/scarab-client"
+
+    echo "🧽 Stopping daemon..."
+    kill $DAEMON_PID 2>/dev/null || true
+
 # Run the daemon (headless server)
 daemon:
     #!/usr/bin/env bash
