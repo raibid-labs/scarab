@@ -1,0 +1,62 @@
+# Codeowners for raibid-labs/scarab
+#
+# This file defines review requirements for the Scarab repository.
+# See: https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
+
+# Default reviewers for everything - require at least one review
+* @raibid-labs/scarab-team
+
+# Core daemon crate - requires core team review
+/crates/scarab-daemon/ @raibid-labs/scarab-core
+/crates/scarab-daemon/src/ @raibid-labs/scarab-core
+
+# Core client crate - requires core team review
+/crates/scarab-client/ @raibid-labs/scarab-core
+/crates/scarab-client/src/ @raibid-labs/scarab-core
+
+# Protocol crate - critical for IPC, requires core team review
+/crates/scarab-protocol/ @raibid-labs/scarab-core
+
+# Plugin API - requires plugin team and core team review
+/crates/scarab-plugin-api/ @raibid-labs/scarab-plugins @raibid-labs/scarab-core
+/crates/scarab-plugin-compiler/ @raibid-labs/scarab-plugins
+
+# Configuration system
+/crates/scarab-config/ @raibid-labs/scarab-team
+
+# Session management
+/crates/scarab-session/ @raibid-labs/scarab-team
+
+# Platform integrations
+/crates/scarab-platform/ @raibid-labs/scarab-team
+
+# UI components - can be reviewed by UI team
+/crates/scarab-nav/ @raibid-labs/scarab-ui
+/crates/scarab-palette/ @raibid-labs/scarab-ui
+/crates/scarab-themes/ @raibid-labs/scarab-ui
+/crates/scarab-clipboard/ @raibid-labs/scarab-ui
+/crates/scarab-mouse/ @raibid-labs/scarab-ui
+/crates/scarab-telemetry-hud/ @raibid-labs/scarab-ui
+
+# Documentation - can be reviewed by docs team
+/docs/ @raibid-labs/scarab-docs
+*.md @raibid-labs/scarab-docs
+/examples/ @raibid-labs/scarab-docs
+
+# CI/CD and GitHub workflows - requires ops/core review
+/.github/ @raibid-labs/scarab-ops @raibid-labs/scarab-core
+/.github/workflows/ @raibid-labs/scarab-ops
+
+# Build configuration - requires ops review
+/Cargo.toml @raibid-labs/scarab-ops
+/Cargo.lock @raibid-labs/scarab-ops
+/justfile @raibid-labs/scarab-ops
+
+# Release process - requires core team approval
+/VERSION @raibid-labs/scarab-core
+/CHANGELOG.md @raibid-labs/scarab-core
+/docs/RELEASE.md @raibid-labs/scarab-core
+
+# Security-sensitive files - requires core team review
+/.cargo/ @raibid-labs/scarab-core
+/scripts/ @raibid-labs/scarab-ops
