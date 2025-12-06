@@ -55,6 +55,8 @@ profiling = { workspace = true, optional = true }
 tokio-test = "0.4"
 ratatui-testlib = { workspace = true, features = ["mvp"] }
 tempfile = "3.23.0"
+clap = { version = "4.4", features = ["derive"] }
+libc = "0.2"
 
 [features]
 default = []
