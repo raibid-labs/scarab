@@ -8,11 +8,17 @@
 //!
 //! Run with: cargo run --example smoke_harness
 //! Or via just: just smoke
+//!
+//! For environments where PTY creation is restricted (userns/sandbox), you can
+//! start the daemon separately and use: --use-existing-daemon
 
 use anyhow::{Context, Result};
-use scarab_protocol::{ControlMessage, SharedState, SHMEM_PATH, SOCKET_PATH, MAX_MESSAGE_SIZE};
+use clap::Parser;
+use scarab_protocol::{ControlMessage, SharedState, SHMEM_PATH, SHMEM_PATH_ENV, SOCKET_PATH, MAX_MESSAGE_SIZE};
 use shared_memory::ShmemConf;
+use std::io::{BufRead, BufReader};
 use std::process::{Child, Command, Stdio};
+use std::sync::mpsc;
 use std::time::{Duration, Instant};
 use tokio::io::AsyncWriteExt;
 use tokio::net::UnixStream;
@@ -22,21 +28,44 @@ const STARTUP_TIMEOUT: Duration = Duration::from_secs(5);
 const OUTPUT_TIMEOUT: Duration = Duration::from_secs(10);
 const POLL_INTERVAL: Duration = Duration::from_millis(100);
 
+#[derive(Parser, Debug)]
+#[command(name = "smoke_harness")]
+#[command(about = "Smoke test harness for Scarab daemon")]
+struct Args {
+    /// Use an existing daemon instead of spawning a new one.
+    /// Useful for sandboxed environments where PTY creation is restricted.
+    #[arg(long)]
+    use_existing_daemon: bool,
+}
+
 #[tokio::main]
 async fn main() -> Result<()> {
+    let args = Args::parse();
+
     println!("🧪 Scarab Smoke Test Harness");
     println!("==============================\n");
 
-    // 1. Start daemon process
-    println!("Starting daemon...");
-    let mut daemon = start_daemon()?;
+    // 1. Start daemon process (unless using existing)
+    let daemon_handle = if args.use_existing_daemon {
+        println!("Using existing daemon (--use-existing-daemon flag set)");
+        println!("Make sure scarab-daemon is running separately.\n");
+        None
+    } else {
+        println!("Starting daemon...");
+        let (daemon, error_rx) = start_daemon()?;
+        Some((daemon, error_rx))
+    };
 
-    // Ensure daemon is killed on exit
-    let _guard = DaemonGuard(&mut daemon);
+    // RAII guard for cleanup
+    let _guard = daemon_handle.as_ref().map(|(d, _)| DaemonGuard(d.id()));
 
-    // 2. Wait for socket to appear
+    // 2. Wait for socket to appear, checking for daemon exit
     println!("Waiting for socket: {}", SOCKET_PATH);
-    wait_for_socket(STARTUP_TIMEOUT).await?;
+    if let Some((ref daemon, ref error_rx)) = daemon_handle {
+        wait_for_socket_with_daemon_check(STARTUP_TIMEOUT, daemon.id(), error_rx).await?;
+    } else {
+        wait_for_socket(STARTUP_TIMEOUT).await?;
+    }
     println!("✓ Socket found\n");
 
     // 3. Connect to daemon
@@ -47,9 +76,10 @@ async fn main() -> Result<()> {
     println!("✓ Connected\n");
 
     // 4. Open shared memory
-    println!("Opening shared memory: {}", SHMEM_PATH);
+    let shmem_path = std::env::var(SHMEM_PATH_ENV).unwrap_or_else(|_| SHMEM_PATH.to_string());
+    println!("Opening shared memory: {}", shmem_path);
     let shmem = ShmemConf::new()
-        .os_id(SHMEM_PATH)
+        .os_id(&shmem_path)
         .open()
         .context("Failed to open shared memory")?;
     let shared_ptr = shmem.as_ptr() as *const SharedState;
@@ -124,32 +154,133 @@ async fn main() -> Result<()> {
     Ok(())
 }
 
-/// Start the daemon as a subprocess
-fn start_daemon() -> Result<Child> {
+/// Start the daemon as a subprocess, capturing stderr for error detection
+fn start_daemon() -> Result<(Child, mpsc::Receiver<String>)> {
+    // Channel for daemon stderr messages
+    let (error_tx, error_rx) = mpsc::channel();
+
     // Try to find the daemon binary
-    // First check if we're in the workspace
     let daemon_path = if std::path::Path::new("target/debug/scarab-daemon").exists() {
         "target/debug/scarab-daemon"
     } else if std::path::Path::new("../../target/debug/scarab-daemon").exists() {
         "../../target/debug/scarab-daemon"
     } else {
         // Fallback: use cargo run
-        return Command::new("cargo")
-            .args(&["run", "-p", "scarab-daemon", "--quiet"])
+        let mut child = Command::new("cargo")
+            .args(["run", "-p", "scarab-daemon", "--quiet"])
             .stdout(Stdio::null())
-            .stderr(Stdio::inherit())
+            .stderr(Stdio::piped())
             .spawn()
-            .context("Failed to spawn daemon via cargo");
+            .context("Failed to spawn daemon via cargo")?;
+
+        // Spawn thread to capture stderr
+        if let Some(stderr) = child.stderr.take() {
+            spawn_stderr_reader(stderr, error_tx);
+        }
+
+        return Ok((child, error_rx));
     };
 
-    Command::new(daemon_path)
+    let mut child = Command::new(daemon_path)
         .stdout(Stdio::null())
-        .stderr(Stdio::inherit())
+        .stderr(Stdio::piped())
         .spawn()
-        .context("Failed to spawn daemon")
+        .context("Failed to spawn daemon")?;
+
+    // Spawn thread to capture stderr
+    if let Some(stderr) = child.stderr.take() {
+        spawn_stderr_reader(stderr, error_tx);
+    }
+
+    Ok((child, error_rx))
 }
 
-/// Wait for socket file to appear
+/// Spawn a thread to read daemon stderr and forward to channel
+fn spawn_stderr_reader(stderr: std::process::ChildStderr, tx: mpsc::Sender<String>) {
+    std::thread::spawn(move || {
+        let reader = BufReader::new(stderr);
+        for line in reader.lines() {
+            if let Ok(line) = line {
+                // Print to our stderr so user sees it
+                eprintln!("[daemon] {}", line);
+                // Also send to channel for error detection
+                let _ = tx.send(line);
+            }
+        }
+    });
+}
+
+/// Wait for socket file to appear, checking daemon status
+async fn wait_for_socket_with_daemon_check(
+    timeout: Duration,
+    daemon_pid: u32,
+    error_rx: &mpsc::Receiver<String>,
+) -> Result<()> {
+    let start = Instant::now();
+    let mut collected_errors = Vec::new();
+
+    while start.elapsed() < timeout {
+        // Check if daemon has exited
+        if !is_process_running(daemon_pid) {
+            // Drain any remaining errors
+            while let Ok(err) = error_rx.try_recv() {
+                collected_errors.push(err);
+            }
+
+            // Determine the likely cause
+            let error_summary = if collected_errors.iter().any(|e| e.contains("openpty") || e.contains("pty")) {
+                "\n💡 PTY creation failed. This typically means:\n\
+                   - /dev/ptmx is not accessible (check permissions)\n\
+                   - devpts is not mounted (mount -t devpts devpts /dev/pts)\n\
+                   - Running in a restricted sandbox/namespace\n\n\
+                 For sandboxed environments, you can:\n\
+                   1. Start the daemon outside the sandbox\n\
+                   2. Use --use-existing-daemon to connect to a running daemon"
+            } else if collected_errors.iter().any(|e| e.contains("Permission denied")) {
+                "\n💡 Permission denied. Check file/device permissions."
+            } else {
+                ""
+            };
+
+            anyhow::bail!(
+                "Daemon exited before socket was ready.\n\nCaptured stderr:\n{}\n{}",
+                collected_errors.join("\n"),
+                error_summary
+            );
+        }
+
+        // Collect any errors that have come in
+        while let Ok(err) = error_rx.try_recv() {
+            collected_errors.push(err);
+        }
+
+        if std::path::Path::new(SOCKET_PATH).exists() {
+            // Socket exists, but wait a bit more to ensure daemon is listening
+            sleep(Duration::from_millis(200)).await;
+            return Ok(());
+        }
+        sleep(Duration::from_millis(100)).await;
+    }
+
+    // Timeout - check if daemon died
+    if !is_process_running(daemon_pid) {
+        while let Ok(err) = error_rx.try_recv() {
+            collected_errors.push(err);
+        }
+        anyhow::bail!(
+            "Daemon exited during startup.\n\nCaptured stderr:\n{}",
+            collected_errors.join("\n")
+        );
+    }
+
+    anyhow::bail!(
+        "Socket {} did not appear within {} seconds",
+        SOCKET_PATH,
+        timeout.as_secs()
+    )
+}
+
+/// Wait for socket file to appear (simple version for --use-existing-daemon)
 async fn wait_for_socket(timeout: Duration) -> Result<()> {
     let start = Instant::now();
 
@@ -163,10 +294,24 @@ async fn wait_for_socket(timeout: Duration) -> Result<()> {
     }
 
     anyhow::bail!(
-        "Socket {} did not appear within {} seconds",
+        "Socket {} did not appear within {} seconds.\n\
+         Make sure the daemon is running: cargo run -p scarab-daemon",
         SOCKET_PATH,
         timeout.as_secs()
     )
+}
+
+/// Check if a process is still running
+#[cfg(unix)]
+fn is_process_running(pid: u32) -> bool {
+    // kill with signal 0 checks if process exists without sending a signal
+    unsafe { libc::kill(pid as i32, 0) == 0 }
+}
+
+#[cfg(not(unix))]
+fn is_process_running(_pid: u32) -> bool {
+    // On non-unix, assume process is running (fallback)
+    true
 }
 
 /// Send input command to daemon via IPC
@@ -231,16 +376,22 @@ fn extract_grid_text(shared_ptr: *const SharedState) -> String {
 }
 
 /// RAII guard to kill daemon process on drop
-struct DaemonGuard<'a>(&'a mut Child);
+struct DaemonGuard(u32); // Store PID
 
-impl<'a> Drop for DaemonGuard<'a> {
+impl Drop for DaemonGuard {
     fn drop(&mut self) {
-        println!("\nCleaning up daemon process...");
-        if let Err(e) = self.0.kill() {
-            eprintln!("Warning: Failed to kill daemon: {}", e);
+        println!("\nCleaning up daemon process (PID {})...", self.0);
+        #[cfg(unix)]
+        unsafe {
+            libc::kill(self.0 as i32, libc::SIGTERM);
+            // Give it a moment to shut down gracefully
+            std::thread::sleep(Duration::from_millis(100));
+            // Force kill if still running
+            libc::kill(self.0 as i32, libc::SIGKILL);
         }
-        if let Err(e) = self.0.wait() {
-            eprintln!("Warning: Failed to wait for daemon: {}", e);
+        #[cfg(not(unix))]
+        {
+            eprintln!("Warning: Cannot kill daemon on non-Unix platform");
         }
     }
 }
