@@ -237,8 +237,8 @@ async fn main() -> Result<()> {
             &sequence_counter,
             &format!("ERROR: Failed to restore sessions: {e}"),
         );
-        std::thread::sleep(std::time::Duration::from_secs(5));
-        return Err(e);
+        // Keep IPC running in error mode so client can display the error
+        return run_error_mode_loop().await;
     }
     println!(
         "Session Manager: Active ({} sessions)",
@@ -260,10 +260,10 @@ async fn main() -> Result<()> {
                 emit_error_grid(
                     shared_ptr,
                     &sequence_counter,
-                    &format!("ERROR: Failed to create session/PTy: {e}"),
+                    &format!("ERROR: Failed to create session/PTY: {e}\n\nThis usually indicates a problem with PTY allocation.\nCheck if /dev/pts is mounted and accessible.\n\nTo test PTY failure: SCARAB_FORCE_PTY_FAIL=1\nTo override shared memory path: {}=/custom/path", SHMEM_PATH_ENV),
                 );
-                std::thread::sleep(std::time::Duration::from_secs(5));
-                return Err(e);
+                // Keep IPC running in error mode so client can display the error
+                return run_error_mode_loop().await;
             }
         }
     }
@@ -563,6 +563,8 @@ fn blit_images_to_shm(state: &TerminalState, image_ptr: *mut SharedImageBuffer) 
 
 /// Write a legible error banner into shared memory so the client/headless modes
 /// can display a readable message even when PTY/SHM setup fails.
+///
+/// This also sets the error_mode flag to signal clients that the daemon is in error state.
 fn emit_error_grid(shared_ptr: *mut SharedState, sequence_counter: &Arc<AtomicU64>, message: &str) {
     let lines: Vec<String> = wrap_error_text(message, GRID_WIDTH)
         .into_iter()
@@ -590,6 +592,7 @@ fn emit_error_grid(shared_ptr: *mut SharedState, sequence_counter: &Arc<AtomicU6
         state.cursor_x = 0;
         state.cursor_y = lines.len().saturating_sub(1) as u16;
         state.dirty_flag = 1;
+        state.error_mode = 1; // Signal error mode to clients
         let new_seq = sequence_counter.fetch_add(1, Ordering::SeqCst) + 1;
         state.sequence_number = new_seq;
     }
@@ -618,6 +621,29 @@ fn wrap_error_text(message: &str, width: usize) -> Vec<String> {
         out.push("ERROR".to_string());
     }
     out
+}
+
+/// Run daemon in error mode - minimal loop to keep IPC alive
+/// so clients can connect and read the error message from SharedState
+async fn run_error_mode_loop() -> Result<()> {
+    eprintln!("Daemon entering error mode - IPC will remain available for clients");
+    eprintln!("Press Ctrl+C to exit");
+
+    // Keep daemon running for clients to connect and read error
+    // Exit after 60 seconds timeout or on SIGINT
+    let timeout = tokio::time::Duration::from_secs(60);
+    let start = tokio::time::Instant::now();
+
+    loop {
+        tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
+
+        if start.elapsed() > timeout {
+            eprintln!("Error mode timeout reached (60s), exiting");
+            break;
+        }
+    }
+
+    Ok(())
 }
 
 /// FPS tracking for compositor performance monitoring

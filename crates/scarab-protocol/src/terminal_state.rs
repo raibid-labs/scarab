@@ -99,6 +99,16 @@ pub trait TerminalStateReader {
     /// The dirty flag indicates pending updates that haven't been rendered.
     fn is_dirty(&self) -> bool;
 
+    /// Check if error mode is active
+    ///
+    /// Error mode indicates the daemon encountered a fatal error (PTY/SHM unavailable)
+    /// and has written an error message to the grid. Clients should display this
+    /// error and exit gracefully.
+    ///
+    /// # Returns
+    /// `true` if daemon is in error mode
+    fn is_error_mode(&self) -> bool;
+
     /// Get linear cell index from row/col coordinates
     ///
     /// # Arguments
@@ -177,6 +187,7 @@ mod tests {
         height: usize,
         cursor: (u16, u16),
         sequence: u64,
+        error_mode: bool,
     }
 
     impl TerminalStateReader for MockState {
@@ -210,6 +221,10 @@ mod tests {
         fn is_dirty(&self) -> bool {
             false
         }
+
+        fn is_error_mode(&self) -> bool {
+            self.error_mode
+        }
     }
 
     #[test]
@@ -220,6 +235,7 @@ mod tests {
             height: 10,
             cursor: (5, 5),
             sequence: 42,
+            error_mode: false,
         };
 
         // Valid access
@@ -240,6 +256,7 @@ mod tests {
             height: 10,
             cursor: (5, 5),
             sequence: 42,
+            error_mode: false,
         };
         assert!(valid.is_valid());
 
@@ -249,6 +266,7 @@ mod tests {
             height: 10,
             cursor: (20, 5), // Out of bounds
             sequence: 42,
+            error_mode: false,
         };
         assert!(!invalid_cursor.is_valid());
 
@@ -258,6 +276,7 @@ mod tests {
             height: 10,
             cursor: (5, 5),
             sequence: 42,
+            error_mode: false,
         };
         assert!(!invalid_size.is_valid());
     }
@@ -275,6 +294,7 @@ mod tests {
             height: 2,
             cursor: (0, 0),
             sequence: 1,
+            error_mode: false,
         };
 
         let collected: alloc::vec::Vec<_> = mock.iter_cells().collect();

@@ -98,7 +98,10 @@ fn demo_chunked_transfer() {
                 "  Transfer complete! Total size: {} bytes",
                 complete_data.len()
             );
-            println!("  Data: {:?}", String::from_utf8(complete_data).unwrap());
+            println!(
+                "  Data: {:?}",
+                String::from_utf8(complete_data.clone()).unwrap()
+            );
             assert_eq!(String::from_utf8_lossy(&complete_data), "hello world!");
         }
     }

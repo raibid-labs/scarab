@@ -991,7 +991,10 @@ fn test_zone_scoping_with_multiple_prompts() {
     assert_eq!(zone1_focusables.len(), 2, "Zone 1 should have 2 focusables");
 
     // Zone 2 test
-    let zone2 = app.world().resource::<PromptMarkers>().current_prompt_zone(35);
+    let zone2 = app
+        .world()
+        .resource::<PromptMarkers>()
+        .current_prompt_zone(35);
     assert!(zone2.is_some());
     let (start2, end2) = zone2.unwrap();
     assert_eq!(start2, 30);

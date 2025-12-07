@@ -126,6 +126,11 @@ impl<'a> TerminalStateReader for SafeSharedState<'a> {
         let state = self.state_ref();
         state.dirty_flag != 0
     }
+
+    fn is_error_mode(&self) -> bool {
+        let state = self.state_ref();
+        state.error_mode != 0
+    }
 }
 
 /// Mock terminal state for testing
@@ -272,6 +277,10 @@ impl TerminalStateReader for MockTerminalState {
 
     fn is_dirty(&self) -> bool {
         self.dirty
+    }
+
+    fn is_error_mode(&self) -> bool {
+        false // Mock state is never in error mode by default
     }
 }
 

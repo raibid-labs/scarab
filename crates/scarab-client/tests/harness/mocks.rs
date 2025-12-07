@@ -267,7 +267,7 @@ impl MockSharedState {
         SharedState {
             sequence_number: self.sequence_number,
             dirty_flag: 1,
-            _padding1: [0; 1],
+            error_mode: 0,
             cursor_x: self.cursor_x,
             cursor_y: self.cursor_y,
             _padding2: [0; 2],
