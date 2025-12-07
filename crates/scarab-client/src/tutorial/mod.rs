@@ -94,8 +94,7 @@ impl TutorialSystem {
     /// Create new tutorial system with all steps
     pub fn new() -> Self {
         let home = std::env::var("HOME").unwrap_or_else(|_| ".".to_string());
-        let progress_file = PathBuf::from(home)
-            .join(".config/scarab/tutorial_progress.json");
+        let progress_file = PathBuf::from(home).join(".config/scarab/tutorial_progress.json");
 
         Self {
             current_step: 0,
@@ -230,7 +229,10 @@ struct TutorialProgress {
 }
 
 /// System to check if this is first launch
-fn check_first_launch(mut tutorial: ResMut<TutorialSystem>, mut events: EventWriter<TutorialEvent>) {
+fn check_first_launch(
+    mut tutorial: ResMut<TutorialSystem>,
+    mut events: EventWriter<TutorialEvent>,
+) {
     // Load existing progress
     let _ = tutorial.load_progress();
 
@@ -290,10 +292,7 @@ fn render_tutorial_overlay(
 }
 
 /// System to handle tutorial input
-fn handle_tutorial_input(
-    keys: Res<ButtonInput<KeyCode>>,
-    mut events: EventWriter<TutorialEvent>,
-) {
+fn handle_tutorial_input(keys: Res<ButtonInput<KeyCode>>, mut events: EventWriter<TutorialEvent>) {
     // Space or Enter to advance
     if keys.just_pressed(KeyCode::Space) || keys.just_pressed(KeyCode::Enter) {
         events.send(TutorialEvent::NextStep);

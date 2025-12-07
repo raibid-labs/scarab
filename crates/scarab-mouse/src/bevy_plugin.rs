@@ -7,7 +7,7 @@ use crate::{
     click_handler::{generate_cursor_position_sequence, generate_mouse_sequence, ClickDetector},
     context_menu::ContextMenu,
     selection::{find_word_at, Selection},
-    types::{ClickType, MouseButton, MouseEvent, MouseEventKind, MouseMode, Modifiers, Position},
+    types::{ClickType, Modifiers, MouseButton, MouseEvent, MouseEventKind, MouseMode, Position},
     ClickableItem, ClickableKind, MouseState,
 };
 use bevy::prelude::*;
@@ -402,10 +402,7 @@ fn select_line_at(state: &mut MouseState, pos: Position) {
 /// Find clickable item at position
 fn find_clickable_at(state: &MouseState, pos: Position) -> Option<&ClickableItem> {
     state.clickable_items.iter().find(|item| {
-        pos.x >= item.start.x
-            && pos.x <= item.end.x
-            && pos.y >= item.start.y
-            && pos.y <= item.end.y
+        pos.x >= item.start.x && pos.x <= item.end.x && pos.y >= item.start.y && pos.y <= item.end.y
     })
 }
 
@@ -516,7 +513,11 @@ fn update_selection_rendering(
         // Get terminal metrics (use default if not available)
         let metrics = metrics.as_deref().copied().unwrap_or_default();
 
-        log::trace!("Rendering selection: {:?} with metrics: {:?}", selection, metrics);
+        log::trace!(
+            "Rendering selection: {:?} with metrics: {:?}",
+            selection,
+            metrics
+        );
 
         let (start, end) = selection.normalized();
 
@@ -529,13 +530,7 @@ fn update_selection_rendering(
                 let max_y = start.y.max(end.y);
 
                 for row in min_y..=max_y {
-                    spawn_selection_overlay_for_range(
-                        &mut commands,
-                        &metrics,
-                        min_x,
-                        max_x,
-                        row,
-                    );
+                    spawn_selection_overlay_for_range(&mut commands, &metrics, min_x, max_x, row);
                 }
             }
             crate::selection::SelectionKind::Line => {
@@ -587,13 +582,7 @@ fn update_selection_rendering(
 
                     // Last line: from start of line to end.x
                     if end.y > start.y {
-                        spawn_selection_overlay_for_range(
-                            &mut commands,
-                            &metrics,
-                            0,
-                            end.x,
-                            end.y,
-                        );
+                        spawn_selection_overlay_for_range(&mut commands, &metrics, 0, end.x, end.y);
                     }
                 }
             }

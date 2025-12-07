@@ -216,13 +216,18 @@ fn render_progress_widget(buffer: &mut Buffer, progress: &InstallProgress) {
             Span::styled("Plugin: ", Style::default().fg(Color::Gray)),
             Span::styled(
                 &progress.plugin_name,
-                Style::default().fg(Color::White).add_modifier(Modifier::BOLD),
+                Style::default()
+                    .fg(Color::White)
+                    .add_modifier(Modifier::BOLD),
             ),
         ]),
         Line::from(""),
         Line::from(vec![
             Span::styled("Status: ", Style::default().fg(Color::Gray)),
-            Span::styled(status_text(&progress.status), Style::default().fg(title_color)),
+            Span::styled(
+                status_text(&progress.status),
+                Style::default().fg(title_color),
+            ),
         ]),
         Line::from(""),
     ];

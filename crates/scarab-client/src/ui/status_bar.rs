@@ -4,8 +4,8 @@
 //! programmable status bars with rich styling and dynamic content.
 
 use bevy::prelude::*;
-use scarab_plugin_api::status_bar::{AnsiColor, RenderItem};
 use scarab_plugin_api::status_bar::Color as StatusColor;
+use scarab_plugin_api::status_bar::{AnsiColor, RenderItem};
 use scarab_protocol::{DaemonMessage, StatusBarSide as ProtocolStatusBarSide, StatusRenderItem};
 use std::sync::{Arc, Mutex};
 use tokio::sync::broadcast;
@@ -199,7 +199,11 @@ fn receive_status_updates(
     // Process all available messages without blocking
     loop {
         match receiver.try_recv() {
-            Ok(DaemonMessage::StatusBarUpdate { window_id: _, side, items }) => {
+            Ok(DaemonMessage::StatusBarUpdate {
+                window_id: _,
+                side,
+                items,
+            }) => {
                 // Convert protocol items to RenderItems
                 let render_items: Vec<RenderItem> = items
                     .into_iter()
@@ -355,15 +359,9 @@ pub fn render_items_to_text(items: &[RenderItem]) -> String {
 #[allow(dead_code)] // Will be used in Phase 2 for color support
 fn color_to_bevy(color: &StatusColor) -> Color {
     match color {
-        StatusColor::Rgb(r, g, b) => {
-            Color::srgb_u8(*r, *g, *b)
-        }
-        StatusColor::Hex(hex) => {
-            parse_hex_color(hex)
-        }
-        StatusColor::Named(name) => {
-            parse_named_color(name)
-        }
+        StatusColor::Rgb(r, g, b) => Color::srgb_u8(*r, *g, *b),
+        StatusColor::Hex(hex) => parse_hex_color(hex),
+        StatusColor::Named(name) => parse_named_color(name),
     }
 }
 
@@ -553,7 +551,11 @@ mod tests {
         assert!(matches!(result, Some(RenderItem::Text(_))));
 
         // Test Foreground conversion
-        let item = StatusRenderItem::Foreground { r: 255, g: 128, b: 64 };
+        let item = StatusRenderItem::Foreground {
+            r: 255,
+            g: 128,
+            b: 64,
+        };
         let result = convert_protocol_item_to_render_item(item);
         assert!(matches!(result, Some(RenderItem::Foreground(_))));
 

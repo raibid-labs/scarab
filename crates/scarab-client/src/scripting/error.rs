@@ -9,10 +9,7 @@ pub type ScriptResult<T> = Result<T, ScriptError>;
 #[derive(Debug, Clone)]
 pub enum ScriptError {
     /// Failed to load script file
-    LoadError {
-        path: String,
-        reason: String,
-    },
+    LoadError { path: String, reason: String },
 
     /// Failed to parse script
     ParseError {
@@ -23,34 +20,19 @@ pub enum ScriptError {
     },
 
     /// Failed to compile script
-    CompileError {
-        script: String,
-        message: String,
-    },
+    CompileError { script: String, message: String },
 
     /// Runtime error during script execution
-    RuntimeError {
-        script: String,
-        message: String,
-    },
+    RuntimeError { script: String, message: String },
 
     /// API error - invalid API call from script
-    ApiError {
-        function: String,
-        message: String,
-    },
+    ApiError { function: String, message: String },
 
     /// Resource not found
-    ResourceNotFound {
-        resource_type: String,
-        name: String,
-    },
+    ResourceNotFound { resource_type: String, name: String },
 
     /// Type error
-    TypeError {
-        expected: String,
-        found: String,
-    },
+    TypeError { expected: String, found: String },
 
     /// IO error
     IoError(String),

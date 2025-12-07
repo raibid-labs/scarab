@@ -110,7 +110,7 @@ impl GlyphAtlas {
 
         // Reserve white pixel for solid colors
         atlas.reserve_white_pixel();
-        
+
         atlas
     }
 
@@ -131,12 +131,7 @@ impl GlyphAtlas {
         // Target the center of the top-left pixel (0,0)
         // Use a small offset to ensure we sample the white pixel
         let half_pixel = 0.5 / atlas_size;
-        [
-            half_pixel,
-            half_pixel,
-            half_pixel,
-            half_pixel,
-        ]
+        [half_pixel, half_pixel, half_pixel, half_pixel]
     }
 
     /// Get or cache a glyph in the atlas
@@ -165,8 +160,10 @@ impl GlyphAtlas {
         let image = swash_cache.get_image(font_system, cache_key).as_ref();
 
         if image.is_none() {
-            warn!("swash_cache.get_image returned None for glyph_id: {}, font_id: {:?}",
-                  glyph_key.glyph_id, glyph_key.font_id);
+            warn!(
+                "swash_cache.get_image returned None for glyph_id: {}, font_id: {:?}",
+                glyph_key.glyph_id, glyph_key.font_id
+            );
             return None;
         }
 

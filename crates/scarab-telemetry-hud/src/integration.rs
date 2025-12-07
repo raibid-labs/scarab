@@ -3,8 +3,8 @@
 //! This module provides systems that integrate with other Scarab subsystems
 //! to collect telemetry data, such as navigation hints and focusable regions.
 
-use bevy::prelude::*;
 use crate::metrics::TelemetryData;
+use bevy::prelude::*;
 
 /// Marker trait for components that should be counted as navigation hints
 ///
@@ -53,8 +53,7 @@ pub fn update_nav_hint_counts<NH, FR, HO>(
     focusable_query: Query<&FR>,
     overlay_query: Query<&HO>,
     mut telemetry: ResMut<TelemetryData>,
-)
-where
+) where
     NH: Component,
     FR: Component,
     HO: Component,

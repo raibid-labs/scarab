@@ -2,8 +2,8 @@
 //!
 //! Monitors the scripts directory for changes and triggers reloads
 
-use bevy::prelude::*;
 use super::error::{ScriptError, ScriptResult};
+use bevy::prelude::*;
 use std::path::{Path, PathBuf};
 use std::time::{Duration, SystemTime};
 
@@ -31,9 +31,13 @@ impl ScriptWatcher {
 
     /// Add a file to watch
     pub fn watch(&mut self, path: PathBuf) -> ScriptResult<()> {
-        let metadata = std::fs::metadata(&path).map_err(|e| ScriptError::WatcherError(
-            format!("Failed to read metadata for '{}': {}", path.display(), e),
-        ))?;
+        let metadata = std::fs::metadata(&path).map_err(|e| {
+            ScriptError::WatcherError(format!(
+                "Failed to read metadata for '{}': {}",
+                path.display(),
+                e
+            ))
+        })?;
 
         let last_modified = metadata.modified().map_err(|e| {
             ScriptError::WatcherError(format!(
@@ -66,7 +70,11 @@ impl ScriptWatcher {
         let now = SystemTime::now();
 
         // Rate limit checks
-        if now.duration_since(self.last_check).unwrap_or(Duration::ZERO) < self.check_interval {
+        if now
+            .duration_since(self.last_check)
+            .unwrap_or(Duration::ZERO)
+            < self.check_interval
+        {
             return Ok(Vec::new());
         }
 
@@ -96,7 +104,10 @@ impl ScriptWatcher {
 
     /// Get all watched file paths
     pub fn watched_paths(&self) -> Vec<&Path> {
-        self.watched_files.iter().map(|f| f.path.as_path()).collect()
+        self.watched_files
+            .iter()
+            .map(|f| f.path.as_path())
+            .collect()
     }
 
     /// Clear all watched files

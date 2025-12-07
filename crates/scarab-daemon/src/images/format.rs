@@ -11,7 +11,7 @@ pub enum ImageFormat {
     Png,
     Jpeg,
     Gif,
-    Rgba,    // Raw RGBA pixel data (used for Sixel)
+    Rgba, // Raw RGBA pixel data (used for Sixel)
     Unknown,
 }
 
@@ -62,11 +62,17 @@ pub fn detect_image(data: &[u8]) -> Option<ImageMetadata> {
     }
 
     // Check GIF signature
-    if data.len() >= 10 && (&data[0..3] == b"GIF" && (&data[3..6] == b"87a" || &data[3..6] == b"89a")) {
+    if data.len() >= 10
+        && (&data[0..3] == b"GIF" && (&data[3..6] == b"87a" || &data[3..6] == b"89a"))
+    {
         return parse_gif_dimensions(data);
     }
 
-    warn!("Unknown image format (first {} bytes: {:?})", data.len().min(16), &data[..data.len().min(16)]);
+    warn!(
+        "Unknown image format (first {} bytes: {:?})",
+        data.len().min(16),
+        &data[..data.len().min(16)]
+    );
     None
 }
 
@@ -211,10 +217,10 @@ mod tests {
             0xFF, 0xD8, // SOI
             0xFF, 0xC0, // SOF0
             0x00, 0x11, // Length
-            0x08,       // Precision
+            0x08, // Precision
             0x01, 0x00, // Height = 256
             0x01, 0x40, // Width = 320
-            0x03,       // Components
+            0x03, // Components
             0x00, 0x00, 0x00, // Padding to ensure length >= 10
         ];
 
@@ -230,8 +236,8 @@ mod tests {
         let gif_header = [
             0x47, 0x49, 0x46, // "GIF"
             0x38, 0x39, 0x61, // "89a"
-            0x40, 0x01,       // Width = 320 (little-endian)
-            0x00, 0x01,       // Height = 256 (little-endian)
+            0x40, 0x01, // Width = 320 (little-endian)
+            0x00, 0x01, // Height = 256 (little-endian)
         ];
 
         let meta = detect_image(&gif_header).unwrap();

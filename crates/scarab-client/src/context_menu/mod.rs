@@ -34,7 +34,7 @@ mod actions;
 mod overlay;
 mod plugin_items;
 
-pub use actions::{ContextMenuAction, DispatchContextMenuAction, dispatch_action};
+pub use actions::{dispatch_action, ContextMenuAction, DispatchContextMenuAction};
 pub use overlay::{render_context_menu, ContextMenuOverlay};
 pub use plugin_items::get_plugin_menu_items;
 
@@ -181,7 +181,10 @@ pub fn handle_show_context_menu(
             focus.push(entity);
         }
 
-        info!("Context menu shown at ({}, {})", event.position.x, event.position.y);
+        info!(
+            "Context menu shown at ({}, {})",
+            event.position.x, event.position.y
+        );
     }
 }
 

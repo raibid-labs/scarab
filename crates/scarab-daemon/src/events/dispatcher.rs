@@ -209,7 +209,13 @@ impl DaemonEventDispatcher {
     /// # Returns
     ///
     /// A unique handler ID
-    pub fn register_handler<F>(&self, event_type: EventType, priority: i32, plugin_name: &str, handler: F) -> u64
+    pub fn register_handler<F>(
+        &self,
+        event_type: EventType,
+        priority: i32,
+        plugin_name: &str,
+        handler: F,
+    ) -> u64
     where
         F: Fn(&EventArgs) -> EventResult + Send + Sync + 'static,
     {
@@ -319,9 +325,8 @@ mod tests {
     fn test_register_unregister() {
         let dispatcher = DaemonEventDispatcher::default();
 
-        let id = dispatcher.register_handler(EventType::Bell, 100, "test", |_| {
-            EventResult::Continue
-        });
+        let id =
+            dispatcher.register_handler(EventType::Bell, 100, "test", |_| EventResult::Continue);
 
         assert!(dispatcher.unregister_handler(id));
         assert!(!dispatcher.unregister_handler(id)); // Already removed

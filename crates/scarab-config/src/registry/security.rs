@@ -5,11 +5,11 @@ use crate::error::{ConfigError, Result};
 use sha2::{Digest, Sha256};
 
 #[cfg(feature = "registry")]
+use base64::{engine::general_purpose::STANDARD as BASE64_STANDARD, Engine};
+#[cfg(feature = "registry")]
 use sequoia_openpgp as openpgp;
 #[cfg(feature = "registry")]
 use std::time::{SystemTime, UNIX_EPOCH};
-#[cfg(feature = "registry")]
-use base64::{engine::general_purpose::STANDARD as BASE64_STANDARD, Engine};
 
 /// Plugin security verifier
 pub struct PluginVerifier {
@@ -23,7 +23,12 @@ impl PluginVerifier {
     }
 
     /// Verify plugin content against entry metadata
-    pub fn verify(&self, content: &[u8], entry: &PluginEntry, version: &str) -> Result<VerificationStatus> {
+    pub fn verify(
+        &self,
+        content: &[u8],
+        entry: &PluginEntry,
+        version: &str,
+    ) -> Result<VerificationStatus> {
         // Find version metadata
         let version_meta = entry
             .versions
@@ -65,7 +70,8 @@ impl PluginVerifier {
             Ok(VerificationStatus::ChecksumOnly { checksum })
         } else {
             Ok(VerificationStatus::Unverified {
-                warning: "No verification performed (checksum and signature checks disabled)".to_string(),
+                warning: "No verification performed (checksum and signature checks disabled)"
+                    .to_string(),
             })
         }
     }
@@ -106,14 +112,15 @@ impl PluginVerifier {
         // Check if we have trusted keys configured
         if self.config.trusted_keys.is_empty() && self.config.keyring_path.is_none() {
             return Err(ConfigError::SecurityError(
-                "GPG signature verification enabled but no trusted keys or keyring configured".to_string(),
+                "GPG signature verification enabled but no trusted keys or keyring configured"
+                    .to_string(),
             ));
         }
 
         // Decode base64 signature
-        let signature_bytes = BASE64_STANDARD.decode(signature_b64).map_err(|e| {
-            ConfigError::SecurityError(format!("Invalid base64 signature: {}", e))
-        })?;
+        let signature_bytes = BASE64_STANDARD
+            .decode(signature_b64)
+            .map_err(|e| ConfigError::SecurityError(format!("Invalid base64 signature: {}", e)))?;
 
         // Load trusted certificates
         let certs = self.load_trusted_certs()?;
@@ -138,7 +145,10 @@ impl PluginVerifier {
         match Self::verify_detached_signature(helper, &policy, content, &signature_bytes) {
             Ok((fingerprint, timestamp)) => {
                 tracing::info!("Successfully verified signature from key: {}", fingerprint);
-                Ok(SignatureInfo { fingerprint, timestamp })
+                Ok(SignatureInfo {
+                    fingerprint,
+                    timestamp,
+                })
             }
             Err(e) => Err(ConfigError::SecurityError(format!(
                 "Signature verification failed: {}",
@@ -172,11 +182,7 @@ impl PluginVerifier {
                 match normalized.parse::<Fingerprint>() {
                     Ok(fp) => Some(fp),
                     Err(e) => {
-                        tracing::warn!(
-                            "Failed to parse fingerprint '{}': {}",
-                            fp_str,
-                            e
-                        );
+                        tracing::warn!("Failed to parse fingerprint '{}': {}", fp_str, e);
                         None
                     }
                 }
@@ -194,10 +200,7 @@ impl PluginVerifier {
             let cert_fp = cert.fingerprint();
 
             if trusted_fps.iter().any(|trusted_fp| trusted_fp == &cert_fp) {
-                tracing::info!(
-                    "Matched certificate with fingerprint: {}",
-                    cert_fp.to_hex()
-                );
+                tracing::info!("Matched certificate with fingerprint: {}", cert_fp.to_hex());
                 matched_certs.push(cert.clone());
             }
         }
@@ -226,18 +229,12 @@ impl PluginVerifier {
 
                 // Parse all certificates from keyring
                 let parsed_certs = openpgp::Cert::from_bytes(&keyring_data).map_err(|e| {
-                    ConfigError::SecurityError(format!(
-                        "Failed to parse keyring file: {}",
-                        e
-                    ))
+                    ConfigError::SecurityError(format!("Failed to parse keyring file: {}", e))
                 })?;
 
                 certs.push(parsed_certs);
             } else {
-                tracing::warn!(
-                    "Keyring file not found: {}",
-                    keyring_path.display()
-                );
+                tracing::warn!("Keyring file not found: {}", keyring_path.display());
             }
         }
 
@@ -281,8 +278,8 @@ impl PluginVerifier {
         content: &[u8],
         signature_bytes: &[u8],
     ) -> std::result::Result<(String, u64), String> {
-        use openpgp::parse::Parse;
         use openpgp::parse::stream::DetachedVerifierBuilder;
+        use openpgp::parse::Parse;
 
         // Create a detached verifier with the helper
         let mut verifier = DetachedVerifierBuilder::from_bytes(signature_bytes)
@@ -367,10 +364,7 @@ struct VerificationHelperImpl<'a> {
 
 #[cfg(feature = "registry")]
 impl<'a> openpgp::parse::stream::VerificationHelper for VerificationHelperImpl<'a> {
-    fn get_certs(
-        &mut self,
-        _ids: &[openpgp::KeyHandle],
-    ) -> openpgp::Result<Vec<openpgp::Cert>> {
+    fn get_certs(&mut self, _ids: &[openpgp::KeyHandle]) -> openpgp::Result<Vec<openpgp::Cert>> {
         // Return all our trusted certificates
         Ok(self.certs.clone())
     }
@@ -401,11 +395,16 @@ impl<'a> openpgp::parse::stream::VerificationHelper for VerificationHelperImpl<'
                                     if let Some(sig_time) = sig.signature_creation_time() {
                                         let now = SystemTime::now()
                                             .duration_since(UNIX_EPOCH)
-                                            .map_err(|e| anyhow::anyhow!("System time error: {}", e))?
+                                            .map_err(|e| {
+                                                anyhow::anyhow!("System time error: {}", e)
+                                            })?
                                             .as_secs();
 
-                                        let sig_timestamp = sig_time.duration_since(UNIX_EPOCH)
-                                            .map_err(|e| anyhow::anyhow!("Signature time error: {}", e))?
+                                        let sig_timestamp = sig_time
+                                            .duration_since(UNIX_EPOCH)
+                                            .map_err(|e| {
+                                                anyhow::anyhow!("Signature time error: {}", e)
+                                            })?
                                             .as_secs();
 
                                         let age_days = (now.saturating_sub(sig_timestamp)) / 86400;
@@ -424,11 +423,16 @@ impl<'a> openpgp::parse::stream::VerificationHelper for VerificationHelperImpl<'
                                 }
 
                                 // Check if the key is in our trusted list (if required)
-                                if self.config.require_key_match && !self.config.trusted_keys.is_empty() {
-                                    let is_trusted = self.config.trusted_keys.iter().any(|trusted_fp| {
-                                        cert_fp.to_lowercase() == trusted_fp.to_lowercase()
-                                            || cert_fp.to_lowercase().ends_with(&trusted_fp.to_lowercase())
-                                    });
+                                if self.config.require_key_match
+                                    && !self.config.trusted_keys.is_empty()
+                                {
+                                    let is_trusted =
+                                        self.config.trusted_keys.iter().any(|trusted_fp| {
+                                            cert_fp.to_lowercase() == trusted_fp.to_lowercase()
+                                                || cert_fp
+                                                    .to_lowercase()
+                                                    .ends_with(&trusted_fp.to_lowercase())
+                                        });
 
                                     if !is_trusted {
                                         return Err(anyhow::anyhow!(
@@ -587,10 +591,7 @@ mod tests {
         let result = verifier.verify_signature(content, &fake_signature);
 
         assert!(result.is_err());
-        assert!(result
-            .unwrap_err()
-            .to_string()
-            .contains("no trusted keys"));
+        assert!(result.unwrap_err().to_string().contains("no trusted keys"));
     }
 
     #[test]

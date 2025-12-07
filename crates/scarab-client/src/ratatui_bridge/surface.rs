@@ -55,7 +55,7 @@ impl RatatuiSurface {
             width,
             height,
             z_index: 100.0, // Above terminal content (typically z=0-10)
-            dirty: true,     // Initial render required
+            dirty: true,    // Initial render required
             visible: true,
         }
     }
@@ -150,8 +150,7 @@ impl RatatuiSurface {
     /// # Returns
     /// True if the point is within the surface bounds
     pub fn contains_point(&self, col: u16, row: u16) -> bool {
-        col >= self.x && col < self.x + self.width &&
-        row >= self.y && row < self.y + self.height
+        col >= self.x && col < self.x + self.width && row >= self.y && row < self.y + self.height
     }
 }
 
@@ -409,11 +408,11 @@ mod tests {
         assert!(surface.contains_point(89, 43)); // Bottom-right corner (inclusive)
 
         // Point outside surface
-        assert!(!surface.contains_point(9, 20));   // Left of surface
-        assert!(!surface.contains_point(10, 19));  // Above surface
-        assert!(!surface.contains_point(90, 30));  // Right of surface
-        assert!(!surface.contains_point(50, 44));  // Below surface
-        assert!(!surface.contains_point(0, 0));    // Far outside
+        assert!(!surface.contains_point(9, 20)); // Left of surface
+        assert!(!surface.contains_point(10, 19)); // Above surface
+        assert!(!surface.contains_point(90, 30)); // Right of surface
+        assert!(!surface.contains_point(50, 44)); // Below surface
+        assert!(!surface.contains_point(0, 0)); // Far outside
     }
 
     #[test]

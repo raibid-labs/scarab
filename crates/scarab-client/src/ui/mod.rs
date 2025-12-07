@@ -21,7 +21,10 @@ pub use animations::{AnimationState, AnimationsPlugin, FadeAnimation};
 pub use command_palette::{Command, CommandPalettePlugin, CommandRegistry};
 pub use dock::{DockConfig, DockPlugin, DockState};
 pub use fusabi_widgets::{FusabiTuiPlugin, FusabiWidgetExamples};
-pub use grid_utils::{grid_to_pixel, grid_to_pixel_with_renderer, pixel_to_grid, grid_cell_bounds, grid_cell_center, grid_region_bounds};
+pub use grid_utils::{
+    grid_cell_bounds, grid_cell_center, grid_region_bounds, grid_to_pixel,
+    grid_to_pixel_with_renderer, pixel_to_grid,
+};
 pub use keybindings::{KeyBinding, KeyBindingConfig, KeybindingsPlugin};
 pub use leader_key::{LeaderKeyPlugin, LeaderKeyState};
 pub use link_hints::{LinkDetector, LinkHint, LinkHintsPlugin};

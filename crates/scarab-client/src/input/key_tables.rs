@@ -3,9 +3,11 @@
 //! This module provides Bevy resources and systems for managing key table stacks
 //! and leader key state in the Scarab client.
 
-use bevy::prelude::*;
-use scarab_plugin_api::key_tables::{KeyTableStack, LeaderKeyState, KeyCombo, KeyCode as ApiKeyCode, KeyModifiers as ApiKeyModifiers};
 use bevy::input::keyboard::KeyCode as BevyKeyCode;
+use bevy::prelude::*;
+use scarab_plugin_api::key_tables::{
+    KeyCode as ApiKeyCode, KeyCombo, KeyModifiers as ApiKeyModifiers, KeyTableStack, LeaderKeyState,
+};
 
 /// Bevy resource wrapping KeyTableStack
 #[derive(Resource, Debug)]
@@ -173,7 +175,10 @@ pub fn bevy_to_api_keycode(bevy_key: BevyKeyCode) -> Option<ApiKeyCode> {
 }
 
 /// Build modifiers from current keyboard state
-pub fn build_modifiers(keyboard: &ButtonInput<BevyKeyCode>, leader_active: bool) -> ApiKeyModifiers {
+pub fn build_modifiers(
+    keyboard: &ButtonInput<BevyKeyCode>,
+    leader_active: bool,
+) -> ApiKeyModifiers {
     let mut mods = ApiKeyModifiers::NONE;
 
     if keyboard.any_pressed([BevyKeyCode::ControlLeft, BevyKeyCode::ControlRight]) {
@@ -214,10 +219,7 @@ mod tests {
             bevy_to_api_keycode(BevyKeyCode::Escape),
             Some(ApiKeyCode::Escape)
         );
-        assert_eq!(
-            bevy_to_api_keycode(BevyKeyCode::F1),
-            Some(ApiKeyCode::F1)
-        );
+        assert_eq!(bevy_to_api_keycode(BevyKeyCode::F1), Some(ApiKeyCode::F1));
     }
 
     #[test]

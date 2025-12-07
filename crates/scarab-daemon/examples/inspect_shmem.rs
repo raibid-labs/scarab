@@ -1,5 +1,5 @@
 // Quick diagnostic tool to inspect shared memory contents
-use scarab_protocol::{SharedState, SHMEM_PATH, GRID_WIDTH, GRID_HEIGHT};
+use scarab_protocol::{SharedState, GRID_HEIGHT, GRID_WIDTH, SHMEM_PATH};
 use shared_memory::ShmemConf;
 
 fn main() {
@@ -41,9 +41,15 @@ fn main() {
         }
 
         // Count non-empty cells
-        let non_empty = state.cells.iter()
+        let non_empty = state
+            .cells
+            .iter()
             .filter(|c| c.char_codepoint != 0 && c.char_codepoint != 32)
             .count();
-        println!("\nNon-empty cells: {}/{}", non_empty, GRID_WIDTH * GRID_HEIGHT);
+        println!(
+            "\nNon-empty cells: {}/{}",
+            non_empty,
+            GRID_WIDTH * GRID_HEIGHT
+        );
     }
 }

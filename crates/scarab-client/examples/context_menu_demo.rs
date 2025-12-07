@@ -22,17 +22,15 @@ use scarab_protocol::TerminalMetrics;
 
 fn main() {
     App::new()
-        .add_plugins(
-            DefaultPlugins.set(WindowPlugin {
-                primary_window: Some(Window {
-                    title: "Context Menu Demo".to_string(),
-                    resolution: (1200.0, 800.0).into(),
-                    mode: WindowMode::Windowed,
-                    ..default()
-                }),
+        .add_plugins(DefaultPlugins.set(WindowPlugin {
+            primary_window: Some(Window {
+                title: "Context Menu Demo".to_string(),
+                resolution: (1200.0, 800.0).into(),
+                mode: WindowMode::Windowed,
                 ..default()
             }),
-        )
+            ..default()
+        }))
         .add_plugins(RatatuiBridgePlugin)
         .add_plugins(ContextMenuPlugin)
         .insert_resource(TerminalMetrics {

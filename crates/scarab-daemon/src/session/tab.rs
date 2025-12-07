@@ -77,14 +77,10 @@ impl Tab {
     }
 
     /// Split the active pane, creating a new pane
-    pub fn split_pane(
-        &mut self,
-        direction: SplitDirection,
-        shell: &str,
-    ) -> Result<PaneId> {
-        let active_pane = self.get_active_pane().ok_or_else(|| {
-            anyhow::anyhow!("No active pane to split")
-        })?;
+    pub fn split_pane(&mut self, direction: SplitDirection, shell: &str) -> Result<PaneId> {
+        let active_pane = self
+            .get_active_pane()
+            .ok_or_else(|| anyhow::anyhow!("No active pane to split"))?;
 
         let (cols, rows) = active_pane.dimensions();
 

@@ -31,12 +31,12 @@
 //! }
 //! ```
 
-use bevy::prelude::*;
 use bevy::ecs::query::{QueryData, QueryFilter};
 use bevy::ecs::schedule::ScheduleLabel;
+use bevy::prelude::*;
 
-pub mod mocks;
 pub mod headless;
+pub mod mocks;
 
 // Re-export HeadlessHarness for convenience
 pub use headless::HeadlessHarness;
@@ -202,7 +202,9 @@ impl HeadlessTestHarness {
     /// ```rust,no_run
     /// let entities = harness.query_filtered::<Entity, (With<Node>, Without<Transform>)>();
     /// ```
-    pub fn query_filtered<D: QueryData, F: QueryFilter>(&mut self) -> Vec<<<D as QueryData>::ReadOnly as bevy::ecs::query::WorldQuery>::Item<'_>> {
+    pub fn query_filtered<D: QueryData, F: QueryFilter>(
+        &mut self,
+    ) -> Vec<<<D as QueryData>::ReadOnly as bevy::ecs::query::WorldQuery>::Item<'_>> {
         let mut query = self.app.world_mut().query_filtered::<D, F>();
         query.iter(self.app.world()).collect()
     }
@@ -237,7 +239,8 @@ impl HeadlessTestHarness {
     pub fn assert_component_count<T: Component>(&mut self, expected: usize) {
         let actual = self.query::<T>().len();
         assert_eq!(
-            actual, expected,
+            actual,
+            expected,
             "Expected {} entities with component {}, found {}",
             expected,
             std::any::type_name::<T>(),
@@ -396,7 +399,11 @@ impl HeadlessTestHarness {
     /// harness.add_system(Update, my_system);
     /// harness.update(); // my_system runs
     /// ```
-    pub fn add_system<M>(&mut self, schedule: impl ScheduleLabel, system: impl IntoSystemConfigs<M>) {
+    pub fn add_system<M>(
+        &mut self,
+        schedule: impl ScheduleLabel,
+        system: impl IntoSystemConfigs<M>,
+    ) {
         self.app.add_systems(schedule, system);
     }
 

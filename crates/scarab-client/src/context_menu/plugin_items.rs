@@ -52,9 +52,7 @@ mod tests {
         // Test that registration doesn't panic
         register_plugin_menu_provider(
             "test",
-            Box::new(|| {
-                vec![MenuItem::new("plugin.test", "Test Plugin Action")]
-            }),
+            Box::new(|| vec![MenuItem::new("plugin.test", "Test Plugin Action")]),
         );
     }
 }

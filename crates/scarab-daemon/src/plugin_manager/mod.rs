@@ -51,11 +51,8 @@ impl ManagedPlugin {
     pub fn record_failure(&mut self) {
         self.failure_count += 1;
         if self.failure_count >= self.max_failures {
-            let mood = PluginMood::from_failure_count(
-                self.failure_count,
-                self.max_failures,
-                self.enabled,
-            );
+            let mood =
+                PluginMood::from_failure_count(self.failure_count, self.max_failures, self.enabled);
             log::error!(
                 "{} Plugin '{}' disabled after {} consecutive failures - {}",
                 mood.emoji(),
@@ -65,11 +62,8 @@ impl ManagedPlugin {
             );
             self.enabled = false;
         } else {
-            let mood = PluginMood::from_failure_count(
-                self.failure_count,
-                self.max_failures,
-                self.enabled,
-            );
+            let mood =
+                PluginMood::from_failure_count(self.failure_count, self.max_failures, self.enabled);
             log::warn!(
                 "{} Plugin '{}' - {} (failures: {})",
                 mood.emoji(),
@@ -275,24 +269,44 @@ impl PluginManager {
                 }
                 RemoteCommand::NavRegisterFocusable {
                     plugin_name,
-                    x, y, width, height, label, action,
+                    x,
+                    y,
+                    width,
+                    height,
+                    label,
+                    action,
                 } => {
                     log::debug!(
                         "Plugin {} registering focusable at ({}, {}) {}x{}: {}",
-                        plugin_name, x, y, width, height, label
+                        plugin_name,
+                        x,
+                        y,
+                        width,
+                        height,
+                        label
                     );
                     // Forward to clients for ECS processing
                     self.client_registry
                         .broadcast(DaemonMessage::NavRegisterFocusable {
                             plugin_name: plugin_name.into(),
-                            x, y, width, height,
+                            x,
+                            y,
+                            width,
+                            height,
                             label: label.into(),
                             action,
                         })
                         .await;
                 }
-                RemoteCommand::NavUnregisterFocusable { plugin_name, focusable_id } => {
-                    log::debug!("Plugin {} unregistering focusable {}", plugin_name, focusable_id);
+                RemoteCommand::NavUnregisterFocusable {
+                    plugin_name,
+                    focusable_id,
+                } => {
+                    log::debug!(
+                        "Plugin {} unregistering focusable {}",
+                        plugin_name,
+                        focusable_id
+                    );
                     self.client_registry
                         .broadcast(DaemonMessage::NavUnregisterFocusable {
                             plugin_name: plugin_name.into(),
@@ -300,8 +314,18 @@ impl PluginManager {
                         })
                         .await;
                 }
-                RemoteCommand::SpawnOverlay { plugin_name, overlay_id, config } => {
-                    log::debug!("Plugin {} spawning overlay {} at ({}, {})", plugin_name, overlay_id, config.x, config.y);
+                RemoteCommand::SpawnOverlay {
+                    plugin_name,
+                    overlay_id,
+                    config,
+                } => {
+                    log::debug!(
+                        "Plugin {} spawning overlay {} at ({}, {})",
+                        plugin_name,
+                        overlay_id,
+                        config.x,
+                        config.y
+                    );
                     self.client_registry
                         .broadcast(DaemonMessage::SpawnOverlay {
                             plugin_name: plugin_name.into(),
@@ -313,7 +337,10 @@ impl PluginManager {
                         })
                         .await;
                 }
-                RemoteCommand::RemoveOverlay { plugin_name, overlay_id } => {
+                RemoteCommand::RemoveOverlay {
+                    plugin_name,
+                    overlay_id,
+                } => {
                     log::debug!("Plugin {} removing overlay {}", plugin_name, overlay_id);
                     self.client_registry
                         .broadcast(DaemonMessage::RemoveOverlay {
@@ -322,8 +349,17 @@ impl PluginManager {
                         })
                         .await;
                 }
-                RemoteCommand::AddStatusItem { plugin_name, item_id, item } => {
-                    log::debug!("Plugin {} adding status item {}: {}", plugin_name, item_id, item.label);
+                RemoteCommand::AddStatusItem {
+                    plugin_name,
+                    item_id,
+                    item,
+                } => {
+                    log::debug!(
+                        "Plugin {} adding status item {}: {}",
+                        plugin_name,
+                        item_id,
+                        item.label
+                    );
                     self.client_registry
                         .broadcast(DaemonMessage::AddStatusItem {
                             plugin_name: plugin_name.into(),
@@ -334,7 +370,10 @@ impl PluginManager {
                         })
                         .await;
                 }
-                RemoteCommand::RemoveStatusItem { plugin_name, item_id } => {
+                RemoteCommand::RemoveStatusItem {
+                    plugin_name,
+                    item_id,
+                } => {
                     log::debug!("Plugin {} removing status item {}", plugin_name, item_id);
                     self.client_registry
                         .broadcast(DaemonMessage::RemoveStatusItem {
@@ -343,13 +382,28 @@ impl PluginManager {
                         })
                         .await;
                 }
-                RemoteCommand::PromptJump { plugin_name, direction } => {
-                    log::debug!("Plugin {} triggering prompt jump {:?}", plugin_name, direction);
+                RemoteCommand::PromptJump {
+                    plugin_name,
+                    direction,
+                } => {
+                    log::debug!(
+                        "Plugin {} triggering prompt jump {:?}",
+                        plugin_name,
+                        direction
+                    );
                     let proto_direction = match direction {
-                        scarab_plugin_api::types::JumpDirection::Up => scarab_protocol::PromptJumpDirection::Up,
-                        scarab_plugin_api::types::JumpDirection::Down => scarab_protocol::PromptJumpDirection::Down,
-                        scarab_plugin_api::types::JumpDirection::First => scarab_protocol::PromptJumpDirection::First,
-                        scarab_plugin_api::types::JumpDirection::Last => scarab_protocol::PromptJumpDirection::Last,
+                        scarab_plugin_api::types::JumpDirection::Up => {
+                            scarab_protocol::PromptJumpDirection::Up
+                        }
+                        scarab_plugin_api::types::JumpDirection::Down => {
+                            scarab_protocol::PromptJumpDirection::Down
+                        }
+                        scarab_plugin_api::types::JumpDirection::First => {
+                            scarab_protocol::PromptJumpDirection::First
+                        }
+                        scarab_plugin_api::types::JumpDirection::Last => {
+                            scarab_protocol::PromptJumpDirection::Last
+                        }
                     };
                     self.client_registry
                         .broadcast(DaemonMessage::PromptJump {
@@ -444,7 +498,8 @@ impl PluginManager {
         }
 
         if loaded > 0 {
-            log::info!("✨ {} Discovered and loaded {} plugin{}!",
+            log::info!(
+                "✨ {} Discovered and loaded {} plugin{}!",
                 delight::random_success_message(),
                 loaded,
                 if loaded == 1 { "" } else { "s" }
@@ -552,10 +607,7 @@ impl PluginManager {
             }
             Err(_) => {
                 let error = PluginError::Timeout(timeout_duration.as_millis() as u64);
-                log::error!(
-                    "⏱️  Plugin '{}' initialization timed out",
-                    plugin_name
-                );
+                log::error!("⏱️  Plugin '{}' initialization timed out", plugin_name);
                 Err(error)
             }
         }
@@ -603,10 +655,7 @@ impl PluginManager {
                     managed.record_failure();
                 }
                 Err(_) => {
-                    log::error!(
-                        "⏱️  Plugin '{}' output hook timed out",
-                        plugin_name
-                    );
+                    log::error!("⏱️  Plugin '{}' output hook timed out", plugin_name);
                     managed.record_failure();
                 }
             }
@@ -777,10 +826,7 @@ impl PluginManager {
                     managed.record_failure();
                 }
                 Err(_) => {
-                    log::error!(
-                        "⏱️  Plugin '{}' remote command hook timed out",
-                        plugin_name
-                    );
+                    log::error!("⏱️  Plugin '{}' remote command hook timed out", plugin_name);
                     managed.record_failure();
                 }
             }

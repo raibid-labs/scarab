@@ -8,9 +8,7 @@ use crate::object_model::{ObjectHandle, ObjectType};
 #[derive(Debug, Clone, PartialEq)]
 pub enum ObjectError {
     /// The requested object was not found in the registry
-    NotFound {
-        handle: ObjectHandle,
-    },
+    NotFound { handle: ObjectHandle },
 
     /// The handle refers to an object that has been deleted and recreated
     StaleHandle {
@@ -120,11 +118,7 @@ impl fmt::Display for ObjectError {
                 handle,
                 method_name,
             } => {
-                write!(
-                    f,
-                    "Method '{}' not found on object {}",
-                    method_name, handle
-                )
+                write!(f, "Method '{}' not found on object {}", method_name, handle)
             }
             ObjectError::InvalidArgument {
                 handle,
@@ -232,12 +226,7 @@ mod tests {
     #[test]
     fn test_invalid_argument_error() {
         let handle = ObjectHandle::new(ObjectType::Pane, 5, 1);
-        let err = ObjectError::invalid_argument(
-            handle,
-            "resize",
-            "width",
-            "must be positive",
-        );
+        let err = ObjectError::invalid_argument(handle, "resize", "width", "must be positive");
 
         match &err {
             ObjectError::InvalidArgument {

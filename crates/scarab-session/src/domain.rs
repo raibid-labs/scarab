@@ -189,7 +189,14 @@ impl DomainRegistry {
         self.domains
             .read()
             .values()
-            .map(|d| (d.id().to_string(), d.name().to_string(), d.domain_type(), d.is_connected()))
+            .map(|d| {
+                (
+                    d.id().to_string(),
+                    d.name().to_string(),
+                    d.domain_type(),
+                    d.is_connected(),
+                )
+            })
             .collect()
     }
 

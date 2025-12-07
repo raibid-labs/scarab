@@ -37,7 +37,13 @@ pub use error::{PluginError, Result};
 
 // Note: EventRegistry is deprecated for client-side use. See events module docs for migration guide.
 #[allow(deprecated)]
-pub use events::{EventArgs, EventData, EventHandler, EventRegistry, EventResult, EventType, HandlerEntry};
+pub use events::{
+    EventArgs, EventData, EventHandler, EventRegistry, EventResult, EventType, HandlerEntry,
+};
+pub use host_bindings::{
+    HostBindingLimits, HostBindings, NavKeymap, NavStyle, ResourceUsage, DEFAULT_MAX_FOCUSABLES,
+    DEFAULT_MAX_OVERLAYS, DEFAULT_MAX_STATUS_ITEMS, DEFAULT_RATE_LIMIT,
+};
 pub use key_tables::{
     ActivateKeyTableMode, ClipboardKind, CopyModeAction, Direction, KeyAction, KeyCode, KeyCombo,
     KeyModifiers, KeyTable, KeyTableActivation, KeyTableStack, LeaderKeyConfig, LeaderKeyState,
@@ -48,10 +54,6 @@ pub use menu::{MenuAction, MenuItem};
 pub use navigation::{
     validate_focusable, NavigationExt, PluginFocusable, PluginFocusableAction,
     PluginNavCapabilities, ValidationError,
-};
-pub use host_bindings::{
-    HostBindings, HostBindingLimits, NavStyle, NavKeymap, ResourceUsage,
-    DEFAULT_RATE_LIMIT, DEFAULT_MAX_FOCUSABLES, DEFAULT_MAX_OVERLAYS, DEFAULT_MAX_STATUS_ITEMS,
 };
 pub use object_model::{ObjectError, ObjectHandle, ObjectRegistry, ObjectType, RegistryEntry};
 pub use plugin::{Plugin, PluginMetadata};

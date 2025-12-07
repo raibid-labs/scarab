@@ -39,7 +39,7 @@ use ratatui::{
 use std::collections::HashSet;
 
 use crate::ratatui_bridge::{
-    RatatuiBridgePlugin, RatatuiSurface, SurfaceBuffers, SurfaceInputEvent, RatEvent, RatKeyCode,
+    RatEvent, RatKeyCode, RatatuiBridgePlugin, RatatuiSurface, SurfaceBuffers, SurfaceInputEvent,
 };
 
 /// Cached information about an entity for display purposes
@@ -141,24 +141,24 @@ impl Plugin for BevyInspectorPlugin {
             app.add_plugins(RatatuiBridgePlugin);
         }
 
-        app.init_resource::<BevyInspectorState>()
-            .add_systems(Update, (
+        app.init_resource::<BevyInspectorState>().add_systems(
+            Update,
+            (
                 toggle_inspector_input,
                 update_entity_list_exclusive,
                 spawn_inspector_surface,
                 render_inspector,
                 handle_inspector_input,
-            ).chain());
+            )
+                .chain(),
+        );
 
         info!("Bevy Inspector initialized - Press Ctrl+Shift+I to open");
     }
 }
 
 // System: Toggle inspector with Ctrl+Shift+I
-fn toggle_inspector_input(
-    keys: Res<ButtonInput<KeyCode>>,
-    mut state: ResMut<BevyInspectorState>,
-) {
+fn toggle_inspector_input(keys: Res<ButtonInput<KeyCode>>, mut state: ResMut<BevyInspectorState>) {
     // Check for Ctrl+Shift+I
     let ctrl = keys.pressed(KeyCode::ControlLeft) || keys.pressed(KeyCode::ControlRight);
     let shift = keys.pressed(KeyCode::ShiftLeft) || keys.pressed(KeyCode::ShiftRight);
@@ -212,7 +212,10 @@ fn update_entity_list_exclusive(world: &mut World) {
             let component_names: Vec<String> = archetype
                 .components()
                 .filter_map(|component_id| {
-                    world.components().get_info(component_id).map(|info| info.name().to_string())
+                    world
+                        .components()
+                        .get_info(component_id)
+                        .map(|info| info.name().to_string())
                 })
                 .collect();
 
@@ -237,7 +240,10 @@ fn update_entity_list_exclusive(world: &mut World) {
                 return true;
             }
             // Check if entity ID contains query
-            if format!("{:?}", info.entity).to_lowercase().contains(&query_lower) {
+            if format!("{:?}", info.entity)
+                .to_lowercase()
+                .contains(&query_lower)
+            {
                 return true;
             }
             false
@@ -286,8 +292,7 @@ fn spawn_inspector_surface(
     if surfaces.is_empty() {
         // Create new surface
         commands.spawn((
-            RatatuiSurface::new(x, y, width, height)
-                .with_z_index(1000.0), // High z-index to appear on top
+            RatatuiSurface::new(x, y, width, height).with_z_index(1000.0), // High z-index to appear on top
             InspectorSurfaceMarker,
         ));
     } else {
@@ -322,9 +327,7 @@ fn render_inspector(
         let area = surface.rect();
 
         // Render the inspector widget using cached entity info
-        InspectorWidget {
-            state: &state,
-        }.render(area, buffer);
+        InspectorWidget { state: &state }.render(area, buffer);
     }
 }
 
@@ -338,10 +341,7 @@ impl<'a> Widget for InspectorWidget<'a> {
         // Main layout: horizontal split for entity list and details
         let chunks = Layout::default()
             .direction(Direction::Horizontal)
-            .constraints([
-                Constraint::Percentage(40),
-                Constraint::Percentage(60),
-            ])
+            .constraints([Constraint::Percentage(40), Constraint::Percentage(60)])
             .split(area);
 
         // Render entity list on the left
@@ -373,17 +373,19 @@ impl<'a> InspectorWidget<'a> {
         block.render(area, buf);
 
         // Build entity list items from cached info
-        let items: Vec<ListItem> = self.state.entity_infos.iter().enumerate()
+        let items: Vec<ListItem> = self
+            .state
+            .entity_infos
+            .iter()
+            .enumerate()
             .map(|(idx, info)| {
                 let is_selected = idx == self.state.selected_index;
                 let is_expanded = self.state.expanded_entities.contains(&info.entity);
 
                 let prefix = if is_expanded { "[-] " } else { "[+] " };
-                let text = format!("{}{:?} | {} ({} components)",
-                    prefix,
-                    info.entity,
-                    info.name,
-                    info.component_count
+                let text = format!(
+                    "{}{:?} | {} ({} components)",
+                    prefix, info.entity, info.name, info.component_count
                 );
 
                 let style = if is_selected {
@@ -429,9 +431,12 @@ impl<'a> InspectorWidget<'a> {
             lines.push(Line::from(""));
 
             // List components
-            lines.push(Line::from(vec![
-                Span::styled("Components:", Style::default().add_modifier(Modifier::BOLD).fg(Color::Yellow)),
-            ]));
+            lines.push(Line::from(vec![Span::styled(
+                "Components:",
+                Style::default()
+                    .add_modifier(Modifier::BOLD)
+                    .fg(Color::Yellow),
+            )]));
 
             for component_name in &info.component_names {
                 lines.push(Line::from(vec![
@@ -441,7 +446,8 @@ impl<'a> InspectorWidget<'a> {
             }
 
             // Handle scrolling
-            let visible_lines: Vec<Line> = lines.into_iter()
+            let visible_lines: Vec<Line> = lines
+                .into_iter()
                 .skip(self.state.detail_scroll)
                 .take(inner.height as usize)
                 .collect();
@@ -449,9 +455,7 @@ impl<'a> InspectorWidget<'a> {
             let paragraph = Paragraph::new(visible_lines);
             paragraph.render(inner, buf);
         } else {
-            let text = vec![
-                Line::from("Select an entity to view details"),
-            ];
+            let text = vec![Line::from("Select an entity to view details")];
             Paragraph::new(text).render(inner, buf);
         }
     }
@@ -466,14 +470,18 @@ impl<'a> InspectorWidget<'a> {
         };
 
         let help_text = if self.state.search_mode {
-            format!("Search: {} | Esc: cancel | Enter: apply", self.state.search_query)
+            format!(
+                "Search: {} | Esc: cancel | Enter: apply",
+                self.state.search_query
+            )
         } else {
             "j/k: navigate | h/l: expand/collapse | /: search | r: refresh | Esc: close | Ctrl+Shift+I: toggle".to_string()
         };
 
-        let status = Line::from(vec![
-            Span::styled(help_text, Style::default().fg(Color::Black).bg(Color::White)),
-        ]);
+        let status = Line::from(vec![Span::styled(
+            help_text,
+            Style::default().fg(Color::Black).bg(Color::White),
+        )]);
 
         // Clear the status bar area
         for x in status_area.x..status_area.x + status_area.width {
@@ -487,10 +495,12 @@ impl<'a> InspectorWidget<'a> {
         let mut x_offset = status_area.x;
         for span in status.spans {
             let text = span.content.to_string();
-            for ch in text.chars().take((status_area.width - (x_offset - status_area.x)) as usize) {
+            for ch in text
+                .chars()
+                .take((status_area.width - (x_offset - status_area.x)) as usize)
+            {
                 if let Some(cell) = buf.cell_mut((x_offset, status_area.y)) {
-                    cell.set_char(ch)
-                        .set_style(span.style);
+                    cell.set_char(ch).set_style(span.style);
                 }
                 x_offset += 1;
             }
@@ -533,7 +543,10 @@ fn handle_inspector_input(
     }
 }
 
-fn handle_navigation_input(state: &mut BevyInspectorState, key: &ratatui::crossterm::event::KeyEvent) {
+fn handle_navigation_input(
+    state: &mut BevyInspectorState,
+    key: &ratatui::crossterm::event::KeyEvent,
+) {
     match key.code {
         // Navigation
         RatKeyCode::Char('j') | RatKeyCode::Down => {

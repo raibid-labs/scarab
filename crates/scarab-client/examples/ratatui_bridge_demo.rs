@@ -7,8 +7,8 @@
 // Run with: cargo run -p scarab-client --example ratatui_bridge_demo
 
 use bevy::prelude::*;
-use scarab_client::ratatui_bridge::{Buffer, RatatuiBridgePlugin, RatatuiSurface, SurfaceBuffers};
 use ratatui::widgets::{Block, Borders, Widget};
+use scarab_client::ratatui_bridge::{Buffer, RatatuiBridgePlugin, RatatuiSurface, SurfaceBuffers};
 use scarab_protocol::TerminalMetrics;
 
 fn main() {

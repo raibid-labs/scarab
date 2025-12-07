@@ -185,19 +185,16 @@ fn handle_daemon_menu_response(
                         menu_state.open(plugin_name.clone(), items);
                     }
                     Err(e) => {
-                        warn!("Failed to deserialize menu for plugin '{}': {}", plugin_name, e);
+                        warn!(
+                            "Failed to deserialize menu for plugin '{}': {}",
+                            plugin_name, e
+                        );
                         menu_state.set_error(format!("Invalid menu data: {}", e));
                     }
                 }
             }
-            DaemonMessage::PluginMenuError {
-                plugin_name,
-                error,
-            } => {
-                warn!(
-                    "Error loading menu for plugin '{}': {}",
-                    plugin_name, error
-                );
+            DaemonMessage::PluginMenuError { plugin_name, error } => {
+                warn!("Error loading menu for plugin '{}': {}", plugin_name, error);
                 menu_state.set_error(error.clone());
             }
             _ => {}
@@ -627,8 +624,14 @@ mod tests {
         state.open(
             "test-plugin".to_string(),
             vec![
-                MenuItem::new("Item 1".to_string(), MenuAction::Command("cmd1".to_string())),
-                MenuItem::new("Item 2".to_string(), MenuAction::Command("cmd2".to_string())),
+                MenuItem::new(
+                    "Item 1".to_string(),
+                    MenuAction::Command("cmd1".to_string()),
+                ),
+                MenuItem::new(
+                    "Item 2".to_string(),
+                    MenuAction::Command("cmd2".to_string()),
+                ),
             ],
         );
 

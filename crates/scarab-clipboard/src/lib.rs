@@ -146,9 +146,7 @@ impl ClipboardPlugin {
                 for y in normalized_region.start_y..=normalized_region.end_y.min(rows - 1) {
                     if let Some(line) = ctx.get_line(y) {
                         let line_chars: Vec<char> = line.chars().collect();
-                        for x in normalized_region.start_x
-                            ..=normalized_region.end_x.min(cols - 1)
-                        {
+                        for x in normalized_region.start_x..=normalized_region.end_x.min(cols - 1) {
                             if let Some(&ch) = line_chars.get(x as usize) {
                                 text.push(ch);
                             }
@@ -216,11 +214,7 @@ impl ClipboardPlugin {
             return Ok(Action::Continue);
         }
 
-        let text = self.extract_selection_text(
-            ctx,
-            &state.selection.region,
-            state.selection.mode,
-        );
+        let text = self.extract_selection_text(ctx, &state.selection.region, state.selection.mode);
 
         if text.is_empty() {
             ctx.notify_warning("Copy Failed", "Selection is empty");
@@ -232,10 +226,7 @@ impl ClipboardPlugin {
         match clipboard_mgr.copy(&text, clipboard_type) {
             Ok(_) => {
                 log::info!("Copied {} characters to {:?}", text.len(), clipboard_type);
-                ctx.notify_success(
-                    "Copied",
-                    &format!("Copied {} characters", text.len()),
-                );
+                ctx.notify_success("Copied", &format!("Copied {} characters", text.len()));
 
                 // On Linux, also copy to primary selection when copying to standard clipboard
                 // This ensures both clipboards stay in sync (traditional terminal behavior)
@@ -334,12 +325,7 @@ impl ClipboardPlugin {
     }
 
     /// Handle selection start
-    fn start_selection(
-        &self,
-        ctx: &PluginContext,
-        state: &mut PluginState,
-        mode: SelectionMode,
-    ) {
+    fn start_selection(&self, ctx: &PluginContext, state: &mut PluginState, mode: SelectionMode) {
         let (cursor_x, cursor_y) = ctx.get_cursor();
 
         state.selection.start(cursor_x, cursor_y, mode);
@@ -362,7 +348,12 @@ impl ClipboardPlugin {
             },
         });
 
-        log::info!("Started {:?} selection at ({}, {})", mode, cursor_x, cursor_y);
+        log::info!(
+            "Started {:?} selection at ({}, {})",
+            mode,
+            cursor_x,
+            cursor_y
+        );
     }
 
     /// Automatically copy selection to X11 primary selection (on Linux)
@@ -373,11 +364,7 @@ impl ClipboardPlugin {
             return;
         }
 
-        let text = self.extract_selection_text(
-            ctx,
-            &state.selection.region,
-            state.selection.mode,
-        );
+        let text = self.extract_selection_text(ctx, &state.selection.region, state.selection.mode);
 
         if !text.is_empty() {
             let mut clipboard_mgr = self.clipboard_manager.lock();
@@ -396,11 +383,7 @@ impl ClipboardPlugin {
     }
 
     /// Handle keybindings
-    fn handle_keybinding(
-        &self,
-        input: &[u8],
-        ctx: &PluginContext,
-    ) -> Result<Action> {
+    fn handle_keybinding(&self, input: &[u8], ctx: &PluginContext) -> Result<Action> {
         let mut state = self.state.lock();
 
         // Ctrl+Shift+C (Copy) - 0x03 with modifiers
@@ -580,7 +563,11 @@ impl Plugin for ClipboardPlugin {
                     "Bracket Paste Mode",
                     &format!(
                         "Bracket paste mode {}",
-                        if state.bracket_mode_enabled { "enabled" } else { "disabled" }
+                        if state.bracket_mode_enabled {
+                            "enabled"
+                        } else {
+                            "disabled"
+                        }
                     ),
                 );
                 log::info!("Bracket paste mode: {}", state.bracket_mode_enabled);

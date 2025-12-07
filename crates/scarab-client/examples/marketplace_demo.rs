@@ -23,11 +23,7 @@ use scarab_protocol::TerminalMetrics;
 
 fn main() {
     App::new()
-        .add_plugins((
-            MinimalPlugins,
-            RatatuiBridgePlugin,
-            MarketplacePlugin,
-        ))
+        .add_plugins((MinimalPlugins, RatatuiBridgePlugin, MarketplacePlugin))
         .insert_resource(TerminalMetrics::default())
         .add_systems(Startup, setup)
         .add_systems(Update, handle_toggle_key)
@@ -44,10 +40,7 @@ fn setup(mut commands: Commands, mut events: EventWriter<MarketplaceEvent>) {
 }
 
 /// Handle global toggle keybinding
-fn handle_toggle_key(
-    keys: Res<ButtonInput<KeyCode>>,
-    mut events: EventWriter<MarketplaceEvent>,
-) {
+fn handle_toggle_key(keys: Res<ButtonInput<KeyCode>>, mut events: EventWriter<MarketplaceEvent>) {
     // Ctrl+Shift+M to toggle marketplace
     if keys.pressed(KeyCode::ControlLeft)
         && keys.pressed(KeyCode::ShiftLeft)

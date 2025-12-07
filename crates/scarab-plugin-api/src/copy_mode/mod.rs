@@ -449,10 +449,7 @@ where
             while let Some(match_pos) = line_lower[start_pos..].find(&query_lower) {
                 let absolute_pos = start_pos + match_pos;
                 let start = CopyModeCursor::new(absolute_pos as u16, y);
-                let end = CopyModeCursor::new(
-                    (absolute_pos + query.len() - 1) as u16,
-                    y,
-                );
+                let end = CopyModeCursor::new((absolute_pos + query.len() - 1) as u16, y);
                 matches.push(SearchMatch::new(start, end));
 
                 // Move past this match to find the next one
@@ -543,7 +540,7 @@ pub fn find_word_bounds(x: u16, line: &str) -> (u16, u16) {
 }
 
 // Re-export status bar types for use in indicator functions
-use crate::status_bar::{RenderItem, Color};
+use crate::status_bar::{Color, RenderItem};
 
 /// Generate mode indicator render items for status bar integration
 ///
@@ -582,7 +579,7 @@ pub fn copy_mode_indicator(state: &CopyModeState, search_active: bool) -> Vec<Re
                 SelectionMode::Line => "V-LINE",
                 SelectionMode::Block => "V-BLOCK",
                 SelectionMode::Word => "V-WORD",
-            }
+            },
         }
     };
 
@@ -621,9 +618,11 @@ pub fn copy_mode_position_indicator(state: &CopyModeState) -> Vec<RenderItem> {
         return vec![];
     }
 
-    vec![
-        RenderItem::Text(format!(" L{},C{} ", state.cursor.y + 1, state.cursor.x + 1)),
-    ]
+    vec![RenderItem::Text(format!(
+        " L{},C{} ",
+        state.cursor.y + 1,
+        state.cursor.x + 1
+    ))]
 }
 
 /// Generate search match count indicator for status bar
@@ -657,9 +656,11 @@ pub fn search_match_indicator(search: &SearchState) -> Vec<RenderItem> {
     }
 
     let current = search.current_match.map(|i| i + 1).unwrap_or(0);
-    vec![
-        RenderItem::Text(format!(" {}/{} ", current, search.matches.len())),
-    ]
+    vec![RenderItem::Text(format!(
+        " {}/{} ",
+        current,
+        search.matches.len()
+    ))]
 }
 
 #[cfg(test)]
@@ -1149,7 +1150,10 @@ mod tests {
         };
 
         let text = state.get_selection_text(get_line);
-        assert_eq!(text, Some("First line\nSecond line\nThird line".to_string()));
+        assert_eq!(
+            text,
+            Some("First line\nSecond line\nThird line".to_string())
+        );
     }
 
     #[test]

@@ -234,16 +234,16 @@ fn handle_startup_command(
         // For now we just try to send. If it fails, it fails.
         // But to ensure it sends *after* connection, we might need a reliable check.
         // IpcChannel::send spawns a task.
-        
+
         // We really want to wait until is_connected() is true.
         if ipc.is_connected() {
             println!("Sending startup command: {}", cmd.0);
             // Append newline to execute the command
             let mut input = cmd.0.as_bytes().to_vec();
             input.push(b'\r'); // Enter key
-            
+
             ipc.send(ControlMessage::Input { data: input });
-            
+
             // Remove the resource so we don't send it again
             commands.remove_resource::<StartupCommand>();
         }

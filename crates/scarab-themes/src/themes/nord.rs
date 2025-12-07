@@ -13,7 +13,11 @@ pub fn theme() -> Theme {
             author: "Arctic Ice Studio".to_string(),
             description: "An arctic, north-bluish color palette".to_string(),
             variant: ThemeVariant::Dark,
-            tags: vec!["dark".to_string(), "blue".to_string(), "minimal".to_string()],
+            tags: vec![
+                "dark".to_string(),
+                "blue".to_string(),
+                "minimal".to_string(),
+            ],
             url: Some("https://www.nordtheme.com".to_string()),
         },
         colors: ThemeColors {

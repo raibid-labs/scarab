@@ -123,7 +123,16 @@ impl MockSharedMemoryReader {
     /// // Fill a 10x5 box with '#'
     /// reader.fill_rect(0, 0, 10, 5, '#', 0xFFFFFFFF, 0xFF0000FF);
     /// ```
-    pub fn fill_rect(&mut self, x: u16, y: u16, width: u16, height: u16, c: char, fg: u32, bg: u32) {
+    pub fn fill_rect(
+        &mut self,
+        x: u16,
+        y: u16,
+        width: u16,
+        height: u16,
+        c: char,
+        fg: u32,
+        bg: u32,
+    ) {
         let mut state = self.state.lock().unwrap();
         for dy in 0..height {
             for dx in 0..width {
@@ -281,10 +290,34 @@ pub fn sample_terminal_output() -> MockSharedState {
     // Simulate a typical terminal session
     state.set_text(0, 0, "user@scarab:~$ ls -la", 0x00FF00FF, 0x000000FF);
     state.set_text(0, 1, "total 128", 0xFFFFFFFF, 0x000000FF);
-    state.set_text(0, 2, "drwxr-xr-x  5 user user  4096 Dec  1 12:00 .", 0xFFFFFFFF, 0x000000FF);
-    state.set_text(0, 3, "drwxr-xr-x 20 user user  4096 Nov 30 18:30 ..", 0xFFFFFFFF, 0x000000FF);
-    state.set_text(0, 4, "-rw-r--r--  1 user user  1234 Dec  1 10:45 README.md", 0xFFFFFFFF, 0x000000FF);
-    state.set_text(0, 5, "drwxr-xr-x  8 user user  4096 Dec  1 11:20 src", 0x00FFFFFF, 0x000000FF);
+    state.set_text(
+        0,
+        2,
+        "drwxr-xr-x  5 user user  4096 Dec  1 12:00 .",
+        0xFFFFFFFF,
+        0x000000FF,
+    );
+    state.set_text(
+        0,
+        3,
+        "drwxr-xr-x 20 user user  4096 Nov 30 18:30 ..",
+        0xFFFFFFFF,
+        0x000000FF,
+    );
+    state.set_text(
+        0,
+        4,
+        "-rw-r--r--  1 user user  1234 Dec  1 10:45 README.md",
+        0xFFFFFFFF,
+        0x000000FF,
+    );
+    state.set_text(
+        0,
+        5,
+        "drwxr-xr-x  8 user user  4096 Dec  1 11:20 src",
+        0x00FFFFFF,
+        0x000000FF,
+    );
     state.set_text(0, 6, "user@scarab:~$ _", 0x00FF00FF, 0x000000FF);
 
     state.cursor_x = 15;
@@ -298,8 +331,20 @@ pub fn sample_terminal_output() -> MockSharedState {
 pub fn sample_url_output() -> MockSharedState {
     let mut state = MockSharedState::new();
 
-    state.set_text(0, 0, "Check out https://github.com/raibid-labs/scarab", 0xFFFFFFFF, 0x000000FF);
-    state.set_text(0, 1, "Documentation at https://docs.rs/scarab", 0xFFFFFFFF, 0x000000FF);
+    state.set_text(
+        0,
+        0,
+        "Check out https://github.com/raibid-labs/scarab",
+        0xFFFFFFFF,
+        0x000000FF,
+    );
+    state.set_text(
+        0,
+        1,
+        "Documentation at https://docs.rs/scarab",
+        0xFFFFFFFF,
+        0x000000FF,
+    );
     state.set_text(0, 2, "Email: support@scarab.dev", 0xFFFFFFFF, 0x000000FF);
 
     state.sequence_number = 1;

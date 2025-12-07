@@ -4,9 +4,9 @@
 use crate::rendering::config::FontConfig;
 use crate::rendering::text::{generate_terminal_mesh, TerminalMesh, TextRenderer};
 use crate::safe_state::SafeSharedState;
-use bevy::sprite::MeshMaterial2d;
-use bevy::render::mesh::Mesh2d;
 use bevy::prelude::*;
+use bevy::render::mesh::Mesh2d;
+use bevy::sprite::MeshMaterial2d;
 use scarab_protocol::{terminal_state::TerminalStateReader, GRID_HEIGHT, GRID_WIDTH};
 use shared_memory::Shmem;
 use std::sync::Arc;
@@ -89,14 +89,23 @@ fn update_grid_position_system(
 
         // Only update if changed to avoid unnecessary dirty flags
         if transform.translation.x != x || transform.translation.y != y {
-            info!("Grid position update: ({:.2}, {:.2}, {:.2}) -> ({:.2}, {:.2}, {:.2})",
-                  transform.translation.x, transform.translation.y, transform.translation.z,
-                  x, y, transform.translation.z);
+            info!(
+                "Grid position update: ({:.2}, {:.2}, {:.2}) -> ({:.2}, {:.2}, {:.2})",
+                transform.translation.x,
+                transform.translation.y,
+                transform.translation.z,
+                x,
+                y,
+                transform.translation.z
+            );
             transform.translation.x = x;
             transform.translation.y = y;
             // Z stays at 0.0
         } else {
-            info!("Grid already at correct position: ({:.2}, {:.2}, {:.2})", x, y, transform.translation.z);
+            info!(
+                "Grid already at correct position: ({:.2}, {:.2}, {:.2})",
+                x, y, transform.translation.z
+            );
         }
     }
 }
@@ -140,7 +149,10 @@ fn setup_terminal_rendering(
         ..default()
     });
 
-    info!("Created ColorMaterial with atlas texture: {:?}", atlas_texture);
+    info!(
+        "Created ColorMaterial with atlas texture: {:?}",
+        atlas_texture
+    );
 
     // Calculate terminal dimensions from window size
     let (cols, rows) = if let Ok(window) = window_query.get_single() {
@@ -153,10 +165,15 @@ fn setup_terminal_rendering(
             .min(scarab_protocol::GRID_HEIGHT as u16)
             .max(24);
 
-        info!("Window: {}x{} pixels, Terminal: {}x{} cells, Cell: {:.2}x{:.2} pixels",
-              width, height, cols, rows, cell_width, cell_height);
-        info!("Grid will span: {:.2}x{:.2} pixels",
-              cols as f32 * cell_width, rows as f32 * cell_height);
+        info!(
+            "Window: {}x{} pixels, Terminal: {}x{} cells, Cell: {:.2}x{:.2} pixels",
+            width, height, cols, rows, cell_width, cell_height
+        );
+        info!(
+            "Grid will span: {:.2}x{:.2} pixels",
+            cols as f32 * cell_width,
+            rows as f32 * cell_height
+        );
 
         (cols, rows)
     } else {
@@ -166,8 +183,11 @@ fn setup_terminal_rendering(
     // Spawn terminal grid entity (Bevy 0.15 API)
     // Position grid at origin - it will naturally render from (0,0) to (width, -height)
     info!("Spawning terminal grid entity at (0, 0, 0)");
-    info!("Grid extends from (0, 0) to ({:.2}, {:.2})",
-          cols as f32 * cell_width, -(rows as f32 * cell_height));
+    info!(
+        "Grid extends from (0, 0) to ({:.2}, {:.2})",
+        cols as f32 * cell_width,
+        -(rows as f32 * cell_height)
+    );
 
     // Spawn 2D mesh entity (Bevy 0.15 2D API)
     commands.spawn((
@@ -213,10 +233,15 @@ fn sync_terminal_state_system(mut state_reader: ResMut<SharedMemoryReader>) {
     if FIRST_CHECK.swap(false, std::sync::atomic::Ordering::SeqCst) {
         // Also check what cells contain
         let cells = safe_state.cells();
-        let non_empty = cells.iter().filter(|c| c.char_codepoint != 0 && c.char_codepoint != 32).count();
+        let non_empty = cells
+            .iter()
+            .filter(|c| c.char_codepoint != 0 && c.char_codepoint != 32)
+            .count();
         info!(
             "Initial shared state: seq={}, non_empty_cells={}, dirty={}",
-            current_seq, non_empty, safe_state.is_dirty()
+            current_seq,
+            non_empty,
+            safe_state.is_dirty()
         );
     }
 
@@ -225,10 +250,7 @@ fn sync_terminal_state_system(mut state_reader: ResMut<SharedMemoryReader>) {
         let (cursor_x, cursor_y) = safe_state.cursor_pos();
         info!(
             "Terminal state updated: seq {} -> {}, cursor ({}, {})",
-            state_reader.last_sequence,
-            current_seq,
-            cursor_x,
-            cursor_y
+            state_reader.last_sequence, current_seq, cursor_x, cursor_y
         );
 
         state_reader.last_sequence = current_seq;
@@ -249,10 +271,14 @@ fn update_terminal_rendering_system(
     for mut terminal_mesh in query.iter_mut() {
         // Check if state changed OR if this is the first render (last_sequence == 0 but we haven't rendered yet)
         let current_seq = safe_state.sequence();
-        let is_first_render = terminal_mesh.last_sequence == 0 && terminal_mesh.dirty_region.is_full_redraw();
+        let is_first_render =
+            terminal_mesh.last_sequence == 0 && terminal_mesh.dirty_region.is_full_redraw();
 
         if current_seq != terminal_mesh.last_sequence {
-            info!("Mesh update triggered: seq {} -> {}", terminal_mesh.last_sequence, current_seq);
+            info!(
+                "Mesh update triggered: seq {} -> {}",
+                terminal_mesh.last_sequence, current_seq
+            );
             terminal_mesh.dirty_region.mark_full_redraw();
             terminal_mesh.last_sequence = current_seq;
         }
@@ -271,8 +297,12 @@ fn update_terminal_rendering_system(
             &mut images,
         );
 
-        info!("Mesh generated with {} vertices",
-            new_mesh.attribute(Mesh::ATTRIBUTE_POSITION).map_or(0, |a| a.len()));
+        info!(
+            "Mesh generated with {} vertices",
+            new_mesh
+                .attribute(Mesh::ATTRIBUTE_POSITION)
+                .map_or(0, |a| a.len())
+        );
 
         // Update mesh asset using insert (proper way for Bevy 0.15+)
         meshes.insert(&terminal_mesh.mesh_handle, new_mesh);
@@ -315,7 +345,11 @@ pub fn extract_grid_text(state: &impl TerminalStateReader) -> String {
 /// Helper to get cell at specific position
 ///
 /// Now uses TerminalStateReader trait for safe access
-pub fn get_cell_at(state: &impl TerminalStateReader, x: usize, y: usize) -> Option<&scarab_protocol::Cell> {
+pub fn get_cell_at(
+    state: &impl TerminalStateReader,
+    x: usize,
+    y: usize,
+) -> Option<&scarab_protocol::Cell> {
     state.cell(y, x) // Note: cell() takes (row, col)
 }
 

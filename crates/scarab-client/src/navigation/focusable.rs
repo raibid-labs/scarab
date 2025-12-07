@@ -148,7 +148,9 @@ impl Default for FocusableScanConfig {
 
             // Match absolute and relative file paths
             // More restrictive than link_hints to reduce false positives
-            filepath_regex: r"(?:~|\.{1,2}|/)?(?:[a-zA-Z0-9_\-./]+/)*[a-zA-Z0-9_\-.]+\.[a-zA-Z]{2,5}".to_string(),
+            filepath_regex:
+                r"(?:~|\.{1,2}|/)?(?:[a-zA-Z0-9_\-./]+/)*[a-zA-Z0-9_\-.]+\.[a-zA-Z]{2,5}"
+                    .to_string(),
 
             // Match email addresses
             email_regex: r"[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}".to_string(),
@@ -226,7 +228,11 @@ impl FocusableDetector {
     /// Detect all focusables in terminal text content
     ///
     /// Returns a vector of (content, type, start_col, start_row, end_col, end_row)
-    pub(crate) fn detect_all(&self, text: &str, max_focusables: usize) -> Vec<(String, FocusableType, u16, u16, u16, u16)> {
+    pub(crate) fn detect_all(
+        &self,
+        text: &str,
+        max_focusables: usize,
+    ) -> Vec<(String, FocusableType, u16, u16, u16, u16)> {
         let mut focusables = Vec::new();
 
         // Split text into lines and track row positions
@@ -296,10 +302,7 @@ impl FocusableDetector {
 /// System: Initialize focusable detector from config
 ///
 /// This system runs once at startup to compile regex patterns from config.
-fn initialize_focusable_detector(
-    mut commands: Commands,
-    config: Res<FocusableScanConfig>,
-) {
+fn initialize_focusable_detector(mut commands: Commands, config: Res<FocusableScanConfig>) {
     let detector = FocusableDetector::new(&config);
     commands.insert_resource(detector);
     info!("Focusable detector initialized with compiled regex patterns");
@@ -371,7 +374,8 @@ fn scan_terminal_focusables(
 
         // Create a focusable region for the prompt marker
         // Position it at the start of the line where the prompt marker is
-        let content = anchor.command_text
+        let content = anchor
+            .command_text
             .clone()
             .unwrap_or_else(|| format!("Prompt at line {}", anchor.line));
 
@@ -389,7 +393,10 @@ fn scan_terminal_focusables(
         prompt_focusables += 1;
     }
 
-    info!("Created {} prompt marker focusables from NavAnchor entities", prompt_focusables);
+    info!(
+        "Created {} prompt marker focusables from NavAnchor entities",
+        prompt_focusables
+    );
 }
 
 /// System: Convert grid coordinates to world coordinates
@@ -536,24 +543,19 @@ impl Plugin for FocusablePlugin {
         app
             // Register config resource with defaults
             .init_resource::<FocusableScanConfig>()
-
             // Register generation tracking resource
             .init_resource::<FocusableGeneration>()
-
             // Register events this plugin depends on
             // (PromptMarkersPlugin may also register these, but that's harmless)
             .add_event::<PromptZoneFocusedEvent>()
-
             // Initialize detector at startup
             .add_systems(Startup, initialize_focusable_detector)
-
             // Register systems in proper phases
             .add_systems(
                 Update,
                 (
                     // Input phase: scan and spawn focusables
                     scan_terminal_focusables.in_set(NavSystemSet::Input),
-
                     // Update phase: coordinate conversion and filtering
                     (
                         bounds_to_world_coords,
@@ -655,8 +657,12 @@ mod tests {
             .collect();
 
         assert!(paths.len() >= 2);
-        assert!(paths.iter().any(|(content, _, _, _, _, _)| content.contains("foo.txt")));
-        assert!(paths.iter().any(|(content, _, _, _, _, _)| content.contains("path.rs")));
+        assert!(paths
+            .iter()
+            .any(|(content, _, _, _, _, _)| content.contains("foo.txt")));
+        assert!(paths
+            .iter()
+            .any(|(content, _, _, _, _, _)| content.contains("path.rs")));
     }
 
     #[test]
@@ -686,12 +692,16 @@ mod tests {
         let focusables = detector.detect_all(text, 100);
 
         // Check row positions
-        let url = focusables.iter().find(|(content, _, _, _, _, _)| content.contains("example.com"));
+        let url = focusables
+            .iter()
+            .find(|(content, _, _, _, _, _)| content.contains("example.com"));
         assert!(url.is_some());
         let (_, _, _, row, _, _) = url.unwrap();
         assert_eq!(*row, 0); // First line
 
-        let email = focusables.iter().find(|(content, _, _, _, _, _)| content.contains("test@email.com"));
+        let email = focusables
+            .iter()
+            .find(|(content, _, _, _, _, _)| content.contains("test@email.com"));
         assert!(email.is_some());
         let (_, _, _, row, _, _) = email.unwrap();
         assert_eq!(*row, 1); // Second line

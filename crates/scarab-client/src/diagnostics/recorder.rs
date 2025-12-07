@@ -3,7 +3,7 @@
 //! This module provides the DiagnosticsRecorder resource for capturing
 //! terminal input, output, and resize events in real-time.
 
-use super::format::{EventData, EventType, Recording, RecordedEvent};
+use super::format::{EventData, EventType, RecordedEvent, Recording};
 use anyhow::{Context, Result};
 use bevy::prelude::*;
 use std::path::PathBuf;
@@ -55,7 +55,10 @@ impl DiagnosticsRecorder {
         self.recording = true;
         self.stats = RecordingStats::default();
 
-        info!("Started recording session ({}x{})", terminal_cols, terminal_rows);
+        info!(
+            "Started recording session ({}x{})",
+            terminal_cols, terminal_rows
+        );
     }
 
     /// Start recording with metadata
@@ -102,12 +105,11 @@ impl DiagnosticsRecorder {
 
     /// Stop and save recording to file
     pub fn stop_and_save(&mut self, path: impl Into<PathBuf>) -> Result<()> {
-        let recording = self
-            .stop()
-            .context("No active recording to save")?;
+        let recording = self.stop().context("No active recording to save")?;
 
         let path = path.into();
-        recording.to_file(&path)
+        recording
+            .to_file(&path)
             .context("Failed to save recording")?;
 
         info!("Recording saved to: {}", path.display());
@@ -121,11 +123,7 @@ impl DiagnosticsRecorder {
         }
 
         let timestamp_ms = self.elapsed_ms();
-        let event = RecordedEvent::new(
-            timestamp_ms,
-            EventType::Input,
-            EventData::data(data),
-        );
+        let event = RecordedEvent::new(timestamp_ms, EventType::Input, EventData::data(data));
 
         if let Some(recording) = &mut self.current_recording {
             recording.add_event(event);
@@ -141,11 +139,7 @@ impl DiagnosticsRecorder {
         }
 
         let timestamp_ms = self.elapsed_ms();
-        let event = RecordedEvent::new(
-            timestamp_ms,
-            EventType::Output,
-            EventData::data(data),
-        );
+        let event = RecordedEvent::new(timestamp_ms, EventType::Output, EventData::data(data));
 
         if let Some(recording) = &mut self.current_recording {
             recording.add_event(event);
@@ -182,11 +176,7 @@ impl DiagnosticsRecorder {
         }
 
         let timestamp_ms = self.elapsed_ms();
-        let event = RecordedEvent::new(
-            timestamp_ms,
-            EventType::Marker,
-            EventData::marker(label),
-        );
+        let event = RecordedEvent::new(timestamp_ms, EventType::Marker, EventData::marker(label));
 
         if let Some(recording) = &mut self.current_recording {
             recording.add_event(event);

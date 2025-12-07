@@ -7,6 +7,5 @@ pub mod nav_input;
 
 pub use key_tables::{KeyTableStackResource, LeaderKeyResource};
 pub use nav_input::{
-    KeyBinding, ModeStack, Modifier, NavAction, NavInputRouter, NavMode, NavStyle,
-    route_nav_input,
+    route_nav_input, KeyBinding, ModeStack, Modifier, NavAction, NavInputRouter, NavMode, NavStyle,
 };

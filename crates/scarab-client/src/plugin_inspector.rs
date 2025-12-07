@@ -10,7 +10,9 @@
 
 use bevy::prelude::*;
 use bevy_egui::{egui, EguiContexts, EguiPlugin};
-use scarab_protocol::{ControlMessage, DaemonMessage, PluginInspectorInfo, PluginVerificationStatus};
+use scarab_protocol::{
+    ControlMessage, DaemonMessage, PluginInspectorInfo, PluginVerificationStatus,
+};
 use std::collections::VecDeque;
 use std::time::{Duration, Instant};
 
@@ -179,11 +181,7 @@ impl PluginInspectorState {
         }
 
         // Update plugin metrics
-        if let Some(plugin) = self
-            .plugins
-            .iter_mut()
-            .find(|p| p.name == execution.plugin)
-        {
+        if let Some(plugin) = self.plugins.iter_mut().find(|p| p.name == execution.plugin) {
             plugin.total_executions += 1;
             plugin.total_execution_time += execution.duration;
             if !execution.success {
@@ -261,11 +259,7 @@ pub fn toggle_inspector_input(
     if ctrl && shift && keys.just_pressed(KeyCode::KeyP) {
         state.visible = !state.visible;
         if state.visible {
-            state.add_log(
-                LogLevel::Info,
-                None,
-                "Plugin Inspector opened".to_string(),
-            );
+            state.add_log(LogLevel::Info, None, "Plugin Inspector opened".to_string());
 
             // Request fresh plugin list from daemon
             if let Some(ipc) = ipc {
@@ -312,11 +306,7 @@ pub fn render_inspector_ui(
         });
 }
 
-fn render_toolbar(
-    ui: &mut egui::Ui,
-    state: &mut PluginInspectorState,
-    ipc: Option<&IpcChannel>,
-) {
+fn render_toolbar(ui: &mut egui::Ui, state: &mut PluginInspectorState, ipc: Option<&IpcChannel>) {
     ui.horizontal(|ui| {
         ui.heading("Plugin Inspector");
 
@@ -339,7 +329,11 @@ fn render_toolbar(
         if ui.button("Refresh").clicked() {
             if let Some(ipc) = ipc {
                 ipc.send(ControlMessage::PluginListRequest);
-                state.add_log(LogLevel::Debug, None, "Requesting plugin list...".to_string());
+                state.add_log(
+                    LogLevel::Debug,
+                    None,
+                    "Requesting plugin list...".to_string(),
+                );
             }
         }
 
@@ -400,17 +394,20 @@ fn render_plugin_list(ui: &mut egui::Ui, state: &mut PluginInspectorState) {
 
                         // Verification indicator
                         let verification_icon = match &plugin.verification {
-                            PluginVerificationStatus::Verified { .. } => ("✓", egui::Color32::GREEN),
-                            PluginVerificationStatus::ChecksumOnly { .. } => ("✓", egui::Color32::from_rgb(255, 200, 0)),
-                            PluginVerificationStatus::Unverified { .. } => ("⚠", egui::Color32::RED),
+                            PluginVerificationStatus::Verified { .. } => {
+                                ("✓", egui::Color32::GREEN)
+                            }
+                            PluginVerificationStatus::ChecksumOnly { .. } => {
+                                ("✓", egui::Color32::from_rgb(255, 200, 0))
+                            }
+                            PluginVerificationStatus::Unverified { .. } => {
+                                ("⚠", egui::Color32::RED)
+                            }
                         };
                         ui.colored_label(verification_icon.1, verification_icon.0);
 
                         // Plugin name button
-                        if ui
-                            .selectable_label(is_selected, &plugin.name)
-                            .clicked()
-                        {
+                        if ui.selectable_label(is_selected, &plugin.name).clicked() {
                             state.selected_plugin = Some(idx);
                             state.selected_tab = InspectorTab::Overview;
                         }
@@ -421,11 +418,8 @@ fn render_plugin_list(ui: &mut egui::Ui, state: &mut PluginInspectorState) {
                         ui.small(&plugin.version);
                         if plugin.failure_count > 0 {
                             ui.small(
-                                egui::RichText::new(format!(
-                                    "Failures: {}",
-                                    plugin.failure_count
-                                ))
-                                .color(egui::Color32::RED),
+                                egui::RichText::new(format!("Failures: {}", plugin.failure_count))
+                                    .color(egui::Color32::RED),
                             );
                         }
                     });
@@ -436,7 +430,11 @@ fn render_plugin_list(ui: &mut egui::Ui, state: &mut PluginInspectorState) {
     });
 }
 
-fn render_plugin_details(ui: &mut egui::Ui, state: &mut PluginInspectorState, ipc: Option<&IpcChannel>) {
+fn render_plugin_details(
+    ui: &mut egui::Ui,
+    state: &mut PluginInspectorState,
+    ipc: Option<&IpcChannel>,
+) {
     let Some(plugin) = state.selected_plugin() else {
         ui.centered_and_justified(|ui| {
             ui.colored_label(egui::Color32::GRAY, "Select a plugin to view details");
@@ -502,10 +500,7 @@ fn render_overview_tab(
 
                     ui.label("Failure Count:");
                     if plugin.failure_count > 0 {
-                        ui.colored_label(
-                            egui::Color32::RED,
-                            format!("{}", plugin.failure_count),
-                        );
+                        ui.colored_label(egui::Color32::RED, format!("{}", plugin.failure_count));
                     } else {
                         ui.colored_label(egui::Color32::GREEN, "0");
                     }
@@ -516,7 +511,10 @@ fn render_overview_tab(
                     ui.end_row();
 
                     ui.label("Total Execution Time:");
-                    ui.label(format!("{:.2}ms", plugin.total_execution_time.as_secs_f64() * 1000.0));
+                    ui.label(format!(
+                        "{:.2}ms",
+                        plugin.total_execution_time.as_secs_f64() * 1000.0
+                    ));
                     ui.end_row();
 
                     if plugin.total_executions > 0 {
@@ -545,7 +543,10 @@ fn render_overview_tab(
 
     // Actions
     ui.horizontal(|ui| {
-        if ui.button(if plugin.enabled { "Disable" } else { "Enable" }).clicked() {
+        if ui
+            .button(if plugin.enabled { "Disable" } else { "Enable" })
+            .clicked()
+        {
             if let Some(ipc) = ipc {
                 let msg = if plugin.enabled {
                     ControlMessage::PluginDisable {
@@ -560,7 +561,14 @@ fn render_overview_tab(
                 state.add_log(
                     LogLevel::Info,
                     Some(plugin.name.clone()),
-                    format!("{} plugin", if plugin.enabled { "Disabling" } else { "Enabling" }),
+                    format!(
+                        "{} plugin",
+                        if plugin.enabled {
+                            "Disabling"
+                        } else {
+                            "Enabling"
+                        }
+                    ),
                 );
             }
         }
@@ -627,11 +635,17 @@ fn render_metadata_tab(ui: &mut egui::Ui, plugin: &InspectedPlugin) {
 
 fn render_verification_status(ui: &mut egui::Ui, verification: &PluginVerificationStatus) {
     match verification {
-        PluginVerificationStatus::Verified { key_fingerprint, signature_timestamp } => {
+        PluginVerificationStatus::Verified {
+            key_fingerprint,
+            signature_timestamp,
+        } => {
             ui.horizontal(|ui| {
                 ui.colored_label(egui::Color32::GREEN, "✓ GPG Signed");
                 ui.label("|");
-                ui.small(format!("Key: {}...", &key_fingerprint[..std::cmp::min(16, key_fingerprint.len())]));
+                ui.small(format!(
+                    "Key: {}...",
+                    &key_fingerprint[..std::cmp::min(16, key_fingerprint.len())]
+                ));
                 if *signature_timestamp > 0 {
                     // Format timestamp as date (simple format without external deps)
                     let days_since_epoch = signature_timestamp / 86400;
@@ -645,7 +659,10 @@ fn render_verification_status(ui: &mut egui::Ui, verification: &PluginVerificati
             ui.horizontal(|ui| {
                 ui.colored_label(egui::Color32::from_rgb(255, 200, 0), "⚠ Checksum Only");
                 ui.label("|");
-                ui.small(format!("SHA256: {}...", &checksum[..std::cmp::min(16, checksum.len())]));
+                ui.small(format!(
+                    "SHA256: {}...",
+                    &checksum[..std::cmp::min(16, checksum.len())]
+                ));
             });
         }
         PluginVerificationStatus::Unverified { warning } => {
@@ -690,7 +707,10 @@ fn render_hooks_tab(ui: &mut egui::Ui, plugin: &InspectedPlugin, state: &PluginI
                 ui.separator();
                 ui.colored_label(egui::Color32::RED, format!("Failed: {}", failed));
                 ui.separator();
-                ui.label(format!("Avg Time: {:.3}ms", avg_time.as_secs_f64() * 1000.0));
+                ui.label(format!(
+                    "Avg Time: {:.3}ms",
+                    avg_time.as_secs_f64() * 1000.0
+                ));
             });
         });
 
@@ -854,18 +874,18 @@ pub fn handle_plugin_messages(
                     state.add_log(
                         LogLevel::Info,
                         Some(name.to_string()),
-                        format!("Plugin {} {}", name, if *enabled { "enabled" } else { "disabled" }),
+                        format!(
+                            "Plugin {} {}",
+                            name,
+                            if *enabled { "enabled" } else { "disabled" }
+                        ),
                     );
                 }
             }
             DaemonMessage::PluginError { name, error } => {
                 if let Some(plugin) = state.plugins.iter_mut().find(|p| p.name == name.as_str()) {
                     plugin.last_error = Some(error.to_string());
-                    state.add_log(
-                        LogLevel::Error,
-                        Some(name.to_string()),
-                        error.to_string(),
-                    );
+                    state.add_log(LogLevel::Error, Some(name.to_string()), error.to_string());
                 }
             }
             _ => {}

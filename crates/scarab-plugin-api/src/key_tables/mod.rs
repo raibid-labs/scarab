@@ -12,8 +12,7 @@ pub mod leader;
 pub mod stack;
 
 pub use defaults::{
-    default_copy_mode_table, default_resize_mode_table, default_search_mode_table,
-    KeyTableRegistry,
+    default_copy_mode_table, default_resize_mode_table, default_search_mode_table, KeyTableRegistry,
 };
 pub use leader::{LeaderKeyConfig, LeaderKeyState};
 pub use stack::{KeyTableActivation, KeyTableStack};
@@ -64,27 +63,42 @@ impl KeyCombo {
 
     /// Create a key combination with no modifiers
     pub fn key(key: KeyCode) -> Self {
-        Self { key, mods: KeyModifiers::NONE }
+        Self {
+            key,
+            mods: KeyModifiers::NONE,
+        }
     }
 
     /// Create a key combination with Ctrl modifier
     pub fn ctrl(key: KeyCode) -> Self {
-        Self { key, mods: KeyModifiers::CTRL }
+        Self {
+            key,
+            mods: KeyModifiers::CTRL,
+        }
     }
 
     /// Create a key combination with Shift modifier
     pub fn shift(key: KeyCode) -> Self {
-        Self { key, mods: KeyModifiers::SHIFT }
+        Self {
+            key,
+            mods: KeyModifiers::SHIFT,
+        }
     }
 
     /// Create a key combination with Alt modifier
     pub fn alt(key: KeyCode) -> Self {
-        Self { key, mods: KeyModifiers::ALT }
+        Self {
+            key,
+            mods: KeyModifiers::ALT,
+        }
     }
 
     /// Create a key combination with Super modifier
     pub fn super_key(key: KeyCode) -> Self {
-        Self { key, mods: KeyModifiers::SUPER }
+        Self {
+            key,
+            mods: KeyModifiers::SUPER,
+        }
     }
 }
 
@@ -93,16 +107,58 @@ impl KeyCombo {
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum KeyCode {
     // Letters
-    KeyA, KeyB, KeyC, KeyD, KeyE, KeyF, KeyG, KeyH, KeyI, KeyJ,
-    KeyK, KeyL, KeyM, KeyN, KeyO, KeyP, KeyQ, KeyR, KeyS, KeyT,
-    KeyU, KeyV, KeyW, KeyX, KeyY, KeyZ,
+    KeyA,
+    KeyB,
+    KeyC,
+    KeyD,
+    KeyE,
+    KeyF,
+    KeyG,
+    KeyH,
+    KeyI,
+    KeyJ,
+    KeyK,
+    KeyL,
+    KeyM,
+    KeyN,
+    KeyO,
+    KeyP,
+    KeyQ,
+    KeyR,
+    KeyS,
+    KeyT,
+    KeyU,
+    KeyV,
+    KeyW,
+    KeyX,
+    KeyY,
+    KeyZ,
 
     // Numbers
-    Digit0, Digit1, Digit2, Digit3, Digit4,
-    Digit5, Digit6, Digit7, Digit8, Digit9,
+    Digit0,
+    Digit1,
+    Digit2,
+    Digit3,
+    Digit4,
+    Digit5,
+    Digit6,
+    Digit7,
+    Digit8,
+    Digit9,
 
     // Function keys
-    F1, F2, F3, F4, F5, F6, F7, F8, F9, F10, F11, F12,
+    F1,
+    F2,
+    F3,
+    F4,
+    F5,
+    F6,
+    F7,
+    F8,
+    F9,
+    F10,
+    F11,
+    F12,
 
     // Special keys
     Escape,

@@ -7,8 +7,8 @@ use bevy::input::keyboard::KeyboardInput;
 use bevy::input::mouse::{MouseButton, MouseButtonInput};
 use bevy::prelude::*;
 use ratatui::crossterm::event::{
-    Event as RatEvent, KeyCode as RatKeyCode, KeyEvent, KeyModifiers, MouseButton as RatMouseButton,
-    MouseEvent, MouseEventKind,
+    Event as RatEvent, KeyCode as RatKeyCode, KeyEvent, KeyModifiers,
+    MouseButton as RatMouseButton, MouseEvent, MouseEventKind,
 };
 use scarab_protocol::TerminalMetrics;
 
@@ -349,14 +349,8 @@ mod tests {
 
     #[test]
     fn test_key_mapping_special_keys() {
-        assert_eq!(
-            bevy_to_ratatui_key(KeyCode::Enter),
-            Some(RatKeyCode::Enter)
-        );
-        assert_eq!(
-            bevy_to_ratatui_key(KeyCode::Escape),
-            Some(RatKeyCode::Esc)
-        );
+        assert_eq!(bevy_to_ratatui_key(KeyCode::Enter), Some(RatKeyCode::Enter));
+        assert_eq!(bevy_to_ratatui_key(KeyCode::Escape), Some(RatKeyCode::Esc));
         assert_eq!(
             bevy_to_ratatui_key(KeyCode::Backspace),
             Some(RatKeyCode::Backspace)
@@ -366,10 +360,7 @@ mod tests {
 
     #[test]
     fn test_key_mapping_arrows() {
-        assert_eq!(
-            bevy_to_ratatui_key(KeyCode::ArrowUp),
-            Some(RatKeyCode::Up)
-        );
+        assert_eq!(bevy_to_ratatui_key(KeyCode::ArrowUp), Some(RatKeyCode::Up));
         assert_eq!(
             bevy_to_ratatui_key(KeyCode::ArrowDown),
             Some(RatKeyCode::Down)

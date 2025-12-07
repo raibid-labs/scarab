@@ -489,7 +489,9 @@ pub fn handle_copy_mode_actions(
                     terminal_dims.min_y,
                     terminal_dims.max_y(),
                 );
-                search_state.state.update_query("match".to_string(), matches);
+                search_state
+                    .state
+                    .update_query("match".to_string(), matches);
             }
             CopyModeAction::SearchBackward => {
                 search_state.state.start_search(SearchDirection::Backward);
@@ -502,7 +504,9 @@ pub fn handle_copy_mode_actions(
                     terminal_dims.min_y,
                     terminal_dims.max_y(),
                 );
-                search_state.state.update_query("match".to_string(), matches);
+                search_state
+                    .state
+                    .update_query("match".to_string(), matches);
             }
             CopyModeAction::NextMatch => {
                 search_state.state.next_match();

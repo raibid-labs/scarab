@@ -3,12 +3,12 @@
 // This module converts Ratatui buffers to Bevy visual overlays, allowing
 // Ratatui widgets to be displayed above the terminal grid content.
 
-use bevy::prelude::*;
-use bevy::sprite::{MeshMaterial2d, ColorMaterial};
-use bevy::render::mesh::{Mesh2d, Indices, PrimitiveTopology};
-use bevy::render::render_asset::RenderAssetUsages;
-use ratatui::style::Color as RatColor;
 use super::surface::{RatatuiSurface, SurfaceBuffers};
+use bevy::prelude::*;
+use bevy::render::mesh::{Indices, Mesh2d, PrimitiveTopology};
+use bevy::render::render_asset::RenderAssetUsages;
+use bevy::sprite::{ColorMaterial, MeshMaterial2d};
+use ratatui::style::Color as RatColor;
 use scarab_protocol::TerminalMetrics;
 
 /// Marker component for surface overlay entities
@@ -68,11 +68,7 @@ fn indexed_color(idx: u8) -> Color {
         let r = (idx / 36) % 6;
         let g = (idx / 6) % 6;
         let b = idx % 6;
-        Color::srgb(
-            r as f32 / 5.0,
-            g as f32 / 5.0,
-            b as f32 / 5.0,
-        )
+        Color::srgb(r as f32 / 5.0, g as f32 / 5.0, b as f32 / 5.0)
     } else {
         // Grayscale ramp
         let gray = (idx - 232) as f32 / 23.0;
@@ -92,19 +88,14 @@ fn create_rectangle_mesh(width: f32, height: f32) -> Mesh {
     // Vertices for a rectangle (2 triangles)
     // Origin at top-left, extends right and down (negative Y)
     let vertices = vec![
-        [0.0, 0.0, 0.0],           // Top-left
-        [width, 0.0, 0.0],         // Top-right
-        [width, -height, 0.0],     // Bottom-right
-        [0.0, -height, 0.0],       // Bottom-left
+        [0.0, 0.0, 0.0],       // Top-left
+        [width, 0.0, 0.0],     // Top-right
+        [width, -height, 0.0], // Bottom-right
+        [0.0, -height, 0.0],   // Bottom-left
     ];
 
     // UV coordinates (not needed for solid color, but required by some materials)
-    let uvs = vec![
-        [0.0, 0.0],
-        [1.0, 0.0],
-        [1.0, 1.0],
-        [0.0, 1.0],
-    ];
+    let uvs = vec![[0.0, 0.0], [1.0, 0.0], [1.0, 1.0], [0.0, 1.0]];
 
     // Normals (facing camera)
     let normals = vec![
@@ -169,7 +160,8 @@ pub fn render_surfaces(
         let height = surface.height as f32 * metrics.cell_height;
 
         // Check if overlay already exists
-        let overlay_exists = overlays.iter()
+        let overlay_exists = overlays
+            .iter()
             .any(|(_, o, _, _)| o.surface_entity == surface_entity);
 
         if !overlay_exists {
@@ -187,8 +179,7 @@ pub fn render_surfaces(
                 Mesh2d(mesh_handle),
                 MeshMaterial2d(material),
                 Transform::from_xyz(
-                    screen_x,
-                    -screen_y,  // Flip Y for Bevy's coordinate system
+                    screen_x, -screen_y, // Flip Y for Bevy's coordinate system
                     z,
                 ),
                 Visibility::Visible,
@@ -214,7 +205,8 @@ pub fn render_surfaces(
 
                     if transform.translation.x != new_x
                         || transform.translation.y != new_y
-                        || transform.translation.z != new_z {
+                        || transform.translation.z != new_z
+                    {
                         transform.translation.x = new_x;
                         transform.translation.y = new_y;
                         transform.translation.z = new_z;
@@ -276,7 +268,10 @@ mod tests {
 
         // Test RGB color
         let custom = ratatui_to_bevy_color(RatColor::Rgb(128, 64, 192));
-        assert_eq!(custom, Color::srgb(128.0 / 255.0, 64.0 / 255.0, 192.0 / 255.0));
+        assert_eq!(
+            custom,
+            Color::srgb(128.0 / 255.0, 64.0 / 255.0, 192.0 / 255.0)
+        );
     }
 
     #[test]

@@ -162,7 +162,9 @@ fn fetch_plugin_list(
     mut events: EventReader<MarketplaceEvent>,
 ) {
     // Check if refresh requested
-    let should_fetch = events.read().any(|e| matches!(e, MarketplaceEvent::Refresh));
+    let should_fetch = events
+        .read()
+        .any(|e| matches!(e, MarketplaceEvent::Refresh));
 
     if !should_fetch || cache.fetching {
         return;
@@ -196,7 +198,10 @@ fn fetch_plugin_list(
     cache.fetching = false;
     cache.error = None;
 
-    info!("Plugin list fetched successfully: {} plugins", cache.plugins.len());
+    info!(
+        "Plugin list fetched successfully: {} plugins",
+        cache.plugins.len()
+    );
 }
 
 /// Create mock plugin data for testing
@@ -207,27 +212,27 @@ fn create_mock_plugins() -> Vec<PluginEntry> {
         PluginEntry {
             name: "git-status".to_string(),
             description: "Display git branch and status in prompt".to_string(),
-            readme: Some("Shows current git branch, dirty files, and ahead/behind counts.".to_string()),
+            readme: Some(
+                "Shows current git branch, dirty files, and ahead/behind counts.".to_string(),
+            ),
             author: "scarab-team".to_string(),
             author_email: Some("team@scarab.dev".to_string()),
             homepage: Some("https://github.com/scarab/plugins/git-status".to_string()),
             repository: Some("https://github.com/scarab/plugins".to_string()),
             license: "MIT".to_string(),
             latest_version: "1.2.0".to_string(),
-            versions: vec![
-                PluginVersion {
-                    version: "1.2.0".to_string(),
-                    download_url: "https://registry.scarab.dev/v1/plugins/git-status/1.2.0".to_string(),
-                    checksum: "abc123".to_string(),
-                    signature: None,
-                    changelog: Some("Added stash count display".to_string()),
-                    api_version: "1.0".to_string(),
-                    min_scarab_version: "0.1.0".to_string(),
-                    size: 45120,
-                    released_at: 1700000000,
-                    prerelease: false,
-                },
-            ],
+            versions: vec![PluginVersion {
+                version: "1.2.0".to_string(),
+                download_url: "https://registry.scarab.dev/v1/plugins/git-status/1.2.0".to_string(),
+                checksum: "abc123".to_string(),
+                signature: None,
+                changelog: Some("Added stash count display".to_string()),
+                api_version: "1.0".to_string(),
+                min_scarab_version: "0.1.0".to_string(),
+                size: 45120,
+                released_at: 1700000000,
+                prerelease: false,
+            }],
             tags: vec!["git".to_string(), "prompt".to_string(), "vcs".to_string()],
             stats: PluginStats {
                 downloads: 15240,
@@ -250,7 +255,11 @@ fn create_mock_plugins() -> Vec<PluginEntry> {
             license: "Apache-2.0".to_string(),
             latest_version: "2.0.1".to_string(),
             versions: vec![],
-            tags: vec!["syntax".to_string(), "highlighting".to_string(), "editor".to_string()],
+            tags: vec![
+                "syntax".to_string(),
+                "highlighting".to_string(),
+                "editor".to_string(),
+            ],
             stats: PluginStats {
                 downloads: 28450,
                 downloads_recent: 1523,
@@ -272,7 +281,11 @@ fn create_mock_plugins() -> Vec<PluginEntry> {
             license: "MIT".to_string(),
             latest_version: "0.9.3".to_string(),
             versions: vec![],
-            tags: vec!["tmux".to_string(), "multiplexer".to_string(), "session".to_string()],
+            tags: vec![
+                "tmux".to_string(),
+                "multiplexer".to_string(),
+                "session".to_string(),
+            ],
             stats: PluginStats {
                 downloads: 8920,
                 downloads_recent: 421,
@@ -294,7 +307,11 @@ fn create_mock_plugins() -> Vec<PluginEntry> {
             license: "GPL-3.0".to_string(),
             latest_version: "1.5.2".to_string(),
             versions: vec![],
-            tags: vec!["ssh".to_string(), "network".to_string(), "security".to_string()],
+            tags: vec![
+                "ssh".to_string(),
+                "network".to_string(),
+                "security".to_string(),
+            ],
             stats: PluginStats {
                 downloads: 12340,
                 downloads_recent: 678,
@@ -316,7 +333,11 @@ fn create_mock_plugins() -> Vec<PluginEntry> {
             license: "Apache-2.0".to_string(),
             latest_version: "3.1.0".to_string(),
             versions: vec![],
-            tags: vec!["kubernetes".to_string(), "k8s".to_string(), "devops".to_string()],
+            tags: vec![
+                "kubernetes".to_string(),
+                "k8s".to_string(),
+                "devops".to_string(),
+            ],
             stats: PluginStats {
                 downloads: 19850,
                 downloads_recent: 1245,

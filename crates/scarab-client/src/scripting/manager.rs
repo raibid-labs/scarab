@@ -36,7 +36,10 @@ impl ScriptManager {
 
     /// Initialize the script manager - load all scripts
     pub fn initialize(&mut self, scripts_directory: &Path) -> ScriptResult<usize> {
-        info!("Initializing script manager from: {}", scripts_directory.display());
+        info!(
+            "Initializing script manager from: {}",
+            scripts_directory.display()
+        );
 
         // Ensure directory exists
         self.loader.ensure_directory()?;
@@ -93,7 +96,7 @@ impl ScriptManager {
         let mut results = Vec::new();
 
         for (name, script) in &self.scripts {
-            debug!("Executing script: {}", name);  // Changed from info! to debug!
+            debug!("Executing script: {}", name); // Changed from info! to debug!
             let result = self
                 .runtime
                 .execute_source(&script.source, name, context.context());
@@ -105,12 +108,13 @@ impl ScriptManager {
 
     /// Execute a specific script by name
     pub fn execute_script(&self, name: &str, context: &RuntimeContext) -> ScriptResult<()> {
-        let script = self.scripts.get(name).ok_or_else(|| {
-            ScriptError::ResourceNotFound {
+        let script = self
+            .scripts
+            .get(name)
+            .ok_or_else(|| ScriptError::ResourceNotFound {
                 resource_type: "script".to_string(),
                 name: name.to_string(),
-            }
-        })?;
+            })?;
 
         self.runtime
             .execute_source(&script.source, name, context.context())
@@ -122,7 +126,10 @@ impl ScriptManager {
         for (name, script) in &self.scripts {
             if script.source.contains("on_resize") || script.source.contains("window_resize") {
                 debug!("Script '{}' has resize handler", name);
-                if let Err(e) = self.runtime.execute_source(&script.source, name, context.context()) {
+                if let Err(e) = self
+                    .runtime
+                    .execute_source(&script.source, name, context.context())
+                {
                     error!("Failed to execute script '{}' on resize: {}", name, e);
                 }
             }
@@ -135,7 +142,10 @@ impl ScriptManager {
         for (name, script) in &self.scripts {
             if script.source.contains("on_input") || script.source.contains("keyboard_input") {
                 debug!("Script '{}' has input handler", name);
-                if let Err(e) = self.runtime.execute_source(&script.source, name, context.context()) {
+                if let Err(e) = self
+                    .runtime
+                    .execute_source(&script.source, name, context.context())
+                {
                     error!("Failed to execute script '{}' on input: {}", name, e);
                 }
             }
@@ -148,7 +158,10 @@ impl ScriptManager {
         for (name, script) in &self.scripts {
             if script.source.contains("on_startup") || script.source.contains("init") {
                 info!("Script '{}' has startup handler", name);
-                if let Err(e) = self.runtime.execute_source(&script.source, name, context.context()) {
+                if let Err(e) = self
+                    .runtime
+                    .execute_source(&script.source, name, context.context())
+                {
                     error!("Failed to execute script '{}' on startup: {}", name, e);
                 }
             }

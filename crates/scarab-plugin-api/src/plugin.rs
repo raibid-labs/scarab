@@ -238,8 +238,8 @@ mod tests {
 
     #[test]
     fn test_display_name_with_emoji() {
-        let meta = PluginMetadata::new("awesome-plugin", "1.0.0", "Cool plugin", "Dev")
-            .with_emoji("🚀");
+        let meta =
+            PluginMetadata::new("awesome-plugin", "1.0.0", "Cool plugin", "Dev").with_emoji("🚀");
 
         assert_eq!(meta.display_name(), "🚀 awesome-plugin");
     }

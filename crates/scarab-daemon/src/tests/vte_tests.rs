@@ -26,7 +26,13 @@ mod tests {
     }
 
     /// Helper to blit terminal to shared state and get cell content at position
-    fn blit_and_get_cell(terminal: &TerminalState, state: &mut SharedState, seq: &Arc<AtomicU64>, x: usize, y: usize) -> Cell {
+    fn blit_and_get_cell(
+        terminal: &TerminalState,
+        state: &mut SharedState,
+        seq: &Arc<AtomicU64>,
+        x: usize,
+        y: usize,
+    ) -> Cell {
         let ptr = state as *mut SharedState;
         terminal.blit_to_shm(ptr, seq);
         let idx = y * GRID_WIDTH + x;
@@ -46,11 +52,26 @@ mod tests {
         terminal.process_output(b"Hello");
 
         // Verify characters in local grid
-        assert_eq!(get_grid_cell(&terminal, 0, 0).unwrap().char_codepoint, 'H' as u32);
-        assert_eq!(get_grid_cell(&terminal, 1, 0).unwrap().char_codepoint, 'e' as u32);
-        assert_eq!(get_grid_cell(&terminal, 2, 0).unwrap().char_codepoint, 'l' as u32);
-        assert_eq!(get_grid_cell(&terminal, 3, 0).unwrap().char_codepoint, 'l' as u32);
-        assert_eq!(get_grid_cell(&terminal, 4, 0).unwrap().char_codepoint, 'o' as u32);
+        assert_eq!(
+            get_grid_cell(&terminal, 0, 0).unwrap().char_codepoint,
+            'H' as u32
+        );
+        assert_eq!(
+            get_grid_cell(&terminal, 1, 0).unwrap().char_codepoint,
+            'e' as u32
+        );
+        assert_eq!(
+            get_grid_cell(&terminal, 2, 0).unwrap().char_codepoint,
+            'l' as u32
+        );
+        assert_eq!(
+            get_grid_cell(&terminal, 3, 0).unwrap().char_codepoint,
+            'l' as u32
+        );
+        assert_eq!(
+            get_grid_cell(&terminal, 4, 0).unwrap().char_codepoint,
+            'o' as u32
+        );
 
         // Cursor should be at position 5
         assert_eq!(terminal.cursor_x, 5);
@@ -70,12 +91,24 @@ mod tests {
         terminal.process_output(b"Line1\nLine2\n");
 
         // Verify first line
-        assert_eq!(get_grid_cell(&terminal, 0, 0).unwrap().char_codepoint, 'L' as u32);
-        assert_eq!(get_grid_cell(&terminal, 4, 0).unwrap().char_codepoint, '1' as u32);
+        assert_eq!(
+            get_grid_cell(&terminal, 0, 0).unwrap().char_codepoint,
+            'L' as u32
+        );
+        assert_eq!(
+            get_grid_cell(&terminal, 4, 0).unwrap().char_codepoint,
+            '1' as u32
+        );
 
         // Verify second line
-        assert_eq!(get_grid_cell(&terminal, 0, 1).unwrap().char_codepoint, 'L' as u32);
-        assert_eq!(get_grid_cell(&terminal, 4, 1).unwrap().char_codepoint, '2' as u32);
+        assert_eq!(
+            get_grid_cell(&terminal, 0, 1).unwrap().char_codepoint,
+            'L' as u32
+        );
+        assert_eq!(
+            get_grid_cell(&terminal, 4, 1).unwrap().char_codepoint,
+            '2' as u32
+        );
 
         // Cursor should be on line 3
         assert_eq!(terminal.cursor_y, 2);
@@ -89,11 +122,26 @@ mod tests {
         terminal.process_output(b"Hello\rWorld");
 
         // "World" should overwrite "Hello" at the beginning
-        assert_eq!(get_grid_cell(&terminal, 0, 0).unwrap().char_codepoint, 'W' as u32);
-        assert_eq!(get_grid_cell(&terminal, 1, 0).unwrap().char_codepoint, 'o' as u32);
-        assert_eq!(get_grid_cell(&terminal, 2, 0).unwrap().char_codepoint, 'r' as u32);
-        assert_eq!(get_grid_cell(&terminal, 3, 0).unwrap().char_codepoint, 'l' as u32);
-        assert_eq!(get_grid_cell(&terminal, 4, 0).unwrap().char_codepoint, 'd' as u32);
+        assert_eq!(
+            get_grid_cell(&terminal, 0, 0).unwrap().char_codepoint,
+            'W' as u32
+        );
+        assert_eq!(
+            get_grid_cell(&terminal, 1, 0).unwrap().char_codepoint,
+            'o' as u32
+        );
+        assert_eq!(
+            get_grid_cell(&terminal, 2, 0).unwrap().char_codepoint,
+            'r' as u32
+        );
+        assert_eq!(
+            get_grid_cell(&terminal, 3, 0).unwrap().char_codepoint,
+            'l' as u32
+        );
+        assert_eq!(
+            get_grid_cell(&terminal, 4, 0).unwrap().char_codepoint,
+            'd' as u32
+        );
 
         // Cursor should be at position 5
         assert_eq!(terminal.cursor_x, 5);
@@ -256,7 +304,10 @@ mod tests {
         terminal.process_output(b"\x1b[K");
 
         // "Hello " should remain, "World" should be cleared
-        assert_eq!(get_grid_cell(&terminal, 0, 0).unwrap().char_codepoint, 'H' as u32);
+        assert_eq!(
+            get_grid_cell(&terminal, 0, 0).unwrap().char_codepoint,
+            'H' as u32
+        );
         assert_eq!(get_grid_cell(&terminal, 5, 0).unwrap().char_codepoint, 0);
         assert_eq!(get_grid_cell(&terminal, 6, 0).unwrap().char_codepoint, 0);
     }
@@ -293,12 +344,22 @@ mod tests {
 
         // First line should be full
         for x in 0..cols {
-            assert_eq!(get_grid_cell(&terminal, x as u16, 0).unwrap().char_codepoint, 'A' as u32);
+            assert_eq!(
+                get_grid_cell(&terminal, x as u16, 0)
+                    .unwrap()
+                    .char_codepoint,
+                'A' as u32
+            );
         }
 
         // Text should wrap to second line
         for x in 0..10 {
-            assert_eq!(get_grid_cell(&terminal, x as u16, 1).unwrap().char_codepoint, 'A' as u32);
+            assert_eq!(
+                get_grid_cell(&terminal, x as u16, 1)
+                    .unwrap()
+                    .char_codepoint,
+                'A' as u32
+            );
         }
     }
 
@@ -314,7 +375,10 @@ mod tests {
         }
 
         // First line should contain "Line 5" (lines 0-4 scrolled off)
-        assert_eq!(get_grid_cell(&terminal, 0, 0).unwrap().char_codepoint, 'L' as u32);
+        assert_eq!(
+            get_grid_cell(&terminal, 0, 0).unwrap().char_codepoint,
+            'L' as u32
+        );
 
         // Cursor should be near bottom
         assert!(terminal.cursor_y >= rows as u16 - 10);
@@ -328,7 +392,10 @@ mod tests {
         terminal.process_output("Hello 世界! 🚀".as_bytes());
 
         // Verify ASCII characters
-        assert_eq!(get_grid_cell(&terminal, 0, 0).unwrap().char_codepoint, 'H' as u32);
+        assert_eq!(
+            get_grid_cell(&terminal, 0, 0).unwrap().char_codepoint,
+            'H' as u32
+        );
 
         // Verify UTF-8 characters were stored
         let mut has_chinese = false;
@@ -349,8 +416,14 @@ mod tests {
         // Tab should advance to next tab stop (every 8 columns)
         terminal.process_output(b"A\tB");
 
-        assert_eq!(get_grid_cell(&terminal, 0, 0).unwrap().char_codepoint, 'A' as u32);
-        assert_eq!(get_grid_cell(&terminal, 8, 0).unwrap().char_codepoint, 'B' as u32);
+        assert_eq!(
+            get_grid_cell(&terminal, 0, 0).unwrap().char_codepoint,
+            'A' as u32
+        );
+        assert_eq!(
+            get_grid_cell(&terminal, 8, 0).unwrap().char_codepoint,
+            'B' as u32
+        );
     }
 
     #[test]
@@ -360,10 +433,22 @@ mod tests {
         terminal.process_output(b"Hello\x08\x08World");
 
         // "World" should overwrite last 2 chars of "Hello"
-        assert_eq!(get_grid_cell(&terminal, 0, 0).unwrap().char_codepoint, 'H' as u32);
-        assert_eq!(get_grid_cell(&terminal, 1, 0).unwrap().char_codepoint, 'e' as u32);
-        assert_eq!(get_grid_cell(&terminal, 2, 0).unwrap().char_codepoint, 'l' as u32);
-        assert_eq!(get_grid_cell(&terminal, 3, 0).unwrap().char_codepoint, 'W' as u32);
+        assert_eq!(
+            get_grid_cell(&terminal, 0, 0).unwrap().char_codepoint,
+            'H' as u32
+        );
+        assert_eq!(
+            get_grid_cell(&terminal, 1, 0).unwrap().char_codepoint,
+            'e' as u32
+        );
+        assert_eq!(
+            get_grid_cell(&terminal, 2, 0).unwrap().char_codepoint,
+            'l' as u32
+        );
+        assert_eq!(
+            get_grid_cell(&terminal, 3, 0).unwrap().char_codepoint,
+            'W' as u32
+        );
     }
 
     #[test]

@@ -194,9 +194,7 @@ impl ScrollbackBuffer {
         let start_idx = total_lines.saturating_sub(self.scroll_offset);
         let end_idx = (start_idx + viewport_height).min(total_lines);
 
-        self.lines
-            .range(start_idx..end_idx)
-            .collect()
+        self.lines.range(start_idx..end_idx).collect()
     }
 
     /// Search through scrollback buffer
@@ -508,7 +506,10 @@ mod tests {
 
         assert_eq!(buffer.line_count(), 10);
         // First line should be 'F' (index 5), not 'A'
-        assert_eq!(buffer.get_line(0).unwrap().cells[0].char_codepoint, 'F' as u32);
+        assert_eq!(
+            buffer.get_line(0).unwrap().cells[0].char_codepoint,
+            'F' as u32
+        );
     }
 
     #[test]

@@ -64,7 +64,10 @@ impl PaneOrchestrator {
     /// and listens for pane lifecycle events
     pub async fn run(mut self) {
         // Take the receiver (can only run once)
-        let mut command_rx = self.command_rx.take().expect("Orchestrator already running");
+        let mut command_rx = self
+            .command_rx
+            .take()
+            .expect("Orchestrator already running");
 
         // Spawn readers for all existing panes
         self.spawn_all_readers().await;
@@ -81,7 +84,10 @@ impl PaneOrchestrator {
             match msg {
                 OrchestratorMessage::PaneCreated(pane_id) => {
                     if self.log_events {
-                        log::info!("PaneOrchestrator: Pane {} created, spawning reader", pane_id);
+                        log::info!(
+                            "PaneOrchestrator: Pane {} created, spawning reader",
+                            pane_id
+                        );
                     } else {
                         log::debug!("Pane {} created, spawning reader", pane_id);
                     }
@@ -89,7 +95,10 @@ impl PaneOrchestrator {
                 }
                 OrchestratorMessage::PaneDestroyed(pane_id) => {
                     if self.log_events {
-                        log::info!("PaneOrchestrator: Pane {} destroyed, stopping reader", pane_id);
+                        log::info!(
+                            "PaneOrchestrator: Pane {} destroyed, stopping reader",
+                            pane_id
+                        );
                     } else {
                         log::debug!("Pane {} destroyed, stopping reader", pane_id);
                     }
@@ -215,7 +224,10 @@ impl PaneOrchestrator {
                 Ok(Ok(_)) => {
                     // EOF - shell exited
                     if log_events {
-                        log::info!("PaneOrchestrator: PTY EOF for pane {}, shell exited", pane_id);
+                        log::info!(
+                            "PaneOrchestrator: PTY EOF for pane {}, shell exited",
+                            pane_id
+                        );
                     } else {
                         log::info!("PTY EOF for pane {}, shell exited", pane_id);
                     }

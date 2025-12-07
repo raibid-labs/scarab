@@ -75,15 +75,16 @@ impl ScarabConfig {
         }
 
         // Telemetry
-        if other.telemetry != TelemetryConfig::default() {
-        }
+        if other.telemetry != TelemetryConfig::default() {}
 
         // Navigation
         if other.navigation != NavConfig::default() {
             self.navigation = other.navigation;
         } else {
             // Merge custom keybindings even if rest is default
-            self.navigation.keybindings.extend(other.navigation.keybindings);
+            self.navigation
+                .keybindings
+                .extend(other.navigation.keybindings);
             self.telemetry = other.telemetry;
         }
     }
@@ -794,18 +795,18 @@ impl Default for NavConfig {
     }
 }
 
-    #[test]
-    fn test_nav_config_default() {
-        let config = NavConfig::default();
-        assert_eq!(config.style, NavStyle::Vimium);
-        assert!(config.allow_plugin_hint_mode);
-        assert!(config.allow_plugin_focusables);
-        assert!(config.keybindings.is_empty());
-    }
+#[test]
+fn test_nav_config_default() {
+    let config = NavConfig::default();
+    assert_eq!(config.style, NavStyle::Vimium);
+    assert!(config.allow_plugin_hint_mode);
+    assert!(config.allow_plugin_focusables);
+    assert!(config.keybindings.is_empty());
+}
 
-    #[test]
-    fn test_nav_config_with_custom_keybindings() {
-        let toml = r#"
+#[test]
+fn test_nav_config_with_custom_keybindings() {
+    let toml = r#"
             style = "cosmos"
             allow_plugin_hint_mode = false
             allow_plugin_focusables = true
@@ -816,33 +817,39 @@ impl Default for NavConfig {
             prev_prompt = "Ctrl+Up"
         "#;
 
-        let config: NavConfig = toml::from_str(toml).unwrap();
-        assert_eq!(config.style, NavStyle::Cosmos);
-        assert!(!config.allow_plugin_hint_mode);
-        assert!(config.allow_plugin_focusables);
-        assert_eq!(config.keybindings.len(), 3);
-        assert_eq!(config.keybindings.get("enter_hints"), Some(&"Ctrl+F".to_string()));
-        assert_eq!(config.keybindings.get("cancel"), Some(&"Escape".to_string()));
-    }
+    let config: NavConfig = toml::from_str(toml).unwrap();
+    assert_eq!(config.style, NavStyle::Cosmos);
+    assert!(!config.allow_plugin_hint_mode);
+    assert!(config.allow_plugin_focusables);
+    assert_eq!(config.keybindings.len(), 3);
+    assert_eq!(
+        config.keybindings.get("enter_hints"),
+        Some(&"Ctrl+F".to_string())
+    );
+    assert_eq!(
+        config.keybindings.get("cancel"),
+        Some(&"Escape".to_string())
+    );
+}
 
-    #[test]
-    fn test_nav_style_in_config() {
-        let toml = r#"style = "vimium""#;
-        let config: NavConfig = toml::from_str(toml).unwrap();
-        assert_eq!(config.style, NavStyle::Vimium);
+#[test]
+fn test_nav_style_in_config() {
+    let toml = r#"style = "vimium""#;
+    let config: NavConfig = toml::from_str(toml).unwrap();
+    assert_eq!(config.style, NavStyle::Vimium);
 
-        let toml = r#"style = "cosmos""#;
-        let config: NavConfig = toml::from_str(toml).unwrap();
-        assert_eq!(config.style, NavStyle::Cosmos);
+    let toml = r#"style = "cosmos""#;
+    let config: NavConfig = toml::from_str(toml).unwrap();
+    assert_eq!(config.style, NavStyle::Cosmos);
 
-        let toml = r#"style = "spacemacs""#;
-        let config: NavConfig = toml::from_str(toml).unwrap();
-        assert_eq!(config.style, NavStyle::Spacemacs);
-    }
+    let toml = r#"style = "spacemacs""#;
+    let config: NavConfig = toml::from_str(toml).unwrap();
+    assert_eq!(config.style, NavStyle::Spacemacs);
+}
 
-    #[test]
-    fn test_scarab_config_with_navigation() {
-        let toml = r#"
+#[test]
+fn test_scarab_config_with_navigation() {
+    let toml = r#"
             [navigation]
             style = "spacemacs"
             allow_plugin_hint_mode = true
@@ -851,14 +858,14 @@ impl Default for NavConfig {
             enter_hints = "Ctrl+Space"
         "#;
 
-        let config: ScarabConfig = toml::from_str(toml).unwrap();
-        assert_eq!(config.navigation.style, NavStyle::Spacemacs);
-        assert!(config.navigation.allow_plugin_hint_mode);
-        assert_eq!(
-            config.navigation.keybindings.get("enter_hints"),
-            Some(&"Ctrl+Space".to_string())
-        );
-    }
+    let config: ScarabConfig = toml::from_str(toml).unwrap();
+    assert_eq!(config.navigation.style, NavStyle::Spacemacs);
+    assert!(config.navigation.allow_plugin_hint_mode);
+    assert_eq!(
+        config.navigation.keybindings.get("enter_hints"),
+        Some(&"Ctrl+Space".to_string())
+    );
+}
 
 /// SSH domain configuration
 ///

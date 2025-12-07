@@ -255,7 +255,11 @@ impl TimingSamples {
         let mean = sum / count as f64;
 
         let min = self.samples.iter().copied().fold(f64::INFINITY, f64::min);
-        let max = self.samples.iter().copied().fold(f64::NEG_INFINITY, f64::max);
+        let max = self
+            .samples
+            .iter()
+            .copied()
+            .fold(f64::NEG_INFINITY, f64::max);
 
         // Compute p50, p95, p99
         let mut sorted = self.samples.clone();

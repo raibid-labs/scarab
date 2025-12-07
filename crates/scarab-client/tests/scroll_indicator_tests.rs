@@ -5,8 +5,8 @@ use bevy::prelude::*;
 
 // Import test harness
 mod harness;
-use harness::HeadlessTestHarness;
 use harness::mocks::MockSharedMemoryReader;
+use harness::HeadlessTestHarness;
 
 // Import scrollback components
 use scarab_client::terminal::scrollback::{
@@ -114,7 +114,10 @@ fn test_scroll_indicator_visible_when_scrolled() {
     // Scroll up - indicator should be shown
     buffer.scroll_up(10);
     state.is_scrolled = !buffer.is_at_bottom();
-    assert!(state.is_scrolled, "Indicator should be visible when scrolled");
+    assert!(
+        state.is_scrolled,
+        "Indicator should be visible when scrolled"
+    );
 
     // Verify scroll offset is actually set
     assert_eq!(buffer.scroll_offset(), 10);
@@ -141,7 +144,10 @@ fn test_scroll_indicator_hidden_at_bottom() {
     // Scroll back to bottom
     buffer.scroll_to_bottom();
     state.is_scrolled = !buffer.is_at_bottom();
-    assert!(!state.is_scrolled, "Indicator should hide when returning to bottom");
+    assert!(
+        !state.is_scrolled,
+        "Indicator should hide when returning to bottom"
+    );
     assert!(buffer.is_at_bottom());
 }
 
@@ -169,13 +175,21 @@ fn test_scroll_percentage_calculation() {
     buffer.scroll_to_bottom();
     buffer.scroll_up(50);
     let pct = scroll_percentage(&buffer);
-    assert!((pct - 50.0).abs() < 1.0, "Should be ~50% at middle, got {}", pct);
+    assert!(
+        (pct - 50.0).abs() < 1.0,
+        "Should be ~50% at middle, got {}",
+        pct
+    );
 
     // Scroll to 75% (25 lines from top means offset 25, which is 75% of the way from top to bottom)
     buffer.scroll_to_top();
     buffer.scroll_down(75);
     let pct = scroll_percentage(&buffer);
-    assert!((pct - 75.0).abs() < 1.0, "Should be ~75% at 25 lines from top, got {}", pct);
+    assert!(
+        (pct - 75.0).abs() < 1.0,
+        "Should be ~75% at 25 lines from top, got {}",
+        pct
+    );
 }
 
 // =============================================================================
@@ -305,7 +319,10 @@ fn test_scroll_with_large_buffer() {
     // Scroll percentage at various positions
     buffer.scroll_up(2500); // Middle
     let pct = scroll_percentage(&buffer);
-    assert!((pct - 50.0).abs() < 1.0, "Should be ~50% at middle of large buffer");
+    assert!(
+        (pct - 50.0).abs() < 1.0,
+        "Should be ~50% at middle of large buffer"
+    );
 }
 
 // =============================================================================
@@ -408,7 +425,11 @@ fn test_scroll_indicator_bounds_checking() {
 
     // Try to scroll up beyond buffer size
     buffer.scroll_up(1000);
-    assert_eq!(buffer.scroll_offset(), 30, "Should clamp to max buffer size");
+    assert_eq!(
+        buffer.scroll_offset(),
+        30,
+        "Should clamp to max buffer size"
+    );
 
     // Try to scroll down beyond bottom
     buffer.scroll_down(2000);
@@ -418,7 +439,11 @@ fn test_scroll_indicator_bounds_checking() {
     // Test with empty buffer
     let mut empty_buffer = ScrollbackBuffer::new(100);
     empty_buffer.scroll_up(10);
-    assert_eq!(empty_buffer.scroll_offset(), 0, "Empty buffer should stay at 0");
+    assert_eq!(
+        empty_buffer.scroll_offset(),
+        0,
+        "Empty buffer should stay at 0"
+    );
     assert!(empty_buffer.is_at_bottom());
 }
 
@@ -450,7 +475,11 @@ fn test_scroll_offset_after_eviction() {
     assert_eq!(buffer.line_count(), 10);
 
     // Scroll offset should be adjusted (reduced by evicted count while maintaining view)
-    assert_eq!(buffer.scroll_offset(), 0, "Scroll offset should be reduced after eviction");
+    assert_eq!(
+        buffer.scroll_offset(),
+        0,
+        "Scroll offset should be reduced after eviction"
+    );
 }
 
 // =============================================================================

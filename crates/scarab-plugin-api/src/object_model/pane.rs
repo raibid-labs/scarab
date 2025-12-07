@@ -61,10 +61,7 @@ impl PaneProxy {
 
     /// Get pane dimensions in cells
     pub fn get_dimensions(&self) -> Result<(u16, u16)> {
-        Err(ObjectError::method_not_found(
-            self.handle,
-            "get_dimensions",
-        ))
+        Err(ObjectError::method_not_found(self.handle, "get_dimensions"))
     }
 
     /// Get foreground process name
@@ -377,8 +374,12 @@ mod tests {
         let pane_handle = ObjectHandle::new(ObjectType::Pane, 1, 0);
         let tab_handle = ObjectHandle::new(ObjectType::Tab, 2, 0);
 
-        registry.objects.insert(1, RegistryEntry::new(pane_handle, TestObject));
-        registry.objects.insert(2, RegistryEntry::new(tab_handle, TestObject));
+        registry
+            .objects
+            .insert(1, RegistryEntry::new(pane_handle, TestObject));
+        registry
+            .objects
+            .insert(2, RegistryEntry::new(tab_handle, TestObject));
 
         // Set tab as parent of pane
         registry.set_parent(pane_handle, tab_handle);
@@ -399,9 +400,15 @@ mod tests {
         let tab_handle = ObjectHandle::new(ObjectType::Tab, 2, 0);
         let window_handle = ObjectHandle::new(ObjectType::Window, 3, 0);
 
-        registry.objects.insert(1, RegistryEntry::new(pane_handle, TestObject));
-        registry.objects.insert(2, RegistryEntry::new(tab_handle, TestObject));
-        registry.objects.insert(3, RegistryEntry::new(window_handle, TestObject));
+        registry
+            .objects
+            .insert(1, RegistryEntry::new(pane_handle, TestObject));
+        registry
+            .objects
+            .insert(2, RegistryEntry::new(tab_handle, TestObject));
+        registry
+            .objects
+            .insert(3, RegistryEntry::new(window_handle, TestObject));
 
         // Set hierarchy: pane -> tab -> window
         registry.set_parent(pane_handle, tab_handle);
@@ -434,8 +441,12 @@ mod tests {
         let pane_handle = ObjectHandle::new(ObjectType::Pane, 1, 0);
         let window_handle = ObjectHandle::new(ObjectType::Window, 2, 0);
 
-        registry.objects.insert(1, RegistryEntry::new(pane_handle, TestObject));
-        registry.objects.insert(2, RegistryEntry::new(window_handle, TestObject));
+        registry
+            .objects
+            .insert(1, RegistryEntry::new(pane_handle, TestObject));
+        registry
+            .objects
+            .insert(2, RegistryEntry::new(window_handle, TestObject));
 
         // Set window as parent of pane (should be tab)
         registry.set_parent(pane_handle, window_handle);

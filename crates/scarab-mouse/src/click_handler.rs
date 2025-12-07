@@ -126,13 +126,16 @@ pub fn generate_mouse_sequence(event: &MouseEvent) -> Option<Vec<u8>> {
     };
 
     // Terminal coordinates are 1-based
-    Some(format!(
-        "\x1b[<{};{};{}{}",
-        code,
-        event.position.x + 1,
-        event.position.y + 1,
-        action
-    ).into_bytes())
+    Some(
+        format!(
+            "\x1b[<{};{};{}{}",
+            code,
+            event.position.x + 1,
+            event.position.y + 1,
+            action
+        )
+        .into_bytes(),
+    )
 }
 
 #[cfg(test)]

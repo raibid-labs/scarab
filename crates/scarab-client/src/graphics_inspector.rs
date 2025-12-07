@@ -188,21 +188,14 @@ fn render_stats_panel(ui: &mut egui::Ui, stats: &GraphicsStats) {
         ui.separator();
         ui.label(format!("Visible: {}", stats.visible_count));
         ui.separator();
-        ui.label(format!(
-            "Memory: {}",
-            format_bytes(stats.total_memory)
-        ));
+        ui.label(format!("Memory: {}", format_bytes(stats.total_memory)));
         ui.separator();
         ui.label(format!("Peak: {}", format_bytes(stats.peak_memory)));
     });
 }
 
 /// Render the list of images
-fn render_image_list(
-    ui: &mut egui::Ui,
-    state: &mut GraphicsInspectorState,
-    cache: &ImageCache,
-) {
+fn render_image_list(ui: &mut egui::Ui, state: &mut GraphicsInspectorState, cache: &ImageCache) {
     ui.heading("Active Images");
     ui.separator();
 
@@ -315,7 +308,10 @@ fn render_image_details(
             ui.end_row();
 
             ui.label("Cell Dimensions:");
-            ui.label(format!("{}x{}", placement.width_cells, placement.height_cells));
+            ui.label(format!(
+                "{}x{}",
+                placement.width_cells, placement.height_cells
+            ));
             ui.end_row();
 
             let (screen_x, screen_y) = metrics.grid_to_screen(placement.x, placement.y);
@@ -336,9 +332,8 @@ fn render_image_details(
             ui.label(format_bytes(placement.shm_size));
             ui.end_row();
 
-            let estimated_decoded_size = (placement.width_cells as usize * 10)
-                * (placement.height_cells as usize * 20)
-                * 4; // RGBA
+            let estimated_decoded_size =
+                (placement.width_cells as usize * 10) * (placement.height_cells as usize * 20) * 4; // RGBA
             ui.label("Estimated Decoded Size:");
             ui.label(format_bytes(estimated_decoded_size));
             ui.end_row();
@@ -399,11 +394,7 @@ fn update_stats(stats: &mut GraphicsStats, cache: &ImageCache, reader: Option<&S
     stats.visible_count = cache.placements.len();
 
     // Calculate total memory from placements
-    stats.total_memory = cache
-        .placements
-        .iter()
-        .map(|p| p.shm_size)
-        .sum();
+    stats.total_memory = cache.placements.iter().map(|p| p.shm_size).sum();
 
     // Update peak memory
     if stats.total_memory > stats.peak_memory {

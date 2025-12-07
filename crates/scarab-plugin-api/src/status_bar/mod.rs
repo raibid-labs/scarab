@@ -507,10 +507,7 @@ mod tests {
         let update = StatusBarUpdate {
             window_id: 42,
             side: StatusBarSide::Left,
-            items: vec![
-                RenderItem::Bold,
-                RenderItem::Text("Test".to_string()),
-            ],
+            items: vec![RenderItem::Bold, RenderItem::Text("Test".to_string())],
         };
 
         assert_eq!(update.window_id, 42);

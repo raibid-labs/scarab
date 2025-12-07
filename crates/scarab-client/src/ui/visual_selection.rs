@@ -206,7 +206,8 @@ fn extract_selection_text(
             // Extract full lines
             for y in region.start_y..=region.end_y {
                 for x in 0..GRID_WIDTH {
-                    if let Some(cell) = crate::integration::get_cell_at(&safe_state, x, y as usize) {
+                    if let Some(cell) = crate::integration::get_cell_at(&safe_state, x, y as usize)
+                    {
                         if cell.char_codepoint == 0 || cell.char_codepoint == 32 {
                             text.push(' ');
                         } else if let Some(ch) = char::from_u32(cell.char_codepoint) {

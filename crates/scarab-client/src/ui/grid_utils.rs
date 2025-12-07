@@ -1,9 +1,9 @@
 // Grid coordinate utilities for UI positioning
 // Provides conversion functions between terminal grid coordinates and pixel positions
 
-use bevy::prelude::*;
 use crate::rendering::text::TextRenderer;
-use scarab_protocol::{GRID_WIDTH, GRID_HEIGHT};
+use bevy::prelude::*;
+use scarab_protocol::{GRID_HEIGHT, GRID_WIDTH};
 
 /// Convert grid column and row to pixel coordinates
 ///

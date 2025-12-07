@@ -31,12 +31,14 @@ pub struct RemoteUiPlugin;
 
 impl Plugin for RemoteUiPlugin {
     fn build(&self, app: &mut App) {
-        app.add_event::<HideModalEvent>()
-            .add_systems(Update, (
+        app.add_event::<HideModalEvent>().add_systems(
+            Update,
+            (
                 handle_remote_messages,
                 update_notifications,
                 handle_hide_modal,
-            ));
+            ),
+        );
     }
 }
 
@@ -128,7 +130,14 @@ fn handle_remote_messages(
                 // TODO: Could also display in an on-screen log panel
             }
             DaemonMessage::PluginNotification { title, body, level } => {
-                spawn_notification(&mut commands, &asset_server, title, body, *level, time.elapsed_secs_f64());
+                spawn_notification(
+                    &mut commands,
+                    &asset_server,
+                    title,
+                    body,
+                    *level,
+                    time.elapsed_secs_f64(),
+                );
             }
             _ => {} // Ignore others
         }

@@ -9,7 +9,6 @@
 ///
 /// This module implements accessibility best practices for terminal emulators,
 /// making Scarab usable with assistive technologies.
-
 pub mod export;
 pub mod screen_reader;
 pub mod settings;
@@ -278,20 +277,11 @@ pub fn parse_accessibility_command(command: &str) -> Option<AccessibilityCommand
 /// Accessibility command types
 #[derive(Debug, Clone, PartialEq)]
 pub enum AccessibilityCommand {
-    Export {
-        format: ExportFormat,
-        path: String,
-    },
+    Export { format: ExportFormat, path: String },
     ToggleHighContrast,
-    SetTextScale {
-        scale: f32,
-    },
-    IncreaseTextScale {
-        delta: f32,
-    },
-    DecreaseTextScale {
-        delta: f32,
-    },
+    SetTextScale { scale: f32 },
+    IncreaseTextScale { delta: f32 },
+    DecreaseTextScale { delta: f32 },
     ResetTextScale,
     Help,
 }
@@ -330,10 +320,7 @@ mod tests {
     fn test_parse_accessibility_command_export() {
         let cmd = ":a11y export html /tmp/output.html";
         let parsed = parse_accessibility_command(cmd);
-        assert!(matches!(
-            parsed,
-            Some(AccessibilityCommand::Export { .. })
-        ));
+        assert!(matches!(parsed, Some(AccessibilityCommand::Export { .. })));
     }
 
     #[test]

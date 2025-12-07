@@ -20,7 +20,7 @@ mod harness;
 
 use bevy::prelude::*;
 use harness::HeadlessTestHarness;
-use scarab_protocol::{DaemonMessage, OverlayStyle, NotifyLevel, LogLevel};
+use scarab_protocol::{DaemonMessage, LogLevel, NotifyLevel, OverlayStyle};
 
 // =============================================================================
 // Test 1: Overlay Style Creation and Defaults
@@ -32,7 +32,10 @@ fn test_overlay_style_defaults() {
 
     // Verify default values
     assert_eq!(style.fg, 0xFFFFFFFF, "Default foreground should be white");
-    assert_eq!(style.bg, 0xFF0000FF, "Default background should be red for visibility");
+    assert_eq!(
+        style.bg, 0xFF0000FF,
+        "Default background should be red for visibility"
+    );
     assert_eq!(style.z_index, 100.0, "Default z-index should be 100.0");
 }
 
@@ -64,7 +67,13 @@ fn test_draw_overlay_message_construction() {
     };
 
     match msg {
-        DaemonMessage::DrawOverlay { id, x, y, text, style } => {
+        DaemonMessage::DrawOverlay {
+            id,
+            x,
+            y,
+            text,
+            style,
+        } => {
             assert_eq!(id, 42);
             assert_eq!(x, 10);
             assert_eq!(y, 5);
@@ -202,7 +211,11 @@ fn test_plugin_log_message() {
     };
 
     match msg {
-        DaemonMessage::PluginLog { plugin_name, level, message } => {
+        DaemonMessage::PluginLog {
+            plugin_name,
+            level,
+            message,
+        } => {
             assert_eq!(plugin_name, "my-plugin");
             assert_eq!(level, LogLevel::Info);
             assert_eq!(message, "Plugin initialized");
@@ -310,10 +323,26 @@ fn test_very_long_overlay_text() {
 #[test]
 fn test_multiple_overlays_z_ordering() {
     let overlays = vec![
-        OverlayStyle { fg: 0xFFFFFFFF, bg: 0x000000FF, z_index: 10.0 },
-        OverlayStyle { fg: 0xFFFFFFFF, bg: 0x000000FF, z_index: 50.0 },
-        OverlayStyle { fg: 0xFFFFFFFF, bg: 0x000000FF, z_index: 100.0 },
-        OverlayStyle { fg: 0xFFFFFFFF, bg: 0x000000FF, z_index: 25.0 },
+        OverlayStyle {
+            fg: 0xFFFFFFFF,
+            bg: 0x000000FF,
+            z_index: 10.0,
+        },
+        OverlayStyle {
+            fg: 0xFFFFFFFF,
+            bg: 0x000000FF,
+            z_index: 50.0,
+        },
+        OverlayStyle {
+            fg: 0xFFFFFFFF,
+            bg: 0x000000FF,
+            z_index: 100.0,
+        },
+        OverlayStyle {
+            fg: 0xFFFFFFFF,
+            bg: 0x000000FF,
+            z_index: 25.0,
+        },
     ];
 
     // Sort by z-index (higher = rendered on top)
@@ -385,7 +414,9 @@ fn test_notification_content_structure() {
     };
 
     match msg {
-        DaemonMessage::PluginNotification { title: t, body: b, .. } => {
+        DaemonMessage::PluginNotification {
+            title: t, body: b, ..
+        } => {
             assert!(!t.is_empty(), "Title should not be empty");
             assert!(!b.is_empty(), "Body should not be empty");
             assert!(b.len() > t.len(), "Body typically longer than title");
@@ -435,7 +466,10 @@ fn test_overlay_style_color_components() {
     assert_eq!(fg_a, 192);
 
     let bg_a = style.bg & 0xFF;
-    assert_eq!(bg_a, 128, "Background alpha should be 128 (50% transparent)");
+    assert_eq!(
+        bg_a, 128,
+        "Background alpha should be 128 (50% transparent)"
+    );
 }
 
 // =============================================================================
@@ -465,7 +499,10 @@ fn test_show_modal_message_structure() {
     };
 
     match msg {
-        DaemonMessage::ShowModal { title, items: modal_items } => {
+        DaemonMessage::ShowModal {
+            title,
+            items: modal_items,
+        } => {
             assert_eq!(title, "Select an option");
             assert_eq!(modal_items.len(), 2);
             assert_eq!(modal_items[0].id, "item1");
@@ -502,15 +539,15 @@ fn test_event_registration_without_update() {
     });
 
     // Send event without calling update (to avoid triggering systems)
-    harness.world_mut().send_event(RemoteMessageEvent(
-        DaemonMessage::DrawOverlay {
+    harness
+        .world_mut()
+        .send_event(RemoteMessageEvent(DaemonMessage::DrawOverlay {
             id: 1,
             x: 0,
             y: 0,
             text: "Test".to_string(),
             style: OverlayStyle::default(),
-        },
-    ));
+        }));
 
     // Verify event was queued
     let events = harness.world().resource::<Events<RemoteMessageEvent>>();

@@ -357,10 +357,7 @@ mod tests {
             EventType::Resize
         );
 
-        assert_eq!(
-            EventType::Output.to_hook_type(),
-            Some(HookType::PreOutput)
-        );
+        assert_eq!(EventType::Output.to_hook_type(), Some(HookType::PreOutput));
         assert_eq!(EventType::Bell.to_hook_type(), None);
     }
 

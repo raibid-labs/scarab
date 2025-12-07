@@ -13,7 +13,7 @@ fn bench_state_iteration(c: &mut Criterion) {
 
         // Setup mock state
         let mut state = MockTerminalState::new(cols, rows);
-        
+
         // Fill with data
         {
             let cells = state.cells_mut();
@@ -29,7 +29,7 @@ fn bench_state_iteration(c: &mut Criterion) {
                 // Simulate the access pattern of the renderer
                 let dimensions = state.dimensions();
                 let buffer = state.cells();
-                
+
                 let mut checksum = 0u64;
                 for cell in buffer {
                     // Simulate some "work" per cell (e.g. checking dirty flags)

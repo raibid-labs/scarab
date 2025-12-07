@@ -104,10 +104,7 @@ impl WindowProxy {
 
     /// Get window dimensions
     pub fn get_dimensions(&self) -> Result<(u32, u32)> {
-        Err(ObjectError::method_not_found(
-            self.handle,
-            "get_dimensions",
-        ))
+        Err(ObjectError::method_not_found(self.handle, "get_dimensions"))
     }
 
     /// Check if window is focused
@@ -442,9 +439,15 @@ mod tests {
         let tab1_handle = ObjectHandle::new(ObjectType::Tab, 2, 0);
         let tab2_handle = ObjectHandle::new(ObjectType::Tab, 3, 0);
 
-        registry.objects.insert(1, RegistryEntry::new(window_handle, TestObject));
-        registry.objects.insert(2, RegistryEntry::new(tab1_handle, TestObject));
-        registry.objects.insert(3, RegistryEntry::new(tab2_handle, TestObject));
+        registry
+            .objects
+            .insert(1, RegistryEntry::new(window_handle, TestObject));
+        registry
+            .objects
+            .insert(2, RegistryEntry::new(tab1_handle, TestObject));
+        registry
+            .objects
+            .insert(3, RegistryEntry::new(tab2_handle, TestObject));
 
         // Set window as parent of tabs
         registry.set_parent(tab1_handle, window_handle);
@@ -467,9 +470,15 @@ mod tests {
         let tab1_handle = ObjectHandle::new(ObjectType::Tab, 2, 0);
         let tab2_handle = ObjectHandle::new(ObjectType::Tab, 3, 0);
 
-        registry.objects.insert(1, RegistryEntry::new(window_handle, TestObject));
-        registry.objects.insert(2, RegistryEntry::new(tab1_handle, TestObject));
-        registry.objects.insert(3, RegistryEntry::new(tab2_handle, TestObject));
+        registry
+            .objects
+            .insert(1, RegistryEntry::new(window_handle, TestObject));
+        registry
+            .objects
+            .insert(2, RegistryEntry::new(tab1_handle, TestObject));
+        registry
+            .objects
+            .insert(3, RegistryEntry::new(tab2_handle, TestObject));
 
         // Set window as parent of tabs
         registry.set_parent(tab1_handle, window_handle);
@@ -491,9 +500,15 @@ mod tests {
         let tab_handle = ObjectHandle::new(ObjectType::Tab, 2, 0);
         let pane_handle = ObjectHandle::new(ObjectType::Pane, 3, 0);
 
-        registry.objects.insert(1, RegistryEntry::new(window_handle, TestObject));
-        registry.objects.insert(2, RegistryEntry::new(tab_handle, TestObject));
-        registry.objects.insert(3, RegistryEntry::new(pane_handle, TestObject));
+        registry
+            .objects
+            .insert(1, RegistryEntry::new(window_handle, TestObject));
+        registry
+            .objects
+            .insert(2, RegistryEntry::new(tab_handle, TestObject));
+        registry
+            .objects
+            .insert(3, RegistryEntry::new(pane_handle, TestObject));
 
         // Set hierarchy: window -> tab -> pane
         registry.set_parent(tab_handle, window_handle);
@@ -510,7 +525,9 @@ mod tests {
         let mut registry = TestRegistry::new();
 
         let window_handle = ObjectHandle::new(ObjectType::Window, 1, 0);
-        registry.objects.insert(1, RegistryEntry::new(window_handle, TestObject));
+        registry
+            .objects
+            .insert(1, RegistryEntry::new(window_handle, TestObject));
 
         let window_proxy = WindowProxy::new(window_handle).unwrap();
 
@@ -535,8 +552,12 @@ mod tests {
         let window_handle = ObjectHandle::new(ObjectType::Window, 1, 0);
         let pane_handle = ObjectHandle::new(ObjectType::Pane, 2, 0);
 
-        registry.objects.insert(1, RegistryEntry::new(window_handle, TestObject));
-        registry.objects.insert(2, RegistryEntry::new(pane_handle, TestObject));
+        registry
+            .objects
+            .insert(1, RegistryEntry::new(window_handle, TestObject));
+        registry
+            .objects
+            .insert(2, RegistryEntry::new(pane_handle, TestObject));
 
         // Set window as parent of pane (should be tab)
         registry.set_parent(pane_handle, window_handle);
@@ -559,11 +580,21 @@ mod tests {
         let pane1_handle = ObjectHandle::new(ObjectType::Pane, 4, 0);
         let pane2_handle = ObjectHandle::new(ObjectType::Pane, 5, 0);
 
-        registry.objects.insert(1, RegistryEntry::new(window_handle, TestObject));
-        registry.objects.insert(2, RegistryEntry::new(tab1_handle, TestObject));
-        registry.objects.insert(3, RegistryEntry::new(tab2_handle, TestObject));
-        registry.objects.insert(4, RegistryEntry::new(pane1_handle, TestObject));
-        registry.objects.insert(5, RegistryEntry::new(pane2_handle, TestObject));
+        registry
+            .objects
+            .insert(1, RegistryEntry::new(window_handle, TestObject));
+        registry
+            .objects
+            .insert(2, RegistryEntry::new(tab1_handle, TestObject));
+        registry
+            .objects
+            .insert(3, RegistryEntry::new(tab2_handle, TestObject));
+        registry
+            .objects
+            .insert(4, RegistryEntry::new(pane1_handle, TestObject));
+        registry
+            .objects
+            .insert(5, RegistryEntry::new(pane2_handle, TestObject));
 
         // Set hierarchy
         registry.set_parent(tab1_handle, window_handle);

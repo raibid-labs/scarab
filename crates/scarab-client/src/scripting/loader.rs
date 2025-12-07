@@ -26,7 +26,10 @@ impl ScriptLoader {
                     e
                 ))
             })?;
-            info!("Created scripts directory: {}", self.scripts_directory.display());
+            info!(
+                "Created scripts directory: {}",
+                self.scripts_directory.display()
+            );
         }
         Ok(())
     }

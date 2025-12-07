@@ -228,7 +228,16 @@ impl HeadlessHarness {
     /// // Draw a 10x5 box of '#' characters
     /// harness.fill_grid_rect(0, 0, 10, 5, '#', 0xFFFFFFFF, 0x000000FF);
     /// ```
-    pub fn fill_grid_rect(&mut self, x: u16, y: u16, width: u16, height: u16, c: char, fg: u32, bg: u32) {
+    pub fn fill_grid_rect(
+        &mut self,
+        x: u16,
+        y: u16,
+        width: u16,
+        height: u16,
+        c: char,
+        fg: u32,
+        bg: u32,
+    ) {
         let mut reader = self.inner.resource_mut::<MockSharedMemoryReader>();
         reader.fill_rect(x, y, width, height, c, fg, bg);
     }
@@ -278,8 +287,14 @@ impl HeadlessHarness {
         let mut output = String::new();
 
         // Header with dimensions
-        output.push_str(&format!("=== Terminal Grid Snapshot ({} cols × {} rows) ===\n", GRID_WIDTH, GRID_HEIGHT));
-        output.push_str(&format!("Cursor: ({}, {})\n", state.cursor_x, state.cursor_y));
+        output.push_str(&format!(
+            "=== Terminal Grid Snapshot ({} cols × {} rows) ===\n",
+            GRID_WIDTH, GRID_HEIGHT
+        ));
+        output.push_str(&format!(
+            "Cursor: ({}, {})\n",
+            state.cursor_x, state.cursor_y
+        ));
         output.push_str(&format!("Sequence: {}\n", state.sequence_number));
         output.push_str("---\n");
 
@@ -326,7 +341,10 @@ impl HeadlessHarness {
         let state = reader.get_state();
 
         let mut output = String::new();
-        output.push_str(&format!("=== Grid Region ({}, {}) {}×{} ===\n", x, y, width, height));
+        output.push_str(&format!(
+            "=== Grid Region ({}, {}) {}×{} ===\n",
+            x, y, width, height
+        ));
 
         let max_y = (y + height).min(GRID_HEIGHT as u16);
         for row in y..max_y {
@@ -512,11 +530,7 @@ mod tests {
         let mut harness = HeadlessHarness::new();
 
         harness.simulate_output(
-            &[
-                (0, 0, "Line 1"),
-                (0, 1, "Line 2"),
-                (0, 2, "Line 3"),
-            ],
+            &[(0, 0, "Line 1"), (0, 1, "Line 2"), (0, 2, "Line 3")],
             0xFFFFFFFF,
             0x000000FF,
         );
@@ -593,7 +607,10 @@ mod tests {
 
         // Verify via direct query
         let row = harness.get_grid_row(0);
-        assert_eq!(row, "Hello World", "Grid should contain 'Hello World' at row 0");
+        assert_eq!(
+            row, "Hello World",
+            "Grid should contain 'Hello World' at row 0"
+        );
 
         // Verify individual characters
         assert_eq!(harness.get_grid_char(0, 0), Some('H'));
@@ -602,7 +619,10 @@ mod tests {
 
         // Verify via snapshot capture
         let snapshot = harness.capture_grid_snapshot();
-        assert!(snapshot.contains("Hello World"), "Snapshot should contain 'Hello World'");
+        assert!(
+            snapshot.contains("Hello World"),
+            "Snapshot should contain 'Hello World'"
+        );
 
         // Print snapshot for manual verification
         println!("\n{}", snapshot);

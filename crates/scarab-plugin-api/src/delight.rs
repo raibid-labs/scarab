@@ -165,12 +165,7 @@ impl Achievement {
 
     /// Format achievement for display
     pub fn format(&self) -> String {
-        format!(
-            "{} {} - {}",
-            self.emoji(),
-            self.title(),
-            self.description()
-        )
+        format!("{} {} - {}", self.emoji(), self.title(), self.description())
     }
 
     /// Get ASCII art for this achievement
@@ -303,10 +298,22 @@ mod tests {
 
     #[test]
     fn test_plugin_mood() {
-        assert_eq!(PluginMood::from_failure_count(0, 3, true), PluginMood::Happy);
-        assert_eq!(PluginMood::from_failure_count(1, 3, true), PluginMood::Content);
-        assert_eq!(PluginMood::from_failure_count(2, 3, true), PluginMood::Struggling);
-        assert_eq!(PluginMood::from_failure_count(0, 3, false), PluginMood::Disabled);
+        assert_eq!(
+            PluginMood::from_failure_count(0, 3, true),
+            PluginMood::Happy
+        );
+        assert_eq!(
+            PluginMood::from_failure_count(1, 3, true),
+            PluginMood::Content
+        );
+        assert_eq!(
+            PluginMood::from_failure_count(2, 3, true),
+            PluginMood::Struggling
+        );
+        assert_eq!(
+            PluginMood::from_failure_count(0, 3, false),
+            PluginMood::Disabled
+        );
     }
 
     #[test]

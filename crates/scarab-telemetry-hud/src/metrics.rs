@@ -93,16 +93,8 @@ impl PerformanceMetrics {
         let count = self.frame_times.len() as f32;
 
         self.avg_frame_time = sum / count;
-        self.min_frame_time = self
-            .frame_times
-            .iter()
-            .copied()
-            .fold(f32::MAX, f32::min);
-        self.max_frame_time = self
-            .frame_times
-            .iter()
-            .copied()
-            .fold(f32::MIN, f32::max);
+        self.min_frame_time = self.frame_times.iter().copied().fold(f32::MAX, f32::min);
+        self.max_frame_time = self.frame_times.iter().copied().fold(f32::MIN, f32::max);
     }
 
     /// Get a snapshot of current metrics

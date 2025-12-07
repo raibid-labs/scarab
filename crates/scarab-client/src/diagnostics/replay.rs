@@ -3,7 +3,7 @@
 //! This module provides the DiagnosticsReplay resource for playing back
 //! recorded terminal sessions with timing and speed control.
 
-use super::format::{Recording, RecordedEvent};
+use super::format::{RecordedEvent, Recording};
 use anyhow::{Context, Result};
 use bevy::prelude::*;
 use std::path::Path;
@@ -63,8 +63,7 @@ impl DiagnosticsReplay {
 
     /// Load a recording from file
     pub fn load(&mut self, path: impl AsRef<Path>) -> Result<()> {
-        let recording = Recording::from_file(path.as_ref())
-            .context("Failed to load recording")?;
+        let recording = Recording::from_file(path.as_ref()).context("Failed to load recording")?;
 
         info!(
             "Loaded recording: {} events, {} ms duration",
@@ -182,7 +181,10 @@ impl DiagnosticsReplay {
     /// Enable or disable loop playback
     pub fn set_loop(&mut self, enabled: bool) {
         self.loop_playback = enabled;
-        info!("Loop playback: {}", if enabled { "enabled" } else { "disabled" });
+        info!(
+            "Loop playback: {}",
+            if enabled { "enabled" } else { "disabled" }
+        );
     }
 
     /// Seek to specific position in milliseconds
@@ -365,7 +367,7 @@ pub fn handle_replay_control(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::diagnostics::format::{EventData, Recording};
+    use crate::diagnostics::format::{EventData, EventType, Recording};
 
     fn create_test_recording() -> Recording {
         let mut recording = Recording::new(80, 24);

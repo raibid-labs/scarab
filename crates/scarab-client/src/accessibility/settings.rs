@@ -142,16 +142,10 @@ pub enum AccessibilityEvent {
     TextScaleChanged { scale: f32 },
 
     /// Export completed
-    ExportCompleted {
-        format: ExportFormat,
-        path: String,
-    },
+    ExportCompleted { format: ExportFormat, path: String },
 
     /// Export failed
-    ExportFailed {
-        format: ExportFormat,
-        error: String,
-    },
+    ExportFailed { format: ExportFormat, error: String },
 
     /// Screen reader announcement requested
     ScreenReaderAnnounce { message: String },

@@ -65,8 +65,7 @@ impl Plugin for EventsPlugin {
             .add_event::<DetachEvent>();
 
         // Register custom and daemon events
-        app.add_event::<CustomEvent>()
-            .add_event::<DaemonEvent>();
+        app.add_event::<CustomEvent>().add_event::<DaemonEvent>();
 
         // Add systems for handling Bevy window events
         app.add_systems(
@@ -269,20 +268,16 @@ fn convert_and_dispatch_event(
         "window-focus-changed" => {
             if let Some(window) = window {
                 // Parse JSON: {"is_focused": bool}
-                let is_focused = if let Ok(json) =
-                    serde_json::from_slice::<serde_json::Value>(&msg.data)
-                {
-                    json.get("is_focused")
-                        .and_then(|v| v.as_bool())
-                        .unwrap_or(false)
-                } else {
-                    false
-                };
+                let is_focused =
+                    if let Ok(json) = serde_json::from_slice::<serde_json::Value>(&msg.data) {
+                        json.get("is_focused")
+                            .and_then(|v| v.as_bool())
+                            .unwrap_or(false)
+                    } else {
+                        false
+                    };
 
-                window_focus_events.send(WindowFocusChangedEvent {
-                    window,
-                    is_focused,
-                });
+                window_focus_events.send(WindowFocusChangedEvent { window, is_focused });
             }
         }
         "window-resized" => {

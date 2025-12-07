@@ -111,25 +111,28 @@ fn example_hierarchical_ui() {
     ));
 
     // Add children using world_mut
-    harness.world_mut().entity_mut(parent).with_children(|parent| {
-        parent.spawn((
-            Node {
-                width: Val::Percent(100.0),
-                height: Val::Px(50.0),
-                ..default()
-            },
-            Name::new("Child1"),
-        ));
+    harness
+        .world_mut()
+        .entity_mut(parent)
+        .with_children(|parent| {
+            parent.spawn((
+                Node {
+                    width: Val::Percent(100.0),
+                    height: Val::Px(50.0),
+                    ..default()
+                },
+                Name::new("Child1"),
+            ));
 
-        parent.spawn((
-            Node {
-                width: Val::Percent(100.0),
-                height: Val::Px(50.0),
-                ..default()
-            },
-            Name::new("Child2"),
-        ));
-    });
+            parent.spawn((
+                Node {
+                    width: Val::Percent(100.0),
+                    height: Val::Px(50.0),
+                    ..default()
+                },
+                Name::new("Child2"),
+            ));
+        });
 
     harness.update();
 
@@ -196,7 +199,9 @@ fn example_sample_terminal_output() {
     let sample_state = sample_terminal_output();
 
     let mut harness = HeadlessTestHarness::new();
-    harness.app.insert_resource(MockSharedMemoryReader::with_state(sample_state));
+    harness
+        .app
+        .insert_resource(MockSharedMemoryReader::with_state(sample_state));
 
     let reader = harness.resource::<MockSharedMemoryReader>();
     let first_line = reader.get_row_text(0);
@@ -214,7 +219,9 @@ fn example_url_detection() {
     let url_state = sample_url_output();
 
     let mut harness = HeadlessTestHarness::new();
-    harness.app.insert_resource(MockSharedMemoryReader::with_state(url_state));
+    harness
+        .app
+        .insert_resource(MockSharedMemoryReader::with_state(url_state));
 
     let reader = harness.resource::<MockSharedMemoryReader>();
 
@@ -354,7 +361,9 @@ fn example_colored_output() {
     let colored_state = sample_colored_output();
 
     let mut harness = HeadlessTestHarness::new();
-    harness.app.insert_resource(MockSharedMemoryReader::with_state(colored_state));
+    harness
+        .app
+        .insert_resource(MockSharedMemoryReader::with_state(colored_state));
 
     let reader = harness.resource::<MockSharedMemoryReader>();
 
@@ -410,11 +419,7 @@ fn example_mock_grid_manipulation() {
 
     // Simulate output
     reader.simulate_output(
-        &[
-            (0, 0, "Line 1"),
-            (0, 1, "Line 2"),
-            (0, 2, "Line 3"),
-        ],
+        &[(0, 0, "Line 1"), (0, 1, "Line 2"), (0, 2, "Line 3")],
         0xFFFFFFFF,
         0x000000FF,
     );

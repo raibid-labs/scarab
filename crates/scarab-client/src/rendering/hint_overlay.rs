@@ -31,11 +31,9 @@
 //!     .run();
 //! ```
 
-use bevy::prelude::*;
-use crate::navigation::{
-    EnterHintModeEvent, ExitHintModeEvent, NavHint, NavSystemSet,
-};
 use super::layers::LAYER_HINTS;
+use crate::navigation::{EnterHintModeEvent, ExitHintModeEvent, NavHint, NavSystemSet};
+use bevy::prelude::*;
 
 // ==================== Components ====================
 
@@ -73,7 +71,7 @@ impl Default for HintOverlay {
             label: String::new(),
             position: Vec2::ZERO,
             background_color: Color::srgba(1.0, 0.75, 0.0, 0.9), // Amber/yellow
-            text_color: Color::srgb(0.0, 0.0, 0.0), // Black
+            text_color: Color::srgb(0.0, 0.0, 0.0),              // Black
             matched: false,
             z_layer: LAYER_HINTS,
             nav_hint_entity: Entity::PLACEHOLDER,
@@ -305,11 +303,7 @@ fn render_hint_overlays(
                     custom_size: Some(bg_size),
                     ..default()
                 },
-                Transform::from_translation(Vec3::new(
-                    bg_size.x / 2.0,
-                    -bg_size.y / 2.0,
-                    -0.1,
-                )),
+                Transform::from_translation(Vec3::new(bg_size.x / 2.0, -bg_size.y / 2.0, -0.1)),
             ));
 
             // Text label
@@ -322,11 +316,7 @@ fn render_hint_overlays(
                     ..default()
                 },
                 TextColor(overlay.text_color),
-                Transform::from_translation(Vec3::new(
-                    bg_size.x / 2.0,
-                    -bg_size.y / 2.0,
-                    0.0,
-                )),
+                Transform::from_translation(Vec3::new(bg_size.x / 2.0, -bg_size.y / 2.0, 0.0)),
                 TextLayout::new_with_justify(JustifyText::Center),
             ));
         });
@@ -512,7 +502,6 @@ impl Plugin for HintOverlayPlugin {
         app
             // Register configuration resource
             .init_resource::<HintOverlayConfig>()
-
             // Register systems in the appropriate sets
             .add_systems(
                 Update,
@@ -521,7 +510,6 @@ impl Plugin for HintOverlayPlugin {
                     cleanup_hint_overlays.in_set(NavSystemSet::Update),
                     init_hint_fade_in.in_set(NavSystemSet::Update),
                     update_hint_overlays.in_set(NavSystemSet::Update),
-
                     // Render phase: create visual entities
                     render_hint_overlays.in_set(NavSystemSet::Render),
                     animate_hint_fade.in_set(NavSystemSet::Render),

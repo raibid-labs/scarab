@@ -99,17 +99,17 @@ pub mod replay;
 
 // Re-export main types
 pub use format::{
-    EventData, EventType, Recording, RecordedEvent, RecordingMetadata, FORMAT_VERSION,
+    EventData, EventType, RecordedEvent, Recording, RecordingMetadata, FORMAT_VERSION,
 };
 
 pub use recorder::{
-    DiagnosticsRecorder, RecordingStats, StartRecordingEvent, StopRecordingEvent,
-    RecordMarkerEvent, handle_recording_events,
+    handle_recording_events, DiagnosticsRecorder, RecordMarkerEvent, RecordingStats,
+    StartRecordingEvent, StopRecordingEvent,
 };
 
 pub use replay::{
-    DiagnosticsReplay, PlaybackState, ReplayEvent, ReplayControlEvent,
-    poll_replay_events, handle_replay_control,
+    handle_replay_control, poll_replay_events, DiagnosticsReplay, PlaybackState,
+    ReplayControlEvent, ReplayEvent,
 };
 
 use bevy::prelude::*;
@@ -123,14 +123,12 @@ impl Plugin for DiagnosticsPlugin {
             // Register resources
             .insert_resource(DiagnosticsRecorder::new())
             .insert_resource(DiagnosticsReplay::new())
-
             // Register events
             .add_event::<StartRecordingEvent>()
             .add_event::<StopRecordingEvent>()
             .add_event::<RecordMarkerEvent>()
             .add_event::<ReplayEvent>()
             .add_event::<ReplayControlEvent>()
-
             // Register systems
             .add_systems(
                 Update,

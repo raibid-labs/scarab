@@ -389,10 +389,7 @@ mod tests {
             Ok(self.parents.get(&handle.id()).copied())
         }
 
-        fn get_children(
-            &self,
-            handle: &ObjectHandle,
-        ) -> Result<Vec<ObjectHandle>, ObjectError> {
+        fn get_children(&self, handle: &ObjectHandle) -> Result<Vec<ObjectHandle>, ObjectError> {
             let current_gen = self.current_generation(handle.id());
             if !handle.is_valid(current_gen) {
                 return Err(ObjectError::stale_handle(*handle, current_gen));

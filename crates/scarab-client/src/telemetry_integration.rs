@@ -3,11 +3,11 @@
 //! This module integrates the scarab-telemetry-hud plugin with the Scarab client,
 //! connecting it to navigation systems and configuration.
 
+use crate::navigation::{focusable::FocusableRegion, NavHint};
+use crate::rendering::hint_overlay::HintOverlay;
 use bevy::prelude::*;
 use scarab_config::ScarabConfig;
-use scarab_telemetry_hud::{TelemetryHudPlugin, HudPosition, TelemetryData};
-use crate::navigation::{NavHint, focusable::FocusableRegion};
-use crate::rendering::hint_overlay::HintOverlay;
+use scarab_telemetry_hud::{HudPosition, TelemetryData, TelemetryHudPlugin};
 
 /// Scarab-specific telemetry plugin that integrates with configuration
 pub struct ScarabTelemetryPlugin;
@@ -33,7 +33,7 @@ impl Plugin for ScarabTelemetryPlugin {
         app.add_plugins(
             TelemetryHudPlugin::default()
                 .with_visibility(visible)
-                .with_position(position)
+                .with_position(position),
         );
 
         // Add system to count navigation components

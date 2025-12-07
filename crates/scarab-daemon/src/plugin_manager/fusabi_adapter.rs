@@ -86,8 +86,9 @@ impl FusabiBytecodePlugin {
             let vm = cache.as_mut().unwrap();
 
             // Deserialize and execute the main bytecode chunk to populate globals
-            let chunk = fusabi_vm::deserialize_chunk(&self.bytecode)
-                .map_err(|e| PluginError::Other(anyhow::anyhow!("Deserialization failed: {}", e)))?;
+            let chunk = fusabi_vm::deserialize_chunk(&self.bytecode).map_err(|e| {
+                PluginError::Other(anyhow::anyhow!("Deserialization failed: {}", e))
+            })?;
 
             vm.execute(chunk).map_err(|e| {
                 PluginError::Other(anyhow::anyhow!("Bytecode execution failed: {}", e))
@@ -104,14 +105,21 @@ impl FusabiBytecodePlugin {
             }
 
             // Get the function value from globals
-            let func_value = vm.globals.get(function_name)
-                .ok_or_else(|| PluginError::Other(anyhow::anyhow!("Function '{}' not found in globals", function_name)))?
+            let func_value = vm
+                .globals
+                .get(function_name)
+                .ok_or_else(|| {
+                    PluginError::Other(anyhow::anyhow!(
+                        "Function '{}' not found in globals",
+                        function_name
+                    ))
+                })?
                 .clone();
 
             // Call the function with provided arguments
-            let result = vm.call_value(func_value, args).map_err(|e| {
-                PluginError::Other(anyhow::anyhow!("Hook execution failed: {}", e))
-            })?;
+            let result = vm
+                .call_value(func_value, args)
+                .map_err(|e| PluginError::Other(anyhow::anyhow!("Hook execution failed: {}", e)))?;
 
             Ok(Some(result))
         })
@@ -141,7 +149,10 @@ impl Plugin for FusabiBytecodePlugin {
                 );
             }
             Ok(None) => {
-                log::trace!("Bytecode plugin '{}' has no on_load hook", self.metadata.name);
+                log::trace!(
+                    "Bytecode plugin '{}' has no on_load hook",
+                    self.metadata.name
+                );
             }
             Err(e) => {
                 log::warn!(
@@ -287,7 +298,8 @@ impl Plugin for FusabiBytecodePlugin {
 pub struct FusabiScriptPlugin {
     metadata: PluginMetadata,
     script_source: String,
-    #[allow(dead_code)] script_path: std::path::PathBuf,
+    #[allow(dead_code)]
+    script_path: std::path::PathBuf,
     /// Compiled bytecode (serialized, Send-safe)
     bytecode: Option<Vec<u8>>,
 }
@@ -399,8 +411,9 @@ impl FusabiScriptPlugin {
                 .as_ref()
                 .ok_or_else(|| PluginError::LoadError("Bytecode not compiled".to_string()))?;
 
-            let chunk = fusabi_vm::deserialize_chunk(bytecode)
-                .map_err(|e| PluginError::Other(anyhow::anyhow!("Deserialization failed: {}", e)))?;
+            let chunk = fusabi_vm::deserialize_chunk(bytecode).map_err(|e| {
+                PluginError::Other(anyhow::anyhow!("Deserialization failed: {}", e))
+            })?;
 
             vm.execute(chunk).map_err(|e| {
                 PluginError::Other(anyhow::anyhow!("Script execution failed: {}", e))
@@ -425,18 +438,18 @@ impl FusabiScriptPlugin {
             })?;
 
             let mut parser = Parser::new(tokens);
-            let expr = parser.parse().map_err(|e| {
-                PluginError::Other(anyhow::anyhow!("Failed to parse call: {}", e))
-            })?;
+            let expr = parser
+                .parse()
+                .map_err(|e| PluginError::Other(anyhow::anyhow!("Failed to parse call: {}", e)))?;
 
             let call_chunk = Compiler::compile(&expr).map_err(|e| {
                 PluginError::Other(anyhow::anyhow!("Failed to compile call: {}", e))
             })?;
 
             // Execute the call
-            let result = vm.execute(call_chunk).map_err(|e| {
-                PluginError::Other(anyhow::anyhow!("Hook execution failed: {}", e))
-            })?;
+            let result = vm
+                .execute(call_chunk)
+                .map_err(|e| PluginError::Other(anyhow::anyhow!("Hook execution failed: {}", e)))?;
 
             Ok(Some(result))
         })
@@ -494,11 +507,7 @@ impl Plugin for FusabiScriptPlugin {
                 log::trace!("Plugin '{}' has no on_load hook", self.metadata.name);
             }
             Err(e) => {
-                log::warn!(
-                    "Plugin '{}' on_load hook failed: {}",
-                    self.metadata.name,
-                    e
-                );
+                log::warn!("Plugin '{}' on_load hook failed: {}", self.metadata.name, e);
                 return Err(e);
             }
         }

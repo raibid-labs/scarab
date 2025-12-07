@@ -324,10 +324,7 @@ pub fn render_command_palette(
         .border_style(Style::default().fg(Color::Cyan));
 
     let input_text = if state.filter.is_empty() {
-        Span::styled(
-            "Type to filter...",
-            Style::default().fg(Color::DarkGray),
-        )
+        Span::styled("Type to filter...", Style::default().fg(Color::DarkGray))
     } else {
         Span::raw(&state.filter)
     };
@@ -355,10 +352,7 @@ pub fn render_command_palette(
             // Add description
             if let Some(desc) = &cmd.description {
                 spans.push(Span::raw(" - "));
-                spans.push(Span::styled(
-                    desc,
-                    Style::default().fg(Color::Gray),
-                ));
+                spans.push(Span::styled(desc, Style::default().fg(Color::Gray)));
             }
 
             // Add shortcut at the end
@@ -380,11 +374,7 @@ pub fn render_command_palette(
         state.commands.len()
     );
 
-    let list = List::new(items).block(
-        Block::default()
-            .title(list_title)
-            .borders(Borders::ALL),
-    );
+    let list = List::new(items).block(Block::default().title(list_title).borders(Borders::ALL));
     list.render(chunks[1], buffer);
 }
 

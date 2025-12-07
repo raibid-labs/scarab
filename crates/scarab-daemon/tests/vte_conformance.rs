@@ -1,7 +1,7 @@
+use scarab_daemon::vte::TerminalState;
+use scarab_protocol::{SharedState, GRID_HEIGHT, GRID_WIDTH};
 use std::sync::atomic::AtomicU64;
 use std::sync::Arc;
-use scarab_daemon::vte::TerminalState;
-use scarab_protocol::{SharedState, GRID_WIDTH, GRID_HEIGHT};
 
 #[test]
 fn test_vte_basic_text_rendering() {
@@ -36,7 +36,10 @@ fn test_vte_basic_text_rendering() {
         // Check "Red" (should be red) - row 0, col 6
         let cell_r = state.cells[0 * GRID_WIDTH + 6];
         assert_eq!(char::from_u32(cell_r.char_codepoint).unwrap(), 'R');
-        assert_ne!(cell_r.fg, 0, "Red text should have non-zero foreground color");
+        assert_ne!(
+            cell_r.fg, 0,
+            "Red text should have non-zero foreground color"
+        );
 
         // Check " World" (should be default color) - row 0, col 10
         let cell_w = state.cells[0 * GRID_WIDTH + 10];

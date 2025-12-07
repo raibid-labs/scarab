@@ -12,13 +12,13 @@
 mod integration_tests {
     use crate::registry::{
         security::PluginVerifier,
-        types::{PluginEntry, PluginVersion, PluginStats, SecurityConfig, VerificationStatus},
+        types::{PluginEntry, PluginStats, PluginVersion, SecurityConfig, VerificationStatus},
     };
+    use base64::{engine::general_purpose::STANDARD as BASE64_STANDARD, Engine};
     use sequoia_openpgp::cert::CertBuilder;
     use sequoia_openpgp::policy::StandardPolicy;
     use sequoia_openpgp::serialize::stream::{Armorer, Message, Signer};
     use sequoia_openpgp::serialize::SerializeInto;
-    use base64::{engine::general_purpose::STANDARD as BASE64_STANDARD, Engine};
     use std::io::Write;
 
     fn create_test_cert() -> (sequoia_openpgp::Cert, sequoia_openpgp::Fingerprint) {
@@ -143,8 +143,12 @@ mod integration_tests {
                 signature_timestamp,
             } => {
                 assert!(
-                    key_fingerprint.to_lowercase().contains(&fingerprint_str.to_lowercase())
-                        || fingerprint_str.to_lowercase().contains(&key_fingerprint.to_lowercase()),
+                    key_fingerprint
+                        .to_lowercase()
+                        .contains(&fingerprint_str.to_lowercase())
+                        || fingerprint_str
+                            .to_lowercase()
+                            .contains(&key_fingerprint.to_lowercase()),
                     "Fingerprint mismatch: expected {}, got {}",
                     fingerprint_str,
                     key_fingerprint
@@ -178,7 +182,11 @@ mod integration_tests {
         assert!(result.is_ok());
         match result.unwrap() {
             VerificationStatus::Unverified { warning } => {
-                assert!(warning.contains("unsigned"), "Warning should mention unsigned: {}", warning);
+                assert!(
+                    warning.contains("unsigned"),
+                    "Warning should mention unsigned: {}",
+                    warning
+                );
             }
             _ => panic!("Expected Unverified status with warning"),
         }
@@ -355,7 +363,10 @@ mod integration_tests {
         // Cleanup
         let _ = std::fs::remove_file(keyring_path);
 
-        assert!(result.is_err(), "Signature from untrusted key should be rejected");
+        assert!(
+            result.is_err(),
+            "Signature from untrusted key should be rejected"
+        );
         let error = result.unwrap_err().to_string();
         assert!(
             error.contains("untrusted") || error.contains("verification failed"),

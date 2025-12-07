@@ -7,8 +7,8 @@
 //! - Keyboard navigation (Ctrl+Up/Down to jump between prompts)
 
 use bevy::prelude::*;
-use bevy::sprite::MeshMaterial2d;
 use bevy::render::mesh::Mesh2d;
+use bevy::sprite::MeshMaterial2d;
 use scarab_protocol::{PromptMarkerInfo, TerminalMetrics};
 
 use crate::ipc::RemoteMessageEvent;
@@ -57,7 +57,8 @@ impl PromptMarkers {
     /// PromptStart marker to either the next PromptStart or end of buffer.
     pub fn current_prompt_zone(&self, current_line: u32) -> Option<(u32, u32)> {
         // Find the last prompt start before or at current line
-        let start_idx = self.markers
+        let start_idx = self
+            .markers
             .iter()
             .enumerate()
             .rev()
@@ -67,7 +68,8 @@ impl PromptMarkers {
         let start_line = self.markers[start_idx].line;
 
         // Find the next prompt start after current position (if any)
-        let end_line = self.markers
+        let end_line = self
+            .markers
             .iter()
             .skip(start_idx + 1)
             .find(|m| m.is_prompt_start())
@@ -231,9 +233,9 @@ pub fn render_gutter_markers(
             Mesh2d(mesh),
             MeshMaterial2d(material),
             Transform::from_xyz(
-                -gutter_width / 2.0,             // Left of grid
-                -y - metrics.cell_height / 2.0,  // Center on line (Y-down to Y-up conversion)
-                50.0,                             // Z-index: above background, below overlays
+                -gutter_width / 2.0,            // Left of grid
+                -y - metrics.cell_height / 2.0, // Center on line (Y-down to Y-up conversion)
+                50.0,                           // Z-index: above background, below overlays
             ),
         ));
     }
@@ -264,9 +266,9 @@ pub fn spawn_nav_anchors(
     // Spawn new nav anchors for each marker
     for marker in &markers.markers {
         let anchor_type = match marker.marker_type {
-            0 => PromptAnchorType::PromptStart,      // OSC 133 A
-            3 => PromptAnchorType::CommandFinished,  // OSC 133 D
-            _ => continue, // Skip other marker types for now
+            0 => PromptAnchorType::PromptStart,     // OSC 133 A
+            3 => PromptAnchorType::CommandFinished, // OSC 133 D
+            _ => continue,                          // Skip other marker types for now
         };
 
         // Create NavAnchor entity
@@ -479,7 +481,10 @@ pub fn receive_prompt_markers(
     mut markers: ResMut<PromptMarkers>,
 ) {
     for event in events.read() {
-        if let scarab_protocol::DaemonMessage::PromptMarkersUpdate { markers: new_markers } = &event.0 {
+        if let scarab_protocol::DaemonMessage::PromptMarkersUpdate {
+            markers: new_markers,
+        } = &event.0
+        {
             println!("Received {} prompt markers from daemon", new_markers.len());
             markers.update_markers(new_markers.clone());
         }
@@ -512,8 +517,8 @@ impl Plugin for PromptMarkersPlugin {
                     render_gutter_markers,
                     spawn_nav_anchors,
                     prompt_navigation,
-                    handle_nav_jump_actions,  // New: Convert NavAction::JumpPrompt to JumpToPromptEvent
-                    handle_jump_to_prompt,     // Handle jump events and scroll viewport
+                    handle_nav_jump_actions, // New: Convert NavAction::JumpPrompt to JumpToPromptEvent
+                    handle_jump_to_prompt,   // Handle jump events and scroll viewport
                     prompt_zone_filtering,
                 )
                     .chain(), // Run in order: receive -> render -> spawn -> navigate -> convert -> jump -> filter

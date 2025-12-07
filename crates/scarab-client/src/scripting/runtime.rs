@@ -92,10 +92,7 @@ impl ScriptRuntime {
         // Example: Scarab.setColor "foreground" "#f8f8f2"
         if line.starts_with("Scarab.setColor") {
             if let Some(args) = line.strip_prefix("Scarab.setColor") {
-                let parts: Vec<&str> = args
-                    .split('"')
-                    .filter(|s| !s.trim().is_empty())
-                    .collect();
+                let parts: Vec<&str> = args.split('"').filter(|s| !s.trim().is_empty()).collect();
                 if parts.len() >= 2 {
                     let name = parts[0].trim();
                     let color_hex = parts[1].trim();
@@ -112,10 +109,7 @@ impl ScriptRuntime {
                     let family = parts[1];
                     // Extract size from remaining text
                     if let Some(size_str) = parts.get(2) {
-                        let size: f32 = size_str
-                            .trim()
-                            .parse()
-                            .unwrap_or(14.0);
+                        let size: f32 = size_str.trim().parse().unwrap_or(14.0);
                         self.api.set_font(family, size)?;
                     }
                 }
@@ -124,10 +118,7 @@ impl ScriptRuntime {
         // Example: Scarab.setWindowTitle "My Terminal"
         else if line.starts_with("Scarab.setWindowTitle") {
             if let Some(args) = line.strip_prefix("Scarab.setWindowTitle") {
-                let title = args
-                    .split('"')
-                    .nth(1)
-                    .unwrap_or("Scarab Terminal");
+                let title = args.split('"').nth(1).unwrap_or("Scarab Terminal");
                 self.api.set_window_title(title)?;
             }
         }
@@ -178,12 +169,10 @@ impl LoadedScript {
             reason: e.to_string(),
         })?;
 
-        let last_modified = metadata
-            .modified()
-            .map_err(|e| ScriptError::LoadError {
-                path: path.display().to_string(),
-                reason: e.to_string(),
-            })?;
+        let last_modified = metadata.modified().map_err(|e| ScriptError::LoadError {
+            path: path.display().to_string(),
+            reason: e.to_string(),
+        })?;
 
         let name = path
             .file_stem()

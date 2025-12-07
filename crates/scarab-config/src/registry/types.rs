@@ -198,7 +198,8 @@ pub enum VerificationStatus {
 impl Default for VerificationStatus {
     fn default() -> Self {
         Self::Unverified {
-            warning: "Verification status unknown (installed before tracking was added)".to_string(),
+            warning: "Verification status unknown (installed before tracking was added)"
+                .to_string(),
         }
     }
 }
