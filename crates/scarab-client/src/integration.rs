@@ -69,7 +69,7 @@ fn update_grid_position_system(
     window_query: Query<&Window, With<bevy::window::PrimaryWindow>>,
     renderer: Option<Res<TextRenderer>>, // Use Option to avoid panic if not ready
 ) {
-    let Ok(_window) = window_query.get_single() else {
+    let Ok(window) = window_query.get_single() else {
         return;
     };
 
@@ -79,13 +79,10 @@ fn update_grid_position_system(
     };
 
     for mut transform in query.iter_mut() {
-        // With ScalingMode::WindowSize and camera at (width/2, -height/2, 1000) looking at (width/2, -height/2, 0),
-        // the camera viewport shows world coordinates from (0, 0) to (width, -height).
-        // Our mesh is generated with local coordinates (0, 0) to (width, -height).
-        // So the entity should stay at (0, 0, 0) - no translation needed!
-
-        let x = 0.0;
-        let y = 0.0;
+        // Centered camera means world origin is at screen center.
+        // Shift grid so its top-left sits at the visible top-left.
+        let x = -window.width() * 0.5;
+        let y = window.height() * 0.5;
 
         // Only update if changed to avoid unnecessary dirty flags
         if transform.translation.x != x || transform.translation.y != y {
