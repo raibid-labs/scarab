@@ -54,7 +54,7 @@ impl Default for Cell {
 pub struct SharedState {
     pub sequence_number: u64, // Atomic sequence for synchronization
     pub dirty_flag: u8,
-    pub _padding1: [u8; 1], // Align to u16 boundary
+    pub error_mode: u8, // 0 = normal mode, 1 = error mode (PTY/SHM unavailable)
     pub cursor_x: u16,
     pub cursor_y: u16,
     pub _padding2: [u8; 2], // Align to u64 boundary for cells array

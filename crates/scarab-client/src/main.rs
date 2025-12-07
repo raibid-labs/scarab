@@ -254,6 +254,18 @@ fn headless_dump_and_exit(
     let safe_state = reader.get_safe_state();
     let current_seq = safe_state.sequence();
 
+    // Check for error mode first - if set, dump immediately and exit with error code
+    if safe_state.is_error_mode() {
+        eprintln!("=== DAEMON ERROR MODE DETECTED ===");
+        eprintln!("The daemon encountered an error during initialization.");
+        eprintln!("");
+        dump_terminal_grid(&safe_state);
+        eprintln!("");
+        eprintln!("=== END ERROR DUMP ===");
+        // Exit with error code 1
+        std::process::exit(1);
+    }
+
     // Initialize initial sequence on first run
     if !headless.command_sent {
         headless.initial_sequence = current_seq;
