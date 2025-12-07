@@ -345,8 +345,9 @@ fn setup(mut commands: Commands, windows: Query<&Window, With<bevy::window::Prim
         (800.0, 600.0)
     };
 
-    // Camera2d defaults to center origin. We want top-left origin.
-    // Move camera so that (0,0) is at top-left of screen
+    // Camera2d defaults to center origin. We keep the camera at origin and shift
+    // the grid itself (see update_grid_position_system) so the grid's top-left
+    // aligns to the window's top-left.
     commands.spawn((
         Camera2d,
         Camera {
@@ -354,12 +355,11 @@ fn setup(mut commands: Commands, windows: Query<&Window, With<bevy::window::Prim
             ..default()
         },
         OrthographicProjection {
-            // Standard 2D: viewport goes from (0,0) at top-left to (width, height) at bottom-right
-            // But Camera2d has Y pointing up, so we need negative Y
             viewport_origin: Vec2::new(0.0, 0.0),
             ..OrthographicProjection::default_2d()
         },
-        Transform::from_xyz(width / 2.0, -height / 2.0, 0.0),
+        // Keep camera at origin; grid is translated instead
+        Transform::from_xyz(0.0, 0.0, 0.0),
     ));
 
     println!(
