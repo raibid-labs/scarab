@@ -19,7 +19,12 @@ pub struct Rect {
 
 impl Rect {
     pub fn new(x: u16, y: u16, width: u16, height: u16) -> Self {
-        Self { x, y, width, height }
+        Self {
+            x,
+            y,
+            width,
+            height,
+        }
     }
 
     /// Create a full-screen rect for the given dimensions
@@ -67,6 +72,13 @@ unsafe impl Sync for Pane {}
 impl Pane {
     /// Create a new pane with a PTY running the specified shell
     pub fn new(id: PaneId, shell: &str, cols: u16, rows: u16, cwd: Option<String>) -> Result<Self> {
+        if std::env::var("SCARAB_FORCE_PTY_FAIL")
+            .map(|v| v == "1")
+            .unwrap_or(false)
+        {
+            anyhow::bail!("PTY creation forced to fail via SCARAB_FORCE_PTY_FAIL=1");
+        }
+
         let pty_system = NativePtySystem::default();
         let pair = pty_system.openpty(PtySize {
             rows,
