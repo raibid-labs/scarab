@@ -17,16 +17,15 @@ pub mod mode;
 pub mod selection;
 pub mod types;
 
-pub use bevy_plugin::{IpcSender, MouseIpcSender, MousePlugin as BevyMousePlugin, ScrollbackScrollEvent};
+pub use bevy_plugin::{
+    IpcSender, MouseIpcSender, MousePlugin as BevyMousePlugin, ScrollbackScrollEvent,
+};
 pub use types::{ClickType, MouseButton, MouseEvent, MouseMode, Position};
 
 use async_trait::async_trait;
 use parking_lot::Mutex;
 use scarab_clipboard::{ClipboardManager, ClipboardType};
-use scarab_plugin_api::{
-    types::ModalItem,
-    Action, Plugin, PluginContext, PluginMetadata, Result,
-};
+use scarab_plugin_api::{types::ModalItem, Action, Plugin, PluginContext, PluginMetadata, Result};
 use std::sync::Arc;
 
 /// Main mouse support plugin
@@ -111,7 +110,10 @@ impl MousePlugin {
 
         if data.len() >= 6 {
             if let Some(seq) = std::str::from_utf8(data).ok() {
-                if seq.contains("\x1b[?1000h") || seq.contains("\x1b[?1002h") || seq.contains("\x1b[?1003h") {
+                if seq.contains("\x1b[?1000h")
+                    || seq.contains("\x1b[?1002h")
+                    || seq.contains("\x1b[?1003h")
+                {
                     state.mode = MouseMode::Application;
                     log::debug!("Mouse mode changed to Application");
                     return true;
@@ -207,9 +209,8 @@ impl Plugin for MousePlugin {
 
                     // Extract text from selection
                     let get_char = |pos: types::Position| -> Option<char> {
-                        ctx.get_line(pos.y).and_then(|line| {
-                            line.chars().nth(pos.x as usize)
-                        })
+                        ctx.get_line(pos.y)
+                            .and_then(|line| line.chars().nth(pos.x as usize))
                     };
 
                     let text = selection.get_text(get_char, cols);
@@ -222,7 +223,10 @@ impl Plugin for MousePlugin {
                         match clipboard_mgr.copy(&text, ClipboardType::Standard) {
                             Ok(_) => {
                                 log::info!("Copied {} characters to clipboard", text.len());
-                                ctx.notify_success("Copied", &format!("Copied {} characters", text.len()));
+                                ctx.notify_success(
+                                    "Copied",
+                                    &format!("Copied {} characters", text.len()),
+                                );
 
                                 // On Linux, also sync to primary selection
                                 #[cfg(target_os = "linux")]
@@ -251,7 +255,10 @@ impl Plugin for MousePlugin {
                             ctx.notify_info("Paste", "Clipboard is empty");
                         } else {
                             log::info!("Pasting {} characters from clipboard", text.len());
-                            ctx.notify_success("Paste", &format!("Pasting {} characters", text.len()));
+                            ctx.notify_success(
+                                "Paste",
+                                &format!("Pasting {} characters", text.len()),
+                            );
 
                             // TODO: Actually send the text to the terminal via IPC
                             // This would need to be queued as input to the daemon
@@ -269,7 +276,10 @@ impl Plugin for MousePlugin {
                 let (cols, rows) = ctx.get_size();
                 state.selection = Some(selection::Selection {
                     start: Position { x: 0, y: 0 },
-                    end: Position { x: cols - 1, y: rows - 1 },
+                    end: Position {
+                        x: cols - 1,
+                        y: rows - 1,
+                    },
                     kind: selection::SelectionKind::Block,
                 });
                 log::info!("Select all");
@@ -306,7 +316,11 @@ impl Plugin for MousePlugin {
         // Clear selection on resize as coordinates may be invalid
         if state.selection.is_some() {
             state.selection = None;
-            log::debug!("Cleared selection due to terminal resize to {}x{}", cols, rows);
+            log::debug!(
+                "Cleared selection due to terminal resize to {}x{}",
+                cols,
+                rows
+            );
         }
 
         Ok(())

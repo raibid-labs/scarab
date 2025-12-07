@@ -12,11 +12,7 @@ use tempfile::{NamedTempFile, TempDir};
 /// Helper to create a test plugin context
 fn create_test_context() -> Arc<PluginContext> {
     let state = Arc::new(parking_lot::Mutex::new(PluginSharedState::new(80, 24)));
-    Arc::new(PluginContext::new(
-        Default::default(),
-        state,
-        "test_plugin",
-    ))
+    Arc::new(PluginContext::new(Default::default(), state, "test_plugin"))
 }
 
 /// Helper to create a plugin manager for testing
@@ -67,8 +63,9 @@ mod bytecode_tests {
         temp_file.write_all(&bytecode).unwrap();
         temp_file.flush().unwrap();
 
-        let result =
-            scarab_daemon::plugin_manager::fusabi_adapter::FusabiBytecodePlugin::load(temp_file.path());
+        let result = scarab_daemon::plugin_manager::fusabi_adapter::FusabiBytecodePlugin::load(
+            temp_file.path(),
+        );
         assert!(result.is_ok(), "Should load minimal bytecode");
         let plugin = result.unwrap();
         assert!(!plugin.metadata().name.is_empty());
@@ -81,8 +78,9 @@ mod bytecode_tests {
         temp_file.write_all(&bytecode).unwrap();
         temp_file.flush().unwrap();
 
-        let result =
-            scarab_daemon::plugin_manager::fusabi_adapter::FusabiBytecodePlugin::load(temp_file.path());
+        let result = scarab_daemon::plugin_manager::fusabi_adapter::FusabiBytecodePlugin::load(
+            temp_file.path(),
+        );
         assert!(result.is_ok(), "Should load bytecode with constants");
     }
 
@@ -93,8 +91,9 @@ mod bytecode_tests {
         temp_file.write_all(&bytecode).unwrap();
         temp_file.flush().unwrap();
 
-        let result =
-            scarab_daemon::plugin_manager::fusabi_adapter::FusabiBytecodePlugin::load(temp_file.path());
+        let result = scarab_daemon::plugin_manager::fusabi_adapter::FusabiBytecodePlugin::load(
+            temp_file.path(),
+        );
         assert!(result.is_ok(), "Should load bytecode with arithmetic");
     }
 
@@ -104,8 +103,9 @@ mod bytecode_tests {
         temp_file.write_all(&[]).unwrap();
         temp_file.flush().unwrap();
 
-        let result =
-            scarab_daemon::plugin_manager::fusabi_adapter::FusabiBytecodePlugin::load(temp_file.path());
+        let result = scarab_daemon::plugin_manager::fusabi_adapter::FusabiBytecodePlugin::load(
+            temp_file.path(),
+        );
         assert!(result.is_err(), "Should reject empty file");
         assert!(result
             .unwrap_err()
@@ -117,11 +117,14 @@ mod bytecode_tests {
     fn test_load_invalid_bytecode_corrupted() {
         let mut temp_file = NamedTempFile::new().unwrap();
         // Write corrupted data
-        temp_file.write_all(b"CORRUPTED_DATA_NOT_VALID_FUSABI").unwrap();
+        temp_file
+            .write_all(b"CORRUPTED_DATA_NOT_VALID_FUSABI")
+            .unwrap();
         temp_file.flush().unwrap();
 
-        let result =
-            scarab_daemon::plugin_manager::fusabi_adapter::FusabiBytecodePlugin::load(temp_file.path());
+        let result = scarab_daemon::plugin_manager::fusabi_adapter::FusabiBytecodePlugin::load(
+            temp_file.path(),
+        );
         assert!(result.is_err(), "Should reject corrupted bytecode");
     }
 
@@ -140,8 +143,10 @@ mod bytecode_tests {
         temp_file.write_all(&bytecode).unwrap();
         temp_file.flush().unwrap();
 
-        let mut plugin =
-            scarab_daemon::plugin_manager::fusabi_adapter::FusabiBytecodePlugin::load(temp_file.path()).unwrap();
+        let mut plugin = scarab_daemon::plugin_manager::fusabi_adapter::FusabiBytecodePlugin::load(
+            temp_file.path(),
+        )
+        .unwrap();
 
         let state = Arc::new(parking_lot::Mutex::new(PluginSharedState::new(80, 24)));
         let mut ctx = PluginContext::new(Default::default(), state, "test");
@@ -161,8 +166,10 @@ mod bytecode_tests {
         temp_file.write_all(&bytecode).unwrap();
         temp_file.flush().unwrap();
 
-        let mut plugin =
-            scarab_daemon::plugin_manager::fusabi_adapter::FusabiBytecodePlugin::load(temp_file.path()).unwrap();
+        let mut plugin = scarab_daemon::plugin_manager::fusabi_adapter::FusabiBytecodePlugin::load(
+            temp_file.path(),
+        )
+        .unwrap();
 
         let state = Arc::new(parking_lot::Mutex::new(PluginSharedState::new(80, 24)));
         let ctx = PluginContext::new(Default::default(), state, "test");
@@ -189,8 +196,10 @@ mod bytecode_tests {
         temp_file.write_all(&bytecode).unwrap();
         temp_file.flush().unwrap();
 
-        let mut plugin =
-            scarab_daemon::plugin_manager::fusabi_adapter::FusabiBytecodePlugin::load(temp_file.path()).unwrap();
+        let mut plugin = scarab_daemon::plugin_manager::fusabi_adapter::FusabiBytecodePlugin::load(
+            temp_file.path(),
+        )
+        .unwrap();
 
         let state = Arc::new(parking_lot::Mutex::new(PluginSharedState::new(80, 24)));
         let mut ctx = PluginContext::new(Default::default(), state.clone(), "test");
@@ -223,8 +232,9 @@ mod script_tests {
         temp_file.write_all(b"let x = 42").unwrap();
         temp_file.flush().unwrap();
 
-        let result =
-            scarab_daemon::plugin_manager::fusabi_adapter::FusabiScriptPlugin::load(temp_file.path());
+        let result = scarab_daemon::plugin_manager::fusabi_adapter::FusabiScriptPlugin::load(
+            temp_file.path(),
+        );
         assert!(result.is_ok(), "Should load simple script");
         let plugin = result.unwrap();
         assert!(!plugin.metadata().name.is_empty());
@@ -238,8 +248,9 @@ mod script_tests {
             .unwrap();
         temp_file.flush().unwrap();
 
-        let result =
-            scarab_daemon::plugin_manager::fusabi_adapter::FusabiScriptPlugin::load(temp_file.path());
+        let result = scarab_daemon::plugin_manager::fusabi_adapter::FusabiScriptPlugin::load(
+            temp_file.path(),
+        );
         assert!(result.is_ok(), "Should load script with functions");
     }
 
@@ -253,8 +264,9 @@ mod script_tests {
             .unwrap();
         temp_file.flush().unwrap();
 
-        let result =
-            scarab_daemon::plugin_manager::fusabi_adapter::FusabiScriptPlugin::load(temp_file.path());
+        let result = scarab_daemon::plugin_manager::fusabi_adapter::FusabiScriptPlugin::load(
+            temp_file.path(),
+        );
         assert!(result.is_ok(), "Should load script with comments");
     }
 
@@ -264,8 +276,9 @@ mod script_tests {
         temp_file.write_all(b"").unwrap();
         temp_file.flush().unwrap();
 
-        let result =
-            scarab_daemon::plugin_manager::fusabi_adapter::FusabiScriptPlugin::load(temp_file.path());
+        let result = scarab_daemon::plugin_manager::fusabi_adapter::FusabiScriptPlugin::load(
+            temp_file.path(),
+        );
         assert!(result.is_ok(), "Should load empty script");
     }
 
@@ -284,8 +297,10 @@ mod script_tests {
             .unwrap();
         temp_file.flush().unwrap();
 
-        let mut plugin =
-            scarab_daemon::plugin_manager::fusabi_adapter::FusabiScriptPlugin::load(temp_file.path()).unwrap();
+        let mut plugin = scarab_daemon::plugin_manager::fusabi_adapter::FusabiScriptPlugin::load(
+            temp_file.path(),
+        )
+        .unwrap();
 
         let state = Arc::new(parking_lot::Mutex::new(PluginSharedState::new(80, 24)));
         let mut ctx = PluginContext::new(Default::default(), state.clone(), "test");
@@ -313,8 +328,10 @@ mod script_tests {
         temp_file.write_all(b"let x = 1").unwrap();
         temp_file.flush().unwrap();
 
-        let mut plugin =
-            scarab_daemon::plugin_manager::fusabi_adapter::FusabiScriptPlugin::load(temp_file.path()).unwrap();
+        let mut plugin = scarab_daemon::plugin_manager::fusabi_adapter::FusabiScriptPlugin::load(
+            temp_file.path(),
+        )
+        .unwrap();
 
         // Modify file content
         std::fs::write(temp_file.path(), b"let x = 2\nlet y = 3").unwrap();
@@ -330,12 +347,17 @@ mod script_tests {
         temp_file.write_all(b"let x = 1").unwrap();
         temp_file.flush().unwrap();
 
-        let mut plugin =
-            scarab_daemon::plugin_manager::fusabi_adapter::FusabiScriptPlugin::load(temp_file.path()).unwrap();
+        let mut plugin = scarab_daemon::plugin_manager::fusabi_adapter::FusabiScriptPlugin::load(
+            temp_file.path(),
+        )
+        .unwrap();
 
         // Try to reload from nonexistent path
         let result = plugin.reload(std::path::Path::new("/nonexistent.fsx"));
-        assert!(result.is_err(), "Hot reload should fail for nonexistent file");
+        assert!(
+            result.is_err(),
+            "Hot reload should fail for nonexistent file"
+        );
     }
 }
 
@@ -400,7 +422,11 @@ mod plugin_manager_tests {
             Ok(())
         }
 
-        async fn on_output(&mut self, line: &str, ctx: &PluginContext) -> scarab_plugin_api::Result<Action> {
+        async fn on_output(
+            &mut self,
+            line: &str,
+            ctx: &PluginContext,
+        ) -> scarab_plugin_api::Result<Action> {
             if self.should_timeout {
                 tokio::time::sleep(tokio::time::Duration::from_secs(10)).await;
             }
@@ -430,14 +456,23 @@ mod plugin_manager_tests {
             Ok(Action::Continue)
         }
 
-        async fn on_input(&mut self, _input: &[u8], _ctx: &PluginContext) -> scarab_plugin_api::Result<Action> {
+        async fn on_input(
+            &mut self,
+            _input: &[u8],
+            _ctx: &PluginContext,
+        ) -> scarab_plugin_api::Result<Action> {
             if self.should_fail {
                 return Err(PluginError::Other(anyhow::anyhow!("Mock input failure")));
             }
             Ok(Action::Continue)
         }
 
-        async fn on_resize(&mut self, _cols: u16, _rows: u16, _ctx: &PluginContext) -> scarab_plugin_api::Result<()> {
+        async fn on_resize(
+            &mut self,
+            _cols: u16,
+            _rows: u16,
+            _ctx: &PluginContext,
+        ) -> scarab_plugin_api::Result<()> {
             if self.should_fail {
                 return Err(PluginError::Other(anyhow::anyhow!("Mock resize failure")));
             }
@@ -502,7 +537,11 @@ mod plugin_manager_tests {
                 Ok(()) // Succeed on load
             }
 
-            async fn on_output(&mut self, _line: &str, _ctx: &PluginContext) -> scarab_plugin_api::Result<Action> {
+            async fn on_output(
+                &mut self,
+                _line: &str,
+                _ctx: &PluginContext,
+            ) -> scarab_plugin_api::Result<Action> {
                 Err(PluginError::Other(anyhow::anyhow!("Consistent failure")))
             }
         }
@@ -519,7 +558,11 @@ mod plugin_manager_tests {
         }
 
         // Plugin should be auto-disabled
-        assert_eq!(manager.enabled_count(), 0, "Plugin should be disabled after 3 failures");
+        assert_eq!(
+            manager.enabled_count(),
+            0,
+            "Plugin should be disabled after 3 failures"
+        );
     }
 
     #[tokio::test]
@@ -534,7 +577,11 @@ mod plugin_manager_tests {
         let elapsed = start.elapsed();
 
         // Should timeout around 100ms, not wait for the full 10 seconds
-        assert!(elapsed.as_millis() < 5000, "Should timeout quickly, got {}ms", elapsed.as_millis());
+        assert!(
+            elapsed.as_millis() < 5000,
+            "Should timeout quickly, got {}ms",
+            elapsed.as_millis()
+        );
     }
 
     #[tokio::test]
@@ -553,9 +600,18 @@ mod plugin_manager_tests {
         let result = manager.dispatch_output("original").await.unwrap();
 
         // Each plugin should have added its prefix
-        assert!(result.contains("plugin1"), "Should contain plugin1 modification");
-        assert!(result.contains("plugin2"), "Should contain plugin2 modification");
-        assert!(result.contains("plugin3"), "Should contain plugin3 modification");
+        assert!(
+            result.contains("plugin1"),
+            "Should contain plugin1 modification"
+        );
+        assert!(
+            result.contains("plugin2"),
+            "Should contain plugin2 modification"
+        );
+        assert!(
+            result.contains("plugin3"),
+            "Should contain plugin3 modification"
+        );
         assert!(result.contains("original"), "Should contain original text");
     }
 
@@ -573,7 +629,10 @@ mod plugin_manager_tests {
         let result = manager.dispatch_output("test").await.unwrap();
 
         // Second plugin should never modify the output
-        assert!(!result.contains("never_reached"), "Second plugin should not process");
+        assert!(
+            !result.contains("never_reached"),
+            "Second plugin should not process"
+        );
     }
 
     #[tokio::test]
@@ -592,7 +651,10 @@ mod plugin_manager_tests {
 
         // Check that command was queued
         let queued = commands_ref.lock();
-        assert!(queued.contains(&"DrawOverlay".to_string()), "Should queue DrawOverlay command");
+        assert!(
+            queued.contains(&"DrawOverlay".to_string()),
+            "Should queue DrawOverlay command"
+        );
     }
 
     #[tokio::test]
@@ -758,7 +820,10 @@ mod error_propagation_tests {
         let result = manager.register_plugin(Box::new(plugin)).await;
 
         assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("Intentional error"));
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("Intentional error"));
     }
 }
 
@@ -826,8 +891,10 @@ mod value_marshaling_tests {
 
 mod nav_action_tests {
     use super::*;
-    use scarab_plugin_api::host_bindings::{HostBindingLimits, HostBindings, NavStyle, NavKeymap};
-    use scarab_plugin_api::navigation::{PluginFocusable, PluginFocusableAction, PluginNavCapabilities};
+    use scarab_plugin_api::host_bindings::{HostBindingLimits, HostBindings, NavKeymap, NavStyle};
+    use scarab_plugin_api::navigation::{
+        PluginFocusable, PluginFocusableAction, PluginNavCapabilities,
+    };
     use scarab_plugin_api::types::{JumpDirection, OverlayConfig, StatusBarItem};
 
     fn make_nav_ctx() -> PluginContext {
@@ -841,10 +908,15 @@ mod nav_action_tests {
         let bindings = HostBindings::with_defaults();
 
         let result = bindings.enter_hint_mode(&ctx);
-        assert!(result.is_ok(), "Should trigger hint mode from Fusabi context");
+        assert!(
+            result.is_ok(),
+            "Should trigger hint mode from Fusabi context"
+        );
 
         let commands = ctx.commands.lock();
-        assert!(commands.iter().any(|cmd| matches!(cmd, RemoteCommand::NavEnterHintMode { .. })));
+        assert!(commands
+            .iter()
+            .any(|cmd| matches!(cmd, RemoteCommand::NavEnterHintMode { .. })));
     }
 
     #[test]
@@ -862,7 +934,10 @@ mod nav_action_tests {
         };
 
         let result = bindings.register_focusable(&ctx, focusable);
-        assert!(result.is_ok(), "Should register focusable from Fusabi context");
+        assert!(
+            result.is_ok(),
+            "Should register focusable from Fusabi context"
+        );
         assert_eq!(result.unwrap(), 1, "First focusable should have ID 1");
 
         let commands = ctx.commands.lock();
@@ -894,7 +969,9 @@ mod nav_action_tests {
         assert!(result.is_ok(), "Should add status item from Fusabi context");
 
         let commands = ctx.commands.lock();
-        assert!(commands.iter().any(|cmd| matches!(cmd, RemoteCommand::AddStatusItem { item, .. } if item.label == "git")));
+        assert!(commands.iter().any(
+            |cmd| matches!(cmd, RemoteCommand::AddStatusItem { item, .. } if item.label == "git")
+        ));
     }
 
     #[test]
@@ -902,14 +979,28 @@ mod nav_action_tests {
         let ctx = make_nav_ctx();
         let bindings = HostBindings::with_defaults();
 
-        for direction in [JumpDirection::Up, JumpDirection::Down, JumpDirection::First, JumpDirection::Last] {
+        for direction in [
+            JumpDirection::Up,
+            JumpDirection::Down,
+            JumpDirection::First,
+            JumpDirection::Last,
+        ] {
             bindings.reset_rate_limit();
             let result = bindings.prompt_jump(&ctx, direction);
-            assert!(result.is_ok(), "Should trigger prompt jump from Fusabi context");
+            assert!(
+                result.is_ok(),
+                "Should trigger prompt jump from Fusabi context"
+            );
         }
 
         let commands = ctx.commands.lock();
-        assert!(commands.iter().filter(|cmd| matches!(cmd, RemoteCommand::PromptJump { .. })).count() >= 4);
+        assert!(
+            commands
+                .iter()
+                .filter(|cmd| matches!(cmd, RemoteCommand::PromptJump { .. }))
+                .count()
+                >= 4
+        );
     }
 
     #[test]
@@ -956,15 +1047,24 @@ mod nav_action_tests {
         let bindings = HostBindings::new(HostBindingLimits::default(), caps);
 
         let hint_result = bindings.enter_hint_mode(&ctx);
-        assert!(hint_result.is_err(), "Should deny hint mode without capability");
+        assert!(
+            hint_result.is_err(),
+            "Should deny hint mode without capability"
+        );
 
         let focusable = PluginFocusable {
-            x: 0, y: 0, width: 10, height: 1,
+            x: 0,
+            y: 0,
+            width: 10,
+            height: 1,
             label: "test".to_string(),
             action: PluginFocusableAction::Custom("test".to_string()),
         };
         let focusable_result = bindings.register_focusable(&ctx, focusable);
-        assert!(focusable_result.is_err(), "Should deny focusable registration without capability");
+        assert!(
+            focusable_result.is_err(),
+            "Should deny focusable registration without capability"
+        );
     }
 
     #[test]
@@ -977,7 +1077,10 @@ mod nav_action_tests {
         let bindings = HostBindings::new(HostBindingLimits::default(), caps);
 
         let focusable = PluginFocusable {
-            x: 0, y: 0, width: 10, height: 1,
+            x: 0,
+            y: 0,
+            width: 10,
+            height: 1,
             label: "test".to_string(),
             action: PluginFocusableAction::Custom("test".to_string()),
         };
@@ -986,7 +1089,7 @@ mod nav_action_tests {
         bindings.reset_rate_limit();
         assert!(bindings.register_focusable(&ctx, focusable.clone()).is_ok());
         bindings.reset_rate_limit();
-        
+
         let result = bindings.register_focusable(&ctx, focusable);
         assert!(result.is_err(), "Should deny focusable when quota exceeded");
     }
@@ -1025,7 +1128,9 @@ mod discovery_tests {
 
         // This tests the internal load_plugin_from_config method indirectly
         // by using register_plugin with a loaded plugin
-        let plugin = scarab_daemon::plugin_manager::fusabi_adapter::FusabiBytecodePlugin::load(&config.path).unwrap();
+        let plugin =
+            scarab_daemon::plugin_manager::fusabi_adapter::FusabiBytecodePlugin::load(&config.path)
+                .unwrap();
         let result = manager.register_plugin(Box::new(plugin)).await;
         assert!(result.is_ok());
     }

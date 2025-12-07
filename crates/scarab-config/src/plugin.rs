@@ -3,13 +3,13 @@
 //! This plugin integrates with bevy-fusabi's asset system to provide
 //! automatic loading and hot-reloading of configuration files.
 
-use bevy::prelude::*;
-use bevy_fusabi::prelude::*;
-use fusabi_vm::{Value, Vm};
 use crate::{
     config::*,
     error::{ConfigError, Result},
 };
+use bevy::prelude::*;
+use bevy_fusabi::prelude::*;
+use fusabi_vm::{Value, Vm};
 use std::collections::HashMap;
 
 /// Resource to hold the handle to the config script asset
@@ -43,20 +43,19 @@ impl Plugin for ScarabConfigPlugin {
         let config_path = self.config_path.clone();
 
         app.add_plugins(FusabiPlugin)
-           .init_resource::<ScarabConfig>()
-           .add_systems(Startup, move |commands: Commands, asset_server: Res<AssetServer>| {
-               load_config(commands, asset_server, &config_path)
-           })
-           .add_systems(Update, apply_config_updates);
+            .init_resource::<ScarabConfig>()
+            .add_systems(
+                Startup,
+                move |commands: Commands, asset_server: Res<AssetServer>| {
+                    load_config(commands, asset_server, &config_path)
+                },
+            )
+            .add_systems(Update, apply_config_updates);
     }
 }
 
 /// Load the config file on startup
-fn load_config(
-    mut commands: Commands,
-    asset_server: Res<AssetServer>,
-    config_path: &str,
-) {
+fn load_config(mut commands: Commands, asset_server: Res<AssetServer>, config_path: &str) {
     info!("Loading configuration from: {}", config_path);
     let handle = asset_server.load(config_path);
     commands.insert_resource(ConfigHandle(handle));
@@ -69,7 +68,9 @@ fn apply_config_updates(
     scripts: Res<Assets<FusabiScript>>,
     mut config_store: ResMut<ScarabConfig>,
 ) {
-    let Some(config_handle) = config_handle else { return };
+    let Some(config_handle) = config_handle else {
+        return;
+    };
 
     for event in events.read() {
         match event {
@@ -108,13 +109,15 @@ fn apply_config_updates(
 /// Execute the script and extract configuration values
 fn apply_script(script: &FusabiScript, config: &mut ScarabConfig) -> Result<()> {
     // 1. Deserialize bytecode
-    let chunk = script.to_chunk()
-        .map_err(|e| ConfigError::FusabiRuntimeError(format!("Failed to deserialize chunk: {}", e)))?;
+    let chunk = script.to_chunk().map_err(|e| {
+        ConfigError::FusabiRuntimeError(format!("Failed to deserialize chunk: {}", e))
+    })?;
 
     // 2. Execute VM
     let mut vm = Vm::new();
-    let result = vm.execute(chunk)
-        .map_err(|e| ConfigError::FusabiRuntimeError(format!("Failed to execute config: {:?}", e)))?;
+    let result = vm.execute(chunk).map_err(|e| {
+        ConfigError::FusabiRuntimeError(format!("Failed to execute config: {:?}", e))
+    })?;
 
     // 3. Extract configuration from VM globals and result
     update_config_from_vm(&vm, &result, config)?;
@@ -194,13 +197,27 @@ fn extract_terminal_config(val: &Value) -> Result<TerminalConfig> {
 
     if let Value::Record(map) = val {
         let map = map.lock().unwrap();
-        if let Some(s) = get_string(&map, "DefaultShell") { config.default_shell = s; }
-        if let Some(i) = get_int(&map, "ScrollbackLines") { config.scrollback_lines = i as u32; }
-        if let Some(b) = get_bool(&map, "AltScreen") { config.alt_screen = b; }
-        if let Some(f) = get_float(&map, "ScrollMultiplier") { config.scroll_multiplier = f as f32; }
-        if let Some(b) = get_bool(&map, "AutoScroll") { config.auto_scroll = b; }
-        if let Some(i) = get_int(&map, "Columns") { config.columns = i as u16; }
-        if let Some(i) = get_int(&map, "Rows") { config.rows = i as u16; }
+        if let Some(s) = get_string(&map, "DefaultShell") {
+            config.default_shell = s;
+        }
+        if let Some(i) = get_int(&map, "ScrollbackLines") {
+            config.scrollback_lines = i as u32;
+        }
+        if let Some(b) = get_bool(&map, "AltScreen") {
+            config.alt_screen = b;
+        }
+        if let Some(f) = get_float(&map, "ScrollMultiplier") {
+            config.scroll_multiplier = f as f32;
+        }
+        if let Some(b) = get_bool(&map, "AutoScroll") {
+            config.auto_scroll = b;
+        }
+        if let Some(i) = get_int(&map, "Columns") {
+            config.columns = i as u16;
+        }
+        if let Some(i) = get_int(&map, "Rows") {
+            config.rows = i as u16;
+        }
     }
 
     Ok(config)
@@ -211,11 +228,21 @@ fn extract_font_config(val: &Value) -> Result<FontConfig> {
 
     if let Value::Record(map) = val {
         let map = map.lock().unwrap();
-        if let Some(s) = get_string(&map, "Family") { config.family = s; }
-        if let Some(f) = get_float(&map, "Size") { config.size = f as f32; }
-        if let Some(f) = get_float(&map, "LineHeight") { config.line_height = f as f32; }
-        if let Some(b) = get_bool(&map, "BoldIsBright") { config.bold_is_bright = b; }
-        if let Some(b) = get_bool(&map, "UseThinStrokes") { config.use_thin_strokes = b; }
+        if let Some(s) = get_string(&map, "Family") {
+            config.family = s;
+        }
+        if let Some(f) = get_float(&map, "Size") {
+            config.size = f as f32;
+        }
+        if let Some(f) = get_float(&map, "LineHeight") {
+            config.line_height = f as f32;
+        }
+        if let Some(b) = get_bool(&map, "BoldIsBright") {
+            config.bold_is_bright = b;
+        }
+        if let Some(b) = get_bool(&map, "UseThinStrokes") {
+            config.use_thin_strokes = b;
+        }
 
         if let Some(Value::Tuple(vec)) = map.get("Fallback") {
             let mut fallback = Vec::new();
@@ -238,39 +265,87 @@ fn extract_color_config(val: &Value) -> Result<ColorConfig> {
 
     if let Value::Record(map) = val {
         let map = map.lock().unwrap();
-        if let Some(s) = get_string(&map, "Theme") { config.theme = Some(s); }
-        if let Some(f) = get_float(&map, "Opacity") { config.opacity = f as f32; }
-        if let Some(f) = get_float(&map, "DimOpacity") { config.dim_opacity = f as f32; }
+        if let Some(s) = get_string(&map, "Theme") {
+            config.theme = Some(s);
+        }
+        if let Some(f) = get_float(&map, "Opacity") {
+            config.opacity = f as f32;
+        }
+        if let Some(f) = get_float(&map, "DimOpacity") {
+            config.dim_opacity = f as f32;
+        }
 
         // Optional overrides
-        if let Some(s) = get_string(&map, "Foreground") { config.foreground = Some(s); }
-        if let Some(s) = get_string(&map, "Background") { config.background = Some(s); }
-        if let Some(s) = get_string(&map, "Cursor") { config.cursor = Some(s); }
-        if let Some(s) = get_string(&map, "SelectionBackground") { config.selection_background = Some(s); }
-        if let Some(s) = get_string(&map, "SelectionForeground") { config.selection_foreground = Some(s); }
+        if let Some(s) = get_string(&map, "Foreground") {
+            config.foreground = Some(s);
+        }
+        if let Some(s) = get_string(&map, "Background") {
+            config.background = Some(s);
+        }
+        if let Some(s) = get_string(&map, "Cursor") {
+            config.cursor = Some(s);
+        }
+        if let Some(s) = get_string(&map, "SelectionBackground") {
+            config.selection_background = Some(s);
+        }
+        if let Some(s) = get_string(&map, "SelectionForeground") {
+            config.selection_foreground = Some(s);
+        }
 
         // Palette (nested record)
         if let Some(Value::Record(palette_map)) = map.get("Palette") {
             let p_map = palette_map.lock().unwrap();
             let p = &mut config.palette;
 
-            if let Some(s) = get_string(&p_map, "Black") { p.black = s; }
-            if let Some(s) = get_string(&p_map, "Red") { p.red = s; }
-            if let Some(s) = get_string(&p_map, "Green") { p.green = s; }
-            if let Some(s) = get_string(&p_map, "Yellow") { p.yellow = s; }
-            if let Some(s) = get_string(&p_map, "Blue") { p.blue = s; }
-            if let Some(s) = get_string(&p_map, "Magenta") { p.magenta = s; }
-            if let Some(s) = get_string(&p_map, "Cyan") { p.cyan = s; }
-            if let Some(s) = get_string(&p_map, "White") { p.white = s; }
+            if let Some(s) = get_string(&p_map, "Black") {
+                p.black = s;
+            }
+            if let Some(s) = get_string(&p_map, "Red") {
+                p.red = s;
+            }
+            if let Some(s) = get_string(&p_map, "Green") {
+                p.green = s;
+            }
+            if let Some(s) = get_string(&p_map, "Yellow") {
+                p.yellow = s;
+            }
+            if let Some(s) = get_string(&p_map, "Blue") {
+                p.blue = s;
+            }
+            if let Some(s) = get_string(&p_map, "Magenta") {
+                p.magenta = s;
+            }
+            if let Some(s) = get_string(&p_map, "Cyan") {
+                p.cyan = s;
+            }
+            if let Some(s) = get_string(&p_map, "White") {
+                p.white = s;
+            }
 
-            if let Some(s) = get_string(&p_map, "BrightBlack") { p.bright_black = s; }
-            if let Some(s) = get_string(&p_map, "BrightRed") { p.bright_red = s; }
-            if let Some(s) = get_string(&p_map, "BrightGreen") { p.bright_green = s; }
-            if let Some(s) = get_string(&p_map, "BrightYellow") { p.bright_yellow = s; }
-            if let Some(s) = get_string(&p_map, "BrightBlue") { p.bright_blue = s; }
-            if let Some(s) = get_string(&p_map, "BrightMagenta") { p.bright_magenta = s; }
-            if let Some(s) = get_string(&p_map, "BrightCyan") { p.bright_cyan = s; }
-            if let Some(s) = get_string(&p_map, "BrightWhite") { p.bright_white = s; }
+            if let Some(s) = get_string(&p_map, "BrightBlack") {
+                p.bright_black = s;
+            }
+            if let Some(s) = get_string(&p_map, "BrightRed") {
+                p.bright_red = s;
+            }
+            if let Some(s) = get_string(&p_map, "BrightGreen") {
+                p.bright_green = s;
+            }
+            if let Some(s) = get_string(&p_map, "BrightYellow") {
+                p.bright_yellow = s;
+            }
+            if let Some(s) = get_string(&p_map, "BrightBlue") {
+                p.bright_blue = s;
+            }
+            if let Some(s) = get_string(&p_map, "BrightMagenta") {
+                p.bright_magenta = s;
+            }
+            if let Some(s) = get_string(&p_map, "BrightCyan") {
+                p.bright_cyan = s;
+            }
+            if let Some(s) = get_string(&p_map, "BrightWhite") {
+                p.bright_white = s;
+            }
         }
     }
 
@@ -282,7 +357,9 @@ fn extract_keybindings(val: &Value) -> Result<KeyBindings> {
 
     if let Value::Record(map) = val {
         let map = map.lock().unwrap();
-        if let Some(s) = get_string(&map, "LeaderKey") { config.leader_key = s; }
+        if let Some(s) = get_string(&map, "LeaderKey") {
+            config.leader_key = s;
+        }
 
         // Custom bindings
         if let Some(Value::Map(custom_map)) = map.get("Custom") {
@@ -303,14 +380,30 @@ fn extract_ui_config(val: &Value) -> Result<UiConfig> {
 
     if let Value::Record(map) = val {
         let map = map.lock().unwrap();
-        if let Some(b) = get_bool(&map, "LinkHints") { config.link_hints = b; }
-        if let Some(b) = get_bool(&map, "CommandPalette") { config.command_palette = b; }
-        if let Some(b) = get_bool(&map, "Animations") { config.animations = b; }
-        if let Some(b) = get_bool(&map, "SmoothScroll") { config.smooth_scroll = b; }
-        if let Some(b) = get_bool(&map, "ShowTabs") { config.show_tabs = b; }
-        if let Some(b) = get_bool(&map, "CursorBlink") { config.cursor_blink = b; }
-        if let Some(i) = get_int(&map, "CursorBlinkInterval") { config.cursor_blink_interval = i as u32; }
-        if let Some(s) = get_string(&map, "WindowIcon") { config.window_icon = Some(s); }
+        if let Some(b) = get_bool(&map, "LinkHints") {
+            config.link_hints = b;
+        }
+        if let Some(b) = get_bool(&map, "CommandPalette") {
+            config.command_palette = b;
+        }
+        if let Some(b) = get_bool(&map, "Animations") {
+            config.animations = b;
+        }
+        if let Some(b) = get_bool(&map, "SmoothScroll") {
+            config.smooth_scroll = b;
+        }
+        if let Some(b) = get_bool(&map, "ShowTabs") {
+            config.show_tabs = b;
+        }
+        if let Some(b) = get_bool(&map, "CursorBlink") {
+            config.cursor_blink = b;
+        }
+        if let Some(i) = get_int(&map, "CursorBlinkInterval") {
+            config.cursor_blink_interval = i as u32;
+        }
+        if let Some(s) = get_string(&map, "WindowIcon") {
+            config.window_icon = Some(s);
+        }
     }
 
     Ok(config)
@@ -339,10 +432,18 @@ fn extract_session_config(val: &Value) -> Result<SessionConfig> {
 
     if let Value::Record(map) = val {
         let map = map.lock().unwrap();
-        if let Some(b) = get_bool(&map, "RestoreOnStartup") { config.restore_on_startup = b; }
-        if let Some(i) = get_int(&map, "AutoSaveInterval") { config.auto_save_interval = i as u32; }
-        if let Some(b) = get_bool(&map, "SaveScrollback") { config.save_scrollback = b; }
-        if let Some(s) = get_string(&map, "WorkingDirectory") { config.working_directory = Some(s); }
+        if let Some(b) = get_bool(&map, "RestoreOnStartup") {
+            config.restore_on_startup = b;
+        }
+        if let Some(i) = get_int(&map, "AutoSaveInterval") {
+            config.auto_save_interval = i as u32;
+        }
+        if let Some(b) = get_bool(&map, "SaveScrollback") {
+            config.save_scrollback = b;
+        }
+        if let Some(s) = get_string(&map, "WorkingDirectory") {
+            config.working_directory = Some(s);
+        }
     }
 
     Ok(config)
@@ -388,8 +489,8 @@ mod tests {
         // Test basic Value extraction
         use fusabi_vm::Value;
         use std::collections::HashMap;
-        use std::sync::Mutex;
         use std::sync::Arc;
+        use std::sync::Mutex;
 
         let mut terminal_map = HashMap::new();
         terminal_map.insert("DefaultShell".to_string(), Value::Str("/bin/zsh".into()));

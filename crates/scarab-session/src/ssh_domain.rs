@@ -51,7 +51,10 @@ pub enum SshAuth {
     /// SSH agent authentication
     Agent,
     /// Public key file path
-    PublicKey { path: String, passphrase: Option<String> },
+    PublicKey {
+        path: String,
+        passphrase: Option<String>,
+    },
     /// Password authentication
     Password(String),
 }
@@ -165,8 +168,7 @@ impl SshDomain {
                     russh_keys::load_secret_key(path, Some(pass.as_str()))
                         .context("Failed to load private key")?
                 } else {
-                    russh_keys::load_secret_key(path, None)
-                        .context("Failed to load private key")?
+                    russh_keys::load_secret_key(path, None).context("Failed to load private key")?
                 };
 
                 session
@@ -248,7 +250,11 @@ impl Domain for SshDomain {
     }
 
     async fn reconnect(&self) -> Result<()> {
-        log::info!("SSH: Reconnecting to {}@{}", self.config.user, self.config.host);
+        log::info!(
+            "SSH: Reconnecting to {}@{}",
+            self.config.user,
+            self.config.host
+        );
 
         // Update stats
         {
@@ -260,7 +266,9 @@ impl Domain for SshDomain {
         {
             let mut session = self.session.lock().await;
             if let Some(handle) = session.take() {
-                let _ = handle.disconnect(russh::Disconnect::ByApplication, "", "en").await;
+                let _ = handle
+                    .disconnect(russh::Disconnect::ByApplication, "", "en")
+                    .await;
             }
         }
 
@@ -290,8 +298,8 @@ impl Domain for SshDomain {
                 &term,
                 config.cols as u32,
                 config.rows as u32,
-                0, // pixel_width
-                0, // pixel_height
+                0,   // pixel_width
+                0,   // pixel_height
                 &[], // terminal modes
             )
             .await?;
@@ -342,7 +350,11 @@ impl Domain for SshDomain {
                 pane_id,
             })
         } else {
-            bail!("SSH pane {} not found in domain {}", pane_id, self.config.id)
+            bail!(
+                "SSH pane {} not found in domain {}",
+                pane_id,
+                self.config.id
+            )
         }
     }
 
@@ -361,7 +373,11 @@ impl Domain for SshDomain {
             let mut stats = self.stats.write();
             stats.active_panes = self.channels.read().len();
 
-            log::info!("SSH: closed pane {} in domain {}", handle.pane_id, self.config.id);
+            log::info!(
+                "SSH: closed pane {} in domain {}",
+                handle.pane_id,
+                self.config.id
+            );
             Ok(())
         } else {
             bail!("SSH pane {} not found", handle.pane_id)
@@ -408,10 +424,7 @@ impl Domain for SshDomain {
             let mut channel = ch_arc.lock().await;
 
             // Wait for channel message with timeout
-            match tokio::time::timeout(
-                std::time::Duration::from_millis(10),
-                channel.wait()
-            ).await {
+            match tokio::time::timeout(std::time::Duration::from_millis(10), channel.wait()).await {
                 Ok(Some(msg)) => {
                     match msg {
                         ChannelMsg::Data { ref data } => {
@@ -426,7 +439,11 @@ impl Domain for SshDomain {
                         }
                         ChannelMsg::Eof => Ok(0),
                         ChannelMsg::ExitStatus { exit_status } => {
-                            log::info!("SSH pane {} exited with status {}", handle.pane_id, exit_status);
+                            log::info!(
+                                "SSH pane {} exited with status {}",
+                                handle.pane_id,
+                                exit_status
+                            );
                             Ok(0)
                         }
                         _ => Ok(0),

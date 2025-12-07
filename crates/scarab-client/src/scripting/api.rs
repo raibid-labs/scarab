@@ -14,16 +14,10 @@ use std::collections::HashMap;
 #[derive(Event, Debug, Clone)]
 pub enum ScriptEvent {
     /// Script wants to customize theme colors
-    SetColor {
-        name: String,
-        color: Color,
-    },
+    SetColor { name: String, color: Color },
 
     /// Script wants to change font
-    SetFont {
-        family: String,
-        size: f32,
-    },
+    SetFont { family: String, size: f32 },
 
     /// Script wants to add a custom overlay
     AddOverlay {
@@ -33,14 +27,10 @@ pub enum ScriptEvent {
     },
 
     /// Script wants to remove an overlay
-    RemoveOverlay {
-        name: String,
-    },
+    RemoveOverlay { name: String },
 
     /// Script wants to set window title
-    SetWindowTitle {
-        title: String,
-    },
+    SetWindowTitle { title: String },
 
     /// Script wants to register a command
     RegisterCommand {

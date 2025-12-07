@@ -80,7 +80,8 @@ fn demo_recording(
             }
 
             if state.frame_count == 120 {
-                recorder.record_output(b"total 42\ndrwxr-xr-x  5 user  staff   160 Dec  3 12:00 .\n");
+                recorder
+                    .record_output(b"total 42\ndrwxr-xr-x  5 user  staff   160 Dec  3 12:00 .\n");
                 info!("Recorded output: ls -la results");
             }
 
@@ -190,16 +191,10 @@ fn demo_replay(
                         }
                     }
                     EventType::Resize => {
-                        info!(
-                            "Replay [{}ms] Resize event",
-                            event.event.timestamp_ms
-                        );
+                        info!("Replay [{}ms] Resize event", event.event.timestamp_ms);
                     }
                     EventType::Marker => {
-                        info!(
-                            "Replay [{}ms] Marker event",
-                            event.event.timestamp_ms
-                        );
+                        info!("Replay [{}ms] Marker event", event.event.timestamp_ms);
                     }
                 }
             }

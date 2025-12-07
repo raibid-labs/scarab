@@ -1,24 +1,24 @@
 use bevy::prelude::*;
 use bevy::render::camera::OrthographicProjection;
+use scarab_client::input::{ModeStack, NavInputRouter, NavStyle};
 use scarab_client::integration::{IntegrationPlugin, SharedMemWrapper, SharedMemoryReader};
+use scarab_client::navigation::{FocusablePlugin, NavigationPlugin};
+use scarab_client::rendering::HintOverlayPlugin;
 use scarab_client::{
     AccessibilityPlugin, AdvancedUIPlugin, CopyModePlugin, EventsPlugin, GraphicsInspectorPlugin,
-    ImagesPlugin, ScarabTelemetryPlugin, ScriptingPlugin, ScrollbackPlugin, ScarabEffectsPlugin,
+    ImagesPlugin, ScarabEffectsPlugin, ScarabTelemetryPlugin, ScriptingPlugin, ScrollbackPlugin,
     TutorialPlugin,
 };
-use scarab_client::navigation::{NavigationPlugin, FocusablePlugin};
-use scarab_client::rendering::HintOverlayPlugin;
-use scarab_client::input::{NavInputRouter, ModeStack, NavStyle};
 use scarab_config::{ConfigLoader, FusabiConfigLoader};
 // Uncomment to enable hot-reloading config via bevy-fusabi:
 // use scarab_config::ScarabConfigPlugin;
-use scarab_protocol::{SharedState, SHMEM_PATH, SHMEM_PATH_ENV};
 use scarab_protocol::terminal_state::TerminalStateReader;
+use scarab_protocol::{SharedState, SHMEM_PATH, SHMEM_PATH_ENV};
 use shared_memory::ShmemConf;
 use std::sync::Arc;
 
-use scarab_client::ipc::{IpcPlugin, StartupCommand};
 use clap::Parser;
+use scarab_client::ipc::{IpcPlugin, StartupCommand};
 
 #[cfg(feature = "plugin-inspector")]
 use scarab_client::PluginInspectorPlugin;
@@ -43,23 +43,31 @@ fn main() {
 
     // Load Configuration (Fusabi-based)
     let home_dir = std::env::var("HOME").unwrap_or_else(|_| ".".to_string());
-    let fusabi_config_path = std::path::PathBuf::from(&home_dir)
-        .join(".config/scarab/config.fsx");
-    let toml_config_path = std::path::PathBuf::from(&home_dir)
-        .join(".config/scarab/config.toml");
+    let fusabi_config_path = std::path::PathBuf::from(&home_dir).join(".config/scarab/config.fsx");
+    let toml_config_path = std::path::PathBuf::from(&home_dir).join(".config/scarab/config.toml");
 
     let config = if fusabi_config_path.exists() {
-        println!("Loading Fusabi config from: {}", fusabi_config_path.display());
-        FusabiConfigLoader::from_file(&fusabi_config_path)
-            .expect("Failed to load Fusabi config")
+        println!(
+            "Loading Fusabi config from: {}",
+            fusabi_config_path.display()
+        );
+        FusabiConfigLoader::from_file(&fusabi_config_path).expect("Failed to load Fusabi config")
     } else if toml_config_path.exists() {
-        println!("⚠️  Loading legacy TOML config from: {}", toml_config_path.display());
-        println!("💡 Consider migrating to Fusabi config: {}", fusabi_config_path.display());
-        ConfigLoader::from_file(&toml_config_path)
-            .expect("Failed to load TOML config")
+        println!(
+            "⚠️  Loading legacy TOML config from: {}",
+            toml_config_path.display()
+        );
+        println!(
+            "💡 Consider migrating to Fusabi config: {}",
+            fusabi_config_path.display()
+        );
+        ConfigLoader::from_file(&toml_config_path).expect("Failed to load TOML config")
     } else {
         println!("No config found (tried .fsx and .toml), using defaults");
-        println!("Create {} to customize your terminal", fusabi_config_path.display());
+        println!(
+            "Create {} to customize your terminal",
+            fusabi_config_path.display()
+        );
         scarab_config::ScarabConfig::default()
     };
 
@@ -77,10 +85,7 @@ fn main() {
             Arc::new(m)
         }
         Err(e) => {
-            eprintln!(
-                "Failed to open shared memory at {}: {}",
-                shmem_path, e
-            );
+            eprintln!("Failed to open shared memory at {}: {}", shmem_path, e);
             eprintln!("Is the daemon running?");
             eprintln!("");
             eprintln!("If using a custom shared memory path, ensure both daemon and client");
@@ -158,7 +163,9 @@ fn run_windowed(
     // and may not be available in all backends. For now, we log if an icon path is configured.
     if let Some(icon_path) = &config.ui.window_icon {
         println!("Custom window icon specified: {}", icon_path);
-        println!("Note: Window icon loading requires platform-specific implementation in Bevy 0.15");
+        println!(
+            "Note: Window icon loading requires platform-specific implementation in Bevy 0.15"
+        );
     }
 
     let mut app = App::new();
@@ -184,28 +191,28 @@ fn run_windowed(
                 ..default()
             }),
     )
-        .add_plugins(IpcPlugin) // Add IPC support
-        .add_plugins(EventsPlugin::default()) // Add event handling (client and daemon forwarding)
-        .add_plugins(NavigationPlugin) // Add core navigation system (modes, events, state)
-        .add_plugins(FocusablePlugin) // Add focusable detection and scanning
-        .add_plugins(HintOverlayPlugin) // Add hint overlay rendering
-        .add_plugins(ScrollbackPlugin) // Add scrollback buffer management
-        .add_plugins(CopyModePlugin) // Add vim-like copy mode navigation
-        .add_plugins(ImagesPlugin) // Add inline image rendering support
-        .add_plugins(AdvancedUIPlugin) // Add advanced UI features (includes search, indicators)
-        .add_plugins(ScriptingPlugin) // Add client-side scripting
-        .add_plugins(IntegrationPlugin) // Add text rendering
-        .add_plugins(TutorialPlugin) // Add interactive tutorial system
-        .add_plugins(ScarabEffectsPlugin) // Add post-processing effects (blur, glow)
-        .add_plugins(ScarabTelemetryPlugin) // Add telemetry HUD overlay (Ctrl+Shift+T to toggle)
-        .add_plugins(AccessibilityPlugin) // Add accessibility features (screen reader, export, high contrast)
-        .insert_resource(reader)
-        .insert_resource(config) // Make initial config available (will be updated by plugin)
-        .insert_resource(NavInputRouter::new(NavStyle::VimiumStyle)) // Initialize navigation input router with Vimium-style keybindings
-        .insert_resource(ModeStack::new()) // Initialize mode stack (starts in Normal mode)
-        // NOTE: Uncomment the following line to enable hot-reloading config via bevy-fusabi
-        // .add_plugins(ScarabConfigPlugin::new("config.fsx"))
-        .add_systems(Startup, setup);
+    .add_plugins(IpcPlugin) // Add IPC support
+    .add_plugins(EventsPlugin::default()) // Add event handling (client and daemon forwarding)
+    .add_plugins(NavigationPlugin) // Add core navigation system (modes, events, state)
+    .add_plugins(FocusablePlugin) // Add focusable detection and scanning
+    .add_plugins(HintOverlayPlugin) // Add hint overlay rendering
+    .add_plugins(ScrollbackPlugin) // Add scrollback buffer management
+    .add_plugins(CopyModePlugin) // Add vim-like copy mode navigation
+    .add_plugins(ImagesPlugin) // Add inline image rendering support
+    .add_plugins(AdvancedUIPlugin) // Add advanced UI features (includes search, indicators)
+    .add_plugins(ScriptingPlugin) // Add client-side scripting
+    .add_plugins(IntegrationPlugin) // Add text rendering
+    .add_plugins(TutorialPlugin) // Add interactive tutorial system
+    .add_plugins(ScarabEffectsPlugin) // Add post-processing effects (blur, glow)
+    .add_plugins(ScarabTelemetryPlugin) // Add telemetry HUD overlay (Ctrl+Shift+T to toggle)
+    .add_plugins(AccessibilityPlugin) // Add accessibility features (screen reader, export, high contrast)
+    .insert_resource(reader)
+    .insert_resource(config) // Make initial config available (will be updated by plugin)
+    .insert_resource(NavInputRouter::new(NavStyle::VimiumStyle)) // Initialize navigation input router with Vimium-style keybindings
+    .insert_resource(ModeStack::new()) // Initialize mode stack (starts in Normal mode)
+    // NOTE: Uncomment the following line to enable hot-reloading config via bevy-fusabi
+    // .add_plugins(ScarabConfigPlugin::new("config.fsx"))
+    .add_systems(Startup, setup);
 
     // Conditionally add plugin inspector
     #[cfg(feature = "plugin-inspector")]
@@ -266,9 +273,15 @@ fn headless_dump_and_exit(
     // 2. Timeout reached (5 seconds by default)
     if (has_output && elapsed > 0.5) || elapsed > headless.max_wait_secs {
         if has_output {
-            println!("Terminal output detected (seq: {} -> {}), dumping grid...", headless.initial_sequence, current_seq);
+            println!(
+                "Terminal output detected (seq: {} -> {}), dumping grid...",
+                headless.initial_sequence, current_seq
+            );
         } else {
-            println!("Timeout reached after {:.1}s, dumping grid anyway...", elapsed);
+            println!(
+                "Timeout reached after {:.1}s, dumping grid anyway...",
+                elapsed
+            );
         }
 
         // Dump terminal grid to stdout
@@ -282,7 +295,6 @@ fn headless_dump_and_exit(
 
 /// Dump the terminal grid to stdout
 fn dump_terminal_grid(state: &impl TerminalStateReader) {
-
     let (cols, rows) = state.dimensions();
     let (cursor_x, cursor_y) = state.cursor_pos();
 
@@ -338,5 +350,7 @@ fn setup(mut commands: Commands, windows: Query<&Window, With<bevy::window::Prim
         Transform::from_xyz(width / 2.0, -height / 2.0, 0.0),
     ));
 
-    println!("Scarab Client Initialized with shared memory reader, IPC, scrollback, and scripting.");
+    println!(
+        "Scarab Client Initialized with shared memory reader, IPC, scrollback, and scripting."
+    );
 }

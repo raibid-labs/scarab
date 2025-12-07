@@ -5,17 +5,17 @@
 
 use bevy::ecs::system::RunSystemOnce;
 use bevy::prelude::*;
-use scarab_protocol::{Cell, TerminalMetrics, SharedState};
+use scarab_protocol::{Cell, SharedState, TerminalMetrics};
 use shared_memory::*;
 use std::sync::Arc;
 
+use crate::events::{PaneClosedEvent, PaneCreatedEvent, PaneFocusedEvent};
 use crate::integration::SharedMemoryReader;
 use crate::prompt_markers::{NavAnchor, PromptAnchorType, PromptMarkers, PromptZoneFocusedEvent};
 use crate::safe_state::MockTerminalState;
-use crate::events::{PaneCreatedEvent, PaneFocusedEvent, PaneClosedEvent};
 
-use super::*;
 use super::focusable::*;
+use super::*;
 
 // ==================== Test Helpers ====================
 
@@ -44,6 +44,9 @@ fn build_test_app() -> App {
 
     // Insert prompt markers resource
     app.insert_resource(PromptMarkers::default());
+
+    // Insert NavState resource for tests that access it directly
+    app.insert_resource(NavState::default());
 
     app
 }
@@ -92,7 +95,9 @@ fn test_exit_hint_mode() {
     app.world_mut().resource_mut::<NavState>().current_mode = NavMode::Normal;
 
     // Verify hint filter gets cleared on exit
-    app.world_mut().resource_mut::<NavState>().clear_hint_filter();
+    app.world_mut()
+        .resource_mut::<NavState>()
+        .clear_hint_filter();
 
     // Update to process event
     app.update();
@@ -158,8 +163,8 @@ fn test_detect_urls_in_terminal() {
         grid_end: (26, 0),
         content: "https://example.com".to_string(),
         source: FocusableSource::Terminal,
-            pane_id: None,
-            generation: 0,
+        pane_id: None,
+        generation: 0,
         screen_position: None,
     });
 
@@ -169,8 +174,8 @@ fn test_detect_urls_in_terminal() {
         grid_end: (26, 1),
         content: "www.github.com".to_string(),
         source: FocusableSource::Terminal,
-            pane_id: None,
-            generation: 0,
+        pane_id: None,
+        generation: 0,
         screen_position: None,
     });
 
@@ -208,8 +213,8 @@ fn test_detect_filepaths() {
         grid_end: (28, 0),
         content: "/usr/local/bin/foo.txt".to_string(),
         source: FocusableSource::Terminal,
-            pane_id: None,
-            generation: 0,
+        pane_id: None,
+        generation: 0,
         screen_position: None,
     });
 
@@ -219,8 +224,8 @@ fn test_detect_filepaths() {
         grid_end: (26, 1),
         content: "./relative/path.rs".to_string(),
         source: FocusableSource::Terminal,
-            pane_id: None,
-            generation: 0,
+        pane_id: None,
+        generation: 0,
         screen_position: None,
     });
 
@@ -250,7 +255,9 @@ fn test_max_focusables_limit() {
     let mut app = build_test_app();
 
     // Set a low max limit
-    app.world_mut().resource_mut::<FocusableScanConfig>().max_focusables = 5;
+    app.world_mut()
+        .resource_mut::<FocusableScanConfig>()
+        .max_focusables = 5;
 
     // Test the detector directly
     let config = FocusableScanConfig {
@@ -297,29 +304,33 @@ fn test_hint_activation() {
     let mut app = build_test_app();
 
     // Spawn a focusable with a hint
-    let entity = app.world_mut().spawn((
-        NavHint {
-            label: "ab".to_string(),
-            position: Vec2::new(100.0, 200.0),
-            action: NavAction::Open("https://example.com".to_string()),
-        },
-        FocusableRegion {
-            region_type: FocusableType::Url,
-            grid_start: (10, 5),
-            grid_end: (30, 5),
-            content: "https://example.com".to_string(),
-            source: FocusableSource::Terminal,
-            pane_id: None,
-            generation: 0,
-            screen_position: Some(Vec2::new(100.0, 200.0)),
-        },
-    )).id();
+    let entity = app
+        .world_mut()
+        .spawn((
+            NavHint {
+                label: "ab".to_string(),
+                position: Vec2::new(100.0, 200.0),
+                action: NavAction::Open("https://example.com".to_string()),
+            },
+            FocusableRegion {
+                region_type: FocusableType::Url,
+                grid_start: (10, 5),
+                grid_end: (30, 5),
+                content: "https://example.com".to_string(),
+                source: FocusableSource::Terminal,
+                pane_id: None,
+                generation: 0,
+                screen_position: Some(Vec2::new(100.0, 200.0)),
+            },
+        ))
+        .id();
 
     app.update();
 
     // Send NavActionEvent to simulate hint activation
     let action = NavAction::Open("https://example.com".to_string());
-    app.world_mut().send_event(NavActionEvent::with_source(action.clone(), entity));
+    app.world_mut()
+        .send_event(NavActionEvent::with_source(action.clone(), entity));
 
     app.update();
 
@@ -426,38 +437,47 @@ fn test_prompt_zone_filtering() {
     let mut app = build_test_app();
 
     // Spawn focusables at different line positions
-    let entity1 = app.world_mut().spawn(FocusableRegion {
-        region_type: FocusableType::Url,
-        grid_start: (0, 7),
-        grid_end: (20, 7),
-        content: "https://zone1.com".to_string(),
-        source: FocusableSource::Terminal,
+    let entity1 = app
+        .world_mut()
+        .spawn(FocusableRegion {
+            region_type: FocusableType::Url,
+            grid_start: (0, 7),
+            grid_end: (20, 7),
+            content: "https://zone1.com".to_string(),
+            source: FocusableSource::Terminal,
             pane_id: None,
             generation: 0,
-        screen_position: None,
-    }).id();
+            screen_position: None,
+        })
+        .id();
 
-    let entity2 = app.world_mut().spawn(FocusableRegion {
-        region_type: FocusableType::Url,
-        grid_start: (0, 18),
-        grid_end: (20, 18),
-        content: "https://zone2.com".to_string(),
-        source: FocusableSource::Terminal,
+    let entity2 = app
+        .world_mut()
+        .spawn(FocusableRegion {
+            region_type: FocusableType::Url,
+            grid_start: (0, 18),
+            grid_end: (20, 18),
+            content: "https://zone2.com".to_string(),
+            source: FocusableSource::Terminal,
             pane_id: None,
             generation: 0,
-        screen_position: None,
-    }).id();
+            screen_position: None,
+        })
+        .id();
 
-    let entity3 = app.world_mut().spawn(FocusableRegion {
-        region_type: FocusableType::Url,
-        grid_start: (0, 28),
-        grid_end: (20, 28),
-        content: "https://zone3.com".to_string(),
-        source: FocusableSource::Terminal,
+    let entity3 = app
+        .world_mut()
+        .spawn(FocusableRegion {
+            region_type: FocusableType::Url,
+            grid_start: (0, 28),
+            grid_end: (20, 28),
+            content: "https://zone3.com".to_string(),
+            source: FocusableSource::Terminal,
             pane_id: None,
             generation: 0,
-        screen_position: None,
-    }).id();
+            screen_position: None,
+        })
+        .id();
 
     app.update();
 
@@ -558,7 +578,9 @@ fn test_focus_history_limit() {
     // Record more than the limit
     for _i in 0..10 {
         let entity = app.world_mut().spawn_empty().id();
-        app.world_mut().resource_mut::<NavState>().record_focus(entity);
+        app.world_mut()
+            .resource_mut::<NavState>()
+            .record_focus(entity);
     }
 
     // Should only keep last 3
@@ -593,6 +615,23 @@ fn test_focus_changed_event() {
 
 // ==================== Multi-Prompt Navigation Tests (Issue #43) ====================
 
+/// Helper to create a scrollback line from a string
+fn create_scrollback_line(text: &str) -> crate::terminal::scrollback::ScrollbackLine {
+    use scarab_protocol::Cell;
+
+    let cells: Vec<Cell> = text
+        .chars()
+        .map(|c| Cell {
+            char_codepoint: c as u32,
+            fg: 0xFFFFFF,
+            bg: 0x000000,
+            flags: 0,
+            _padding: [0; 3],
+        })
+        .collect();
+    crate::terminal::scrollback::ScrollbackLine::new(cells)
+}
+
 #[test]
 fn test_multi_prompt_navigation_10_prompts() {
     use crate::prompt_markers::JumpToPromptEvent;
@@ -604,7 +643,7 @@ fn test_multi_prompt_navigation_10_prompts() {
     let mut scrollback = ScrollbackBuffer::new(1000);
     // Populate with 200 lines (enough for 10 prompts with output)
     for i in 0..200 {
-        scrollback.push_line(format!("Line {}", i));
+        scrollback.push_line(create_scrollback_line(&format!("Line {}", i)));
     }
     app.insert_resource(scrollback);
 
@@ -619,20 +658,24 @@ fn test_multi_prompt_navigation_10_prompts() {
     let mut prompt_markers = app.world_mut().resource_mut::<PromptMarkers>();
     for i in 0..10 {
         let line = 10 + (i * 20); // Lines: 10, 30, 50, 70, 90, 110, 130, 150, 170, 190
-        prompt_markers.markers.push(scarab_protocol::PromptMarkerInfo {
-            marker_type: 0, // PromptStart
-            line,
-            exit_code: None,
-            timestamp_micros: i as u64 * 1000,
-        });
+        prompt_markers
+            .markers
+            .push(scarab_protocol::PromptMarkerInfo {
+                marker_type: 0, // PromptStart
+                line,
+                exit_code: None,
+                timestamp_micros: i as u64 * 1000,
+            });
 
         // Add CommandFinished marker after each prompt
-        prompt_markers.markers.push(scarab_protocol::PromptMarkerInfo {
-            marker_type: 3, // CommandFinished
-            line: line + 5,
-            exit_code: Some(if i % 2 == 0 { 0 } else { 1 }), // Alternate success/failure
-            timestamp_micros: i as u64 * 1000 + 500,
-        });
+        prompt_markers
+            .markers
+            .push(scarab_protocol::PromptMarkerInfo {
+                marker_type: 3, // CommandFinished
+                line: line + 5,
+                exit_code: Some(if i % 2 == 0 { 0 } else { 1 }), // Alternate success/failure
+                timestamp_micros: i as u64 * 1000 + 500,
+            });
     }
 
     // Test forward navigation through all prompts
@@ -646,7 +689,11 @@ fn test_multi_prompt_navigation_10_prompts() {
 
         let marker = &prompt_markers.markers[next_idx.unwrap()];
         let expected_line = 10 + (i * 20);
-        assert_eq!(marker.line, expected_line, "Prompt {} should be at line {}", i, expected_line);
+        assert_eq!(
+            marker.line, expected_line,
+            "Prompt {} should be at line {}",
+            i, expected_line
+        );
 
         current_line = marker.line + 1; // Move past this prompt for next iteration
     }
@@ -655,11 +702,19 @@ fn test_multi_prompt_navigation_10_prompts() {
     current_line = 200;
     for i in (0..10).rev() {
         let prev_idx = prompt_markers.previous_prompt(current_line);
-        assert!(prev_idx.is_some(), "Should find previous prompt from line {}", current_line);
+        assert!(
+            prev_idx.is_some(),
+            "Should find previous prompt from line {}",
+            current_line
+        );
 
         let marker = &prompt_markers.markers[prev_idx.unwrap()];
         let expected_line = 10 + (i * 20);
-        assert_eq!(marker.line, expected_line, "Prompt {} should be at line {}", i, expected_line);
+        assert_eq!(
+            marker.line, expected_line,
+            "Prompt {} should be at line {}",
+            i, expected_line
+        );
 
         current_line = marker.line; // Move to this prompt line for next iteration
     }
@@ -675,7 +730,7 @@ fn test_multi_prompt_navigation_10_prompts() {
 
 #[test]
 fn test_jump_prompt_action_to_event_conversion() {
-    use crate::prompt_markers::{JumpToPromptEvent, handle_nav_jump_actions};
+    use crate::prompt_markers::{handle_nav_jump_actions, JumpToPromptEvent};
     use crate::terminal::scrollback::{ScrollbackBuffer, ScrollbackState};
 
     let mut app = build_test_app();
@@ -688,9 +743,8 @@ fn test_jump_prompt_action_to_event_conversion() {
     app.add_event::<JumpToPromptEvent>();
 
     // Send NavAction::JumpPrompt event
-    app.world_mut().send_event(NavActionEvent::new(
-        NavAction::JumpPrompt(42)
-    ));
+    app.world_mut()
+        .send_event(NavActionEvent::new(NavAction::JumpPrompt(42)));
 
     // Run the conversion system manually
     app.world_mut().run_system_once(handle_nav_jump_actions);
@@ -702,7 +756,11 @@ fn test_jump_prompt_action_to_event_conversion() {
     let mut cursor = events.get_cursor();
     let jump_events: Vec<_> = cursor.read(events).collect();
 
-    assert_eq!(jump_events.len(), 1, "Should emit exactly one JumpToPromptEvent");
+    assert_eq!(
+        jump_events.len(),
+        1,
+        "Should emit exactly one JumpToPromptEvent"
+    );
     assert_eq!(jump_events[0].target_line, 42, "Should target line 42");
     assert_eq!(jump_events[0].anchor_type, PromptAnchorType::PromptStart);
 }
@@ -717,7 +775,7 @@ fn test_rapid_navigation_no_race_conditions() {
     // Initialize scrollback
     let mut scrollback = ScrollbackBuffer::new(1000);
     for i in 0..100 {
-        scrollback.push_line(format!("Line {}", i));
+        scrollback.push_line(create_scrollback_line(&format!("Line {}", i)));
     }
     app.insert_resource(scrollback);
     app.insert_resource(ScrollbackState::default());
@@ -728,19 +786,20 @@ fn test_rapid_navigation_no_race_conditions() {
     // Add 5 prompts
     let mut prompt_markers = app.world_mut().resource_mut::<PromptMarkers>();
     for i in 0..5 {
-        prompt_markers.markers.push(scarab_protocol::PromptMarkerInfo {
-            marker_type: 0,
-            line: 10 + (i * 20),
-            exit_code: None,
-            timestamp_micros: 0,
-        });
+        prompt_markers
+            .markers
+            .push(scarab_protocol::PromptMarkerInfo {
+                marker_type: 0,
+                line: 10 + (i * 20),
+                exit_code: None,
+                timestamp_micros: 0,
+            });
     }
 
     // Rapidly send multiple jump events (simulating Ctrl+Down spam)
     for i in 0..5 {
-        app.world_mut().send_event(NavActionEvent::new(
-            NavAction::JumpPrompt(10 + (i * 20))
-        ));
+        app.world_mut()
+            .send_event(NavActionEvent::new(NavAction::JumpPrompt(10 + (i * 20))));
     }
 
     // Process all events
@@ -788,8 +847,8 @@ fn test_empty_prompt_zone_handled_gracefully() {
 
 #[test]
 fn test_zone_scoping_with_multiple_prompts() {
-    use crate::ui::link_hints::LinkHintsState;
     use crate::terminal::scrollback::{ScrollbackBuffer, ScrollbackState};
+    use crate::ui::link_hints::LinkHintsState;
 
     let mut app = build_test_app();
 
@@ -799,7 +858,7 @@ fn test_zone_scoping_with_multiple_prompts() {
     // Initialize scrollback
     let mut scrollback = ScrollbackBuffer::new(1000);
     for i in 0..100 {
-        scrollback.push_line(format!("Line {}", i));
+        scrollback.push_line(create_scrollback_line(&format!("Line {}", i)));
     }
     app.insert_resource(scrollback);
 
@@ -844,8 +903,8 @@ fn test_zone_scoping_with_multiple_prompts() {
         grid_end: (20, 12),
         content: "https://zone1-url1.com".to_string(),
         source: FocusableSource::Terminal,
-            pane_id: None,
-            generation: 0,
+        pane_id: None,
+        generation: 0,
         screen_position: None,
     });
 
@@ -855,8 +914,8 @@ fn test_zone_scoping_with_multiple_prompts() {
         grid_end: (20, 15),
         content: "https://zone1-url2.com".to_string(),
         source: FocusableSource::Terminal,
-            pane_id: None,
-            generation: 0,
+        pane_id: None,
+        generation: 0,
         screen_position: None,
     });
 
@@ -867,8 +926,8 @@ fn test_zone_scoping_with_multiple_prompts() {
         grid_end: (20, 35),
         content: "https://zone2-url.com".to_string(),
         source: FocusableSource::Terminal,
-            pane_id: None,
-            generation: 0,
+        pane_id: None,
+        generation: 0,
         screen_position: None,
     });
 
@@ -879,8 +938,8 @@ fn test_zone_scoping_with_multiple_prompts() {
         grid_end: (20, 52),
         content: "https://zone3-url1.com".to_string(),
         source: FocusableSource::Terminal,
-            pane_id: None,
-            generation: 0,
+        pane_id: None,
+        generation: 0,
         screen_position: None,
     });
 
@@ -890,8 +949,8 @@ fn test_zone_scoping_with_multiple_prompts() {
         grid_end: (20, 55),
         content: "https://zone3-url2.com".to_string(),
         source: FocusableSource::Terminal,
-            pane_id: None,
-            generation: 0,
+        pane_id: None,
+        generation: 0,
         screen_position: None,
     });
 
@@ -901,26 +960,29 @@ fn test_zone_scoping_with_multiple_prompts() {
         grid_end: (20, 58),
         content: "https://zone3-url3.com".to_string(),
         source: FocusableSource::Terminal,
-            pane_id: None,
-            generation: 0,
+        pane_id: None,
+        generation: 0,
         screen_position: None,
     });
 
     app.update();
 
     // Test zone detection for each prompt
-    let prompt_markers = app.world().resource::<PromptMarkers>();
-
     // Zone 1 test
-    let zone1 = prompt_markers.current_prompt_zone(15);
-    assert!(zone1.is_some());
-    let (start1, end1) = zone1.unwrap();
-    assert_eq!(start1, 10);
-    assert_eq!(end1, 30); // Next prompt is at line 30
+    let (start1, end1) = {
+        let prompt_markers = app.world().resource::<PromptMarkers>();
+        let zone1 = prompt_markers.current_prompt_zone(15);
+        assert!(zone1.is_some());
+        let (start1, end1) = zone1.unwrap();
+        assert_eq!(start1, 10);
+        assert_eq!(end1, 30); // Next prompt is at line 30
+        (start1, end1)
+    };
 
     // Verify zone 1 contains the right focusables
     let mut query = app.world_mut().query::<&FocusableRegion>();
-    let zone1_focusables: Vec<_> = query.iter(app.world())
+    let zone1_focusables: Vec<_> = query
+        .iter(app.world())
         .filter(|f| {
             let row = f.grid_start.1 as u32;
             row >= start1 && row < end1
@@ -929,13 +991,14 @@ fn test_zone_scoping_with_multiple_prompts() {
     assert_eq!(zone1_focusables.len(), 2, "Zone 1 should have 2 focusables");
 
     // Zone 2 test
-    let zone2 = prompt_markers.current_prompt_zone(35);
+    let zone2 = app.world().resource::<PromptMarkers>().current_prompt_zone(35);
     assert!(zone2.is_some());
     let (start2, end2) = zone2.unwrap();
     assert_eq!(start2, 30);
     assert_eq!(end2, 50);
 
-    let zone2_focusables: Vec<_> = query.iter(app.world())
+    let zone2_focusables: Vec<_> = query
+        .iter(app.world())
         .filter(|f| {
             let row = f.grid_start.1 as u32;
             row >= start2 && row < end2
@@ -950,7 +1013,8 @@ fn test_zone_scoping_with_multiple_prompts() {
     assert_eq!(start3, 50);
     assert_eq!(end3, u32::MAX); // No next prompt, extends to end
 
-    let zone3_focusables: Vec<_> = query.iter(app.world())
+    let zone3_focusables: Vec<_> = query
+        .iter(app.world())
         .filter(|f| {
             let row = f.grid_start.1 as u32;
             row >= start3 && row < end3
@@ -974,41 +1038,53 @@ fn test_full_hint_mode_workflow() {
     app.world_mut().send_event(EnterHintModeEvent);
 
     // 3. Spawn focusables
-    let entity = app.world_mut().spawn((
-        FocusableRegion {
-            region_type: FocusableType::Url,
-            grid_start: (6, 0),
-            grid_end: (26, 0),
-            content: "https://example.com".to_string(),
-            source: FocusableSource::Terminal,
-            pane_id: None,
-            generation: 0,
-            screen_position: Some(Vec2::new(60.0, 0.0)),
-        },
-        NavHint {
-            label: "aa".to_string(),
-            position: Vec2::new(60.0, 0.0),
-            action: NavAction::Open("https://example.com".to_string()),
-        },
-    )).id();
+    let entity = app
+        .world_mut()
+        .spawn((
+            FocusableRegion {
+                region_type: FocusableType::Url,
+                grid_start: (6, 0),
+                grid_end: (26, 0),
+                content: "https://example.com".to_string(),
+                source: FocusableSource::Terminal,
+                pane_id: None,
+                generation: 0,
+                screen_position: Some(Vec2::new(60.0, 0.0)),
+            },
+            NavHint {
+                label: "aa".to_string(),
+                position: Vec2::new(60.0, 0.0),
+                action: NavAction::Open("https://example.com".to_string()),
+            },
+        ))
+        .id();
 
     app.update();
 
     // 4. Type hint filter
-    app.world_mut().resource_mut::<NavState>().hint_filter.push('a');
-    app.world_mut().resource_mut::<NavState>().hint_filter.push('a');
+    app.world_mut()
+        .resource_mut::<NavState>()
+        .hint_filter
+        .push('a');
+    app.world_mut()
+        .resource_mut::<NavState>()
+        .hint_filter
+        .push('a');
 
     // 5. Activate hint (send action event)
-    app.world_mut().send_event(NavActionEvent::new(
-        NavAction::Open("https://example.com".to_string()),
-    ));
+    app.world_mut()
+        .send_event(NavActionEvent::new(NavAction::Open(
+            "https://example.com".to_string(),
+        )));
 
     app.update();
 
     // 6. Exit hint mode
     app.world_mut().resource_mut::<NavState>().current_mode = NavMode::Normal;
     app.world_mut().send_event(ExitHintModeEvent);
-    app.world_mut().resource_mut::<NavState>().clear_hint_filter();
+    app.world_mut()
+        .resource_mut::<NavState>()
+        .clear_hint_filter();
 
     app.update();
 
@@ -1023,16 +1099,19 @@ fn test_coordinate_conversion() {
     let mut app = build_test_app();
 
     // Spawn focusable without screen position
-    let entity = app.world_mut().spawn(FocusableRegion {
-        region_type: FocusableType::Url,
-        grid_start: (10, 5), // Grid position
-        grid_end: (30, 5),
-        content: "https://example.com".to_string(),
-        source: FocusableSource::Terminal,
+    let entity = app
+        .world_mut()
+        .spawn(FocusableRegion {
+            region_type: FocusableType::Url,
+            grid_start: (10, 5), // Grid position
+            grid_end: (30, 5),
+            content: "https://example.com".to_string(),
+            source: FocusableSource::Terminal,
             pane_id: None,
             generation: 0,
-        screen_position: None,
-    }).id();
+            screen_position: None,
+        })
+        .id();
 
     app.update();
 
@@ -1049,7 +1128,11 @@ fn test_coordinate_conversion() {
     app.update();
 
     // Verify coordinate conversion
-    let focusable = app.world().entity(entity).get::<FocusableRegion>().expect("Entity should have FocusableRegion");
+    let focusable = app
+        .world()
+        .entity(entity)
+        .get::<FocusableRegion>()
+        .expect("Entity should have FocusableRegion");
     let metrics = app.world().resource::<TerminalMetrics>();
 
     assert!(focusable.screen_position.is_some());
@@ -1072,7 +1155,9 @@ fn test_registry_creates_state_for_new_pane() {
     assert!(registry.active_pane().is_none());
 
     // Create a new pane state
-    app.world_mut().resource_mut::<NavStateRegistry>().create_for_pane(1);
+    app.world_mut()
+        .resource_mut::<NavStateRegistry>()
+        .create_for_pane(1);
 
     // Verify state was created
     let registry = app.world().resource::<NavStateRegistry>();
@@ -1086,17 +1171,23 @@ fn test_registry_isolates_modes_per_pane() {
     let mut app = build_test_app();
 
     // Create two panes
-    app.world_mut().resource_mut::<NavStateRegistry>().create_for_pane(1);
-    app.world_mut().resource_mut::<NavStateRegistry>().create_for_pane(2);
+    app.world_mut()
+        .resource_mut::<NavStateRegistry>()
+        .create_for_pane(1);
+    app.world_mut()
+        .resource_mut::<NavStateRegistry>()
+        .create_for_pane(2);
 
     // Set pane 1 to Hints mode
-    app.world_mut().resource_mut::<NavStateRegistry>()
+    app.world_mut()
+        .resource_mut::<NavStateRegistry>()
         .get_mut(1)
         .unwrap()
         .current_mode = NavMode::Hints;
 
     // Set pane 2 to Insert mode
-    app.world_mut().resource_mut::<NavStateRegistry>()
+    app.world_mut()
+        .resource_mut::<NavStateRegistry>()
         .get_mut(2)
         .unwrap()
         .current_mode = NavMode::Insert;
@@ -1112,11 +1203,17 @@ fn test_registry_switches_active_pane() {
     let mut app = build_test_app();
 
     // Create two panes
-    app.world_mut().resource_mut::<NavStateRegistry>().create_for_pane(1);
-    app.world_mut().resource_mut::<NavStateRegistry>().create_for_pane(2);
+    app.world_mut()
+        .resource_mut::<NavStateRegistry>()
+        .create_for_pane(1);
+    app.world_mut()
+        .resource_mut::<NavStateRegistry>()
+        .create_for_pane(2);
 
     // Set pane 1 as active
-    app.world_mut().resource_mut::<NavStateRegistry>().set_active_pane(1);
+    app.world_mut()
+        .resource_mut::<NavStateRegistry>()
+        .set_active_pane(1);
 
     {
         let registry = app.world().resource::<NavStateRegistry>();
@@ -1125,13 +1222,16 @@ fn test_registry_switches_active_pane() {
     }
 
     // Set pane 1 to Hints mode
-    app.world_mut().resource_mut::<NavStateRegistry>()
+    app.world_mut()
+        .resource_mut::<NavStateRegistry>()
         .get_active_mut()
         .unwrap()
         .current_mode = NavMode::Hints;
 
     // Switch to pane 2
-    app.world_mut().resource_mut::<NavStateRegistry>().set_active_pane(2);
+    app.world_mut()
+        .resource_mut::<NavStateRegistry>()
+        .set_active_pane(2);
 
     {
         let registry = app.world().resource::<NavStateRegistry>();
@@ -1143,7 +1243,9 @@ fn test_registry_switches_active_pane() {
     }
 
     // Switch back to pane 1
-    app.world_mut().resource_mut::<NavStateRegistry>().set_active_pane(1);
+    app.world_mut()
+        .resource_mut::<NavStateRegistry>()
+        .set_active_pane(1);
 
     {
         let registry = app.world().resource::<NavStateRegistry>();
@@ -1158,12 +1260,20 @@ fn test_registry_cleanup_on_pane_close() {
     let mut app = build_test_app();
 
     // Create three panes
-    app.world_mut().resource_mut::<NavStateRegistry>().create_for_pane(1);
-    app.world_mut().resource_mut::<NavStateRegistry>().create_for_pane(2);
-    app.world_mut().resource_mut::<NavStateRegistry>().create_for_pane(3);
+    app.world_mut()
+        .resource_mut::<NavStateRegistry>()
+        .create_for_pane(1);
+    app.world_mut()
+        .resource_mut::<NavStateRegistry>()
+        .create_for_pane(2);
+    app.world_mut()
+        .resource_mut::<NavStateRegistry>()
+        .create_for_pane(3);
 
     // Set pane 2 as active
-    app.world_mut().resource_mut::<NavStateRegistry>().set_active_pane(2);
+    app.world_mut()
+        .resource_mut::<NavStateRegistry>()
+        .set_active_pane(2);
 
     {
         let registry = app.world().resource::<NavStateRegistry>();
@@ -1172,7 +1282,9 @@ fn test_registry_cleanup_on_pane_close() {
     }
 
     // Close pane 1 (not active)
-    app.world_mut().resource_mut::<NavStateRegistry>().remove_pane(1);
+    app.world_mut()
+        .resource_mut::<NavStateRegistry>()
+        .remove_pane(1);
 
     {
         let registry = app.world().resource::<NavStateRegistry>();
@@ -1182,7 +1294,9 @@ fn test_registry_cleanup_on_pane_close() {
     }
 
     // Close pane 2 (active)
-    app.world_mut().resource_mut::<NavStateRegistry>().remove_pane(2);
+    app.world_mut()
+        .resource_mut::<NavStateRegistry>()
+        .remove_pane(2);
 
     {
         let registry = app.world().resource::<NavStateRegistry>();
@@ -1197,17 +1311,23 @@ fn test_registry_hint_filter_isolation() {
     let mut app = build_test_app();
 
     // Create two panes
-    app.world_mut().resource_mut::<NavStateRegistry>().create_for_pane(1);
-    app.world_mut().resource_mut::<NavStateRegistry>().create_for_pane(2);
+    app.world_mut()
+        .resource_mut::<NavStateRegistry>()
+        .create_for_pane(1);
+    app.world_mut()
+        .resource_mut::<NavStateRegistry>()
+        .create_for_pane(2);
 
     // Set pane 1 hint filter
-    app.world_mut().resource_mut::<NavStateRegistry>()
+    app.world_mut()
+        .resource_mut::<NavStateRegistry>()
         .get_mut(1)
         .unwrap()
         .hint_filter = "abc".to_string();
 
     // Set pane 2 hint filter
-    app.world_mut().resource_mut::<NavStateRegistry>()
+    app.world_mut()
+        .resource_mut::<NavStateRegistry>()
         .get_mut(2)
         .unwrap()
         .hint_filter = "xyz".to_string();
@@ -1223,26 +1343,33 @@ fn test_registry_focus_history_isolation() {
     let mut app = build_test_app();
 
     // Create two panes
-    app.world_mut().resource_mut::<NavStateRegistry>().create_for_pane(1);
-    app.world_mut().resource_mut::<NavStateRegistry>().create_for_pane(2);
+    app.world_mut()
+        .resource_mut::<NavStateRegistry>()
+        .create_for_pane(1);
+    app.world_mut()
+        .resource_mut::<NavStateRegistry>()
+        .create_for_pane(2);
 
     let entity1 = app.world_mut().spawn_empty().id();
     let entity2 = app.world_mut().spawn_empty().id();
     let entity3 = app.world_mut().spawn_empty().id();
 
     // Record focus in pane 1
-    app.world_mut().resource_mut::<NavStateRegistry>()
+    app.world_mut()
+        .resource_mut::<NavStateRegistry>()
         .get_mut(1)
         .unwrap()
         .record_focus(entity1);
 
-    app.world_mut().resource_mut::<NavStateRegistry>()
+    app.world_mut()
+        .resource_mut::<NavStateRegistry>()
         .get_mut(1)
         .unwrap()
         .record_focus(entity2);
 
     // Record different focus in pane 2
-    app.world_mut().resource_mut::<NavStateRegistry>()
+    app.world_mut()
+        .resource_mut::<NavStateRegistry>()
         .get_mut(2)
         .unwrap()
         .record_focus(entity3);
@@ -1265,22 +1392,29 @@ fn test_registry_mode_stack_isolation() {
     let mut app = build_test_app();
 
     // Create two panes
-    app.world_mut().resource_mut::<NavStateRegistry>().create_for_pane(1);
-    app.world_mut().resource_mut::<NavStateRegistry>().create_for_pane(2);
+    app.world_mut()
+        .resource_mut::<NavStateRegistry>()
+        .create_for_pane(1);
+    app.world_mut()
+        .resource_mut::<NavStateRegistry>()
+        .create_for_pane(2);
 
     // Push modes for pane 1
-    app.world_mut().resource_mut::<NavStateRegistry>()
+    app.world_mut()
+        .resource_mut::<NavStateRegistry>()
         .get_mut(1)
         .unwrap()
         .push_mode(NavMode::Hints);
 
-    app.world_mut().resource_mut::<NavStateRegistry>()
+    app.world_mut()
+        .resource_mut::<NavStateRegistry>()
         .get_mut(1)
         .unwrap()
         .push_mode(NavMode::CommandPalette);
 
     // Push different mode for pane 2
-    app.world_mut().resource_mut::<NavStateRegistry>()
+    app.world_mut()
+        .resource_mut::<NavStateRegistry>()
         .get_mut(2)
         .unwrap()
         .push_mode(NavMode::Insert);
@@ -1302,8 +1436,8 @@ fn test_registry_mode_stack_isolation() {
 
 #[test]
 fn test_pane_lifecycle_integration() {
+    use crate::events::{PaneClosedEvent, PaneCreatedEvent, PaneFocusedEvent};
     use scarab_plugin_api::object_model::{ObjectHandle, ObjectType};
-    use crate::events::{PaneCreatedEvent, PaneFocusedEvent, PaneClosedEvent};
 
     let mut app = build_test_app();
 
@@ -1353,7 +1487,8 @@ fn test_pane_lifecycle_integration() {
     app.update();
 
     // Put first pane in Hints mode before switching
-    app.world_mut().resource_mut::<NavStateRegistry>()
+    app.world_mut()
+        .resource_mut::<NavStateRegistry>()
         .get_mut(1)
         .unwrap()
         .current_mode = NavMode::Hints;
@@ -1529,64 +1664,74 @@ fn test_plugin_focusables_in_hint_mode() {
     app.update();
 
     // Register 3 focusables via plugin action (simulated)
-    let focusable1 = app.world_mut().spawn((
-        FocusableRegion {
-            region_type: FocusableType::Widget,
-            grid_start: (10, 5),
-            grid_end: (20, 5),
-            content: "Button 1".to_string(),
-            source: FocusableSource::Ratatui,
-            pane_id: None,
-            generation: 0,
-            screen_position: Some(Vec2::new(100.0, 50.0)),
-        },
-        NavHint {
-            label: "aa".to_string(),
-            position: Vec2::new(100.0, 50.0),
-            action: NavAction::Click(10, 5),
-        },
-    )).id();
+    let focusable1 = app
+        .world_mut()
+        .spawn((
+            FocusableRegion {
+                region_type: FocusableType::Widget,
+                grid_start: (10, 5),
+                grid_end: (20, 5),
+                content: "Button 1".to_string(),
+                source: FocusableSource::Ratatui,
+                pane_id: None,
+                generation: 0,
+                screen_position: Some(Vec2::new(100.0, 50.0)),
+            },
+            NavHint {
+                label: "aa".to_string(),
+                position: Vec2::new(100.0, 50.0),
+                action: NavAction::Click(10, 5),
+            },
+        ))
+        .id();
 
-    let focusable2 = app.world_mut().spawn((
-        FocusableRegion {
-            region_type: FocusableType::Widget,
-            grid_start: (10, 10),
-            grid_end: (20, 10),
-            content: "Button 2".to_string(),
-            source: FocusableSource::Ratatui,
-            pane_id: None,
-            generation: 0,
-            screen_position: Some(Vec2::new(100.0, 100.0)),
-        },
-        NavHint {
-            label: "ab".to_string(),
-            position: Vec2::new(100.0, 100.0),
-            action: NavAction::Click(10, 10),
-        },
-    )).id();
+    let focusable2 = app
+        .world_mut()
+        .spawn((
+            FocusableRegion {
+                region_type: FocusableType::Widget,
+                grid_start: (10, 10),
+                grid_end: (20, 10),
+                content: "Button 2".to_string(),
+                source: FocusableSource::Ratatui,
+                pane_id: None,
+                generation: 0,
+                screen_position: Some(Vec2::new(100.0, 100.0)),
+            },
+            NavHint {
+                label: "ab".to_string(),
+                position: Vec2::new(100.0, 100.0),
+                action: NavAction::Click(10, 10),
+            },
+        ))
+        .id();
 
-    let focusable3 = app.world_mut().spawn((
-        FocusableRegion {
-            region_type: FocusableType::Widget,
-            grid_start: (10, 15),
-            grid_end: (20, 15),
-            content: "Button 3".to_string(),
-            source: FocusableSource::Ratatui,
-            pane_id: None,
-            generation: 0,
-            screen_position: Some(Vec2::new(100.0, 150.0)),
-        },
-        NavHint {
-            label: "ac".to_string(),
-            position: Vec2::new(100.0, 150.0),
-            action: NavAction::Click(10, 15),
-        },
-    )).id();
+    let focusable3 = app
+        .world_mut()
+        .spawn((
+            FocusableRegion {
+                region_type: FocusableType::Widget,
+                grid_start: (10, 15),
+                grid_end: (20, 15),
+                content: "Button 3".to_string(),
+                source: FocusableSource::Ratatui,
+                pane_id: None,
+                generation: 0,
+                screen_position: Some(Vec2::new(100.0, 150.0)),
+            },
+            NavHint {
+                label: "ac".to_string(),
+                position: Vec2::new(100.0, 150.0),
+                action: NavAction::Click(10, 15),
+            },
+        ))
+        .id();
 
     app.update();
 
     // Enter Hint mode
-    app.world_mut().resource_mut::<NavStateRegistry>()
+    app.world_mut()
+        .resource_mut::<NavStateRegistry>()
         .get_active_mut()
         .unwrap()
         .current_mode = NavMode::Hints;
@@ -1613,9 +1758,8 @@ fn test_plugin_focusables_in_hint_mode() {
         assert_eq!(row, 10);
 
         // Send action event
-        app.world_mut().send_event(NavActionEvent::new(
-            NavAction::Click(col, row)
-        ));
+        app.world_mut()
+            .send_event(NavActionEvent::new(NavAction::Click(col, row)));
 
         app.update();
 
@@ -1799,9 +1943,7 @@ fn test_rapid_pane_switching_no_race() {
 
     // Add focus history to each pane
     for pane_id in 1..=3 {
-        let entities: Vec<Entity> = (0..5)
-            .map(|_| app.world_mut().spawn_empty().id())
-            .collect();
+        let entities: Vec<Entity> = (0..5).map(|_| app.world_mut().spawn_empty().id()).collect();
 
         let mut registry = app.world_mut().resource_mut::<NavStateRegistry>();
         let state = registry.get_mut(pane_id).unwrap();
@@ -1815,7 +1957,10 @@ fn test_rapid_pane_switching_no_race() {
         let registry = app.world().resource::<NavStateRegistry>();
         assert_eq!(registry.get(1).unwrap().current_mode, NavMode::Hints);
         assert_eq!(registry.get(2).unwrap().current_mode, NavMode::Insert);
-        assert_eq!(registry.get(3).unwrap().current_mode, NavMode::CommandPalette);
+        assert_eq!(
+            registry.get(3).unwrap().current_mode,
+            NavMode::CommandPalette
+        );
         assert_eq!(registry.get(1).unwrap().focus_history.len(), 5);
         assert_eq!(registry.get(2).unwrap().focus_history.len(), 5);
         assert_eq!(registry.get(3).unwrap().focus_history.len(), 5);
@@ -1872,8 +2017,8 @@ fn test_rapid_pane_switching_no_race() {
 
 #[test]
 fn test_pane_close_clears_focusables() {
-    use scarab_plugin_api::object_model::{ObjectHandle, ObjectType};
     use crate::navigation::focusable::FocusableGeneration;
+    use scarab_plugin_api::object_model::{ObjectHandle, ObjectType};
 
     let mut app = build_test_app();
 
@@ -1970,7 +2115,11 @@ fn test_pane_close_clears_focusables() {
     {
         let mut query = app.world_mut().query::<&FocusableRegion>();
         let focusables: Vec<_> = query.iter(app.world()).collect();
-        assert_eq!(focusables.len(), 1, "Should only have 1 focusable remaining (from Pane 2)");
+        assert_eq!(
+            focusables.len(),
+            1,
+            "Should only have 1 focusable remaining (from Pane 2)"
+        );
         assert_eq!(focusables[0].content, "https://pane2.com");
         assert_eq!(focusables[0].pane_id, Some(2));
     }
@@ -1985,9 +2134,9 @@ fn test_pane_close_clears_focusables() {
 
 #[test]
 fn test_pane_close_clears_hints() {
-    use scarab_plugin_api::object_model::{ObjectHandle, ObjectType};
     use crate::navigation::focusable::FocusableGeneration;
     use crate::rendering::hint_overlay::HintOverlay;
+    use scarab_plugin_api::object_model::{ObjectHandle, ObjectType};
 
     let mut app = build_test_app();
 
@@ -2017,17 +2166,23 @@ fn test_pane_close_clears_hints() {
     app.update();
 
     // Spawn hint overlays (simulating hint mode)
-    let hint1 = app.world_mut().spawn(HintOverlay {
-        label: "aa".to_string(),
-        position: Vec2::new(100.0, 100.0),
-        ..Default::default()
-    }).id();
+    let hint1 = app
+        .world_mut()
+        .spawn(HintOverlay {
+            label: "aa".to_string(),
+            position: Vec2::new(100.0, 100.0),
+            ..Default::default()
+        })
+        .id();
 
-    let hint2 = app.world_mut().spawn(HintOverlay {
-        label: "ab".to_string(),
-        position: Vec2::new(200.0, 200.0),
-        ..Default::default()
-    }).id();
+    let hint2 = app
+        .world_mut()
+        .spawn(HintOverlay {
+            label: "ab".to_string(),
+            position: Vec2::new(200.0, 200.0),
+            ..Default::default()
+        })
+        .id();
 
     app.update();
 
@@ -2057,7 +2212,7 @@ fn test_pane_close_clears_hints() {
 
 #[test]
 fn test_stale_focusables_detection() {
-    use crate::navigation::focusable::{FocusableGeneration, detect_stale_focusables};
+    use crate::navigation::focusable::{detect_stale_focusables, FocusableGeneration};
 
     let mut app = build_test_app();
 

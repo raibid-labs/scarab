@@ -145,7 +145,11 @@ impl KeyBinding {
                 "Super" | "Meta" | "Win" | "Cmd" => modifiers.push(Modifier::Super),
                 key => {
                     if key_part.is_some() {
-                        return Err(format!("Multiple keys specified: {} and {}", key_part.unwrap(), key));
+                        return Err(format!(
+                            "Multiple keys specified: {} and {}",
+                            key_part.unwrap(),
+                            key
+                        ));
                     }
                     key_part = Some(key);
                 }
@@ -331,11 +335,17 @@ impl NavInputRouter {
     }
 
     /// Create a router from configuration
-    /// TODO: Implement once scarab_config::NavConfig is available
     #[allow(dead_code)]
-    pub fn from_config(_config: &str) -> Self {
-        // Placeholder - config integration pending
-        Self::default()
+    pub fn from_config(config: &scarab_config::NavConfig) -> Self {
+        let style = match config.style {
+            scarab_config::NavStyle::Vimium => NavStyle::VimiumStyle,
+            scarab_config::NavStyle::Cosmos => NavStyle::CosmosStyle,
+            scarab_config::NavStyle::Spacemacs => NavStyle::SpacemacsStyle,
+        };
+
+        let mut router = Self::new(style);
+        router.apply_custom_bindings(&config.keybindings);
+        router
     }
 
     /// Apply custom keybinding overrides from config
@@ -352,11 +362,16 @@ impl NavInputRouter {
                             bindings.retain(|b| b.action != action);
                             // Add the new custom binding
                             bindings.push(new_binding);
-                            info!("Applied custom keybinding: {} -> {}", action_name, key_string);
+                            info!(
+                                "Applied custom keybinding: {} -> {}",
+                                action_name, key_string
+                            );
                         }
                         Err(e) => {
-                            warn!("Failed to parse keybinding '{}' for action '{}': {}",
-                                  key_string, action_name, e);
+                            warn!(
+                                "Failed to parse keybinding '{}' for action '{}': {}",
+                                key_string, action_name, e
+                            );
                         }
                     }
                 } else {
@@ -428,8 +443,7 @@ impl NavInputRouter {
             KeyBinding::new(KeyCode::Escape, NavAction::CopyModeExit).in_mode(NavMode::Copy),
             // Search
             KeyBinding::new(KeyCode::Slash, NavAction::EnterSearchMode).with_ctrl(),
-            KeyBinding::new(KeyCode::KeyN, NavAction::NextSearchMatch)
-                .in_mode(NavMode::Search),
+            KeyBinding::new(KeyCode::KeyN, NavAction::NextSearchMatch).in_mode(NavMode::Search),
             KeyBinding::new(KeyCode::KeyN, NavAction::PrevSearchMatch)
                 .with_shift()
                 .in_mode(NavMode::Search),
@@ -830,6 +844,8 @@ mod tests {
         let config = scarab_config::NavConfig {
             style: scarab_config::NavStyle::Vimium,
             keybindings: std::collections::HashMap::new(),
+            allow_plugin_hint_mode: true,
+            allow_plugin_focusables: true,
         };
 
         let router = NavInputRouter::from_config(&config);
@@ -842,6 +858,8 @@ mod tests {
         let config = scarab_config::NavConfig {
             style: scarab_config::NavStyle::Cosmos,
             keybindings: std::collections::HashMap::new(),
+            allow_plugin_hint_mode: true,
+            allow_plugin_focusables: true,
         };
 
         let router = NavInputRouter::from_config(&config);
@@ -857,6 +875,8 @@ mod tests {
         let config = scarab_config::NavConfig {
             style: scarab_config::NavStyle::Vimium,
             keybindings: custom_bindings,
+            allow_plugin_hint_mode: true,
+            allow_plugin_focusables: true,
         };
 
         let router = NavInputRouter::from_config(&config);

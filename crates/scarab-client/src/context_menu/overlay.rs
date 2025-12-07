@@ -25,7 +25,10 @@ pub struct ContextMenuOverlay;
 pub fn render_context_menu(
     state: Res<ContextMenuState>,
     mut buffers: ResMut<SurfaceBuffers>,
-    mut surfaces: Query<(Entity, &mut crate::ratatui_bridge::RatatuiSurface), With<ContextMenuSurface>>,
+    mut surfaces: Query<
+        (Entity, &mut crate::ratatui_bridge::RatatuiSurface),
+        With<ContextMenuSurface>,
+    >,
 ) {
     let Ok((entity, mut surface)) = surfaces.get_single_mut() else {
         return;
@@ -156,10 +159,7 @@ mod tests {
 
     #[test]
     fn test_menu_with_url() {
-        let menu = ContextMenu::url_menu(
-            Position::new(5, 5),
-            "https://example.com".to_string(),
-        );
+        let menu = ContextMenu::url_menu(Position::new(5, 5), "https://example.com".to_string());
 
         // Should have URL-specific items
         assert!(menu.get_item("open_url").is_some());

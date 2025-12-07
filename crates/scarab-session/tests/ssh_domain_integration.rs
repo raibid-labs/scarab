@@ -234,7 +234,10 @@ async fn test_ssh_domain_connect_local() {
             domain.close_pane(&handle).await.unwrap();
         }
         Err(e) => {
-            eprintln!("SSH connection failed (this is expected if SSH server not set up): {}", e);
+            eprintln!(
+                "SSH connection failed (this is expected if SSH server not set up): {}",
+                e
+            );
             // Don't fail the test, just skip
         }
     }
@@ -305,10 +308,7 @@ async fn test_cross_domain_operations() {
     registry.register(ssh.clone());
 
     // Spawn panes in both domains
-    let local_handle = local
-        .spawn_pane(PaneConfig::default())
-        .await
-        .unwrap();
+    let local_handle = local.spawn_pane(PaneConfig::default()).await.unwrap();
 
     // Note: SSH pane won't actually connect without a server,
     // but we can test the registry lookup

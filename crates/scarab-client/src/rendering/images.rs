@@ -295,7 +295,7 @@ pub fn load_images_system(
                 // Raw RGBA data - decode directly
                 decode_rgba(
                     data,
-                    placement.width_cells as u32 * 10,  // Estimate pixel width
+                    placement.width_cells as u32 * 10, // Estimate pixel width
                     placement.height_cells as u32 * 20, // Estimate pixel height
                 )
             }
@@ -403,8 +403,15 @@ pub fn render_images_system(
 
             debug!(
                 "Rendering image {} at ({}, {}) with size {}x{} (grid: {},{} cells: {}x{})",
-                placement.id, x, y, width, height, placement.x, placement.y,
-                placement.width_cells, placement.height_cells
+                placement.id,
+                x,
+                y,
+                width,
+                height,
+                placement.x,
+                placement.y,
+                placement.width_cells,
+                placement.height_cells
             );
 
             // Spawn sprite with anchor at top-left
@@ -417,9 +424,7 @@ pub fn render_images_system(
                     ..default()
                 },
                 Transform::from_xyz(x, -y, LAYER_IMAGES),
-                ImagePlacementComponent {
-                    id: placement.id,
-                },
+                ImagePlacementComponent { id: placement.id },
             ));
         }
     }

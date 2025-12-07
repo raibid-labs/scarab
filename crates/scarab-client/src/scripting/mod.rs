@@ -40,7 +40,11 @@ impl Plugin for ScriptingPlugin {
             .add_event::<ScriptEvent>()
             .add_systems(
                 Startup,
-                (context::initialize_context, initialize_scripting, execute_startup_scripts)
+                (
+                    context::initialize_context,
+                    initialize_scripting,
+                    execute_startup_scripts,
+                )
                     .chain(),
             )
             .add_systems(
@@ -106,10 +110,7 @@ fn execute_scripts_on_window_resize(
 }
 
 /// Handle script-generated events
-fn handle_script_events(
-    mut events: EventReader<ScriptEvent>,
-    mut manager: ResMut<ScriptManager>,
-) {
+fn handle_script_events(mut events: EventReader<ScriptEvent>, mut manager: ResMut<ScriptManager>) {
     for event in events.read() {
         if let Err(e) = manager.handle_event(event) {
             error!("Failed to handle script event: {}", e);
@@ -118,10 +119,7 @@ fn handle_script_events(
 }
 
 /// Display script errors in the UI
-fn display_script_errors(
-    errors: Res<ScriptErrorDisplay>,
-    window: Query<&Window>,
-) {
+fn display_script_errors(errors: Res<ScriptErrorDisplay>, window: Query<&Window>) {
     if !errors.visible {
         return;
     }

@@ -1,10 +1,6 @@
 //! TOML format handler
 
-use crate::{
-    error::ThemeResult,
-    format::FormatHandler,
-    theme::Theme,
-};
+use crate::{error::ThemeResult, format::FormatHandler, theme::Theme};
 
 pub struct TomlFormat;
 

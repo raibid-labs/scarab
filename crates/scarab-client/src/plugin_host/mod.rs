@@ -36,10 +36,13 @@ mod registry;
 
 pub use registry::*;
 
-use bevy::prelude::*;
 use crate::events::{NavFocusableAction, NotificationLevel, PluginAction, PluginResponse};
-use crate::navigation::{EnterHintModeEvent, ExitHintModeEvent, FocusableRegion, FocusableType, FocusableSource, NavAction};
+use crate::navigation::{
+    EnterHintModeEvent, ExitHintModeEvent, FocusableRegion, FocusableSource, FocusableType,
+    NavAction,
+};
 use crate::ratatui_bridge::RatatuiSurface;
+use bevy::prelude::*;
 
 /// Plugin providing ECS-safe plugin hosting capabilities
 ///
@@ -67,15 +70,14 @@ pub struct ScarabPluginHostPlugin;
 
 impl Plugin for ScarabPluginHostPlugin {
     fn build(&self, app: &mut App) {
-        app.init_resource::<PluginRegistry>()
-            .add_systems(
-                Update,
-                (
-                    process_plugin_actions,
-                    cleanup_expired_notifications,
-                    cleanup_removed_overlays,
-                ),
-            );
+        app.init_resource::<PluginRegistry>().add_systems(
+            Update,
+            (
+                process_plugin_actions,
+                cleanup_expired_notifications,
+                cleanup_removed_overlays,
+            ),
+        );
 
         info!("ScarabPluginHostPlugin initialized");
     }
@@ -248,10 +250,7 @@ fn process_plugin_actions(
                 // PluginStatusItem components
             }
 
-            PluginAction::RemoveStatusItem {
-                plugin_id,
-                item_id,
-            } => {
+            PluginAction::RemoveStatusItem { plugin_id, item_id } => {
                 info!(
                     plugin_id = %plugin_id,
                     item_id = item_id,
@@ -326,7 +325,10 @@ fn process_plugin_actions(
                 // This requires access to the IPC channel
             }
 
-            PluginAction::UpdateTheme { plugin_id, theme_json: _ } => {
+            PluginAction::UpdateTheme {
+                plugin_id,
+                theme_json: _,
+            } => {
                 debug!(
                     plugin_id = %plugin_id,
                     "Plugin updating theme"
@@ -335,7 +337,11 @@ fn process_plugin_actions(
                 // TODO: Parse theme JSON and apply to renderer
             }
 
-            PluginAction::ShowModal { plugin_id, title, items } => {
+            PluginAction::ShowModal {
+                plugin_id,
+                title,
+                items,
+            } => {
                 debug!(
                     plugin_id = %plugin_id,
                     title = %title,
@@ -445,8 +451,8 @@ fn process_plugin_actions(
                     content: label.clone(),
                     source: FocusableSource::Ratatui, // Mark as plugin/UI source
                     screen_position: None, // Will be calculated by bounds_to_world_coords
-                    pane_id: None, // TODO: Track pane_id for plugin focusables
-                    generation: 0, // Plugin focusables don't use generation tracking
+                    pane_id: None,         // TODO: Track pane_id for plugin focusables
+                    generation: 0,         // Plugin focusables don't use generation tracking
                 });
 
                 // Track in registry (store as overlay for lifecycle management)
@@ -575,16 +581,15 @@ mod tests {
         drop(registry);
 
         // Send spawn overlay action
-        app.world_mut()
-            .send_event(PluginAction::SpawnOverlay {
-                plugin_id: "test.plugin".to_string(),
-                x: 10,
-                y: 20,
-                width: 80,
-                height: 24,
-                content: "Test overlay".to_string(),
-                z_index: 100.0,
-            });
+        app.world_mut().send_event(PluginAction::SpawnOverlay {
+            plugin_id: "test.plugin".to_string(),
+            x: 10,
+            y: 20,
+            width: 80,
+            height: 24,
+            content: "Test overlay".to_string(),
+            z_index: 100.0,
+        });
 
         // Run systems
         app.update();
@@ -636,16 +641,15 @@ mod tests {
         drop(registry);
 
         // Send spawn overlay action (should be rejected)
-        app.world_mut()
-            .send_event(PluginAction::SpawnOverlay {
-                plugin_id: "test.plugin".to_string(),
-                x: 10,
-                y: 20,
-                width: 80,
-                height: 24,
-                content: "Test overlay".to_string(),
-                z_index: 100.0,
-            });
+        app.world_mut().send_event(PluginAction::SpawnOverlay {
+            plugin_id: "test.plugin".to_string(),
+            x: 10,
+            y: 20,
+            width: 80,
+            height: 24,
+            content: "Test overlay".to_string(),
+            z_index: 100.0,
+        });
 
         // Run systems
         app.update();
@@ -665,7 +669,9 @@ mod tests {
         assert_eq!(responses.len(), 1);
 
         match &responses[0] {
-            PluginResponse::Error { plugin_id, message, .. } => {
+            PluginResponse::Error {
+                plugin_id, message, ..
+            } => {
                 assert_eq!(plugin_id, "test.plugin");
                 assert_eq!(message, "Plugin is disabled");
             }
@@ -726,10 +732,9 @@ mod tests {
         drop(registry);
 
         // Send NavEnterHintMode action
-        app.world_mut()
-            .send_event(PluginAction::NavEnterHintMode {
-                plugin_id: "test.plugin".to_string(),
-            });
+        app.world_mut().send_event(PluginAction::NavEnterHintMode {
+            plugin_id: "test.plugin".to_string(),
+        });
 
         // Run systems
         app.update();
@@ -844,10 +849,9 @@ mod tests {
         drop(registry);
 
         // Send NavExitMode action
-        app.world_mut()
-            .send_event(PluginAction::NavExitMode {
-                plugin_id: "test.plugin".to_string(),
-            });
+        app.world_mut().send_event(PluginAction::NavExitMode {
+            plugin_id: "test.plugin".to_string(),
+        });
 
         // Run systems
         app.update();
@@ -893,10 +897,9 @@ mod tests {
         drop(registry);
 
         // Send NavEnterHintMode action (should be rejected)
-        app.world_mut()
-            .send_event(PluginAction::NavEnterHintMode {
-                plugin_id: "test.plugin".to_string(),
-            });
+        app.world_mut().send_event(PluginAction::NavEnterHintMode {
+            plugin_id: "test.plugin".to_string(),
+        });
 
         // Run systems
         app.update();
@@ -908,7 +911,9 @@ mod tests {
         assert_eq!(responses.len(), 1);
 
         match &responses[0] {
-            PluginResponse::Error { plugin_id, message, .. } => {
+            PluginResponse::Error {
+                plugin_id, message, ..
+            } => {
                 assert_eq!(plugin_id, "test.plugin");
                 assert_eq!(message, "Plugin is disabled");
             }

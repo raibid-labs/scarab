@@ -5,7 +5,7 @@
 //! F# DSL that allows dynamic configuration, hooks, and validation.
 
 use crate::{config::*, error::*};
-use fusabi_frontend::{Lexer, Parser, Compiler};
+use fusabi_frontend::{Compiler, Lexer, Parser};
 use fusabi_vm::{Value, Vm};
 use std::collections::HashMap;
 use std::path::Path;
@@ -24,18 +24,17 @@ impl FusabiConfigLoader {
     pub fn from_source(source: &str) -> Result<ScarabConfig> {
         // Compile the Fusabi source manually to ensure proper program structure
         let mut lexer = Lexer::new(source);
-        let tokens = lexer.tokenize().map_err(|e| {
-            ConfigError::FusabiCompileError(format!("Lexer error: {:?}", e))
-        })?;
+        let tokens = lexer
+            .tokenize()
+            .map_err(|e| ConfigError::FusabiCompileError(format!("Lexer error: {:?}", e)))?;
 
         let mut parser = Parser::new(tokens);
-        let program = parser.parse_program().map_err(|e| {
-            ConfigError::FusabiCompileError(format!("Parser error: {:?}", e))
-        })?;
+        let program = parser
+            .parse_program()
+            .map_err(|e| ConfigError::FusabiCompileError(format!("Parser error: {:?}", e)))?;
 
-        let chunk = Compiler::compile_program(&program).map_err(|e| {
-            ConfigError::FusabiCompileError(format!("Compiler error: {:?}", e))
-        })?;
+        let chunk = Compiler::compile_program(&program)
+            .map_err(|e| ConfigError::FusabiCompileError(format!("Compiler error: {:?}", e)))?;
 
         // Execute the compiled config
         let mut vm = Vm::new();
@@ -80,15 +79,17 @@ impl FusabiConfigLoader {
     /// 2. Fall back to default config
     pub fn load_with_fallback() -> Result<ScarabConfig> {
         let home = std::env::var("HOME").unwrap_or_else(|_| ".".to_string());
-        let config_path = std::path::PathBuf::from(home)
-            .join(".config/scarab/config.fsx");
+        let config_path = std::path::PathBuf::from(home).join(".config/scarab/config.fsx");
 
         if config_path.exists() {
             println!("Loading Fusabi config from: {}", config_path.display());
             Self::from_file(config_path)
         } else {
             println!("No Fusabi config found, using defaults");
-            println!("Create {} to customize your terminal", config_path.display());
+            println!(
+                "Create {} to customize your terminal",
+                config_path.display()
+            );
             Ok(ScarabConfig::default())
         }
     }
@@ -111,13 +112,27 @@ impl FusabiConfigLoader {
         if let Value::Record(map) = val {
             let map = map.lock().unwrap();
             // println!("Terminal map keys: {:?}", map.keys());
-            if let Some(s) = get_string(&map, "DefaultShell") { config.default_shell = s; }
-            if let Some(i) = get_int(&map, "ScrollbackLines") { config.scrollback_lines = i as u32; }
-            if let Some(b) = get_bool(&map, "AltScreen") { config.alt_screen = b; }
-            if let Some(f) = get_float(&map, "ScrollMultiplier") { config.scroll_multiplier = f as f32; }
-            if let Some(b) = get_bool(&map, "AutoScroll") { config.auto_scroll = b; }
-            if let Some(i) = get_int(&map, "Columns") { config.columns = i as u16; }
-            if let Some(i) = get_int(&map, "Rows") { config.rows = i as u16; }
+            if let Some(s) = get_string(&map, "DefaultShell") {
+                config.default_shell = s;
+            }
+            if let Some(i) = get_int(&map, "ScrollbackLines") {
+                config.scrollback_lines = i as u32;
+            }
+            if let Some(b) = get_bool(&map, "AltScreen") {
+                config.alt_screen = b;
+            }
+            if let Some(f) = get_float(&map, "ScrollMultiplier") {
+                config.scroll_multiplier = f as f32;
+            }
+            if let Some(b) = get_bool(&map, "AutoScroll") {
+                config.auto_scroll = b;
+            }
+            if let Some(i) = get_int(&map, "Columns") {
+                config.columns = i as u16;
+            }
+            if let Some(i) = get_int(&map, "Rows") {
+                config.rows = i as u16;
+            }
         }
 
         Ok(config)
@@ -134,22 +149,32 @@ impl FusabiConfigLoader {
 
         if let Value::Record(map) = val {
             let map = map.lock().unwrap();
-            if let Some(s) = get_string(&map, "Family") { config.family = s; }
-            if let Some(f) = get_float(&map, "Size") { config.size = f as f32; }
-            if let Some(f) = get_float(&map, "LineHeight") { config.line_height = f as f32; }
-            if let Some(b) = get_bool(&map, "BoldIsBright") { config.bold_is_bright = b; }
-            if let Some(b) = get_bool(&map, "UseThinStrokes") { config.use_thin_strokes = b; }
+            if let Some(s) = get_string(&map, "Family") {
+                config.family = s;
+            }
+            if let Some(f) = get_float(&map, "Size") {
+                config.size = f as f32;
+            }
+            if let Some(f) = get_float(&map, "LineHeight") {
+                config.line_height = f as f32;
+            }
+            if let Some(b) = get_bool(&map, "BoldIsBright") {
+                config.bold_is_bright = b;
+            }
+            if let Some(b) = get_bool(&map, "UseThinStrokes") {
+                config.use_thin_strokes = b;
+            }
 
             if let Some(Value::Tuple(vec)) = map.get("Fallback") {
-                 let mut fallback = Vec::new();
-                 for v in vec {
-                     if let Value::Str(s) = v {
-                         fallback.push(s.to_string());
-                     }
-                 }
-                 if !fallback.is_empty() {
-                     config.fallback = fallback;
-                 }
+                let mut fallback = Vec::new();
+                for v in vec {
+                    if let Value::Str(s) = v {
+                        fallback.push(s.to_string());
+                    }
+                }
+                if !fallback.is_empty() {
+                    config.fallback = fallback;
+                }
             }
         }
 
@@ -167,39 +192,87 @@ impl FusabiConfigLoader {
 
         if let Value::Record(map) = val {
             let map = map.lock().unwrap();
-            if let Some(s) = get_string(&map, "Theme") { config.theme = Some(s); }
-            if let Some(f) = get_float(&map, "Opacity") { config.opacity = f as f32; }
-            if let Some(f) = get_float(&map, "DimOpacity") { config.dim_opacity = f as f32; }
+            if let Some(s) = get_string(&map, "Theme") {
+                config.theme = Some(s);
+            }
+            if let Some(f) = get_float(&map, "Opacity") {
+                config.opacity = f as f32;
+            }
+            if let Some(f) = get_float(&map, "DimOpacity") {
+                config.dim_opacity = f as f32;
+            }
 
             // Optional overrides
-            if let Some(s) = get_string(&map, "Foreground") { config.foreground = Some(s); }
-            if let Some(s) = get_string(&map, "Background") { config.background = Some(s); }
-            if let Some(s) = get_string(&map, "Cursor") { config.cursor = Some(s); }
-            if let Some(s) = get_string(&map, "SelectionBackground") { config.selection_background = Some(s); }
-            if let Some(s) = get_string(&map, "SelectionForeground") { config.selection_foreground = Some(s); }
+            if let Some(s) = get_string(&map, "Foreground") {
+                config.foreground = Some(s);
+            }
+            if let Some(s) = get_string(&map, "Background") {
+                config.background = Some(s);
+            }
+            if let Some(s) = get_string(&map, "Cursor") {
+                config.cursor = Some(s);
+            }
+            if let Some(s) = get_string(&map, "SelectionBackground") {
+                config.selection_background = Some(s);
+            }
+            if let Some(s) = get_string(&map, "SelectionForeground") {
+                config.selection_foreground = Some(s);
+            }
 
             // Palette (nested record)
             if let Some(Value::Record(palette_map)) = map.get("Palette") {
                 let p_map = palette_map.lock().unwrap();
                 let p = &mut config.palette;
 
-                if let Some(s) = get_string(&p_map, "Black") { p.black = s; }
-                if let Some(s) = get_string(&p_map, "Red") { p.red = s; }
-                if let Some(s) = get_string(&p_map, "Green") { p.green = s; }
-                if let Some(s) = get_string(&p_map, "Yellow") { p.yellow = s; }
-                if let Some(s) = get_string(&p_map, "Blue") { p.blue = s; }
-                if let Some(s) = get_string(&p_map, "Magenta") { p.magenta = s; }
-                if let Some(s) = get_string(&p_map, "Cyan") { p.cyan = s; }
-                if let Some(s) = get_string(&p_map, "White") { p.white = s; }
+                if let Some(s) = get_string(&p_map, "Black") {
+                    p.black = s;
+                }
+                if let Some(s) = get_string(&p_map, "Red") {
+                    p.red = s;
+                }
+                if let Some(s) = get_string(&p_map, "Green") {
+                    p.green = s;
+                }
+                if let Some(s) = get_string(&p_map, "Yellow") {
+                    p.yellow = s;
+                }
+                if let Some(s) = get_string(&p_map, "Blue") {
+                    p.blue = s;
+                }
+                if let Some(s) = get_string(&p_map, "Magenta") {
+                    p.magenta = s;
+                }
+                if let Some(s) = get_string(&p_map, "Cyan") {
+                    p.cyan = s;
+                }
+                if let Some(s) = get_string(&p_map, "White") {
+                    p.white = s;
+                }
 
-                if let Some(s) = get_string(&p_map, "BrightBlack") { p.bright_black = s; }
-                if let Some(s) = get_string(&p_map, "BrightRed") { p.bright_red = s; }
-                if let Some(s) = get_string(&p_map, "BrightGreen") { p.bright_green = s; }
-                if let Some(s) = get_string(&p_map, "BrightYellow") { p.bright_yellow = s; }
-                if let Some(s) = get_string(&p_map, "BrightBlue") { p.bright_blue = s; }
-                if let Some(s) = get_string(&p_map, "BrightMagenta") { p.bright_magenta = s; }
-                if let Some(s) = get_string(&p_map, "BrightCyan") { p.bright_cyan = s; }
-                if let Some(s) = get_string(&p_map, "BrightWhite") { p.bright_white = s; }
+                if let Some(s) = get_string(&p_map, "BrightBlack") {
+                    p.bright_black = s;
+                }
+                if let Some(s) = get_string(&p_map, "BrightRed") {
+                    p.bright_red = s;
+                }
+                if let Some(s) = get_string(&p_map, "BrightGreen") {
+                    p.bright_green = s;
+                }
+                if let Some(s) = get_string(&p_map, "BrightYellow") {
+                    p.bright_yellow = s;
+                }
+                if let Some(s) = get_string(&p_map, "BrightBlue") {
+                    p.bright_blue = s;
+                }
+                if let Some(s) = get_string(&p_map, "BrightMagenta") {
+                    p.bright_magenta = s;
+                }
+                if let Some(s) = get_string(&p_map, "BrightCyan") {
+                    p.bright_cyan = s;
+                }
+                if let Some(s) = get_string(&p_map, "BrightWhite") {
+                    p.bright_white = s;
+                }
             }
         }
 
@@ -217,7 +290,9 @@ impl FusabiConfigLoader {
 
         if let Value::Record(map) = val {
             let map = map.lock().unwrap();
-            if let Some(s) = get_string(&map, "LeaderKey") { config.leader_key = s; }
+            if let Some(s) = get_string(&map, "LeaderKey") {
+                config.leader_key = s;
+            }
             // ... other bindings ...
 
             // Custom bindings
@@ -245,14 +320,30 @@ impl FusabiConfigLoader {
 
         if let Value::Record(map) = val {
             let map = map.lock().unwrap();
-            if let Some(b) = get_bool(&map, "LinkHints") { config.link_hints = b; }
-            if let Some(b) = get_bool(&map, "CommandPalette") { config.command_palette = b; }
-            if let Some(b) = get_bool(&map, "Animations") { config.animations = b; }
-            if let Some(b) = get_bool(&map, "SmoothScroll") { config.smooth_scroll = b; }
-            if let Some(b) = get_bool(&map, "ShowTabs") { config.show_tabs = b; }
-            if let Some(b) = get_bool(&map, "CursorBlink") { config.cursor_blink = b; }
-            if let Some(i) = get_int(&map, "CursorBlinkInterval") { config.cursor_blink_interval = i as u32; }
-            if let Some(s) = get_string(&map, "WindowIcon") { config.window_icon = Some(s); }
+            if let Some(b) = get_bool(&map, "LinkHints") {
+                config.link_hints = b;
+            }
+            if let Some(b) = get_bool(&map, "CommandPalette") {
+                config.command_palette = b;
+            }
+            if let Some(b) = get_bool(&map, "Animations") {
+                config.animations = b;
+            }
+            if let Some(b) = get_bool(&map, "SmoothScroll") {
+                config.smooth_scroll = b;
+            }
+            if let Some(b) = get_bool(&map, "ShowTabs") {
+                config.show_tabs = b;
+            }
+            if let Some(b) = get_bool(&map, "CursorBlink") {
+                config.cursor_blink = b;
+            }
+            if let Some(i) = get_int(&map, "CursorBlinkInterval") {
+                config.cursor_blink_interval = i as u32;
+            }
+            if let Some(s) = get_string(&map, "WindowIcon") {
+                config.window_icon = Some(s);
+            }
 
             // Enums would need string parsing or integer mapping
             // For now, skip enums to keep it simple
@@ -264,8 +355,8 @@ impl FusabiConfigLoader {
     /// Extract plugin config from compiled Fusabi module
     fn extract_plugin_config(module: &FusabiModule) -> Result<PluginConfig> {
         let val = match module.get_global("plugins") {
-             Some(v) => v,
-             None => return Ok(PluginConfig::default()),
+            Some(v) => v,
+            None => return Ok(PluginConfig::default()),
         };
 
         let mut config = PluginConfig::default();
@@ -300,10 +391,18 @@ impl FusabiConfigLoader {
 
         if let Value::Record(map) = val {
             let map = map.lock().unwrap();
-            if let Some(b) = get_bool(&map, "RestoreOnStartup") { config.restore_on_startup = b; }
-            if let Some(i) = get_int(&map, "AutoSaveInterval") { config.auto_save_interval = i as u32; }
-            if let Some(b) = get_bool(&map, "SaveScrollback") { config.save_scrollback = b; }
-            if let Some(s) = get_string(&map, "WorkingDirectory") { config.working_directory = Some(s); }
+            if let Some(b) = get_bool(&map, "RestoreOnStartup") {
+                config.restore_on_startup = b;
+            }
+            if let Some(i) = get_int(&map, "AutoSaveInterval") {
+                config.auto_save_interval = i as u32;
+            }
+            if let Some(b) = get_bool(&map, "SaveScrollback") {
+                config.save_scrollback = b;
+            }
+            if let Some(s) = get_string(&map, "WorkingDirectory") {
+                config.working_directory = Some(s);
+            }
         }
 
         Ok(config)
@@ -326,9 +425,9 @@ impl FusabiModule {
         // Then check if the result is a Record containing the name
         // (e.g. if the script returns a module object)
         if let Value::Record(map) = &self.result {
-             if let Some(v) = map.lock().unwrap().get(name) {
-                 return Some(v.clone());
-             }
+            if let Some(v) = map.lock().unwrap().get(name) {
+                return Some(v.clone());
+            }
         }
 
         None

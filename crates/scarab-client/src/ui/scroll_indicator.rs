@@ -1,8 +1,8 @@
 // Scroll position indicator UI
 // Shows when user has scrolled away from live view and how far
 
-use bevy::prelude::*;
 use crate::terminal::scrollback::{ScrollbackBuffer, ScrollbackState};
+use bevy::prelude::*;
 
 /// Marker component for scroll indicator
 #[derive(Component)]

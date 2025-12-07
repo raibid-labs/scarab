@@ -13,7 +13,11 @@ pub fn theme() -> Theme {
             author: "Wimer Hazenberg".to_string(),
             description: "A rich, warm dark theme".to_string(),
             variant: ThemeVariant::Dark,
-            tags: vec!["dark".to_string(), "warm".to_string(), "classic".to_string()],
+            tags: vec![
+                "dark".to_string(),
+                "warm".to_string(),
+                "classic".to_string(),
+            ],
             url: Some("https://monokai.pro".to_string()),
         },
         colors: ThemeColors {

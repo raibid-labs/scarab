@@ -232,11 +232,12 @@ async fn cmd_list() -> anyhow::Result<()> {
     println!("Installed plugins ({}):\n", installed.len());
 
     for plugin in installed {
-        let status = if plugin.enabled { "enabled" } else { "disabled" };
-        println!(
-            "  {} v{} [{}]",
-            plugin.name, plugin.version, status
-        );
+        let status = if plugin.enabled {
+            "enabled"
+        } else {
+            "disabled"
+        };
+        println!("  {} v{} [{}]", plugin.name, plugin.version, status);
         println!("    Path: {}", plugin.path.display());
         println!();
     }
@@ -264,7 +265,10 @@ async fn cmd_info(name: &str) -> anyhow::Result<()> {
 
         println!("\nStatistics:");
         println!("  Downloads: {}", entry.stats.downloads);
-        println!("  Rating: {:.1}/5.0 ({} ratings)", entry.stats.rating, entry.stats.rating_count);
+        println!(
+            "  Rating: {:.1}/5.0 ({} ratings)",
+            entry.stats.rating, entry.stats.rating_count
+        );
 
         if !entry.tags.is_empty() {
             println!("\nTags: {}", entry.tags.join(", "));
@@ -272,14 +276,28 @@ async fn cmd_info(name: &str) -> anyhow::Result<()> {
 
         println!("\nAvailable Versions:");
         for version in entry.versions.iter().take(5) {
-            let prerelease = if version.prerelease { " (prerelease)" } else { "" };
-            println!("  {} - {} bytes{}", version.version, version.size, prerelease);
+            let prerelease = if version.prerelease {
+                " (prerelease)"
+            } else {
+                ""
+            };
+            println!(
+                "  {} - {} bytes{}",
+                version.version, version.size, prerelease
+            );
         }
 
         // Check if installed
         if let Ok(installed) = manager.installer.get_installed(name) {
             println!("\nInstalled: v{}", installed.version);
-            println!("Status: {}", if installed.enabled { "enabled" } else { "disabled" });
+            println!(
+                "Status: {}",
+                if installed.enabled {
+                    "enabled"
+                } else {
+                    "disabled"
+                }
+            );
         }
     } else {
         println!("Plugin '{}' not found in registry", name);

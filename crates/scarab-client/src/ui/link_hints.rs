@@ -346,7 +346,12 @@ fn open_url(url: &str) -> Result<(), String> {
     let result = std::process::Command::new("xdg-open")
         .arg(&full_url)
         .spawn()
-        .map_err(|e| format!("Failed to launch xdg-open: {}. Make sure xdg-utils is installed.", e));
+        .map_err(|e| {
+            format!(
+                "Failed to launch xdg-open: {}. Make sure xdg-utils is installed.",
+                e
+            )
+        });
 
     #[cfg(target_os = "macos")]
     let result = std::process::Command::new("open")
@@ -409,7 +414,12 @@ fn open_file(path: &str) -> Result<(), String> {
     let result = std::process::Command::new("xdg-open")
         .arg(&expanded_path)
         .spawn()
-        .map_err(|e| format!("Failed to launch xdg-open: {}. Make sure xdg-utils is installed.", e));
+        .map_err(|e| {
+            format!(
+                "Failed to launch xdg-open: {}. Make sure xdg-utils is installed.",
+                e
+            )
+        });
 
     #[cfg(target_os = "macos")]
     let result = std::process::Command::new("open")
@@ -446,7 +456,12 @@ fn open_email(email: &str) -> Result<(), String> {
     let result = std::process::Command::new("xdg-open")
         .arg(&mailto_url)
         .spawn()
-        .map_err(|e| format!("Failed to launch xdg-open: {}. Make sure xdg-utils is installed.", e));
+        .map_err(|e| {
+            format!(
+                "Failed to launch xdg-open: {}. Make sure xdg-utils is installed.",
+                e
+            )
+        });
 
     #[cfg(target_os = "macos")]
     let result = std::process::Command::new("open")
@@ -546,14 +561,18 @@ mod tests {
         let links = detector.detect_with_positions(text);
 
         // Should find URL on line 0 (row 0)
-        let url_link = links.iter().find(|(url, _, _, _)| url.contains("example.com"));
+        let url_link = links
+            .iter()
+            .find(|(url, _, _, _)| url.contains("example.com"));
         assert!(url_link.is_some());
         let (_, _, col, row) = url_link.unwrap();
         assert_eq!(*row, 0);
         assert_eq!(*col, 8); // Position after "Line 1: "
 
         // Should find email on line 1 (row 1)
-        let email_link = links.iter().find(|(url, _, _, _)| url.contains("test@email.com"));
+        let email_link = links
+            .iter()
+            .find(|(url, _, _, _)| url.contains("test@email.com"));
         assert!(email_link.is_some());
         let (_, _, col, row) = email_link.unwrap();
         assert_eq!(*row, 1);

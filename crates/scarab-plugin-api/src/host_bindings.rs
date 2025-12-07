@@ -52,11 +52,13 @@
 
 use crate::context::PluginContext;
 use crate::error::{PluginError, Result};
-use crate::navigation::{PluginFocusable, PluginFocusableAction, PluginNavCapabilities, validate_focusable};
+use crate::navigation::{
+    validate_focusable, PluginFocusable, PluginFocusableAction, PluginNavCapabilities,
+};
 use crate::types::{JumpDirection, OverlayConfig, StatusBarItem};
+use parking_lot::Mutex;
 use std::sync::atomic::{AtomicU32, AtomicU64, Ordering};
 use std::time::Instant;
-use parking_lot::Mutex;
 
 /// Default rate limit (actions per second)
 pub const DEFAULT_RATE_LIMIT: u32 = 10;
@@ -171,7 +173,7 @@ impl PluginRateLimiter {
     /// Check if an action is allowed, incrementing the counter if so
     pub fn check(&self) -> Result<()> {
         let now = Instant::now();
-        
+
         // Check if we need to reset the window
         {
             let mut window = self.window_start.lock();
@@ -180,7 +182,7 @@ impl PluginRateLimiter {
                 self.count.store(0, Ordering::SeqCst);
             }
         }
-        
+
         let current = self.count.fetch_add(1, Ordering::SeqCst);
         if current >= self.limit {
             self.count.fetch_sub(1, Ordering::SeqCst); // Undo the increment
@@ -189,7 +191,7 @@ impl PluginRateLimiter {
                 limit: self.limit,
             });
         }
-        
+
         Ok(())
     }
 
@@ -241,7 +243,9 @@ impl ResourceCounter {
 
     /// Decrement focusable count, returns new value
     pub fn remove_focusable(&self) -> u64 {
-        self.focusables.fetch_sub(1, Ordering::SeqCst).saturating_sub(1)
+        self.focusables
+            .fetch_sub(1, Ordering::SeqCst)
+            .saturating_sub(1)
     }
 
     /// Increment overlay count
@@ -251,7 +255,9 @@ impl ResourceCounter {
 
     /// Decrement overlay count
     pub fn remove_overlay(&self) -> u64 {
-        self.overlays.fetch_sub(1, Ordering::SeqCst).saturating_sub(1)
+        self.overlays
+            .fetch_sub(1, Ordering::SeqCst)
+            .saturating_sub(1)
     }
 
     /// Increment status item count
@@ -261,7 +267,9 @@ impl ResourceCounter {
 
     /// Decrement status item count
     pub fn remove_status_item(&self) -> u64 {
-        self.status_items.fetch_sub(1, Ordering::SeqCst).saturating_sub(1)
+        self.status_items
+            .fetch_sub(1, Ordering::SeqCst)
+            .saturating_sub(1)
     }
 }
 
@@ -330,7 +338,10 @@ impl HostBindings {
 
     /// Create with default limits and capabilities
     pub fn with_defaults() -> Self {
-        Self::new(HostBindingLimits::default(), PluginNavCapabilities::default())
+        Self::new(
+            HostBindingLimits::default(),
+            PluginNavCapabilities::default(),
+        )
     }
 
     /// Check rate limit before action
@@ -352,13 +363,13 @@ impl HostBindings {
         if !self.capabilities.can_enter_hint_mode {
             return Err(PluginError::CapabilityDenied("enter_hint_mode".into()));
         }
-        
+
         self.check_rate_limit()?;
-        
+
         ctx.queue_command(crate::types::RemoteCommand::NavEnterHintMode {
             plugin_name: ctx.logger_name.clone(),
         });
-        
+
         Ok(())
     }
 
@@ -371,11 +382,11 @@ impl HostBindings {
     /// Returns error if rate limit exceeded
     pub fn exit_nav_mode(&self, ctx: &PluginContext) -> Result<()> {
         self.check_rate_limit()?;
-        
+
         ctx.queue_command(crate::types::RemoteCommand::NavExitMode {
             plugin_name: ctx.logger_name.clone(),
         });
-        
+
         Ok(())
     }
 
@@ -404,7 +415,7 @@ impl HostBindings {
         if !self.capabilities.can_register_focusables {
             return Err(PluginError::CapabilityDenied("register_focusables".into()));
         }
-        
+
         // Check quota
         let current = self.resources.focusables();
         if current >= self.capabilities.max_focusables as u64 {
@@ -414,27 +425,30 @@ impl HostBindings {
                 limit: self.capabilities.max_focusables,
             });
         }
-        
+
         // Validate region
         if self.limits.bounds_check {
             validate_focusable(&region).map_err(|e| PluginError::ValidationError(e.to_string()))?;
         }
-        
+
         self.check_rate_limit()?;
-        
+
         let focusable_id = self.next_focusable_id.fetch_add(1, Ordering::SeqCst);
         self.resources.add_focusable();
-        
+
         // Convert action to protocol format
         let action = match &region.action {
-            PluginFocusableAction::OpenUrl(url) => 
-                scarab_protocol::NavFocusableAction::OpenUrl(url.clone().into()),
-            PluginFocusableAction::OpenFile(path) => 
-                scarab_protocol::NavFocusableAction::OpenFile(path.clone().into()),
-            PluginFocusableAction::Custom(name) => 
-                scarab_protocol::NavFocusableAction::Custom(name.clone().into()),
+            PluginFocusableAction::OpenUrl(url) => {
+                scarab_protocol::NavFocusableAction::OpenUrl(url.clone().into())
+            }
+            PluginFocusableAction::OpenFile(path) => {
+                scarab_protocol::NavFocusableAction::OpenFile(path.clone().into())
+            }
+            PluginFocusableAction::Custom(name) => {
+                scarab_protocol::NavFocusableAction::Custom(name.clone().into())
+            }
         };
-        
+
         ctx.queue_command(crate::types::RemoteCommand::NavRegisterFocusable {
             plugin_name: ctx.logger_name.clone(),
             x: region.x,
@@ -444,7 +458,7 @@ impl HostBindings {
             label: region.label.clone(),
             action,
         });
-        
+
         Ok(focusable_id)
     }
 
@@ -462,14 +476,14 @@ impl HostBindings {
     /// Returns error if rate limit exceeded
     pub fn unregister_focusable(&self, ctx: &PluginContext, focusable_id: u64) -> Result<()> {
         self.check_rate_limit()?;
-        
+
         self.resources.remove_focusable();
-        
+
         ctx.queue_command(crate::types::RemoteCommand::NavUnregisterFocusable {
             plugin_name: ctx.logger_name.clone(),
             focusable_id,
         });
-        
+
         Ok(())
     }
 
@@ -718,8 +732,8 @@ impl ResourceUsage {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::sync::Arc;
     use crate::context::{PluginConfigData, PluginSharedState};
+    use std::sync::Arc;
 
     fn make_test_ctx() -> PluginContext {
         PluginContext::new(
@@ -739,12 +753,12 @@ mod tests {
     #[test]
     fn test_rate_limiter() {
         let limiter = PluginRateLimiter::new(3);
-        
+
         assert!(limiter.check().is_ok());
         assert!(limiter.check().is_ok());
         assert!(limiter.check().is_ok());
         assert!(limiter.check().is_err());
-        
+
         limiter.reset();
         assert!(limiter.check().is_ok());
     }
@@ -752,7 +766,7 @@ mod tests {
     #[test]
     fn test_resource_counter() {
         let counter = ResourceCounter::default();
-        
+
         assert_eq!(counter.focusables(), 0);
         assert_eq!(counter.add_focusable(), 1);
         assert_eq!(counter.add_focusable(), 2);
@@ -776,7 +790,7 @@ mod tests {
             ..Default::default()
         };
         let bindings = HostBindings::new(HostBindingLimits::default(), caps);
-        
+
         let result = bindings.enter_hint_mode(&ctx);
         assert!(matches!(result, Err(PluginError::CapabilityDenied(_))));
     }
@@ -789,15 +803,18 @@ mod tests {
             ..Default::default()
         };
         let bindings = HostBindings::new(HostBindingLimits::default(), caps);
-        
+
         // First should succeed
         let region = PluginFocusable {
-            x: 0, y: 0, width: 10, height: 1,
+            x: 0,
+            y: 0,
+            width: 10,
+            height: 1,
             label: "Test".into(),
             action: PluginFocusableAction::OpenUrl("https://example.com".into()),
         };
         assert!(bindings.register_focusable(&ctx, region.clone()).is_ok());
-        
+
         // Second should fail quota
         let result = bindings.register_focusable(&ctx, region);
         assert!(matches!(result, Err(PluginError::QuotaExceeded { .. })));
@@ -807,7 +824,7 @@ mod tests {
     fn test_resource_usage() {
         let bindings = HostBindings::with_defaults();
         let usage = bindings.resource_usage();
-        
+
         assert_eq!(usage.focusables, 0);
         assert!(!usage.any_at_limit());
     }

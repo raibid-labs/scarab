@@ -3,9 +3,7 @@
 //! This module provides default key bindings for various modal editing modes,
 //! matching WezTerm's behavior where appropriate.
 
-use super::{
-    CopyModeAction, Direction, KeyAction, KeyCode, KeyCombo, KeyTable, SearchAction,
-};
+use super::{CopyModeAction, Direction, KeyAction, KeyCode, KeyCombo, KeyTable, SearchAction};
 use std::collections::HashMap;
 
 /// Create the default copy mode key table
@@ -123,14 +121,8 @@ pub fn default_copy_mode_table() -> KeyTable {
         KeyCombo::ctrl(KeyCode::KeyF),
         KeyAction::ScrollByPage(2), // Full page down
     );
-    table.bind(
-        KeyCombo::key(KeyCode::PageUp),
-        KeyAction::ScrollByPage(-1),
-    );
-    table.bind(
-        KeyCombo::key(KeyCode::PageDown),
-        KeyAction::ScrollByPage(1),
-    );
+    table.bind(KeyCombo::key(KeyCode::PageUp), KeyAction::ScrollByPage(-1));
+    table.bind(KeyCombo::key(KeyCode::PageDown), KeyAction::ScrollByPage(1));
 
     // Selection modes
     table.bind(

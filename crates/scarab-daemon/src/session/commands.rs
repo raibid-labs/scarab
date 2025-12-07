@@ -287,7 +287,10 @@ pub async fn handle_pane_command(
     };
 
     match msg {
-        ControlMessage::PaneSplit { pane_id: _, direction } => {
+        ControlMessage::PaneSplit {
+            pane_id: _,
+            direction,
+        } => {
             log::info!("Client {} splitting pane: {:?}", client_id, direction);
 
             // Convert protocol direction to session direction

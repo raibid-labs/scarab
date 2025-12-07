@@ -13,7 +13,11 @@ pub fn theme() -> Theme {
             author: "Zeno Rocha".to_string(),
             description: "A dark theme with vibrant purple accents".to_string(),
             variant: ThemeVariant::Dark,
-            tags: vec!["dark".to_string(), "purple".to_string(), "popular".to_string()],
+            tags: vec![
+                "dark".to_string(),
+                "purple".to_string(),
+                "popular".to_string(),
+            ],
             url: Some("https://draculatheme.com".to_string()),
         },
         colors: ThemeColors {

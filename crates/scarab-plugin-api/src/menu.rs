@@ -269,8 +269,8 @@ mod tests {
 
     #[test]
     fn test_menu_item_with_remote_action() {
-        let item = MenuItem::new("Test", MenuAction::Remote("test_action".to_string()))
-            .with_icon("🎯");
+        let item =
+            MenuItem::new("Test", MenuAction::Remote("test_action".to_string())).with_icon("🎯");
 
         assert_eq!(item.label, "Test");
         assert_eq!(item.icon, Some("🎯".to_string()));

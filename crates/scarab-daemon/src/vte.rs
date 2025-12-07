@@ -1,5 +1,7 @@
-use crate::images::{parse_iterm2_image, parse_sixel_dcs, ImageFormat, ImagePlacementState, ImageSize};
-use scarab_protocol::{Cell, SharedState, GRID_HEIGHT, GRID_WIDTH, ZoneTracker};
+use crate::images::{
+    parse_iterm2_image, parse_sixel_dcs, ImageFormat, ImagePlacementState, ImageSize,
+};
+use scarab_protocol::{Cell, SharedState, ZoneTracker, GRID_HEIGHT, GRID_WIDTH};
 use std::collections::VecDeque;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
@@ -178,7 +180,6 @@ impl Grid {
             None
         }
     }
-
 }
 
 /// Terminal state manager that implements the VTE Perform trait
@@ -371,17 +372,24 @@ impl TerminalState {
             if let Some(oldest) = self.image_state.placements.first() {
                 let oldest_id = oldest.id;
                 self.image_state.remove_placement(oldest_id);
-                log::debug!("Evicted oldest image {} (at limit {})", oldest_id, self.max_images);
+                log::debug!(
+                    "Evicted oldest image {} (at limit {})",
+                    oldest_id,
+                    self.max_images
+                );
             }
         }
 
-        let id = self.image_state.add_placement(
-            self.cursor_x,
-            self.cursor_y,
-            image_data,
-        );
+        let id = self
+            .image_state
+            .add_placement(self.cursor_x, self.cursor_y, image_data);
 
-        log::debug!("Added image placement {} at ({}, {})", id, self.cursor_x, self.cursor_y);
+        log::debug!(
+            "Added image placement {} at ({}, {})",
+            id,
+            self.cursor_x,
+            self.cursor_y
+        );
     }
 
     /// Clear all images (called on RIS/full reset)
@@ -637,7 +645,8 @@ impl Perform for TerminalState {
             // Store the parameters (e.g., "1;1" for aspect ratio)
             for param in params.iter() {
                 for &value in param {
-                    self.dcs_buffer.extend_from_slice(value.to_string().as_bytes());
+                    self.dcs_buffer
+                        .extend_from_slice(value.to_string().as_bytes());
                     self.dcs_buffer.push(b';');
                 }
             }
@@ -648,8 +657,10 @@ impl Perform for TerminalState {
             // Add the 'q' marker
             self.dcs_buffer.push(b'q');
 
-            log::debug!("Sixel DCS sequence started with params: {:?}",
-                       std::str::from_utf8(&self.dcs_buffer).unwrap_or("<invalid>"));
+            log::debug!(
+                "Sixel DCS sequence started with params: {:?}",
+                std::str::from_utf8(&self.dcs_buffer).unwrap_or("<invalid>")
+            );
         }
     }
 
@@ -665,7 +676,10 @@ impl Perform for TerminalState {
         if self.in_dcs {
             self.in_dcs = false;
 
-            log::debug!("Sixel DCS sequence complete, buffer size: {} bytes", self.dcs_buffer.len());
+            log::debug!(
+                "Sixel DCS sequence complete, buffer size: {} bytes",
+                self.dcs_buffer.len()
+            );
 
             // Try to parse as Sixel
             if let Some(sixel_data) = parse_sixel_dcs(&self.dcs_buffer) {
@@ -683,7 +697,9 @@ impl Perform for TerminalState {
 
                     log::debug!(
                         "Parsed Sixel image: {}x{} pixels ({} bytes)",
-                        sixel_data.width, sixel_data.height, image_data.data.len()
+                        sixel_data.width,
+                        sixel_data.height,
+                        image_data.data.len()
                     );
 
                     // Add the image using the existing infrastructure
@@ -695,7 +711,8 @@ impl Perform for TerminalState {
                     self.cursor_y = (self.cursor_y + height_cells).min(self.rows - 1);
                     if self.cursor_y >= self.rows - 1 {
                         // If image is tall, may need to scroll
-                        let scroll_amount = height_cells.saturating_sub(self.rows - 1 - self.cursor_y);
+                        let scroll_amount =
+                            height_cells.saturating_sub(self.rows - 1 - self.cursor_y);
                         if scroll_amount > 0 {
                             self.scroll_up(scroll_amount as usize);
                         }
@@ -753,7 +770,8 @@ impl Perform for TerminalState {
                             0
                         };
                         self.add_prompt_marker(PromptMarkerType::CommandFinished { exit_code });
-                        self.zone_tracker.mark_command_finished(line, exit_code, timestamp);
+                        self.zone_tracker
+                            .mark_command_finished(line, exit_code, timestamp);
                     }
                     _ => {
                         log::debug!("Unknown OSC 133 code: {:?}", code);
@@ -1027,7 +1045,8 @@ mod tests {
         // Simulate OSC 133;D;0 (Command Finished with exit code 0)
         state.osc_dispatch(&[b"133", b"D", b"0"], true);
         assert_eq!(state.prompt_markers.len(), 4);
-        if let PromptMarkerType::CommandFinished { exit_code } = state.prompt_markers[3].marker_type {
+        if let PromptMarkerType::CommandFinished { exit_code } = state.prompt_markers[3].marker_type
+        {
             assert_eq!(exit_code, 0);
         } else {
             panic!("Expected CommandFinished marker");
@@ -1036,7 +1055,8 @@ mod tests {
         // Simulate OSC 133;D;127 (Command Finished with exit code 127)
         state.osc_dispatch(&[b"133", b"D", b"127"], true);
         assert_eq!(state.prompt_markers.len(), 5);
-        if let PromptMarkerType::CommandFinished { exit_code } = state.prompt_markers[4].marker_type {
+        if let PromptMarkerType::CommandFinished { exit_code } = state.prompt_markers[4].marker_type
+        {
             assert_eq!(exit_code, 127);
         } else {
             panic!("Expected CommandFinished marker");
@@ -1130,11 +1150,8 @@ mod tests {
 
         let make_image = || crate::images::ImageData {
             data: vec![
-                0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A,
-                0x00, 0x00, 0x00, 0x0D,
-                0x49, 0x48, 0x44, 0x52,
-                0x00, 0x00, 0x00, 0x01,
-                0x00, 0x00, 0x00, 0x01,
+                0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0x00, 0x00, 0x00, 0x0D, 0x49, 0x48,
+                0x44, 0x52, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01,
             ],
             width: crate::images::ImageSize::Auto,
             height: crate::images::ImageSize::Auto,

@@ -405,8 +405,12 @@ impl E2ETestHarness {
         if let Ok(target_dir) = std::env::var("CARGO_TARGET_DIR") {
             let debug_bin = PathBuf::from(&target_dir).join("debug/scarab-daemon");
             let release_bin = PathBuf::from(&target_dir).join("release/scarab-daemon");
-            if release_bin.exists() { return Ok(release_bin); }
-            if debug_bin.exists() { return Ok(debug_bin); }
+            if release_bin.exists() {
+                return Ok(release_bin);
+            }
+            if debug_bin.exists() {
+                return Ok(debug_bin);
+            }
         }
 
         let debug_bin = workspace_root.join("target/debug/scarab-daemon");
@@ -427,9 +431,11 @@ impl E2ETestHarness {
         // Recheck paths after build (including target dir)
         if let Ok(target_dir) = std::env::var("CARGO_TARGET_DIR") {
             let debug_bin = PathBuf::from(target_dir).join("debug/scarab-daemon");
-            if debug_bin.exists() { return Ok(debug_bin); }
+            if debug_bin.exists() {
+                return Ok(debug_bin);
+            }
         }
-        
+
         if debug_bin.exists() {
             Ok(debug_bin)
         } else {
@@ -445,8 +451,12 @@ impl E2ETestHarness {
         if let Ok(target_dir) = std::env::var("CARGO_TARGET_DIR") {
             let debug_bin = PathBuf::from(&target_dir).join("debug/scarab-client");
             let release_bin = PathBuf::from(&target_dir).join("release/scarab-client");
-            if release_bin.exists() { return Ok(release_bin); }
-            if debug_bin.exists() { return Ok(debug_bin); }
+            if release_bin.exists() {
+                return Ok(release_bin);
+            }
+            if debug_bin.exists() {
+                return Ok(debug_bin);
+            }
         }
 
         let debug_bin = workspace_root.join("target/debug/scarab-client");
@@ -467,7 +477,9 @@ impl E2ETestHarness {
         // Recheck paths after build (including target dir)
         if let Ok(target_dir) = std::env::var("CARGO_TARGET_DIR") {
             let debug_bin = PathBuf::from(target_dir).join("debug/scarab-client");
-            if debug_bin.exists() { return Ok(debug_bin); }
+            if debug_bin.exists() {
+                return Ok(debug_bin);
+            }
         }
 
         if debug_bin.exists() {

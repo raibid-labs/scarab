@@ -13,10 +13,7 @@ pub use self::json::JsonFormat;
 pub use self::toml::TomlFormat;
 pub use base16::Base16Format;
 
-use crate::{
-    error::ThemeResult,
-    theme::Theme,
-};
+use crate::{error::ThemeResult, theme::Theme};
 
 /// Theme file format
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -90,14 +87,8 @@ mod tests {
 
     #[test]
     fn test_detect_format() {
-        assert_eq!(
-            ThemeFormat::from_extension("toml"),
-            Some(ThemeFormat::Toml)
-        );
-        assert_eq!(
-            ThemeFormat::from_extension("json"),
-            Some(ThemeFormat::Json)
-        );
+        assert_eq!(ThemeFormat::from_extension("toml"), Some(ThemeFormat::Toml));
+        assert_eq!(ThemeFormat::from_extension("json"), Some(ThemeFormat::Json));
         assert_eq!(
             ThemeFormat::from_extension("yaml"),
             Some(ThemeFormat::Base16)

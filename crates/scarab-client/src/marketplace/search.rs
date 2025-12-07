@@ -1,7 +1,7 @@
 //! Search and filtering logic for plugin marketplace
 
-use ratatui::text::{Line, Span};
 use ratatui::style::{Color, Modifier, Style};
+use ratatui::text::{Line, Span};
 use scarab_config::registry::types::{PluginEntry, PluginFilter, SortOrder};
 
 /// Search and filter state
@@ -69,7 +69,9 @@ pub fn format_search_bar(state: &SearchState) -> Line {
     };
 
     let query_style = if state.focused {
-        Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)
+        Style::default()
+            .fg(Color::Yellow)
+            .add_modifier(Modifier::BOLD)
     } else {
         Style::default().fg(Color::Gray)
     };

@@ -79,8 +79,18 @@ impl AppHeuristics {
 
         matches!(
             name_lower.as_str(),
-            "vim" | "nvim" | "emacs" | "nano" | "tmux" | "screen" | "htop" | "less" | "more"
-                | "ranger" | "mc" | "fzf"
+            "vim"
+                | "nvim"
+                | "emacs"
+                | "nano"
+                | "tmux"
+                | "screen"
+                | "htop"
+                | "less"
+                | "more"
+                | "ranger"
+                | "mc"
+                | "fzf"
         )
     }
 

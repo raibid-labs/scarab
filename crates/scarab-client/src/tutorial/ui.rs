@@ -8,10 +8,7 @@ pub struct TutorialUI;
 
 impl TutorialUI {
     /// Render the current tutorial step as an overlay
-    pub fn render_step(
-        tutorial: &TutorialSystem,
-        step: &TutorialStep,
-    ) {
+    pub fn render_step(tutorial: &TutorialSystem, step: &TutorialStep) {
         // In a real implementation, this would render to the Bevy UI
         // For now, we'll print to console for demo purposes
         Self::print_step_overlay(tutorial, step);
@@ -55,7 +52,11 @@ impl TutorialUI {
 
         // Hint (if available)
         if let Some(hint) = &step.hint {
-            println!("│  {:<width$}  │", format!("💡 Hint: {}", hint), width = width - 6);
+            println!(
+                "│  {:<width$}  │",
+                format!("💡 Hint: {}", hint),
+                width = width - 6
+            );
             println!("│{:^width$}│", "", width = width - 2);
         }
 
@@ -119,11 +120,7 @@ impl TutorialUI {
         let filled = ((percentage / 100.0) * width as f32) as usize;
         let empty = width.saturating_sub(filled);
 
-        let bar = format!(
-            "│  {}{}  │",
-            "█".repeat(filled),
-            "░".repeat(empty)
-        );
+        let bar = format!("│  {}{}  │", "█".repeat(filled), "░".repeat(empty));
         println!("{}", bar);
         println!(
             "│  {:<width$}  │",

@@ -172,7 +172,8 @@ impl ThemeManager {
         let theme = self.load_theme_from_file(path.as_ref())?;
 
         // Add to user themes
-        self.user_themes.insert(theme.id().to_string(), theme.clone());
+        self.user_themes
+            .insert(theme.id().to_string(), theme.clone());
 
         log::info!("Imported theme: {}", theme.id());
         Ok(theme)

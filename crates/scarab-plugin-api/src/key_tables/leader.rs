@@ -3,7 +3,7 @@
 //! Manages the leader key - a special modifier that becomes temporarily active
 //! after being pressed, similar to tmux's prefix key.
 
-use super::{KeyCombo, KeyCode, KeyModifiers};
+use super::{KeyCode, KeyCombo, KeyModifiers};
 use serde::{Deserialize, Serialize};
 use std::time::{Duration, Instant};
 
@@ -39,9 +39,10 @@ impl LeaderKeyState {
 
     /// Create a leader key state with a multi-key prefix sequence
     pub fn with_sequence(sequence: Vec<KeyCombo>, timeout_ms: u64) -> Self {
-        let key = sequence.first().cloned().unwrap_or_else(|| {
-            KeyCombo::new(KeyCode::KeyA, KeyModifiers::CTRL)
-        });
+        let key = sequence
+            .first()
+            .cloned()
+            .unwrap_or_else(|| KeyCombo::new(KeyCode::KeyA, KeyModifiers::CTRL));
 
         Self {
             key,
@@ -106,7 +107,8 @@ impl LeaderKeyState {
 
         // Check if we match the sequence so far
         if self.sequence_progress.len() <= self.prefix_sequence.len() {
-            let matches = self.prefix_sequence
+            let matches = self
+                .prefix_sequence
                 .iter()
                 .take(self.sequence_progress.len())
                 .zip(self.sequence_progress.iter())
@@ -160,7 +162,8 @@ impl LeaderKeyState {
 
     /// Get when the leader will timeout (if active)
     pub fn timeout_at(&self) -> Option<Instant> {
-        self.activated_at.map(|t| t + Duration::from_millis(self.timeout_ms))
+        self.activated_at
+            .map(|t| t + Duration::from_millis(self.timeout_ms))
     }
 
     /// Check if the sequence is in progress (for multi-key leaders)
@@ -218,10 +221,8 @@ mod tests {
 
     #[test]
     fn test_leader_activation() {
-        let mut leader = LeaderKeyState::new(
-            KeyCombo::new(KeyCode::KeyA, KeyModifiers::CTRL),
-            1000,
-        );
+        let mut leader =
+            LeaderKeyState::new(KeyCombo::new(KeyCode::KeyA, KeyModifiers::CTRL), 1000);
 
         assert!(!leader.is_active());
 
@@ -256,10 +257,8 @@ mod tests {
 
     #[test]
     fn test_leader_feed_key() {
-        let mut leader = LeaderKeyState::new(
-            KeyCombo::new(KeyCode::KeyA, KeyModifiers::CTRL),
-            1000,
-        );
+        let mut leader =
+            LeaderKeyState::new(KeyCombo::new(KeyCode::KeyA, KeyModifiers::CTRL), 1000);
 
         let correct_key = KeyCombo::new(KeyCode::KeyA, KeyModifiers::CTRL);
         let wrong_key = KeyCombo::new(KeyCode::KeyB, KeyModifiers::CTRL);
@@ -319,10 +318,8 @@ mod tests {
 
     #[test]
     fn test_time_remaining() {
-        let mut leader = LeaderKeyState::new(
-            KeyCombo::new(KeyCode::KeyA, KeyModifiers::CTRL),
-            1000,
-        );
+        let mut leader =
+            LeaderKeyState::new(KeyCombo::new(KeyCode::KeyA, KeyModifiers::CTRL), 1000);
 
         // Not active, no time remaining
         assert!(leader.time_remaining().is_none());
@@ -338,10 +335,8 @@ mod tests {
 
     #[test]
     fn test_reset() {
-        let mut leader = LeaderKeyState::new(
-            KeyCombo::new(KeyCode::KeyA, KeyModifiers::CTRL),
-            1000,
-        );
+        let mut leader =
+            LeaderKeyState::new(KeyCombo::new(KeyCode::KeyA, KeyModifiers::CTRL), 1000);
 
         leader.activate();
         assert!(leader.is_active());
@@ -353,10 +348,8 @@ mod tests {
 
     #[test]
     fn test_update_config() {
-        let mut leader = LeaderKeyState::new(
-            KeyCombo::new(KeyCode::KeyA, KeyModifiers::CTRL),
-            1000,
-        );
+        let mut leader =
+            LeaderKeyState::new(KeyCombo::new(KeyCode::KeyA, KeyModifiers::CTRL), 1000);
 
         leader.activate();
         assert!(leader.is_active());

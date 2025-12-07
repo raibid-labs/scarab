@@ -66,17 +66,23 @@ impl Plugin for SessionPlugin {
                 // but the client will handle this command and send the appropriate message.
                 // For now, we'll log a proper message indicating this should trigger tab creation.
                 ctx.notify_success("New Tab", "Creating new tab...");
-                log::debug!("Session plugin: new_tab command should trigger TabCreate control message");
+                log::debug!(
+                    "Session plugin: new_tab command should trigger TabCreate control message"
+                );
             }
             "session.close_tab" => {
                 log::info!("Closing current tab");
                 ctx.notify_info("Close Tab", "Closing current tab...");
-                log::debug!("Session plugin: close_tab command should trigger TabClose control message");
+                log::debug!(
+                    "Session plugin: close_tab command should trigger TabClose control message"
+                );
             }
             "session.detach" => {
                 log::info!("Detaching session");
                 ctx.notify_info("Detach", "Detaching from session...");
-                log::debug!("Session plugin: detach command should trigger SessionDetach control message");
+                log::debug!(
+                    "Session plugin: detach command should trigger SessionDetach control message"
+                );
             }
             _ => {}
         }

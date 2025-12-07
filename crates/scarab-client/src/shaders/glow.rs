@@ -1,9 +1,7 @@
 //! Border glow post-processing shader implementation
 
 use bevy::prelude::*;
-use bevy::render::render_resource::{
-    BindGroupLayout, CachedRenderPipelineId, Shader, ShaderType,
-};
+use bevy::render::render_resource::{BindGroupLayout, CachedRenderPipelineId, Shader, ShaderType};
 use bevy::render::renderer::RenderDevice;
 
 /// Glow shader settings for focused elements

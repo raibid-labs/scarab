@@ -24,19 +24,19 @@
 //! - Toggle visibility with F12
 //! - Minimal performance overhead using lock-free atomics
 
+pub mod integration;
 mod metrics;
 mod overlay;
-pub mod integration;
 
+pub use integration::update_nav_hint_counts;
 pub use metrics::{
-    PerformanceMetrics, PerformanceSnapshot, TelemetryData, ExtendedMetrics,
-    CacheStats, MemoryStats, HintStats,
+    CacheStats, ExtendedMetrics, HintStats, MemoryStats, PerformanceMetrics, PerformanceSnapshot,
+    TelemetryData,
 };
 pub use overlay::{HudPosition, HudState};
-pub use integration::update_nav_hint_counts;
 
 use bevy::prelude::*;
-use metrics::{update_metrics, update_cache_stats, update_memory_stats, update_hint_stats};
+use metrics::{update_cache_stats, update_hint_stats, update_memory_stats, update_metrics};
 use overlay::{render_hud, toggle_hud};
 
 /// Telemetry HUD Plugin

@@ -89,7 +89,9 @@ impl ContextMenu {
 
         menu.add_item(MenuItem::new("select_all", "Select All").with_shortcut("Ctrl+Shift+A"));
 
-        menu.add_item(MenuItem::new("clear_selection", "Clear Selection").with_enabled(has_selection));
+        menu.add_item(
+            MenuItem::new("clear_selection", "Clear Selection").with_enabled(has_selection),
+        );
 
         menu.add_item(MenuItem::separator());
 
@@ -217,10 +219,7 @@ mod tests {
 
     #[test]
     fn test_url_menu() {
-        let menu = ContextMenu::url_menu(
-            Position::new(5, 5),
-            "https://example.com".to_string(),
-        );
+        let menu = ContextMenu::url_menu(Position::new(5, 5), "https://example.com".to_string());
 
         assert!(menu.get_item("open_url").is_some());
         assert!(menu.get_item("copy_url").is_some());

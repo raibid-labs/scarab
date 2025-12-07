@@ -170,8 +170,7 @@ impl NavConnection {
             let len = encoded.len() as u32;
 
             // Send length prefix (u32 little-endian) followed by protobuf payload
-            if stream.write_all(&len.to_le_bytes()).is_err()
-                || stream.write_all(&encoded).is_err()
+            if stream.write_all(&len.to_le_bytes()).is_err() || stream.write_all(&encoded).is_err()
             {
                 warn!("Failed to send layout to nav plugin, disconnecting");
                 self.stream = None;
@@ -425,7 +424,10 @@ fn send_dock_layout_to_nav(
         };
 
         nav_connection.send_layout(layout);
-        debug!("Sent dock layout to nav plugin with {} items", query.iter().count());
+        debug!(
+            "Sent dock layout to nav plugin with {} items",
+            query.iter().count()
+        );
     }
 }
 
@@ -436,7 +438,10 @@ fn handle_plugin_list_updates(
 ) {
     for event in events.read() {
         if let DaemonMessage::PluginList { plugins } = &event.0 {
-            debug!("Dock received plugin list update: {} plugins", plugins.len());
+            debug!(
+                "Dock received plugin list update: {} plugins",
+                plugins.len()
+            );
             state.update_plugins(plugins.clone());
         }
     }
@@ -467,10 +472,7 @@ fn handle_plugin_status_changes(
 }
 
 /// System to request initial plugin list on startup
-fn request_initial_plugin_list(
-    ipc: Option<Res<IpcChannel>>,
-    mut ran: Local<bool>,
-) {
+fn request_initial_plugin_list(ipc: Option<Res<IpcChannel>>, mut ran: Local<bool>) {
     if *ran {
         return;
     }
@@ -562,10 +564,7 @@ fn handle_dock_navigation(
 }
 
 /// System to send plugin menu requests to daemon
-fn send_menu_request(
-    mut events: EventReader<RequestPluginMenuEvent>,
-    ipc: Res<IpcChannel>,
-) {
+fn send_menu_request(mut events: EventReader<RequestPluginMenuEvent>, ipc: Res<IpcChannel>) {
     for event in events.read() {
         info!("Requesting menu for plugin: {}", event.plugin_name);
         ipc.send(ControlMessage::PluginMenuRequest {
@@ -580,16 +579,29 @@ fn handle_plugin_menu_response(
     mut menu_events: EventWriter<ShowPluginMenuEvent>,
 ) {
     for event in events.read() {
-        if let DaemonMessage::PluginMenuResponse { plugin_name, menu_json } = &event.0 {
+        if let DaemonMessage::PluginMenuResponse {
+            plugin_name,
+            menu_json,
+        } = &event.0
+        {
             // Deserialize the menu JSON
-            if let Ok(items) = serde_json::from_str::<Vec<scarab_plugin_api::menu::MenuItem>>(menu_json) {
-                debug!("Received menu for plugin '{}' with {} items", plugin_name, items.len());
+            if let Ok(items) =
+                serde_json::from_str::<Vec<scarab_plugin_api::menu::MenuItem>>(menu_json)
+            {
+                debug!(
+                    "Received menu for plugin '{}' with {} items",
+                    plugin_name,
+                    items.len()
+                );
                 menu_events.send(ShowPluginMenuEvent {
                     plugin_name: plugin_name.clone(),
                     items,
                 });
             } else {
-                warn!("Failed to deserialize menu JSON for plugin '{}'", plugin_name);
+                warn!(
+                    "Failed to deserialize menu JSON for plugin '{}'",
+                    plugin_name
+                );
             }
         }
     }
@@ -657,6 +669,8 @@ mod tests {
         assert!(state.plugins.is_empty());
         assert!(state.visible);
 
+        use scarab_protocol::PluginVerificationStatus;
+
         let plugins = vec![PluginInspectorInfo {
             name: "test-plugin".into(),
             version: "1.0.0".into(),
@@ -669,6 +683,9 @@ mod tests {
             failure_count: 0,
             emoji: Some("🦀".into()),
             color: Some("#FF5733".into()),
+            verification: PluginVerificationStatus::Unverified {
+                warning: "Test plugin".into(),
+            },
         }];
 
         state.update_plugins(plugins.clone());

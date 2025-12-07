@@ -21,10 +21,7 @@ pub enum PluginAction {
     },
 
     /// Remove a previously spawned overlay
-    DespawnOverlay {
-        plugin_id: String,
-        overlay_id: u64,
-    },
+    DespawnOverlay { plugin_id: String, overlay_id: u64 },
 
     /// Show a notification to the user
     ShowNotification {
@@ -44,10 +41,7 @@ pub enum PluginAction {
     },
 
     /// Remove a status bar item
-    RemoveStatusItem {
-        plugin_id: String,
-        item_id: u64,
-    },
+    RemoveStatusItem { plugin_id: String, item_id: u64 },
 
     /// Register a keybinding for the plugin
     RegisterKeybinding {
@@ -58,10 +52,7 @@ pub enum PluginAction {
     },
 
     /// Send input data to the terminal
-    SendInput {
-        plugin_id: String,
-        data: Vec<u8>,
-    },
+    SendInput { plugin_id: String, data: Vec<u8> },
 
     /// Request terminal content from specified rows
     RequestTerminalContent {
@@ -84,14 +75,10 @@ pub enum PluginAction {
     },
 
     /// Navigation: Enter hint mode
-    NavEnterHintMode {
-        plugin_id: String,
-    },
+    NavEnterHintMode { plugin_id: String },
 
     /// Navigation: Exit navigation mode
-    NavExitMode {
-        plugin_id: String,
-    },
+    NavExitMode { plugin_id: String },
 
     /// Navigation: Register a custom focusable region
     NavRegisterFocusable {
@@ -115,10 +102,7 @@ pub enum PluginAction {
 #[derive(Event, Debug, Clone)]
 pub enum PluginResponse {
     /// Overlay was successfully spawned
-    OverlaySpawned {
-        plugin_id: String,
-        overlay_id: u64,
-    },
+    OverlaySpawned { plugin_id: String, overlay_id: u64 },
 
     /// Terminal content requested by plugin
     TerminalContent {
@@ -152,14 +136,10 @@ pub enum PluginResponse {
     },
 
     /// Navigation: Mode was entered
-    NavModeEntered {
-        plugin_id: String,
-    },
+    NavModeEntered { plugin_id: String },
 
     /// Navigation: Mode was exited
-    NavModeExited {
-        plugin_id: String,
-    },
+    NavModeExited { plugin_id: String },
 }
 
 /// Navigation focusable action

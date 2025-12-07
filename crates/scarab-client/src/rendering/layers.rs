@@ -187,11 +187,26 @@ mod tests {
     #[test]
     fn test_layer_spacing_sufficient() {
         // Ensure there's enough spacing for sub-layers
-        assert!((LAYER_IMAGES - LAYER_TEXT_DECORATIONS) > 10.0, "Insufficient spacing between text and images");
-        assert!((LAYER_HINTS - LAYER_IMAGES) > 10.0, "Insufficient spacing between images and hints");
-        assert!((LAYER_FOCUS - LAYER_HINTS) > 5.0, "Insufficient spacing between hints and focus");
-        assert!((LAYER_MODALS - LAYER_FOCUS) > 10.0, "Insufficient spacing between focus and modals");
-        assert!((LAYER_NOTIFICATIONS - LAYER_MODALS) > 10.0, "Insufficient spacing between modals and notifications");
+        assert!(
+            (LAYER_IMAGES - LAYER_TEXT_DECORATIONS) > 10.0,
+            "Insufficient spacing between text and images"
+        );
+        assert!(
+            (LAYER_HINTS - LAYER_IMAGES) > 10.0,
+            "Insufficient spacing between images and hints"
+        );
+        assert!(
+            (LAYER_FOCUS - LAYER_HINTS) > 5.0,
+            "Insufficient spacing between hints and focus"
+        );
+        assert!(
+            (LAYER_MODALS - LAYER_FOCUS) > 10.0,
+            "Insufficient spacing between focus and modals"
+        );
+        assert!(
+            (LAYER_NOTIFICATIONS - LAYER_MODALS) > 10.0,
+            "Insufficient spacing between modals and notifications"
+        );
     }
 
     #[test]

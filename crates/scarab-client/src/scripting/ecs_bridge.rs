@@ -7,9 +7,7 @@
 use bevy::prelude::*;
 use std::sync::{Arc, Mutex};
 
-use crate::events::{
-    ModalItem, NotificationLevel, PluginAction, PluginResponse, StatusSide,
-};
+use crate::events::{ModalItem, NotificationLevel, PluginAction, PluginResponse, StatusSide};
 
 /// Channel for bidirectional communication between Fusabi and ECS
 #[derive(Resource, Clone)]
@@ -47,34 +45,19 @@ impl FusabiActionChannel {
     /// Retrieve all pending responses for a specific plugin
     pub fn take_responses(&self, plugin_id: &str) -> Vec<PluginResponse> {
         if let Ok(mut responses) = self.pending_responses.lock() {
-            let (matching, remaining): (Vec<_>, Vec<_>) = responses.drain(..).partition(|r| {
-                match r {
-                    PluginResponse::OverlaySpawned {
-                        plugin_id: id, ..
-                    } => id == plugin_id,
-                    PluginResponse::TerminalContent {
-                        plugin_id: id, ..
-                    } => id == plugin_id,
-                    PluginResponse::KeybindingTriggered {
-                        plugin_id: id, ..
-                    } => id == plugin_id,
-                    PluginResponse::Error {
-                        plugin_id: id, ..
-                    } => id == plugin_id,
-                    PluginResponse::NavFocusableRegistered {
-                        plugin_id: id, ..
-                    } => id == plugin_id,
-                    PluginResponse::NavFocusableUnregistered {
-                        plugin_id: id, ..
-                    } => id == plugin_id,
-                    PluginResponse::NavModeEntered {
-                        plugin_id: id, ..
-                    } => id == plugin_id,
-                    PluginResponse::NavModeExited {
-                        plugin_id: id, ..
-                    } => id == plugin_id,
-                }
-            });
+            let (matching, remaining): (Vec<_>, Vec<_>) =
+                responses.drain(..).partition(|r| match r {
+                    PluginResponse::OverlaySpawned { plugin_id: id, .. } => id == plugin_id,
+                    PluginResponse::TerminalContent { plugin_id: id, .. } => id == plugin_id,
+                    PluginResponse::KeybindingTriggered { plugin_id: id, .. } => id == plugin_id,
+                    PluginResponse::Error { plugin_id: id, .. } => id == plugin_id,
+                    PluginResponse::NavFocusableRegistered { plugin_id: id, .. } => id == plugin_id,
+                    PluginResponse::NavFocusableUnregistered { plugin_id: id, .. } => {
+                        id == plugin_id
+                    }
+                    PluginResponse::NavModeEntered { plugin_id: id, .. } => id == plugin_id,
+                    PluginResponse::NavModeExited { plugin_id: id, .. } => id == plugin_id,
+                });
             *responses = remaining;
             matching
         } else {
@@ -89,30 +72,16 @@ impl FusabiActionChannel {
             responses
                 .iter()
                 .filter(|r| match r {
-                    PluginResponse::OverlaySpawned {
-                        plugin_id: id, ..
-                    } => id == plugin_id,
-                    PluginResponse::TerminalContent {
-                        plugin_id: id, ..
-                    } => id == plugin_id,
-                    PluginResponse::KeybindingTriggered {
-                        plugin_id: id, ..
-                    } => id == plugin_id,
-                    PluginResponse::Error {
-                        plugin_id: id, ..
-                    } => id == plugin_id,
-                    PluginResponse::NavFocusableRegistered {
-                        plugin_id: id, ..
-                    } => id == plugin_id,
-                    PluginResponse::NavFocusableUnregistered {
-                        plugin_id: id, ..
-                    } => id == plugin_id,
-                    PluginResponse::NavModeEntered {
-                        plugin_id: id, ..
-                    } => id == plugin_id,
-                    PluginResponse::NavModeExited {
-                        plugin_id: id, ..
-                    } => id == plugin_id,
+                    PluginResponse::OverlaySpawned { plugin_id: id, .. } => id == plugin_id,
+                    PluginResponse::TerminalContent { plugin_id: id, .. } => id == plugin_id,
+                    PluginResponse::KeybindingTriggered { plugin_id: id, .. } => id == plugin_id,
+                    PluginResponse::Error { plugin_id: id, .. } => id == plugin_id,
+                    PluginResponse::NavFocusableRegistered { plugin_id: id, .. } => id == plugin_id,
+                    PluginResponse::NavFocusableUnregistered { plugin_id: id, .. } => {
+                        id == plugin_id
+                    }
+                    PluginResponse::NavModeEntered { plugin_id: id, .. } => id == plugin_id,
+                    PluginResponse::NavModeExited { plugin_id: id, .. } => id == plugin_id,
                 })
                 .cloned()
                 .collect()
@@ -444,11 +413,7 @@ mod tests {
         let channel = FusabiActionChannel::new();
         let natives = FusabiNatives::new(&channel, "test".to_string());
 
-        natives.notify(
-            "Title".to_string(),
-            "Message".to_string(),
-            "warning",
-        );
+        natives.notify("Title".to_string(), "Message".to_string(), "warning");
 
         let actions = channel.pending_actions.lock().unwrap();
         assert_eq!(actions.len(), 1);

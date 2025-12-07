@@ -38,7 +38,9 @@ impl ConfigValidator {
     /// Validate terminal configuration
     fn validate_terminal(terminal: &crate::TerminalConfig) -> Result<()> {
         if terminal.scrollback_lines < 100 || terminal.scrollback_lines > 100_000 {
-            return Err(ConfigError::InvalidScrollback(terminal.scrollback_lines.to_string()));
+            return Err(ConfigError::InvalidScrollback(
+                terminal.scrollback_lines.to_string(),
+            ));
         }
 
         if terminal.default_shell.is_empty() {

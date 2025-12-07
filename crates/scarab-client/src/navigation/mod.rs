@@ -174,7 +174,7 @@ pub enum NavAction {
 ///
 /// This structure tracks the navigation state for a single pane/session.
 /// Each pane maintains its own independent navigation mode, history, and hint filter.
-#[derive(Debug, Clone)]
+#[derive(Resource, Debug, Clone)]
 pub struct NavState {
     /// Current active navigation mode
     pub current_mode: NavMode,
@@ -358,7 +358,9 @@ impl NavState {
     pub fn previous_focus(&self) -> Option<Entity> {
         if self.focus_history.len() >= 2 {
             // Return second-to-last (current focus is last)
-            self.focus_history.get(self.focus_history.len() - 2).copied()
+            self.focus_history
+                .get(self.focus_history.len() - 2)
+                .copied()
         } else {
             None
         }
@@ -516,13 +518,11 @@ impl Plugin for NavigationPlugin {
         app
             // Register navigation state registry (per-pane isolation)
             .init_resource::<NavStateRegistry>()
-
             // Register navigation events
             .add_event::<EnterHintModeEvent>()
             .add_event::<ExitHintModeEvent>()
             .add_event::<NavActionEvent>()
             .add_event::<FocusChangedEvent>()
-
             // Configure system sets for proper ordering
             .configure_sets(
                 Update,
@@ -533,16 +533,10 @@ impl Plugin for NavigationPlugin {
                 )
                     .chain(), // Run in order: Input -> Update -> Render
             )
-
             // Add pane lifecycle systems for NavState management
             .add_systems(
                 Update,
-                (
-                    on_pane_created,
-                    on_pane_focused,
-                    on_pane_closed,
-                )
-                    .in_set(NavSystemSet::Update),
+                (on_pane_created, on_pane_focused, on_pane_closed).in_set(NavSystemSet::Update),
             );
 
         // Note: Actual navigation systems will be added by other plugins
@@ -638,7 +632,10 @@ fn on_pane_closed(
         }
 
         if focusables_removed > 0 {
-            info!("Despawned {} focusables for closed pane {}", focusables_removed, pane_id);
+            info!(
+                "Despawned {} focusables for closed pane {}",
+                focusables_removed, pane_id
+            );
         }
 
         // Clear all hint overlays (they're scoped to the active pane)
@@ -661,12 +658,8 @@ fn on_pane_closed(
 
 // Re-export focusable types for convenience
 pub use focusable::{
-    FocusablePlugin,
-    FocusableRegion,
+    FocusableGeneration, FocusablePlugin, FocusableRegion, FocusableScanConfig, FocusableSource,
     FocusableType,
-    FocusableSource,
-    FocusableScanConfig,
-    FocusableGeneration,
 };
 
 // Re-export for tests

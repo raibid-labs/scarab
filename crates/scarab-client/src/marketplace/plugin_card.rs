@@ -154,7 +154,10 @@ pub fn format_plugin_card_compact(plugin: &PluginEntry, style: PluginCardStyle) 
             format!(" {:20} ", plugin.name),
             base_style.fg(highlight_color).add_modifier(Modifier::BOLD),
         ),
-        Span::styled(format!("{:8} ", plugin.latest_version), base_style.fg(Color::Green)),
+        Span::styled(
+            format!("{:8} ", plugin.latest_version),
+            base_style.fg(Color::Green),
+        ),
         Span::styled(format!("{} ", stars), base_style.fg(Color::Yellow)),
         Span::styled(
             format!("{:40}", truncate(&plugin.description, 40)),

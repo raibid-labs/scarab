@@ -150,7 +150,10 @@ fn test_selection_contains_point() {
 
     // Test with reversed selection (should still work due to min/max logic)
     let region_reversed = SelectionRegion::new(15, 15, 5, 5);
-    assert!(region_reversed.contains(10, 10), "Reversed region should contain center");
+    assert!(
+        region_reversed.contains(10, 10),
+        "Reversed region should contain center"
+    );
 }
 
 // =============================================================================
@@ -207,13 +210,28 @@ fn test_multiline_selection() {
     // Test that points within the rectangular bounds are contained
     // Note: contains() treats the selection as a rectangle, so points must be
     // within both the x range (10-20) AND the y range (5-10)
-    assert!(region.contains(15, 7), "Point within rectangular bounds should be contained");
-    assert!(region.contains(10, 8), "Left edge point should be contained");
-    assert!(region.contains(20, 9), "Right edge point should be contained");
+    assert!(
+        region.contains(15, 7),
+        "Point within rectangular bounds should be contained"
+    );
+    assert!(
+        region.contains(10, 8),
+        "Left edge point should be contained"
+    );
+    assert!(
+        region.contains(20, 9),
+        "Right edge point should be contained"
+    );
 
     // Points outside the x range should not be contained
-    assert!(!region.contains(5, 7), "Point left of x range should not be contained");
-    assert!(!region.contains(25, 8), "Point right of x range should not be contained");
+    assert!(
+        !region.contains(5, 7),
+        "Point left of x range should not be contained"
+    );
+    assert!(
+        !region.contains(25, 8),
+        "Point right of x range should not be contained"
+    );
 }
 
 // =============================================================================
@@ -379,13 +397,22 @@ fn test_empty_selection_handling() {
 
     // Non-empty selections
     let region_horizontal = SelectionRegion::new(10, 10, 15, 10);
-    assert!(!region_horizontal.is_empty(), "Horizontal selection should not be empty");
+    assert!(
+        !region_horizontal.is_empty(),
+        "Horizontal selection should not be empty"
+    );
 
     let region_vertical = SelectionRegion::new(10, 10, 10, 15);
-    assert!(!region_vertical.is_empty(), "Vertical selection should not be empty");
+    assert!(
+        !region_vertical.is_empty(),
+        "Vertical selection should not be empty"
+    );
 
     let region_multi = SelectionRegion::new(10, 10, 20, 20);
-    assert!(!region_multi.is_empty(), "Multi-line selection should not be empty");
+    assert!(
+        !region_multi.is_empty(),
+        "Multi-line selection should not be empty"
+    );
 
     // Default region should be empty
     let default_region = SelectionRegion::default();

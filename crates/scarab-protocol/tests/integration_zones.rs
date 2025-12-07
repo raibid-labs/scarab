@@ -37,21 +37,37 @@ fn test_complete_command_sequence() {
 
     // Verify duration calculation (2s - 1s = 1s)
     let duration = block.duration_secs().unwrap();
-    assert!((duration - 1.0).abs() < 0.0001, "Duration was {} but expected ~1.0", duration); // ~1s
+    assert!(
+        (duration - 1.0).abs() < 0.0001,
+        "Duration was {} but expected ~1.0",
+        duration
+    ); // ~1s
 
     // Verify zones
     assert_eq!(tracker.zones().len(), 3); // Prompt, Input, Output
 
-    let prompt_zone = tracker.zones().iter().find(|z| z.zone_type == ZoneType::Prompt).unwrap();
+    let prompt_zone = tracker
+        .zones()
+        .iter()
+        .find(|z| z.zone_type == ZoneType::Prompt)
+        .unwrap();
     assert_eq!(prompt_zone.start_row, 100);
     assert_eq!(prompt_zone.end_row, 99); // Completed before input
 
-    let input_zone = tracker.zones().iter().find(|z| z.zone_type == ZoneType::Input).unwrap();
+    let input_zone = tracker
+        .zones()
+        .iter()
+        .find(|z| z.zone_type == ZoneType::Input)
+        .unwrap();
     assert_eq!(input_zone.start_row, 100);
     assert_eq!(input_zone.end_row, 100);
     assert_eq!(input_zone.command, Some("ls -la".to_string()));
 
-    let output_zone = tracker.zones().iter().find(|z| z.zone_type == ZoneType::Output).unwrap();
+    let output_zone = tracker
+        .zones()
+        .iter()
+        .find(|z| z.zone_type == ZoneType::Output)
+        .unwrap();
     assert_eq!(output_zone.start_row, 101);
     assert_eq!(output_zone.end_row, 120);
     assert_eq!(output_zone.exit_code, Some(0));
@@ -74,7 +90,11 @@ fn test_failed_command() {
     assert_eq!(block.exit_code(), Some(2));
     assert_eq!(block.command_text(), Some("ls /nonexistent"));
 
-    let output_zone = tracker.zones().iter().find(|z| z.zone_type == ZoneType::Output).unwrap();
+    let output_zone = tracker
+        .zones()
+        .iter()
+        .find(|z| z.zone_type == ZoneType::Output)
+        .unwrap();
     assert!(output_zone.is_failure());
     assert_eq!(output_zone.exit_code, Some(2));
 }
@@ -109,7 +129,10 @@ fn test_multiple_commands() {
     assert_eq!(tracker.command_blocks().len(), 3);
 
     // Verify first command
-    assert_eq!(tracker.command_blocks()[0].command_text(), Some("echo test"));
+    assert_eq!(
+        tracker.command_blocks()[0].command_text(),
+        Some("echo test")
+    );
     assert!(tracker.command_blocks()[0].is_success());
 
     // Verify second command
@@ -146,11 +169,13 @@ fn test_scroll_adjustment() {
     assert_eq!(block.end_row, 25);
 
     // Verify zones also adjusted
-    let output_zone = tracker.zones().iter()
+    let output_zone = tracker
+        .zones()
+        .iter()
         .find(|z| z.zone_type == ZoneType::Output)
         .unwrap();
     assert_eq!(output_zone.start_row, 16); // Was 11, now 11+5=16
-    assert_eq!(output_zone.end_row, 25);   // Was 20, now 20+5=25
+    assert_eq!(output_zone.end_row, 25); // Was 20, now 20+5=25
 }
 
 /// Simulates a long-running command
@@ -158,11 +183,11 @@ fn test_scroll_adjustment() {
 fn test_long_running_command() {
     let mut tracker = ZoneTracker::new(100);
 
-    tracker.mark_prompt_start(100, 1_000_000);      // t=1s
-    tracker.mark_command_start(100, 1_100_000);     // t=1.1s
+    tracker.mark_prompt_start(100, 1_000_000); // t=1s
+    tracker.mark_command_start(100, 1_100_000); // t=1.1s
     tracker.set_command_text("sleep 10".to_string());
-    tracker.mark_command_executed(101, 1_200_000);  // t=1.2s
-    // ... command runs for 10 seconds ...
+    tracker.mark_command_executed(101, 1_200_000); // t=1.2s
+                                                   // ... command runs for 10 seconds ...
     tracker.mark_command_finished(101, 0, 11_200_000); // t=11.2s
 
     let block = &tracker.command_blocks()[0];
@@ -170,7 +195,11 @@ fn test_long_running_command() {
     // Verify duration is ~10 seconds
     // Duration = 11.2s - 1s = 10.2s
     let duration = block.duration_secs().unwrap();
-    assert!((duration - 10.2).abs() < 0.01, "Duration was {} but expected ~10.2", duration);
+    assert!(
+        (duration - 10.2).abs() < 0.01,
+        "Duration was {} but expected ~10.2",
+        duration
+    );
 }
 
 /// Tests the last_output_zone functionality for copy operations

@@ -13,7 +13,11 @@ pub fn mocha() -> Theme {
             author: "Catppuccin".to_string(),
             description: "Soothing pastel theme - dark variant".to_string(),
             variant: ThemeVariant::Dark,
-            tags: vec!["dark".to_string(), "pastel".to_string(), "modern".to_string()],
+            tags: vec![
+                "dark".to_string(),
+                "pastel".to_string(),
+                "modern".to_string(),
+            ],
             url: Some("https://github.com/catppuccin/catppuccin".to_string()),
         },
         colors: ThemeColors {
@@ -54,7 +58,11 @@ pub fn latte() -> Theme {
             author: "Catppuccin".to_string(),
             description: "Soothing pastel theme - light variant".to_string(),
             variant: ThemeVariant::Light,
-            tags: vec!["light".to_string(), "pastel".to_string(), "modern".to_string()],
+            tags: vec![
+                "light".to_string(),
+                "pastel".to_string(),
+                "modern".to_string(),
+            ],
             url: Some("https://github.com/catppuccin/catppuccin".to_string()),
         },
         colors: ThemeColors {

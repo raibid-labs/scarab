@@ -39,16 +39,16 @@ impl SixelPalette {
 
         // Initialize with standard VT340 16-color palette
         // Colors 0-15: Standard ANSI-like colors
-        palette.colors[0] = 0xFF000000;  // Black
-        palette.colors[1] = 0xFF0000CC;  // Blue
-        palette.colors[2] = 0xFFCC0000;  // Red
-        palette.colors[3] = 0xFFCC00CC;  // Magenta
-        palette.colors[4] = 0xFF00CC00;  // Green
-        palette.colors[5] = 0xFF00CCCC;  // Cyan
-        palette.colors[6] = 0xFFCCCC00;  // Yellow
-        palette.colors[7] = 0xFFCCCCCC;  // Gray
-        palette.colors[8] = 0xFF333333;  // Dark Gray
-        palette.colors[9] = 0xFF0000FF;  // Bright Blue
+        palette.colors[0] = 0xFF000000; // Black
+        palette.colors[1] = 0xFF0000CC; // Blue
+        palette.colors[2] = 0xFFCC0000; // Red
+        palette.colors[3] = 0xFFCC00CC; // Magenta
+        palette.colors[4] = 0xFF00CC00; // Green
+        palette.colors[5] = 0xFF00CCCC; // Cyan
+        palette.colors[6] = 0xFFCCCC00; // Yellow
+        palette.colors[7] = 0xFFCCCCCC; // Gray
+        palette.colors[8] = 0xFF333333; // Dark Gray
+        palette.colors[9] = 0xFF0000FF; // Bright Blue
         palette.colors[10] = 0xFFFF0000; // Bright Red
         palette.colors[11] = 0xFFFF00FF; // Bright Magenta
         palette.colors[12] = 0xFF00FF00; // Bright Green
@@ -59,7 +59,8 @@ impl SixelPalette {
         // Colors 16-255: Grayscale gradient for undefined colors
         for i in 16..256 {
             let gray = ((i - 16) * 255 / 239) as u8;
-            palette.colors[i] = 0xFF000000 | ((gray as u32) << 16) | ((gray as u32) << 8) | (gray as u32);
+            palette.colors[i] =
+                0xFF000000 | ((gray as u32) << 16) | ((gray as u32) << 8) | (gray as u32);
         }
 
         palette
@@ -72,14 +73,16 @@ impl SixelPalette {
         let g_full = ((g as u32 * 255) / 100).min(255) as u8;
         let b_full = ((b as u32 * 255) / 100).min(255) as u8;
 
-        self.colors[index as usize] = 0xFF000000 | ((r_full as u32) << 16) | ((g_full as u32) << 8) | (b_full as u32);
+        self.colors[index as usize] =
+            0xFF000000 | ((r_full as u32) << 16) | ((g_full as u32) << 8) | (b_full as u32);
     }
 
     /// Set a color using HLS values (0-360 for H, 0-100 for L and S)
     fn set_hls(&mut self, index: u8, h: u16, l: u8, s: u8) {
         // Convert HLS to RGB
         let (r, g, b) = hls_to_rgb(h, l, s);
-        self.colors[index as usize] = 0xFF000000 | ((r as u32) << 16) | ((g as u32) << 8) | (b as u32);
+        self.colors[index as usize] =
+            0xFF000000 | ((r as u32) << 16) | ((g as u32) << 8) | (b as u32);
     }
 
     /// Get a color as RGBA
@@ -344,7 +347,10 @@ pub fn parse_sixel_dcs(params: &[u8]) -> Option<SixelData> {
 
     debug!(
         "Parsing sixel with aspect ratio {}:{}, transparent_bg: {}, data length: {}",
-        aspect_ratio.0, aspect_ratio.1, transparent_bg, sixel_data.len()
+        aspect_ratio.0,
+        aspect_ratio.1,
+        transparent_bg,
+        sixel_data.len()
     );
 
     let mut parser = SixelParser::new(transparent_bg);
@@ -371,7 +377,9 @@ pub fn parse_sixel_dcs(params: &[u8]) -> Option<SixelData> {
                 let start = i;
 
                 // Find the end of the color command (next non-digit/semicolon)
-                while i < sixel_data.len() && (sixel_data[i].is_ascii_digit() || sixel_data[i] == b';') {
+                while i < sixel_data.len()
+                    && (sixel_data[i].is_ascii_digit() || sixel_data[i] == b';')
+                {
                     i += 1;
                 }
 
@@ -385,10 +393,16 @@ pub fn parse_sixel_dcs(params: &[u8]) -> Option<SixelData> {
                                 parser.select_color(color_idx);
                             } else if parts.len() >= 4 {
                                 // Color definition: #Pc;Pu;Px;Py;Pz
-                                let pu = parts.get(1).and_then(|s| s.parse::<u8>().ok()).unwrap_or(2);
-                                let px = parts.get(2).and_then(|s| s.parse::<u16>().ok()).unwrap_or(0);
-                                let py = parts.get(3).and_then(|s| s.parse::<u8>().ok()).unwrap_or(0);
-                                let pz = parts.get(4).and_then(|s| s.parse::<u8>().ok()).unwrap_or(0);
+                                let pu =
+                                    parts.get(1).and_then(|s| s.parse::<u8>().ok()).unwrap_or(2);
+                                let px = parts
+                                    .get(2)
+                                    .and_then(|s| s.parse::<u16>().ok())
+                                    .unwrap_or(0);
+                                let py =
+                                    parts.get(3).and_then(|s| s.parse::<u8>().ok()).unwrap_or(0);
+                                let pz =
+                                    parts.get(4).and_then(|s| s.parse::<u8>().ok()).unwrap_or(0);
 
                                 match pu {
                                     1 => {
@@ -442,7 +456,9 @@ pub fn parse_sixel_dcs(params: &[u8]) -> Option<SixelData> {
                 // Pv: Vertical pixels
                 // For now, we ignore these
                 i += 1;
-                while i < sixel_data.len() && (sixel_data[i].is_ascii_digit() || sixel_data[i] == b';') {
+                while i < sixel_data.len()
+                    && (sixel_data[i].is_ascii_digit() || sixel_data[i] == b';')
+                {
                     i += 1;
                 }
             }
@@ -580,8 +596,8 @@ mod tests {
         // First pixel (bottom of sixel) should be red
         let color = &result.pixels[0..4];
         assert!(color[0] > 200); // Red channel
-        assert!(color[1] < 50);  // Green channel
-        assert!(color[2] < 50);  // Blue channel
+        assert!(color[1] < 50); // Green channel
+        assert!(color[2] < 50); // Blue channel
     }
 
     #[test]

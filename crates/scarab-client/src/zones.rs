@@ -6,13 +6,13 @@
 //! - Zone-aware text selection
 //! - Copy last output functionality
 
-use bevy::prelude::*;
+use crate::ipc::RemoteMessageEvent;
+use crate::terminal::scrollback::ScrollbackBuffer;
 use bevy::input::keyboard::KeyCode;
 use bevy::input::mouse::MouseButton;
 use bevy::input::ButtonInput;
-use scarab_protocol::{SemanticZone, CommandBlock, ZoneType, DaemonMessage};
-use crate::ipc::RemoteMessageEvent;
-use crate::terminal::scrollback::ScrollbackBuffer;
+use bevy::prelude::*;
+use scarab_protocol::{CommandBlock, DaemonMessage, SemanticZone, ZoneType};
 
 /// Resource storing semantic zones from the daemon
 #[derive(Resource, Default)]
@@ -38,28 +38,32 @@ impl SemanticZones {
 
     /// Find the zone containing a specific line
     pub fn find_zone_at_line(&self, line: u32) -> Option<&SemanticZone> {
-        self.zones.iter()
+        self.zones
+            .iter()
             .rev()
             .find(|zone| zone.contains_line(line))
     }
 
     /// Find the command block containing a specific line
     pub fn find_block_at_line(&self, line: u32) -> Option<&CommandBlock> {
-        self.command_blocks.iter()
+        self.command_blocks
+            .iter()
             .rev()
             .find(|block| block.contains_line(line))
     }
 
     /// Get the last output zone for copy operations
     pub fn last_output_zone(&self) -> Option<&SemanticZone> {
-        self.zones.iter()
+        self.zones
+            .iter()
             .rev()
             .find(|z| z.zone_type == ZoneType::Output && z.is_complete)
     }
 
     /// Get all output zones (for displaying in UI)
     pub fn output_zones(&self) -> impl Iterator<Item = &SemanticZone> {
-        self.zones.iter()
+        self.zones
+            .iter()
             .filter(|z| z.zone_type == ZoneType::Output)
     }
 
@@ -137,11 +141,7 @@ pub fn render_zone_indicators(
             "? UNKNOWN".to_string()
         };
 
-        println!(
-            "Zone indicator: line {} - {}",
-            zone.start_row,
-            status
-        );
+        println!("Zone indicator: line {} - {}", zone.start_row, status);
     }
 
     // Log duration labels for long-running commands
@@ -273,8 +273,7 @@ pub struct SemanticZonesPlugin;
 
 impl Plugin for SemanticZonesPlugin {
     fn build(&self, app: &mut App) {
-        app
-            .init_resource::<SemanticZones>()
+        app.init_resource::<SemanticZones>()
             .add_event::<CopyLastOutputEvent>()
             .add_event::<SelectZoneEvent>()
             .add_systems(
@@ -285,7 +284,8 @@ impl Plugin for SemanticZonesPlugin {
                     handle_copy_last_output,
                     handle_zone_selection,
                     highlight_selected_zone,
-                ).chain(),
+                )
+                    .chain(),
             );
     }
 }

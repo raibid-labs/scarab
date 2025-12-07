@@ -1,7 +1,7 @@
 //! Integration tests for theme system
 
 use scarab_themes::{
-    format::{ThemeFormat, FormatHandler, TomlFormat, JsonFormat},
+    format::{FormatHandler, JsonFormat, ThemeFormat, TomlFormat},
     manager::ThemeManager,
     themes,
 };
@@ -187,14 +187,8 @@ fn test_popular_themes_exist() {
 
 #[test]
 fn test_theme_format_detection() {
-    assert_eq!(
-        ThemeFormat::from_extension("toml"),
-        Some(ThemeFormat::Toml)
-    );
-    assert_eq!(
-        ThemeFormat::from_extension("json"),
-        Some(ThemeFormat::Json)
-    );
+    assert_eq!(ThemeFormat::from_extension("toml"), Some(ThemeFormat::Toml));
+    assert_eq!(ThemeFormat::from_extension("json"), Some(ThemeFormat::Json));
     assert_eq!(
         ThemeFormat::from_extension("yaml"),
         Some(ThemeFormat::Base16)

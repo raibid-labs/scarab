@@ -68,13 +68,13 @@
 //!
 //! See `crates/scarab-client/src/events/bevy_events.rs` for all available typed events.
 
-mod types;
 mod args;
-mod registry;
 mod handler;
+mod registry;
+mod types;
 
-pub use types::EventType;
 pub use args::{EventArgs, EventData};
+pub use handler::{EventHandler, EventResult, HandlerEntry};
 #[allow(deprecated)]
 pub use registry::EventRegistry;
-pub use handler::{EventHandler, EventResult, HandlerEntry};
+pub use types::EventType;

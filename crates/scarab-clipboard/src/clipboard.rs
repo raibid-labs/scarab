@@ -176,11 +176,9 @@ impl ClipboardManager {
             .ok_or_else(|| "Clipboard not initialized".to_string())?;
 
         match clipboard_type {
-            ClipboardType::Standard => {
-                clipboard
-                    .clear()
-                    .map_err(|e| format!("Failed to clear clipboard: {}", e))
-            }
+            ClipboardType::Standard => clipboard
+                .clear()
+                .map_err(|e| format!("Failed to clear clipboard: {}", e)),
 
             #[cfg(target_os = "linux")]
             ClipboardType::Primary => {

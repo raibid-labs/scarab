@@ -49,7 +49,9 @@ pub use terminal::scrollback::{
 };
 
 // Re-export chunk system
-pub use terminal::chunks::{ChunkGrid, ChunkMesh, ChunkPlugin, TerminalChunk, CHUNK_HEIGHT, CHUNK_WIDTH};
+pub use terminal::chunks::{
+    ChunkGrid, ChunkMesh, ChunkPlugin, TerminalChunk, CHUNK_HEIGHT, CHUNK_WIDTH,
+};
 
 // Re-export UI plugin
 pub use ui_stub::AdvancedUIPlugin;
@@ -77,14 +79,13 @@ pub use events::{
 
 // Re-export ratatui bridge
 pub use ratatui_bridge::{
-    CommandPalettePlugin, RatatuiBridgePlugin,
-    CommandPaletteState, CommandSelected, PaletteCommand,
+    CommandPalettePlugin, CommandPaletteState, CommandSelected, PaletteCommand, RatatuiBridgePlugin,
 };
 
 // Re-export context menu system
 pub use context_menu::{
-    ContextMenuPlugin, ContextMenuState, ShowContextMenuEvent, ContextMenuItemSelected,
-    ContextMenuAction,
+    ContextMenuAction, ContextMenuItemSelected, ContextMenuPlugin, ContextMenuState,
+    ShowContextMenuEvent,
 };
 
 // Re-export plugin host system
@@ -126,10 +127,9 @@ pub use shaders::{
 
 // Re-export diagnostics system
 pub use diagnostics::{
-    DiagnosticsPlugin, DiagnosticsRecorder, DiagnosticsReplay, EventData, EventType,
-    PlaybackState, Recording, RecordedEvent, RecordingMetadata, RecordingStats,
-    ReplayControlEvent, ReplayEvent, StartRecordingEvent, StopRecordingEvent,
-    RecordMarkerEvent, FORMAT_VERSION,
+    DiagnosticsPlugin, DiagnosticsRecorder, DiagnosticsReplay, EventData, EventType, PlaybackState,
+    RecordMarkerEvent, RecordedEvent, Recording, RecordingMetadata, RecordingStats,
+    ReplayControlEvent, ReplayEvent, StartRecordingEvent, StopRecordingEvent, FORMAT_VERSION,
 };
 
 // Re-export telemetry integration
@@ -141,11 +141,10 @@ pub use dev::{BevyInspectorPlugin, BevyInspectorState};
 
 // Re-export accessibility system
 pub use accessibility::{
-    AccessibilityCommand, AccessibilityConfig, AccessibilityEvent, AccessibilityPlugin,
-    Announcement, AnnouncementPriority, AtSpiIntegration, ChangeTextScaleEvent,
-    ExportFormat, ExportGridEvent, ScreenReaderAnnounceEvent, ScreenReaderState,
-    TerminalExporter, ToggleHighContrastEvent,
-    parse_accessibility_command, parse_export_command,
+    parse_accessibility_command, parse_export_command, AccessibilityCommand, AccessibilityConfig,
+    AccessibilityEvent, AccessibilityPlugin, Announcement, AnnouncementPriority, AtSpiIntegration,
+    ChangeTextScaleEvent, ExportFormat, ExportGridEvent, ScreenReaderAnnounceEvent,
+    ScreenReaderState, TerminalExporter, ToggleHighContrastEvent,
 };
 
 // // Re-export zones system

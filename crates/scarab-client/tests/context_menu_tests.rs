@@ -42,13 +42,12 @@ fn test_show_context_menu_event() {
     let mut app = setup_test_app();
 
     // Send event to show context menu
-    app.world_mut()
-        .send_event(ShowContextMenuEvent {
-            position: Position::new(50, 30),
-            url: None,
-            file_path: None,
-            has_selection: true,
-        });
+    app.world_mut().send_event(ShowContextMenuEvent {
+        position: Position::new(50, 30),
+        url: None,
+        file_path: None,
+        has_selection: true,
+    });
 
     // Run update
     app.update();
@@ -68,13 +67,12 @@ fn test_show_url_context_menu() {
     let mut app = setup_test_app();
 
     // Send event with URL
-    app.world_mut()
-        .send_event(ShowContextMenuEvent {
-            position: Position::new(10, 10),
-            url: Some("https://example.com".to_string()),
-            file_path: None,
-            has_selection: false,
-        });
+    app.world_mut().send_event(ShowContextMenuEvent {
+        position: Position::new(10, 10),
+        url: Some("https://example.com".to_string()),
+        file_path: None,
+        has_selection: false,
+    });
 
     app.update();
 
@@ -92,13 +90,12 @@ fn test_show_file_context_menu() {
     let mut app = setup_test_app();
 
     // Send event with file path
-    app.world_mut()
-        .send_event(ShowContextMenuEvent {
-            position: Position::new(10, 10),
-            url: None,
-            file_path: Some("/home/user/test.txt".to_string()),
-            has_selection: false,
-        });
+    app.world_mut().send_event(ShowContextMenuEvent {
+        position: Position::new(10, 10),
+        url: None,
+        file_path: Some("/home/user/test.txt".to_string()),
+        has_selection: false,
+    });
 
     app.update();
 
@@ -116,13 +113,12 @@ fn test_menu_edge_adjustment_horizontal() {
     let mut app = setup_test_app();
 
     // Show menu near right edge
-    app.world_mut()
-        .send_event(ShowContextMenuEvent {
-            position: Position::new(195, 50), // Near right edge (200 cols)
-            url: None,
-            file_path: None,
-            has_selection: false,
-        });
+    app.world_mut().send_event(ShowContextMenuEvent {
+        position: Position::new(195, 50), // Near right edge (200 cols)
+        url: None,
+        file_path: None,
+        has_selection: false,
+    });
 
     app.update();
 
@@ -139,13 +135,12 @@ fn test_menu_edge_adjustment_vertical() {
     let mut app = setup_test_app();
 
     // Show menu near bottom edge
-    app.world_mut()
-        .send_event(ShowContextMenuEvent {
-            position: Position::new(50, 95), // Near bottom (100 rows)
-            url: None,
-            file_path: None,
-            has_selection: false,
-        });
+    app.world_mut().send_event(ShowContextMenuEvent {
+        position: Position::new(50, 95), // Near bottom (100 rows)
+        url: None,
+        file_path: None,
+        has_selection: false,
+    });
 
     app.update();
 
@@ -232,22 +227,20 @@ fn test_menu_item_selection_event() {
     let mut app = setup_test_app();
 
     // Show menu first
-    app.world_mut()
-        .send_event(ShowContextMenuEvent {
-            position: Position::new(10, 10),
-            url: None,
-            file_path: None,
-            has_selection: true,
-        });
+    app.world_mut().send_event(ShowContextMenuEvent {
+        position: Position::new(10, 10),
+        url: None,
+        file_path: None,
+        has_selection: true,
+    });
 
     app.update();
 
     // Simulate item selection
-    app.world_mut()
-        .send_event(ContextMenuItemSelected {
-            item_id: "copy".to_string(),
-            data: None,
-        });
+    app.world_mut().send_event(ContextMenuItemSelected {
+        item_id: "copy".to_string(),
+        data: None,
+    });
 
     app.update();
 

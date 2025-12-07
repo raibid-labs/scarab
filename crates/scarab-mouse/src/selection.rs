@@ -183,7 +183,10 @@ fn is_word_char(ch: char) -> bool {
 }
 
 /// Find word boundaries at a position
-pub fn find_word_at(pos: Position, get_char: impl Fn(Position) -> Option<char>) -> Option<(Position, Position)> {
+pub fn find_word_at(
+    pos: Position,
+    get_char: impl Fn(Position) -> Option<char>,
+) -> Option<(Position, Position)> {
     // Check if position has a word character
     let ch = get_char(pos)?;
     if !is_word_char(ch) {

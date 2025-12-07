@@ -257,7 +257,10 @@ fn bench_plugin_loading_script(c: &mut Criterion) {
 
     let scripts = vec![
         ("minimal", "let x = 42"),
-        ("with_function", "let add x y = x + y\nlet result = add 10 32"),
+        (
+            "with_function",
+            "let add x y = x + y\nlet result = add 10 32",
+        ),
         (
             "with_hooks",
             "let on_load = fun _u -> ()\nlet on_output = fun line -> true",
@@ -316,7 +319,10 @@ fn bench_hook_dispatch_output(c: &mut Criterion) {
     group.bench_function("single_noop", |b| {
         let mut manager = create_test_manager();
         runtime.block_on(async {
-            manager.register_plugin(Box::new(NoOpPlugin::new())).await.unwrap();
+            manager
+                .register_plugin(Box::new(NoOpPlugin::new()))
+                .await
+                .unwrap();
         });
 
         b.to_async(&runtime).iter(|| async {
@@ -363,7 +369,10 @@ fn bench_hook_dispatch_input(c: &mut Criterion) {
     group.bench_function("single_noop", |b| {
         let mut manager = create_test_manager();
         runtime.block_on(async {
-            manager.register_plugin(Box::new(NoOpPlugin::new())).await.unwrap();
+            manager
+                .register_plugin(Box::new(NoOpPlugin::new()))
+                .await
+                .unwrap();
         });
 
         b.to_async(&runtime).iter(|| async {
@@ -409,7 +418,10 @@ fn bench_hook_dispatch_resize(c: &mut Criterion) {
     group.bench_function("single_noop", |b| {
         let mut manager = create_test_manager();
         runtime.block_on(async {
-            manager.register_plugin(Box::new(NoOpPlugin::new())).await.unwrap();
+            manager
+                .register_plugin(Box::new(NoOpPlugin::new()))
+                .await
+                .unwrap();
         });
 
         b.to_async(&runtime).iter(|| async {
@@ -448,21 +460,25 @@ fn bench_plugin_chaining(c: &mut Criterion) {
     let test_line = "Test output line";
 
     for count in [1, 2, 5, 10, 20].iter() {
-        group.bench_with_input(BenchmarkId::new("noop_plugins", count), count, |b, &count| {
-            let mut manager = create_test_manager();
-            runtime.block_on(async {
-                for i in 0..count {
-                    let mut plugin = NoOpPlugin::new();
-                    plugin.metadata.name = format!("noop_{}", i);
-                    manager.register_plugin(Box::new(plugin)).await.unwrap();
-                }
-            });
+        group.bench_with_input(
+            BenchmarkId::new("noop_plugins", count),
+            count,
+            |b, &count| {
+                let mut manager = create_test_manager();
+                runtime.block_on(async {
+                    for i in 0..count {
+                        let mut plugin = NoOpPlugin::new();
+                        plugin.metadata.name = format!("noop_{}", i);
+                        manager.register_plugin(Box::new(plugin)).await.unwrap();
+                    }
+                });
 
-            b.to_async(&runtime).iter(|| async {
-                let result = manager.dispatch_output(test_line).await;
-                black_box(result)
-            });
-        });
+                b.to_async(&runtime).iter(|| async {
+                    let result = manager.dispatch_output(test_line).await;
+                    black_box(result)
+                });
+            },
+        );
 
         group.bench_with_input(
             BenchmarkId::new("processing_plugins", count),
@@ -543,7 +559,10 @@ fn bench_script_compilation(c: &mut Criterion) {
     let scripts = vec![
         ("minimal", "let x = 42"),
         ("function", "let add x y = x + y"),
-        ("complex", "let f x = let y = x + 10 in let z = y * 2 in z - 5"),
+        (
+            "complex",
+            "let f x = let y = x + 10 in let z = y * 2 in z - 5",
+        ),
     ];
 
     for (name, script) in scripts {

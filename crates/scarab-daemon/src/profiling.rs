@@ -378,9 +378,18 @@ impl PerformanceReport {
         println!("Shmem Sync:        {:.2} us", self.avg_shmem_sync_time_us);
         println!("\n=== Plugin Performance ===");
         println!("Plugin Load:       {:.2} ms", self.avg_plugin_load_time_ms);
-        println!("Plugin Output:     {:.2} us (count: {})", self.avg_plugin_output_time_us, self.plugin_output_count);
-        println!("Plugin Input:      {:.2} us (count: {})", self.avg_plugin_input_time_us, self.plugin_input_count);
-        println!("Plugin VM Exec:    {:.2} us", self.avg_plugin_vm_exec_time_us);
+        println!(
+            "Plugin Output:     {:.2} us (count: {})",
+            self.avg_plugin_output_time_us, self.plugin_output_count
+        );
+        println!(
+            "Plugin Input:      {:.2} us (count: {})",
+            self.avg_plugin_input_time_us, self.plugin_input_count
+        );
+        println!(
+            "Plugin VM Exec:    {:.2} us",
+            self.avg_plugin_vm_exec_time_us
+        );
     }
 
     pub fn check_targets(&self) -> bool {
@@ -394,7 +403,10 @@ impl PerformanceReport {
             );
             success = false;
         } else {
-            println!("PASS Frame time {:.2}ms meets target", self.avg_frame_time_ms);
+            println!(
+                "PASS Frame time {:.2}ms meets target",
+                self.avg_frame_time_ms
+            );
         }
 
         // Plugin-specific targets
@@ -405,7 +417,10 @@ impl PerformanceReport {
             );
             success = false;
         } else {
-            println!("PASS Plugin load time {:.2}ms meets target", self.avg_plugin_load_time_ms);
+            println!(
+                "PASS Plugin load time {:.2}ms meets target",
+                self.avg_plugin_load_time_ms
+            );
         }
 
         if self.avg_plugin_output_time_us > 50.0 {
@@ -415,7 +430,10 @@ impl PerformanceReport {
             );
             success = false;
         } else {
-            println!("PASS Plugin output hook {:.2}us meets target", self.avg_plugin_output_time_us);
+            println!(
+                "PASS Plugin output hook {:.2}us meets target",
+                self.avg_plugin_output_time_us
+            );
         }
 
         if self.avg_plugin_input_time_us > 50.0 {
@@ -425,7 +443,10 @@ impl PerformanceReport {
             );
             success = false;
         } else {
-            println!("PASS Plugin input hook {:.2}us meets target", self.avg_plugin_input_time_us);
+            println!(
+                "PASS Plugin input hook {:.2}us meets target",
+                self.avg_plugin_input_time_us
+            );
         }
 
         if self.avg_plugin_vm_exec_time_us > 20.0 {
@@ -435,7 +456,10 @@ impl PerformanceReport {
             );
             success = false;
         } else {
-            println!("PASS Plugin VM execution {:.2}us meets target", self.avg_plugin_vm_exec_time_us);
+            println!(
+                "PASS Plugin VM execution {:.2}us meets target",
+                self.avg_plugin_vm_exec_time_us
+            );
         }
 
         // Estimate CPU usage from timing (rough approximation)
@@ -462,7 +486,10 @@ impl PerformanceReport {
             );
             success = false;
         } else {
-            println!("PASS Render CPU usage {:.2}% meets target", cpu_usage_render);
+            println!(
+                "PASS Render CPU usage {:.2}% meets target",
+                cpu_usage_render
+            );
         }
 
         if cpu_usage_shmem > 0.5 {

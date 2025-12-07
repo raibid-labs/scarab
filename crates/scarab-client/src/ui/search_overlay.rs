@@ -1,8 +1,8 @@
 // Search overlay UI for scrollback buffer
 // Provides Ctrl+F search interface with match highlighting and navigation
 
-use bevy::prelude::*;
 use crate::terminal::scrollback::{ScrollbackBuffer, ScrollbackState};
+use bevy::prelude::*;
 use scarab_config::ScarabConfig;
 
 /// Marker component for search overlay UI
@@ -159,13 +159,21 @@ fn update_search_overlay(
                     "{} of {} matches{}{}",
                     search_state.current_index + 1,
                     search_state.total_results,
-                    if search_state.case_sensitive { " [Aa]" } else { "" },
+                    if search_state.case_sensitive {
+                        " [Aa]"
+                    } else {
+                        ""
+                    },
                     if search_state.use_regex { " [.*]" } else { "" }
                 );
             } else {
                 **text = format!(
                     "No matches{}{}",
-                    if search_state.case_sensitive { " [Aa]" } else { "" },
+                    if search_state.case_sensitive {
+                        " [Aa]"
+                    } else {
+                        ""
+                    },
                     if search_state.use_regex { " [.*]" } else { "" }
                 );
             }

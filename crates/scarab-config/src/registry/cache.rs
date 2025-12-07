@@ -59,7 +59,8 @@ impl RegistryCache {
 
     /// Search plugins with filter
     pub fn search(&self, filter: &PluginFilter) -> Result<Vec<PluginEntry>> {
-        let mut results: Vec<PluginEntry> = self.manifest.all_plugins().into_iter().cloned().collect();
+        let mut results: Vec<PluginEntry> =
+            self.manifest.all_plugins().into_iter().cloned().collect();
 
         // Apply query filter
         if let Some(query) = &filter.query {

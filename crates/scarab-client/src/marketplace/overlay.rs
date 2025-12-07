@@ -1,8 +1,8 @@
 //! Main marketplace overlay rendering and input handling
 
 use super::{
-    format_plugin_card, format_search_bar, InstallProgress, PluginCardStyle,
-    PluginListCache, SearchState,
+    format_plugin_card, format_search_bar, InstallProgress, PluginCardStyle, PluginListCache,
+    SearchState,
 };
 use crate::ratatui_bridge::{Buffer, RatatuiSurface, SurfaceBuffers};
 use bevy::prelude::*;
@@ -120,14 +120,22 @@ impl MarketplaceState {
 
     /// Select next category
     pub fn next_category(&mut self) {
-        let current = self.categories.iter().position(|c| c == &self.category).unwrap_or(0);
+        let current = self
+            .categories
+            .iter()
+            .position(|c| c == &self.category)
+            .unwrap_or(0);
         let next = (current + 1) % self.categories.len();
         self.category = self.categories[next].clone();
     }
 
     /// Select previous category
     pub fn prev_category(&mut self) {
-        let current = self.categories.iter().position(|c| c == &self.category).unwrap_or(0);
+        let current = self
+            .categories
+            .iter()
+            .position(|c| c == &self.category)
+            .unwrap_or(0);
         let prev = if current == 0 {
             self.categories.len() - 1
         } else {
@@ -202,7 +210,10 @@ pub fn handle_marketplace_input(
     }
 
     // Handle Ctrl+Shift+M to toggle
-    if keys.pressed(KeyCode::ControlLeft) && keys.pressed(KeyCode::ShiftLeft) && keys.just_pressed(KeyCode::KeyM) {
+    if keys.pressed(KeyCode::ControlLeft)
+        && keys.pressed(KeyCode::ShiftLeft)
+        && keys.just_pressed(KeyCode::KeyM)
+    {
         marketplace_events.send(super::MarketplaceEvent::Close);
         return;
     }
@@ -226,15 +237,21 @@ pub fn handle_marketplace_input(
             // Category navigation
             if keys.just_pressed(KeyCode::Tab) {
                 state.next_category();
-                marketplace_events.send(super::MarketplaceEvent::CategoryChanged(state.category.clone()));
+                marketplace_events.send(super::MarketplaceEvent::CategoryChanged(
+                    state.category.clone(),
+                ));
             }
             if keys.pressed(KeyCode::ShiftLeft) && keys.just_pressed(KeyCode::Tab) {
                 state.prev_category();
-                marketplace_events.send(super::MarketplaceEvent::CategoryChanged(state.category.clone()));
+                marketplace_events.send(super::MarketplaceEvent::CategoryChanged(
+                    state.category.clone(),
+                ));
             }
 
             // Search focus
-            if keys.just_pressed(KeyCode::Slash) || (keys.pressed(KeyCode::ControlLeft) && keys.just_pressed(KeyCode::KeyF)) {
+            if keys.just_pressed(KeyCode::Slash)
+                || (keys.pressed(KeyCode::ControlLeft) && keys.just_pressed(KeyCode::KeyF))
+            {
                 state.search.focused = true;
             }
 
@@ -262,7 +279,10 @@ pub fn handle_marketplace_input(
         }
         MarketplaceView::PluginDetails => {
             // Back to list
-            if keys.just_pressed(KeyCode::Escape) || keys.just_pressed(KeyCode::KeyQ) || keys.just_pressed(KeyCode::Backspace) {
+            if keys.just_pressed(KeyCode::Escape)
+                || keys.just_pressed(KeyCode::KeyQ)
+                || keys.just_pressed(KeyCode::Backspace)
+            {
                 state.view = MarketplaceView::PluginList;
             }
 
@@ -349,13 +369,13 @@ fn render_plugin_list(buffer: &mut Buffer, state: &MarketplaceState, cache: &Plu
 
     // Render search bar
     let search_text = format_search_bar(&state.search);
-    let search_paragraph = Paragraph::new(search_text)
-        .block(Block::default().borders(Borders::ALL).border_style(
+    let search_paragraph =
+        Paragraph::new(search_text).block(Block::default().borders(Borders::ALL).border_style(
             if state.search.focused {
                 Style::default().fg(Color::Yellow)
             } else {
                 Style::default().fg(Color::Gray)
-            }
+            },
         ));
     search_paragraph.render(chunks[2], buffer);
 
@@ -369,35 +389,55 @@ fn render_plugin_list(buffer: &mut Buffer, state: &MarketplaceState, cache: &Plu
 /// Render marketplace header
 fn render_header(buffer: &mut Buffer, area: Rect) {
     let title = vec![
-        Line::from(vec![
-            Span::styled("Scarab Plugin Marketplace", Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)),
-        ]),
-        Line::from(vec![
-            Span::styled("Browse, search, and install plugins", Style::default().fg(Color::Gray)),
-        ]),
+        Line::from(vec![Span::styled(
+            "Scarab Plugin Marketplace",
+            Style::default()
+                .fg(Color::Cyan)
+                .add_modifier(Modifier::BOLD),
+        )]),
+        Line::from(vec![Span::styled(
+            "Browse, search, and install plugins",
+            Style::default().fg(Color::Gray),
+        )]),
     ];
 
-    let header = Paragraph::new(title)
-        .block(Block::default().borders(Borders::ALL).border_style(Style::default().fg(Color::Cyan)));
+    let header = Paragraph::new(title).block(
+        Block::default()
+            .borders(Borders::ALL)
+            .border_style(Style::default().fg(Color::Cyan)),
+    );
 
     header.render(area, buffer);
 }
 
 /// Render category tabs
 fn render_categories(buffer: &mut Buffer, area: Rect, state: &MarketplaceState) {
-    let selected = state.categories.iter().position(|c| c == &state.category).unwrap_or(0);
+    let selected = state
+        .categories
+        .iter()
+        .position(|c| c == &state.category)
+        .unwrap_or(0);
 
     let tabs = Tabs::new(state.categories.clone())
         .select(selected)
         .block(Block::default().borders(Borders::ALL).title("Categories"))
         .style(Style::default().fg(Color::White))
-        .highlight_style(Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD));
+        .highlight_style(
+            Style::default()
+                .fg(Color::Yellow)
+                .add_modifier(Modifier::BOLD),
+        );
 
     tabs.render(area, buffer);
 }
 
 /// Render plugin list
-fn render_plugins(buffer: &mut Buffer, area: Rect, state: &MarketplaceState, cache: &PluginListCache) {
+fn render_plugins(
+    buffer: &mut Buffer,
+    area: Rect,
+    state: &MarketplaceState,
+    cache: &PluginListCache,
+) {
     let plugins = &state.filtered_plugins;
 
     if cache.fetching {
@@ -444,12 +484,11 @@ fn render_plugins(buffer: &mut Buffer, area: Rect, state: &MarketplaceState, cac
         })
         .collect();
 
-    let list = List::new(items)
-        .block(
-            Block::default()
-                .borders(Borders::ALL)
-                .title(format!("Plugins ({}/{})", state.selected_index + 1, plugins.len()))
-        );
+    let list = List::new(items).block(Block::default().borders(Borders::ALL).title(format!(
+        "Plugins ({}/{})",
+        state.selected_index + 1,
+        plugins.len()
+    )));
 
     list.render(area, buffer);
 }
@@ -473,8 +512,7 @@ fn render_footer(buffer: &mut Buffer, area: Rect) {
         Span::raw(" Close"),
     ]);
 
-    let footer = Paragraph::new(keybindings)
-        .block(Block::default().borders(Borders::TOP));
+    let footer = Paragraph::new(keybindings).block(Block::default().borders(Borders::TOP));
 
     footer.render(area, buffer);
 }
@@ -490,21 +528,38 @@ fn render_plugin_details(buffer: &mut Buffer, state: &MarketplaceState) {
     // Create detailed view
     let details = vec![
         Line::from(vec![
-            Span::styled(&plugin.name, Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)),
+            Span::styled(
+                &plugin.name,
+                Style::default()
+                    .fg(Color::Cyan)
+                    .add_modifier(Modifier::BOLD),
+            ),
             Span::raw("  v"),
             Span::styled(&plugin.latest_version, Style::default().fg(Color::Green)),
         ]),
         Line::from(""),
-        Line::from(vec![Span::styled("Description:", Style::default().add_modifier(Modifier::BOLD))]),
+        Line::from(vec![Span::styled(
+            "Description:",
+            Style::default().add_modifier(Modifier::BOLD),
+        )]),
         Line::from(plugin.description.as_str()),
         Line::from(""),
-        Line::from(vec![Span::styled("Author:", Style::default().add_modifier(Modifier::BOLD))]),
+        Line::from(vec![Span::styled(
+            "Author:",
+            Style::default().add_modifier(Modifier::BOLD),
+        )]),
         Line::from(plugin.author.as_str()),
         Line::from(""),
-        Line::from(vec![Span::styled("License:", Style::default().add_modifier(Modifier::BOLD))]),
+        Line::from(vec![Span::styled(
+            "License:",
+            Style::default().add_modifier(Modifier::BOLD),
+        )]),
         Line::from(plugin.license.as_str()),
         Line::from(""),
-        Line::from(vec![Span::styled("Statistics:", Style::default().add_modifier(Modifier::BOLD))]),
+        Line::from(vec![Span::styled(
+            "Statistics:",
+            Style::default().add_modifier(Modifier::BOLD),
+        )]),
         Line::from(format!(
             "Downloads: {}  Recent: {}  Rating: {:.1}/5.0 ({} reviews)",
             format_number(plugin.stats.downloads),
@@ -513,17 +568,19 @@ fn render_plugin_details(buffer: &mut Buffer, state: &MarketplaceState) {
             plugin.stats.rating_count
         )),
         Line::from(""),
-        Line::from(vec![Span::styled("Tags:", Style::default().add_modifier(Modifier::BOLD))]),
+        Line::from(vec![Span::styled(
+            "Tags:",
+            Style::default().add_modifier(Modifier::BOLD),
+        )]),
         Line::from(plugin.tags.join(", ")),
     ];
 
-    let paragraph = Paragraph::new(details)
-        .block(
-            Block::default()
-                .borders(Borders::ALL)
-                .title("Plugin Details")
-                .border_style(Style::default().fg(Color::Cyan))
-        );
+    let paragraph = Paragraph::new(details).block(
+        Block::default()
+            .borders(Borders::ALL)
+            .title("Plugin Details")
+            .border_style(Style::default().fg(Color::Cyan)),
+    );
 
     paragraph.render(area, buffer);
 
@@ -548,8 +605,12 @@ fn render_installation(buffer: &mut Buffer, progress: &InstallProgress) {
         super::InstallStatus::Downloading => format!("Downloading {}...", progress.plugin_name),
         super::InstallStatus::Verifying => format!("Verifying {}...", progress.plugin_name),
         super::InstallStatus::Installing => format!("Installing {}...", progress.plugin_name),
-        super::InstallStatus::Complete => format!("Successfully installed {}", progress.plugin_name),
-        super::InstallStatus::Failed(ref err) => format!("Failed to install {}: {}", progress.plugin_name, err),
+        super::InstallStatus::Complete => {
+            format!("Successfully installed {}", progress.plugin_name)
+        }
+        super::InstallStatus::Failed(ref err) => {
+            format!("Failed to install {}: {}", progress.plugin_name, err)
+        }
     };
 
     let color = match progress.status {
@@ -563,7 +624,7 @@ fn render_installation(buffer: &mut Buffer, progress: &InstallProgress) {
             Block::default()
                 .borders(Borders::ALL)
                 .title("Installation")
-                .border_style(Style::default().fg(color))
+                .border_style(Style::default().fg(color)),
         )
         .style(Style::default().fg(color));
 
@@ -637,7 +698,7 @@ mod tests {
     }
 
     fn create_test_plugin(name: &str) -> PluginEntry {
-        use scarab_config::registry::{PluginStats, PluginVersion};
+        use scarab_config::registry::types::PluginStats;
 
         PluginEntry {
             name: name.to_string(),

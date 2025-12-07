@@ -14,7 +14,9 @@
 
 use anyhow::{Context, Result};
 use clap::Parser;
-use scarab_protocol::{ControlMessage, SharedState, SHMEM_PATH, SHMEM_PATH_ENV, SOCKET_PATH, MAX_MESSAGE_SIZE};
+use scarab_protocol::{
+    ControlMessage, SharedState, MAX_MESSAGE_SIZE, SHMEM_PATH, SHMEM_PATH_ENV, SOCKET_PATH,
+};
 use shared_memory::ShmemConf;
 use std::io::{BufRead, BufReader};
 use std::process::{Child, Command, Stdio};
@@ -129,7 +131,10 @@ async fn main() -> Result<()> {
                     .collect();
 
                 if non_empty_lines.len() >= 2 {
-                    println!("\n✅ Found output with {} non-empty lines", non_empty_lines.len());
+                    println!(
+                        "\n✅ Found output with {} non-empty lines",
+                        non_empty_lines.len()
+                    );
                     found_output = true;
                     break;
                 }
@@ -138,7 +143,10 @@ async fn main() -> Result<()> {
     }
 
     if !found_output {
-        eprintln!("\n❌ FAILED: No output detected after {} seconds", OUTPUT_TIMEOUT.as_secs());
+        eprintln!(
+            "\n❌ FAILED: No output detected after {} seconds",
+            OUTPUT_TIMEOUT.as_secs()
+        );
         eprintln!("Final sequence number: {}", last_seq);
         eprintln!("Expected: sequence changes and text in grid");
         std::process::exit(1);
@@ -228,7 +236,10 @@ async fn wait_for_socket_with_daemon_check(
             }
 
             // Determine the likely cause
-            let error_summary = if collected_errors.iter().any(|e| e.contains("openpty") || e.contains("pty")) {
+            let error_summary = if collected_errors
+                .iter()
+                .any(|e| e.contains("openpty") || e.contains("pty"))
+            {
                 "\n💡 PTY creation failed. This typically means:\n\
                    - /dev/ptmx is not accessible (check permissions)\n\
                    - devpts is not mounted (mount -t devpts devpts /dev/pts)\n\
@@ -236,7 +247,10 @@ async fn wait_for_socket_with_daemon_check(
                  For sandboxed environments, you can:\n\
                    1. Start the daemon outside the sandbox\n\
                    2. Use --use-existing-daemon to connect to a running daemon"
-            } else if collected_errors.iter().any(|e| e.contains("Permission denied")) {
+            } else if collected_errors
+                .iter()
+                .any(|e| e.contains("Permission denied"))
+            {
                 "\n💡 Permission denied. Check file/device permissions."
             } else {
                 ""
@@ -335,7 +349,7 @@ async fn send_input(stream: &mut UnixStream, input: &str) -> Result<()> {
 
 /// Extract text from shared memory grid
 fn extract_grid_text(shared_ptr: *const SharedState) -> String {
-    use scarab_protocol::{GRID_WIDTH, GRID_HEIGHT};
+    use scarab_protocol::{GRID_HEIGHT, GRID_WIDTH};
 
     let mut result = String::new();
 

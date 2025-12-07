@@ -58,7 +58,11 @@ fn test_tab_close() {
     // Close middle tab
     let destroyed_panes = session.close_tab(tab2).unwrap();
     assert_eq!(session.tab_count(), 2);
-    assert_eq!(destroyed_panes.len(), 1, "Closing a tab should destroy its panes");
+    assert_eq!(
+        destroyed_panes.len(),
+        1,
+        "Closing a tab should destroy its panes"
+    );
 
     // Verify remaining tabs still exist
     let tabs = session.list_tabs();
@@ -87,7 +91,11 @@ fn test_tab_cleanup_on_close() {
 
     // Close tab and verify all panes are cleaned up
     let destroyed_panes = session.close_tab(tab2_id).unwrap();
-    assert_eq!(destroyed_panes.len(), 3, "Should destroy all panes in the closed tab");
+    assert_eq!(
+        destroyed_panes.len(),
+        3,
+        "Should destroy all panes in the closed tab"
+    );
 }
 
 #[test]
@@ -616,7 +624,9 @@ fn test_complex_multi_tab_multi_pane_scenario() {
     session.split_pane(SplitDirection::Vertical).unwrap();
 
     // Tab 2: 3 panes vertical
-    let tab2 = session.create_tab(Some("Vertical Split".to_string())).unwrap();
+    let tab2 = session
+        .create_tab(Some("Vertical Split".to_string()))
+        .unwrap();
     session.switch_tab(tab2).unwrap();
     session.split_pane(SplitDirection::Vertical).unwrap();
     session.split_pane(SplitDirection::Vertical).unwrap();
@@ -638,7 +648,8 @@ fn test_complex_multi_tab_multi_pane_scenario() {
 
     // Switch between tabs and verify isolation
     session.switch_tab(tab1).unwrap();
-    let active_tab1_panes = session.list_tabs()
+    let active_tab1_panes = session
+        .list_tabs()
         .iter()
         .find(|(_id, _, is_active, _)| *is_active)
         .unwrap()
@@ -646,7 +657,8 @@ fn test_complex_multi_tab_multi_pane_scenario() {
     assert_eq!(active_tab1_panes, 4);
 
     session.switch_tab(tab2).unwrap();
-    let active_tab2_panes = session.list_tabs()
+    let active_tab2_panes = session
+        .list_tabs()
         .iter()
         .find(|(_id, _, is_active, _)| *is_active)
         .unwrap()
@@ -654,7 +666,8 @@ fn test_complex_multi_tab_multi_pane_scenario() {
     assert_eq!(active_tab2_panes, 3);
 
     session.switch_tab(tab3).unwrap();
-    let active_tab3_panes = session.list_tabs()
+    let active_tab3_panes = session
+        .list_tabs()
         .iter()
         .find(|(_id, _, is_active, _)| *is_active)
         .unwrap()
@@ -668,7 +681,9 @@ fn test_stress_many_tabs_and_panes() {
     let db_path = temp_dir.path().join("sessions.db");
 
     let manager = SessionManager::new(db_path).unwrap();
-    let session_id = manager.create_session("stress_test".to_string(), 80, 24).unwrap();
+    let session_id = manager
+        .create_session("stress_test".to_string(), 80, 24)
+        .unwrap();
     let session = manager.get_session(&session_id).unwrap();
 
     // Create 10 tabs, each with varying pane counts
@@ -695,9 +710,12 @@ fn test_stress_many_tabs_and_panes() {
         let expected_panes = i + 1;
         let actual_panes = tabs.iter().find(|(id, _, _, _)| id == tab_id).unwrap().3;
         assert_eq!(
-            actual_panes, expected_panes,
+            actual_panes,
+            expected_panes,
             "Tab {} should have {} panes, found {}",
-            i + 1, expected_panes, actual_panes
+            i + 1,
+            expected_panes,
+            actual_panes
         );
     }
 }
@@ -710,7 +728,9 @@ fn test_session_with_tabs_persistence() {
     // Create session with tabs
     let session_id = {
         let manager = SessionManager::new(db_path.clone()).unwrap();
-        let id = manager.create_session("persistent".to_string(), 80, 24).unwrap();
+        let id = manager
+            .create_session("persistent".to_string(), 80, 24)
+            .unwrap();
         let session = manager.get_session(&id).unwrap();
 
         // Create tabs
@@ -744,11 +764,18 @@ fn test_rename_tab() {
     let tab_id = session.active_tab_id();
 
     // Rename tab
-    session.rename_tab(tab_id, "Renamed Tab".to_string()).unwrap();
+    session
+        .rename_tab(tab_id, "Renamed Tab".to_string())
+        .unwrap();
 
     // Verify rename
     let tabs = session.list_tabs();
-    let tab_title = tabs.iter().find(|(id, _, _, _)| *id == tab_id).unwrap().1.clone();
+    let tab_title = tabs
+        .iter()
+        .find(|(id, _, _, _)| *id == tab_id)
+        .unwrap()
+        .1
+        .clone();
     assert_eq!(tab_title, "Renamed Tab");
 }
 
@@ -761,7 +788,9 @@ fn test_concurrent_pane_operations() {
     let db_path = temp_dir.path().join("sessions.db");
 
     let manager = Arc::new(SessionManager::new(db_path).unwrap());
-    let session_id = manager.create_session("concurrent".to_string(), 80, 24).unwrap();
+    let session_id = manager
+        .create_session("concurrent".to_string(), 80, 24)
+        .unwrap();
 
     // Spawn multiple threads performing pane operations
     let mut handles = vec![];

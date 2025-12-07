@@ -28,7 +28,7 @@
 mod harness;
 
 use harness::HeadlessHarness;
-use scarab_protocol::{GRID_WIDTH, GRID_HEIGHT};
+use scarab_protocol::{GRID_HEIGHT, GRID_WIDTH};
 
 // ============================================================================
 // D6: Core Golden Test Infrastructure
@@ -45,7 +45,11 @@ macro_rules! assert_grid_snapshot {
         let snapshot = $harness.capture_grid_snapshot();
         // For now, just verify non-empty
         // In production, use insta::assert_snapshot!
-        assert!(!snapshot.is_empty(), "Snapshot {} should not be empty", $name);
+        assert!(
+            !snapshot.is_empty(),
+            "Snapshot {} should not be empty",
+            $name
+        );
         println!("=== Snapshot: {} ===\n{}", $name, snapshot);
     };
 }
@@ -506,7 +510,11 @@ fn golden_terminal_session_simulation() {
     harness.set_grid_text(0, 1, "total 128");
     harness.set_grid_text(0, 2, "drwxr-xr-x  5 user user  4096 Dec  2 12:00 .");
     harness.set_grid_text(0, 3, "drwxr-xr-x 10 user user  4096 Dec  1 10:30 ..");
-    harness.set_grid_text(0, 4, "-rw-r--r--  1 user user  1234 Dec  2 11:45 Cargo.toml");
+    harness.set_grid_text(
+        0,
+        4,
+        "-rw-r--r--  1 user user  1234 Dec  2 11:45 Cargo.toml",
+    );
     harness.set_grid_text(0, 5, "drwxr-xr-x  3 user user  4096 Dec  2 09:15 src");
     harness.set_grid_text(0, 6, "-rw-r--r--  1 user user 10240 Dec  2 12:00 README.md");
     harness.set_grid_text(0, 7, "");
@@ -578,7 +586,13 @@ fn golden_status_bar() {
 
     let spaces = " ".repeat((GRID_WIDTH - 35) as usize);
     harness.set_grid_text_colored(27, status_y, &spaces, 0xFF000000, 0xFFAAAAAA);
-    harness.set_grid_text_colored((GRID_WIDTH - 8) as u16, status_y, " Ln 1 ", 0xFF000000, 0xFFAAAAAA);
+    harness.set_grid_text_colored(
+        (GRID_WIDTH - 8) as u16,
+        status_y,
+        " Ln 1 ",
+        0xFF000000,
+        0xFFAAAAAA,
+    );
 
     harness.tick_grid();
     assert_grid_snapshot!("status_bar", harness);

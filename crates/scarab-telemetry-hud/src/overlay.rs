@@ -199,9 +199,7 @@ fn update_hud_text(
         "\nMEMORY\n\
          Process: {:.1} MB\n\
          Heap: {:.1} MB  GPU: {:.1} MB\n",
-        memory.process_mb,
-        memory.heap_mb,
-        memory.gpu_mb,
+        memory.process_mb, memory.heap_mb, memory.gpu_mb,
     ));
 
     // Add navigation hint statistics
@@ -209,9 +207,7 @@ fn update_hud_text(
         "\nNAVIGATION\n\
          Hints: {}  Focusable: {}\n\
          Overlays: {}\n",
-        hints.hint_count,
-        hints.focusable_count,
-        hints.overlay_count,
+        hints.hint_count, hints.focusable_count, hints.overlay_count,
     ));
 
     // Update the text component

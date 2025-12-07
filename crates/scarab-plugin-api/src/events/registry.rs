@@ -29,7 +29,7 @@
 //!
 //! See `crates/scarab-client/src/events/bevy_events.rs` for all available typed events.
 
-use super::{EventArgs, EventResult, EventType, HandlerEntry, EventHandler};
+use super::{EventArgs, EventHandler, EventResult, EventType, HandlerEntry};
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicU64, Ordering};
 
@@ -117,18 +117,14 @@ impl EventRegistry {
         match event_type {
             EventType::Custom(ref name) => {
                 let name = name.clone();
-                let handlers = self.custom_handlers
-                    .entry(name)
-                    .or_insert_with(Vec::new);
+                let handlers = self.custom_handlers.entry(name).or_insert_with(Vec::new);
                 handlers.push(entry);
 
                 // Sort by priority (descending)
                 handlers.sort_by(|a, b| b.priority.cmp(&a.priority));
             }
             _ => {
-                let handlers = self.handlers
-                    .entry(event_type)
-                    .or_insert_with(Vec::new);
+                let handlers = self.handlers.entry(event_type).or_insert_with(Vec::new);
                 handlers.push(entry);
 
                 // Sort by priority (descending)
@@ -200,9 +196,7 @@ impl EventRegistry {
     /// are registered or if an early handler stopped processing).
     pub fn dispatch(&self, args: &EventArgs) -> Vec<EventResult> {
         let handlers = match &args.event_type {
-            EventType::Custom(name) => {
-                self.custom_handlers.get(name).map(|h| h.as_slice())
-            }
+            EventType::Custom(name) => self.custom_handlers.get(name).map(|h| h.as_slice()),
             _ => self.handlers.get(&args.event_type).map(|h| h.as_slice()),
         };
 

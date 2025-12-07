@@ -35,7 +35,13 @@ impl PluginInstaller {
     }
 
     /// Install plugin from content
-    pub fn install(&mut self, name: &str, version: &str, content: Vec<u8>, verification: VerificationStatus) -> Result<InstalledPlugin> {
+    pub fn install(
+        &mut self,
+        name: &str,
+        version: &str,
+        content: Vec<u8>,
+        verification: VerificationStatus,
+    ) -> Result<InstalledPlugin> {
         // Determine file extension based on content
         let extension = if content.starts_with(b"FZB\x00") {
             "fzb"
@@ -68,7 +74,9 @@ impl PluginInstaller {
         };
 
         // Update index
-        self.index.plugins.insert(name.to_string(), installed.clone());
+        self.index
+            .plugins
+            .insert(name.to_string(), installed.clone());
         self.save_index()?;
 
         Ok(installed)
@@ -76,9 +84,11 @@ impl PluginInstaller {
 
     /// Remove installed plugin
     pub fn remove(&mut self, name: &str) -> Result<()> {
-        let plugin = self.index.plugins.remove(name).ok_or_else(|| {
-            ConfigError::NotFound(format!("Plugin '{}' not installed", name))
-        })?;
+        let plugin = self
+            .index
+            .plugins
+            .remove(name)
+            .ok_or_else(|| ConfigError::NotFound(format!("Plugin '{}' not installed", name)))?;
 
         // Remove plugin directory
         if let Some(parent) = plugin.path.parent() {
@@ -107,9 +117,11 @@ impl PluginInstaller {
 
     /// Enable plugin
     pub fn enable(&mut self, name: &str) -> Result<()> {
-        let plugin = self.index.plugins.get_mut(name).ok_or_else(|| {
-            ConfigError::NotFound(format!("Plugin '{}' not installed", name))
-        })?;
+        let plugin = self
+            .index
+            .plugins
+            .get_mut(name)
+            .ok_or_else(|| ConfigError::NotFound(format!("Plugin '{}' not installed", name)))?;
 
         plugin.enabled = true;
         self.save_index()?;
@@ -118,9 +130,11 @@ impl PluginInstaller {
 
     /// Disable plugin
     pub fn disable(&mut self, name: &str) -> Result<()> {
-        let plugin = self.index.plugins.get_mut(name).ok_or_else(|| {
-            ConfigError::NotFound(format!("Plugin '{}' not installed", name))
-        })?;
+        let plugin = self
+            .index
+            .plugins
+            .get_mut(name)
+            .ok_or_else(|| ConfigError::NotFound(format!("Plugin '{}' not installed", name)))?;
 
         plugin.enabled = false;
         self.save_index()?;
@@ -133,9 +147,11 @@ impl PluginInstaller {
         name: &str,
         config: HashMap<String, serde_json::Value>,
     ) -> Result<()> {
-        let plugin = self.index.plugins.get_mut(name).ok_or_else(|| {
-            ConfigError::NotFound(format!("Plugin '{}' not installed", name))
-        })?;
+        let plugin = self
+            .index
+            .plugins
+            .get_mut(name)
+            .ok_or_else(|| ConfigError::NotFound(format!("Plugin '{}' not installed", name)))?;
 
         plugin.config = config;
         self.save_index()?;
@@ -189,7 +205,9 @@ mod tests {
         let verification = VerificationStatus::ChecksumOnly {
             checksum: "test_checksum".to_string(),
         };
-        let installed = installer.install("test-plugin", "1.0.0", content, verification).unwrap();
+        let installed = installer
+            .install("test-plugin", "1.0.0", content, verification)
+            .unwrap();
 
         assert_eq!(installed.name, "test-plugin");
         assert_eq!(installed.version, "1.0.0");
@@ -216,7 +234,9 @@ mod tests {
         let verification = VerificationStatus::ChecksumOnly {
             checksum: "test_checksum".to_string(),
         };
-        installer.install("test-plugin", "1.0.0", content, verification).unwrap();
+        installer
+            .install("test-plugin", "1.0.0", content, verification)
+            .unwrap();
 
         // Disable
         installer.disable("test-plugin").unwrap();
@@ -241,7 +261,9 @@ mod tests {
             let verification = VerificationStatus::ChecksumOnly {
                 checksum: "test_checksum".to_string(),
             };
-            installer.install("test-plugin", "1.0.0", content, verification).unwrap();
+            installer
+                .install("test-plugin", "1.0.0", content, verification)
+                .unwrap();
         }
 
         // Verify persistence in new instance

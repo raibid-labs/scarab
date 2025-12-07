@@ -236,14 +236,19 @@ pub fn generate_terminal_mesh(
                 &mut vertex_index,
                 x,
                 y,
-            ).is_some() {
+            )
+            .is_some()
+            {
                 glyph_success += 1;
             }
         }
     }
 
     if glyph_attempts > 0 {
-        info!("Mesh generation: {}/{} glyphs rendered successfully", glyph_success, glyph_attempts);
+        info!(
+            "Mesh generation: {}/{} glyphs rendered successfully",
+            glyph_success, glyph_attempts
+        );
     }
 
     // Update atlas texture if dirty
@@ -385,7 +390,10 @@ fn render_glyph(
             }
         }
         if key.is_none() {
-            warn!("No glyph found for char '{}' (U+{:04X}), runs: {}", ch, ch as u32, run_count);
+            warn!(
+                "No glyph found for char '{}' (U+{:04X}), runs: {}",
+                ch, ch as u32, run_count
+            );
         }
         key
     };

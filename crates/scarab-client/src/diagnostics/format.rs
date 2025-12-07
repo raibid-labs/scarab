@@ -3,10 +3,10 @@
 //! This module defines the on-disk format for terminal session recordings,
 //! including metadata, events, and serialization/deserialization logic.
 
+use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
 use std::path::Path;
 use std::time::{SystemTime, UNIX_EPOCH};
-use anyhow::{Context, Result};
 
 /// Current recording format version
 pub const FORMAT_VERSION: &str = "1.0";
@@ -34,11 +34,11 @@ impl Recording {
 
     /// Load recording from JSON file
     pub fn from_file(path: impl AsRef<Path>) -> Result<Self> {
-        let data = std::fs::read_to_string(path.as_ref())
-            .context("Failed to read recording file")?;
+        let data =
+            std::fs::read_to_string(path.as_ref()).context("Failed to read recording file")?;
 
-        let recording: Recording = serde_json::from_str(&data)
-            .context("Failed to parse recording JSON")?;
+        let recording: Recording =
+            serde_json::from_str(&data).context("Failed to parse recording JSON")?;
 
         // Validate version compatibility
         if recording.version != FORMAT_VERSION {
@@ -54,21 +54,16 @@ impl Recording {
 
     /// Save recording to JSON file
     pub fn to_file(&self, path: impl AsRef<Path>) -> Result<()> {
-        let json = serde_json::to_string_pretty(self)
-            .context("Failed to serialize recording")?;
+        let json = serde_json::to_string_pretty(self).context("Failed to serialize recording")?;
 
-        std::fs::write(path.as_ref(), json)
-            .context("Failed to write recording file")?;
+        std::fs::write(path.as_ref(), json).context("Failed to write recording file")?;
 
         Ok(())
     }
 
     /// Get total recording duration in milliseconds
     pub fn duration_ms(&self) -> u64 {
-        self.events
-            .last()
-            .map(|e| e.timestamp_ms)
-            .unwrap_or(0)
+        self.events.last().map(|e| e.timestamp_ms).unwrap_or(0)
     }
 
     /// Get event count
@@ -264,7 +259,8 @@ fn base64_encode(bytes: &[u8]) -> String {
     use std::io::Write;
     let mut buf = Vec::new();
     {
-        let mut encoder = base64::write::EncoderWriter::new(&mut buf, &base64::engine::general_purpose::STANDARD);
+        let mut encoder =
+            base64::write::EncoderWriter::new(&mut buf, &base64::engine::general_purpose::STANDARD);
         encoder.write_all(bytes).unwrap();
     }
     String::from_utf8(buf).unwrap()
@@ -294,10 +290,7 @@ mod tests {
     fn test_event_data_encoding() {
         // UTF-8 data
         let utf8_data = EventData::data(b"hello world");
-        assert_eq!(
-            utf8_data.as_bytes().unwrap(),
-            b"hello world"
-        );
+        assert_eq!(utf8_data.as_bytes().unwrap(), b"hello world");
 
         // Binary data
         let binary_data = EventData::data(&[0xFF, 0xFE, 0xFD]);

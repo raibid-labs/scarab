@@ -175,10 +175,7 @@ impl TabsPlugin {
             let tab = state.create_tab(None);
             log::info!("Created new tab: {} (ID: {})", tab.title, tab.id);
 
-            ctx.notify_success(
-                "New Tab",
-                &format!("Created tab: {}", tab.title)
-            );
+            ctx.notify_success("New Tab", &format!("Created tab: {}", tab.title));
 
             // Queue command to create session in daemon
             ctx.queue_command(RemoteCommand::PluginNotify {
@@ -207,10 +204,7 @@ impl TabsPlugin {
                 if let Some(closed_tab) = state.close_tab(index) {
                     log::info!("Closed tab: {} (ID: {})", closed_tab.title, closed_tab.id);
 
-                    ctx.notify_info(
-                        "Tab Closed",
-                        &format!("Closed: {}", closed_tab.title)
-                    );
+                    ctx.notify_info("Tab Closed", &format!("Closed: {}", closed_tab.title));
 
                     return Ok(Action::Modify(Vec::new()));
                 }
@@ -232,7 +226,7 @@ impl TabsPlugin {
 
                     ctx.notify_info(
                         "Tab Switch",
-                        &format!("Tab {}: {}", tab_index + 1, tab.title)
+                        &format!("Tab {}: {}", tab_index + 1, tab.title),
                     );
 
                     return Ok(Action::Modify(Vec::new()));
@@ -333,16 +327,17 @@ impl Plugin for TabsPlugin {
                     .iter()
                     .enumerate()
                     .map(|(i, tab)| {
-                        let marker = if i == state.active_tab_index { "● " } else { "○ " };
+                        let marker = if i == state.active_tab_index {
+                            "● "
+                        } else {
+                            "○ "
+                        };
                         format!("{}{}: {}", marker, i + 1, tab.title)
                     })
                     .collect();
 
                 log::info!("Command: Listing tabs");
-                ctx.notify_info(
-                    "Open Tabs",
-                    &tabs_info.join("\n")
-                );
+                ctx.notify_info("Open Tabs", &tabs_info.join("\n"));
             }
             "tabs.rename" => {
                 log::info!("Command: Rename tab (not yet implemented)");

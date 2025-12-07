@@ -13,12 +13,8 @@ use scarab_protocol::TerminalMetrics;
 /// Helper to create test app with marketplace
 fn create_test_app() -> App {
     let mut app = App::new();
-    app.add_plugins((
-        MinimalPlugins,
-        RatatuiBridgePlugin,
-        MarketplacePlugin,
-    ))
-    .insert_resource(TerminalMetrics::default());
+    app.add_plugins((MinimalPlugins, RatatuiBridgePlugin, MarketplacePlugin))
+        .insert_resource(TerminalMetrics::default());
     app
 }
 
@@ -53,14 +49,16 @@ fn test_marketplace_open_close() {
     }
 
     // Send open event
-    app.world_mut()
-        .send_event(MarketplaceEvent::Open);
+    app.world_mut().send_event(MarketplaceEvent::Open);
     app.update();
 
     // Should be open
     {
         let state = app.world().get_resource::<MarketplaceState>().unwrap();
-        assert!(state.visible, "Marketplace should be visible after Open event");
+        assert!(
+            state.visible,
+            "Marketplace should be visible after Open event"
+        );
     }
 
     // Check surface visibility
@@ -73,14 +71,16 @@ fn test_marketplace_open_close() {
     }
 
     // Send close event
-    app.world_mut()
-        .send_event(MarketplaceEvent::Close);
+    app.world_mut().send_event(MarketplaceEvent::Close);
     app.update();
 
     // Should be closed
     {
         let state = app.world().get_resource::<MarketplaceState>().unwrap();
-        assert!(!state.visible, "Marketplace should be hidden after Close event");
+        assert!(
+            !state.visible,
+            "Marketplace should be hidden after Close event"
+        );
     }
 }
 
@@ -96,8 +96,7 @@ fn test_marketplace_toggle() {
     }
 
     // Toggle open
-    app.world_mut()
-        .send_event(MarketplaceEvent::Toggle);
+    app.world_mut().send_event(MarketplaceEvent::Toggle);
     app.update();
 
     {
@@ -106,8 +105,7 @@ fn test_marketplace_toggle() {
     }
 
     // Toggle closed
-    app.world_mut()
-        .send_event(MarketplaceEvent::Toggle);
+    app.world_mut().send_event(MarketplaceEvent::Toggle);
     app.update();
 
     {
@@ -211,12 +209,11 @@ fn test_install_plugin_event() {
     app.update();
 
     // Send install event
-    app.world_mut()
-        .send_event(InstallPluginEvent {
-            name: "test-plugin".to_string(),
-            version: Some("1.0.0".to_string()),
-            is_update: false,
-        });
+    app.world_mut().send_event(InstallPluginEvent {
+        name: "test-plugin".to_string(),
+        version: Some("1.0.0".to_string()),
+        is_update: false,
+    });
 
     app.update();
 
@@ -239,8 +236,7 @@ fn test_plugin_refresh_event() {
     let initial_count = cache.plugins.len();
 
     // Send refresh event
-    app.world_mut()
-        .send_event(MarketplaceEvent::Refresh);
+    app.world_mut().send_event(MarketplaceEvent::Refresh);
     app.update();
 
     let cache = app.world().get_resource::<PluginListCache>().unwrap();
@@ -365,10 +361,7 @@ fn create_test_plugin(name: &str) -> scarab_config::registry::PluginEntry {
     }
 }
 
-fn create_plugin_with_tags(
-    name: &str,
-    tags: Vec<&str>,
-) -> scarab_config::registry::PluginEntry {
+fn create_plugin_with_tags(name: &str, tags: Vec<&str>) -> scarab_config::registry::PluginEntry {
     use scarab_config::registry::types::{PluginEntry, PluginStats};
 
     PluginEntry {

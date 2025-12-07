@@ -32,12 +32,10 @@ impl RegistryClient {
     pub async fn fetch_manifest(&self) -> Result<RegistryManifest> {
         let url = format!("{}/v1/manifest.json", self.registry_url);
 
-        let response = self
-            .client
-            .get(&url)
-            .send()
-            .await
-            .map_err(|e| ConfigError::IoError(std::io::Error::new(std::io::ErrorKind::Other, e)))?;
+        let response =
+            self.client.get(&url).send().await.map_err(|e| {
+                ConfigError::IoError(std::io::Error::new(std::io::ErrorKind::Other, e))
+            })?;
 
         if !response.status().is_success() {
             return Err(ConfigError::ValidationError(format!(
@@ -56,14 +54,15 @@ impl RegistryClient {
 
     /// Download plugin by name and version
     pub async fn download_plugin(&self, name: &str, version: &str) -> Result<PluginDownload> {
-        let url = format!("{}/v1/plugins/{}/{}/download", self.registry_url, name, version);
+        let url = format!(
+            "{}/v1/plugins/{}/{}/download",
+            self.registry_url, name, version
+        );
 
-        let response = self
-            .client
-            .get(&url)
-            .send()
-            .await
-            .map_err(|e| ConfigError::IoError(std::io::Error::new(std::io::ErrorKind::Other, e)))?;
+        let response =
+            self.client.get(&url).send().await.map_err(|e| {
+                ConfigError::IoError(std::io::Error::new(std::io::ErrorKind::Other, e))
+            })?;
 
         if !response.status().is_success() {
             return Err(ConfigError::ValidationError(format!(
@@ -103,12 +102,10 @@ impl RegistryClient {
     pub async fn health_check(&self) -> Result<bool> {
         let url = format!("{}/health", self.registry_url);
 
-        let response = self
-            .client
-            .get(&url)
-            .send()
-            .await
-            .map_err(|e| ConfigError::IoError(std::io::Error::new(std::io::ErrorKind::Other, e)))?;
+        let response =
+            self.client.get(&url).send().await.map_err(|e| {
+                ConfigError::IoError(std::io::Error::new(std::io::ErrorKind::Other, e))
+            })?;
 
         Ok(response.status().is_success())
     }

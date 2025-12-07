@@ -1,10 +1,10 @@
 // Extended selection system for scrollback buffer
 // Allows text selection in both live view and scrollback history
 
-use bevy::prelude::*;
 use crate::terminal::scrollback::{ScrollbackBuffer, ScrollbackState};
 use crate::ui::visual_selection::{SelectionMode, SelectionRegion};
 use arboard::Clipboard;
+use bevy::prelude::*;
 
 /// Extended selection state that works with scrollback
 #[derive(Resource)]
@@ -157,7 +157,7 @@ fn cursor_to_scrollback_coords(
     window_width: f32,
     window_height: f32,
 ) -> Option<(usize, usize)> {
-    use scarab_protocol::{GRID_WIDTH, GRID_HEIGHT};
+    use scarab_protocol::{GRID_HEIGHT, GRID_WIDTH};
 
     // Convert window coordinates to Bevy screen space
     // Bevy cursor position is relative to bottom-left, Y up
@@ -178,8 +178,11 @@ fn cursor_to_scrollback_coords(
     let grid_rel_y = cursor_pos.y - grid_start_y;
 
     // Check if cursor is within grid bounds
-    if grid_rel_x < 0.0 || grid_rel_x > grid_pixel_width ||
-       grid_rel_y < 0.0 || grid_rel_y > grid_pixel_height {
+    if grid_rel_x < 0.0
+        || grid_rel_x > grid_pixel_width
+        || grid_rel_y < 0.0
+        || grid_rel_y > grid_pixel_height
+    {
         return None;
     }
 
@@ -201,11 +204,15 @@ fn cursor_to_scrollback_coords(
     // When scrolled, visible_row 0 corresponds to (total_lines - scroll_offset)
     let scrollback_line = if scroll_offset > 0 {
         // In scrollback: map visible row to buffer line
-        total_lines.saturating_sub(scroll_offset).saturating_add(visible_row)
+        total_lines
+            .saturating_sub(scroll_offset)
+            .saturating_add(visible_row)
     } else {
         // At bottom (live view): should not happen since we only call this when scrolled
         // but handle it anyway by mapping to most recent lines
-        total_lines.saturating_sub(GRID_HEIGHT).saturating_add(visible_row)
+        total_lines
+            .saturating_sub(GRID_HEIGHT)
+            .saturating_add(visible_row)
     };
 
     // Ensure line is within scrollback buffer bounds
@@ -238,8 +245,12 @@ fn copy_scrollback_selection(
     // Extract text from scrollback buffer
     let mut text = String::new();
 
-    let start_line = selection.scrollback_start_line.min(selection.scrollback_end_line);
-    let end_line = selection.scrollback_start_line.max(selection.scrollback_end_line);
+    let start_line = selection
+        .scrollback_start_line
+        .min(selection.scrollback_end_line);
+    let end_line = selection
+        .scrollback_start_line
+        .max(selection.scrollback_end_line);
 
     for line_idx in start_line..=end_line {
         if let Some(line) = scrollback.get_line(line_idx) {

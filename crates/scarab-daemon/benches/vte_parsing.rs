@@ -28,7 +28,13 @@ impl Perform for BenchPerformer {
         self.operations += 1;
     }
 
-    fn csi_dispatch(&mut self, _params: &vte::Params, _intermediates: &[u8], _ignore: bool, _action: char) {
+    fn csi_dispatch(
+        &mut self,
+        _params: &vte::Params,
+        _intermediates: &[u8],
+        _ignore: bool,
+        _action: char,
+    ) {
         self.operations += 1;
     }
 
@@ -166,10 +172,10 @@ fn generate_repetitive_sequences(count: usize) -> Vec<u8> {
     // Generate highly repetitive sequences (best case for caching)
     let mut data = Vec::new();
     let sequences = [
-        b"\x1b[31m",   // Red
-        b"\x1b[32m",   // Green
-        b"\x1b[33m",   // Yellow
-        b"\x1b[0m",    // Reset
+        b"\x1b[31m", // Red
+        b"\x1b[32m", // Green
+        b"\x1b[33m", // Yellow
+        b"\x1b[0m",  // Reset
     ];
 
     for i in 0..count {
@@ -331,38 +337,30 @@ fn bench_cache_baseline_vs_optimized(c: &mut Criterion) {
         let data = generate_ansi_colors(*size);
 
         // Baseline: Standard VTE parser (no cache)
-        group.bench_with_input(
-            BenchmarkId::new("baseline", size),
-            size,
-            |b, _| {
-                let mut parser = Parser::new();
-                let mut performer = BenchPerformer::new();
+        group.bench_with_input(BenchmarkId::new("baseline", size), size, |b, _| {
+            let mut parser = Parser::new();
+            let mut performer = BenchPerformer::new();
 
-                b.iter(|| {
-                    performer.reset();
-                    for byte in &data {
-                        parser.advance(&mut performer, *byte);
-                    }
-                    black_box(&performer.operations);
-                });
-            },
-        );
+            b.iter(|| {
+                performer.reset();
+                for byte in &data {
+                    parser.advance(&mut performer, *byte);
+                }
+                black_box(&performer.operations);
+            });
+        });
 
         // Optimized: With LRU cache
-        group.bench_with_input(
-            BenchmarkId::new("cached", size),
-            size,
-            |b, _| {
-                let mut processor = BatchProcessor::new();
+        group.bench_with_input(BenchmarkId::new("cached", size), size, |b, _| {
+            let mut processor = BatchProcessor::new();
 
-                b.iter(|| {
-                    processor.reset_cache_stats();
-                    processor.add_data(&data);
-                    processor.flush();
-                    black_box(processor.cache_stats());
-                });
-            },
-        );
+            b.iter(|| {
+                processor.reset_cache_stats();
+                processor.add_data(&data);
+                processor.flush();
+                black_box(processor.cache_stats());
+            });
+        });
     }
 
     group.finish();
@@ -449,7 +447,7 @@ fn bench_real_world_scenarios(c: &mut Criterion) {
                 _ => ("\x1b[90m[DEBUG]\x1b[0m", "Debug message"),
             };
             data.extend_from_slice(
-                format!("2024-01-01 12:00:{:02} {} {}\n", i % 60, level.0, level.1).as_bytes()
+                format!("2024-01-01 12:00:{:02} {} {}\n", i % 60, level.0, level.1).as_bytes(),
             );
         }
         data
@@ -459,7 +457,9 @@ fn bench_real_world_scenarios(c: &mut Criterion) {
     let shell_output = {
         let mut data = Vec::new();
         for i in 0..500 {
-            data.extend_from_slice(b"\x1b[32m\xE2\x9E\x9C\x1b[0m \x1b[36m~/code\x1b[0m \x1b[33m$\x1b[0m ls -la\n");
+            data.extend_from_slice(
+                b"\x1b[32m\xE2\x9E\x9C\x1b[0m \x1b[36m~/code\x1b[0m \x1b[33m$\x1b[0m ls -la\n",
+            );
             data.extend_from_slice(format!("file{}.txt\n", i).as_bytes());
         }
         data
@@ -471,38 +471,30 @@ fn bench_real_world_scenarios(c: &mut Criterion) {
         ("shell_output", shell_output),
     ] {
         // Baseline
-        group.bench_with_input(
-            BenchmarkId::new("baseline", name),
-            &data,
-            |b, data| {
-                let mut parser = Parser::new();
-                let mut performer = BenchPerformer::new();
+        group.bench_with_input(BenchmarkId::new("baseline", name), &data, |b, data| {
+            let mut parser = Parser::new();
+            let mut performer = BenchPerformer::new();
 
-                b.iter(|| {
-                    performer.reset();
-                    for byte in data {
-                        parser.advance(&mut performer, *byte);
-                    }
-                    black_box(&performer.operations);
-                });
-            },
-        );
+            b.iter(|| {
+                performer.reset();
+                for byte in data {
+                    parser.advance(&mut performer, *byte);
+                }
+                black_box(&performer.operations);
+            });
+        });
 
         // Cached
-        group.bench_with_input(
-            BenchmarkId::new("cached", name),
-            &data,
-            |b, data| {
-                let mut processor = BatchProcessor::new();
+        group.bench_with_input(BenchmarkId::new("cached", name), &data, |b, data| {
+            let mut processor = BatchProcessor::new();
 
-                b.iter(|| {
-                    processor.reset_cache_stats();
-                    processor.add_data(data);
-                    processor.flush();
-                    black_box(processor.cache_stats());
-                });
-            },
-        );
+            b.iter(|| {
+                processor.reset_cache_stats();
+                processor.add_data(data);
+                processor.flush();
+                black_box(processor.cache_stats());
+            });
+        });
     }
 
     group.finish();

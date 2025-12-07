@@ -204,11 +204,7 @@ mod tests {
         let mut ids: Vec<String> = steps.iter().map(|s| s.id.clone()).collect();
         ids.sort();
         ids.dedup();
-        assert_eq!(
-            ids.len(),
-            8,
-            "All step IDs should be unique"
-        );
+        assert_eq!(ids.len(), 8, "All step IDs should be unique");
     }
 
     #[test]
@@ -228,7 +224,7 @@ mod tests {
             palette_opened: false,
             link_hints_triggered: false,
         };
-        assert!(!( step.validation)(&ctx_no_command));
+        assert!(!(step.validation)(&ctx_no_command));
 
         let ctx_with_command = TerminalContext {
             last_command: Some("ls".to_string()),

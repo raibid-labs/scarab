@@ -10,7 +10,7 @@ pub use terminal_state::TerminalStateReader;
 
 // Semantic zones for deep shell integration
 pub mod zones;
-pub use zones::{SemanticZone, ZoneType, CommandBlock, ZoneTracker};
+pub use zones::{CommandBlock, SemanticZone, ZoneTracker, ZoneType};
 
 /// Default shared memory path for terminal state.
 /// Can be overridden via SCARAB_SHMEM_PATH environment variable.
@@ -181,12 +181,8 @@ pub enum SplitDirection {
 #[derive(Debug, Clone, rkyv::Archive, rkyv::Serialize, rkyv::Deserialize)]
 #[archive(check_bytes)]
 pub enum MenuActionType {
-    Command {
-        command: alloc::string::String,
-    },
-    Remote {
-        id: alloc::string::String,
-    },
+    Command { command: alloc::string::String },
+    Remote { id: alloc::string::String },
 }
 
 // Navigation focusable action types
@@ -445,13 +441,9 @@ pub enum PluginVerificationStatus {
         signature_timestamp: u64,
     },
     /// Plugin checksum was verified but no signature
-    ChecksumOnly {
-        checksum: alloc::string::String,
-    },
+    ChecksumOnly { checksum: alloc::string::String },
     /// Plugin was installed without verification
-    Unverified {
-        warning: alloc::string::String,
-    },
+    Unverified { warning: alloc::string::String },
 }
 
 // Status bar side specification
@@ -760,7 +752,7 @@ impl TerminalMetrics {
     /// Create metrics from font size and terminal dimensions
     pub fn new(font_size: f32, line_height_multiplier: f32, columns: u16, rows: u16) -> Self {
         Self {
-            cell_width: font_size * 0.6,  // Typical monospace ratio
+            cell_width: font_size * 0.6, // Typical monospace ratio
             cell_height: font_size * line_height_multiplier,
             columns,
             rows,

@@ -1,10 +1,10 @@
-use anyhow::{Context, Result, bail};
+use anyhow::{bail, Context, Result};
 use clap::Parser;
 use colored::*;
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use fusabi_frontend::{Lexer, Parser as FusabiParser, TypeInference, Compiler, TypeEnv};
+use fusabi_frontend::{Compiler, Lexer, Parser as FusabiParser, TypeEnv, TypeInference};
 use fusabi_vm::{Chunk, FZB_MAGIC, FZB_VERSION};
 
 /// Scarab Fusabi Plugin Compiler
@@ -104,7 +104,10 @@ impl PluginMetadata {
         }
 
         if !errors.is_empty() {
-            bail!("Plugin metadata validation failed:\n  {}", errors.join("\n  "));
+            bail!(
+                "Plugin metadata validation failed:\n  {}",
+                errors.join("\n  ")
+            );
         }
 
         Ok(())
@@ -162,17 +165,17 @@ impl From<&PluginMetadata> for SerializedMetadata {
 }
 
 /// Compile a Fusabi source file to bytecode
-fn compile_plugin(
-    source_path: &Path,
-    output_path: &Path,
-    args: &Args,
-) -> Result<()> {
+fn compile_plugin(source_path: &Path, output_path: &Path, args: &Args) -> Result<()> {
     // Read source file
     let source = fs::read_to_string(source_path)
         .with_context(|| format!("Failed to read source file: {}", source_path.display()))?;
 
     if args.verbose {
-        println!("{} Reading source from: {}", "[1/6]".dimmed(), source_path.display());
+        println!(
+            "{} Reading source from: {}",
+            "[1/6]".dimmed(),
+            source_path.display()
+        );
     }
 
     // Extract and validate metadata
@@ -184,7 +187,8 @@ fn compile_plugin(
     }
 
     if args.validate_metadata {
-        metadata.validate()
+        metadata
+            .validate()
             .context("Plugin metadata validation failed")?;
         println!("{} Metadata validation passed", "✓".green().bold());
     }
@@ -195,7 +199,8 @@ fn compile_plugin(
     }
 
     let mut lexer = Lexer::new(&source);
-    let tokens = lexer.tokenize()
+    let tokens = lexer
+        .tokenize()
         .map_err(|e| anyhow::anyhow!("Lexer error: {:?}", e))?;
 
     if args.verbose {
@@ -208,7 +213,8 @@ fn compile_plugin(
     }
 
     let mut parser = FusabiParser::new(tokens);
-    let ast = parser.parse()
+    let ast = parser
+        .parse()
         .map_err(|e| anyhow::anyhow!("Parser error: {:?}", e))?;
 
     if args.print_ast {
@@ -225,7 +231,8 @@ fn compile_plugin(
         let mut type_inference = TypeInference::new();
         let env = TypeEnv::new();
 
-        type_inference.infer_and_solve(&ast, &env)
+        type_inference
+            .infer_and_solve(&ast, &env)
             .map_err(|e| anyhow::anyhow!("Type inference error: {:?}", e))?;
 
         if args.verbose {
@@ -240,8 +247,8 @@ fn compile_plugin(
         println!("{} Compiling to bytecode...", "[6/6]".dimmed());
     }
 
-    let chunk = Compiler::compile(&ast)
-        .map_err(|e| anyhow::anyhow!("Compilation error: {:?}", e))?;
+    let chunk =
+        Compiler::compile(&ast).map_err(|e| anyhow::anyhow!("Compilation error: {:?}", e))?;
 
     if args.verbose {
         println!("  {} bytecode instructions", chunk.instructions.len());
@@ -289,12 +296,11 @@ fn write_bytecode_file(
     };
 
     // Serialize header
-    let header_bytes = bincode::serialize(&header)
-        .context("Failed to serialize bytecode header")?;
+    let header_bytes =
+        bincode::serialize(&header).context("Failed to serialize bytecode header")?;
 
     // Serialize chunk
-    let chunk_bytes = bincode::serialize(chunk)
-        .context("Failed to serialize bytecode chunk")?;
+    let chunk_bytes = bincode::serialize(chunk).context("Failed to serialize bytecode chunk")?;
 
     // Combine header + chunk
     let mut file_data = Vec::new();

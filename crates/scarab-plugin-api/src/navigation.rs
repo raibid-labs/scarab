@@ -118,7 +118,10 @@ fn validate_url(url: &str) -> std::result::Result<(), ValidationError> {
             });
         }
     }
-    if !url_lower.starts_with("http://") && !url_lower.starts_with("https://") && !url_lower.starts_with("file://") {
+    if !url_lower.starts_with("http://")
+        && !url_lower.starts_with("https://")
+        && !url_lower.starts_with("file://")
+    {
         return Err(ValidationError::MalformedUrl {
             url: url.to_string(),
         });
@@ -143,7 +146,14 @@ fn validate_file_path(path: &str) -> std::result::Result<(), ValidationError> {
         });
     }
     let path_lower = path.to_lowercase();
-    const SENSITIVE_PATTERNS: &[&str] = &["/etc/passwd", "/etc/shadow", "/proc/", "/sys/", "\\.ssh", "/root/"];
+    const SENSITIVE_PATTERNS: &[&str] = &[
+        "/etc/passwd",
+        "/etc/shadow",
+        "/proc/",
+        "/sys/",
+        "\\.ssh",
+        "/root/",
+    ];
     for pattern in SENSITIVE_PATTERNS {
         if path_lower.contains(pattern) {
             return Err(ValidationError::DangerousPath {

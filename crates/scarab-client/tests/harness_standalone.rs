@@ -179,7 +179,9 @@ fn test_mock_reader_sequence() {
 fn test_sample_terminal_output() {
     let sample_state = sample_terminal_output();
     let mut harness = HeadlessTestHarness::new();
-    harness.app.insert_resource(MockSharedMemoryReader::with_state(sample_state));
+    harness
+        .app
+        .insert_resource(MockSharedMemoryReader::with_state(sample_state));
 
     let reader = harness.resource::<MockSharedMemoryReader>();
     assert!(reader.get_row_text(0).contains("user@scarab"));
@@ -190,7 +192,9 @@ fn test_sample_terminal_output() {
 fn test_sample_url_output() {
     let url_state = sample_url_output();
     let mut harness = HeadlessTestHarness::new();
-    harness.app.insert_resource(MockSharedMemoryReader::with_state(url_state));
+    harness
+        .app
+        .insert_resource(MockSharedMemoryReader::with_state(url_state));
 
     let reader = harness.resource::<MockSharedMemoryReader>();
     assert!(reader.get_row_text(0).contains("https://github.com"));
@@ -201,7 +205,9 @@ fn test_sample_url_output() {
 fn test_sample_colored_output() {
     let colored_state = sample_colored_output();
     let mut harness = HeadlessTestHarness::new();
-    harness.app.insert_resource(MockSharedMemoryReader::with_state(colored_state));
+    harness
+        .app
+        .insert_resource(MockSharedMemoryReader::with_state(colored_state));
 
     let reader = harness.resource::<MockSharedMemoryReader>();
     assert!(reader.get_row_text(0).contains("ERROR"));
@@ -223,25 +229,28 @@ fn test_hierarchical_ui() {
         Name::new("Parent"),
     ));
 
-    harness.world_mut().entity_mut(parent).with_children(|parent| {
-        parent.spawn((
-            Node {
-                width: Val::Percent(100.0),
-                height: Val::Px(50.0),
-                ..default()
-            },
-            Name::new("Child1"),
-        ));
+    harness
+        .world_mut()
+        .entity_mut(parent)
+        .with_children(|parent| {
+            parent.spawn((
+                Node {
+                    width: Val::Percent(100.0),
+                    height: Val::Px(50.0),
+                    ..default()
+                },
+                Name::new("Child1"),
+            ));
 
-        parent.spawn((
-            Node {
-                width: Val::Percent(100.0),
-                height: Val::Px(50.0),
-                ..default()
-            },
-            Name::new("Child2"),
-        ));
-    });
+            parent.spawn((
+                Node {
+                    width: Val::Percent(100.0),
+                    height: Val::Px(50.0),
+                    ..default()
+                },
+                Name::new("Child2"),
+            ));
+        });
 
     harness.update();
 

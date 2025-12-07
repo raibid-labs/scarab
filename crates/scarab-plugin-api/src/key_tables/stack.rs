@@ -41,9 +41,7 @@ impl KeyTableStack {
 
     /// Get the name of the current key table, or "default" if stack is empty
     pub fn current_name(&self) -> &str {
-        self.current()
-            .map(|a| a.name.as_str())
-            .unwrap_or("default")
+        self.current().map(|a| a.name.as_str()).unwrap_or("default")
     }
 
     /// Clear the entire stack
@@ -108,10 +106,7 @@ impl KeyTableStack {
 
     /// Check if any tables have timeouts and return the earliest timeout
     pub fn next_timeout(&self) -> Option<Instant> {
-        self.stack
-            .iter()
-            .filter_map(|a| a.timeout)
-            .min()
+        self.stack.iter().filter_map(|a| a.timeout).min()
     }
 
     /// Get a reference to the default table

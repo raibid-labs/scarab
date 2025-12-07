@@ -68,7 +68,6 @@ fn test_palette_spawns_on_keyboard_toggle() {
     let state_before = harness.resource::<CommandPaletteState>();
     assert!(!state_before.active, "Palette should start inactive");
 
-
     // Simulate Ctrl+P key press to toggle palette (manual state change)
     {
         let filtered = {
@@ -84,17 +83,6 @@ fn test_palette_spawns_on_keyboard_toggle() {
             state.filtered_commands = filtered;
         }
     }
-
-
-
-
-
-
-
-
-
-
-
 
     // Check that state is now active
     let state_after = harness.resource::<CommandPaletteState>();
@@ -170,8 +158,7 @@ fn test_palette_filters_commands() {
         "Should match only 'Copy' command"
     );
     assert_eq!(
-        state.filtered_commands[0].0.id,
-        "copy",
+        state.filtered_commands[0].0.id, "copy",
         "Matched command should be 'Copy'"
     );
 
@@ -359,7 +346,9 @@ fn test_palette_executes_command() {
             let state = harness.resource::<CommandPaletteState>();
             state.filtered_commands[state.selected_index].0.id.clone()
         };
-        harness.world_mut().send_event(CommandExecutedEvent { command_id });
+        harness
+            .world_mut()
+            .send_event(CommandExecutedEvent { command_id });
 
         // Deactivate palette (simulating what handle_palette_input_system does)
         let mut state = harness.resource_mut::<CommandPaletteState>();
@@ -370,7 +359,10 @@ fn test_palette_executes_command() {
 
     // Check that the palette was closed
     let state = harness.resource::<CommandPaletteState>();
-    assert!(!state.active, "Palette should be inactive after command execution");
+    assert!(
+        !state.active,
+        "Palette should be inactive after command execution"
+    );
 }
 
 /// Test 5: Escape key closes the palette
@@ -525,7 +517,9 @@ fn test_empty_state() {
                 .map(|(cmd, _)| cmd.id.clone())
         };
         if let Some(command_id) = maybe_command_id {
-            harness.world_mut().send_event(CommandExecutedEvent { command_id });
+            harness
+                .world_mut()
+                .send_event(CommandExecutedEvent { command_id });
         }
     }
 
@@ -626,21 +620,9 @@ fn test_command_categories() {
         let mut registry = harness.resource_mut::<CommandRegistry>();
         *registry = CommandRegistry::default();
 
-        registry.register(Command::new(
-            "copy",
-            "Copy",
-            "Copy text",
-            "Edit",
-            |_| {},
-        ));
+        registry.register(Command::new("copy", "Copy", "Copy text", "Edit", |_| {}));
 
-        registry.register(Command::new(
-            "paste",
-            "Paste",
-            "Paste text",
-            "Edit",
-            |_| {},
-        ));
+        registry.register(Command::new("paste", "Paste", "Paste text", "Edit", |_| {}));
 
         registry.register(Command::new(
             "clear",
@@ -650,13 +632,7 @@ fn test_command_categories() {
             |_| {},
         ));
 
-        registry.register(Command::new(
-            "help",
-            "Help",
-            "Show help",
-            "Help",
-            |_| {},
-        ));
+        registry.register(Command::new("help", "Help", "Show help", "Help", |_| {}));
     }
 
     // Get all commands
@@ -666,7 +642,10 @@ fn test_command_categories() {
 
         // Count by category
         let edit_count = all_commands.iter().filter(|c| c.category == "Edit").count();
-        let terminal_count = all_commands.iter().filter(|c| c.category == "Terminal").count();
+        let terminal_count = all_commands
+            .iter()
+            .filter(|c| c.category == "Terminal")
+            .count();
         let help_count = all_commands.iter().filter(|c| c.category == "Help").count();
 
         assert_eq!(edit_count, 2, "Should have 2 Edit commands");

@@ -187,7 +187,10 @@ fn test_advanced_shaping_enabled() {
         "No glyphs rendered - font system may not be working"
     );
 
-    eprintln!("Advanced shaping test: {} glyphs for '{}'", result.glyph_count, result.text);
+    eprintln!(
+        "Advanced shaping test: {} glyphs for '{}'",
+        result.glyph_count, result.text
+    );
 }
 
 #[test]
@@ -219,7 +222,11 @@ fn test_ligature_sequences_render() {
             seq,
             seq.chars().count(),
             result.glyph_count,
-            if result.has_ligatures() { "(ligated)" } else { "(no ligature)" }
+            if result.has_ligatures() {
+                "(ligated)"
+            } else {
+                "(no ligature)"
+            }
         );
     }
 }
@@ -241,8 +248,16 @@ fn test_ligatures_with_advanced_vs_basic_shaping() {
         eprintln!("  Basic shaping: {} glyphs", basic.glyph_count);
 
         // Both should produce glyphs
-        assert!(advanced.glyph_count > 0, "Advanced shaping produced no glyphs for '{}'", seq);
-        assert!(basic.glyph_count > 0, "Basic shaping produced no glyphs for '{}'", seq);
+        assert!(
+            advanced.glyph_count > 0,
+            "Advanced shaping produced no glyphs for '{}'",
+            seq
+        );
+        assert!(
+            basic.glyph_count > 0,
+            "Basic shaping produced no glyphs for '{}'",
+            seq
+        );
 
         // Advanced shaping may produce fewer glyphs (ligatures) or same (no ligature font)
         assert!(
@@ -266,8 +281,14 @@ fn test_monospace_property_preserved() {
     let regular = harness.render_text("ab", 16.0);
 
     eprintln!("\nMonospace test:");
-    eprintln!("  '=>' width: {:.2} ({} glyphs)", ligature.total_width, ligature.glyph_count);
-    eprintln!("  'ab' width: {:.2} ({} glyphs)", regular.total_width, regular.glyph_count);
+    eprintln!(
+        "  '=>' width: {:.2} ({} glyphs)",
+        ligature.total_width, ligature.glyph_count
+    );
+    eprintln!(
+        "  'ab' width: {:.2} ({} glyphs)",
+        regular.total_width, regular.glyph_count
+    );
 
     // For true monospace fonts, these should be very close
     // Allow some tolerance for rounding
@@ -316,12 +337,12 @@ fn test_complex_ligature_combinations() {
     let mut harness = LigatureTestHarness::new();
 
     let complex_sequences = vec![
-        ">>>=",  // Shift assign
-        "<<=",   // Left shift assign
-        "===",   // Triple equal
-        "!==",   // Triple not equal
-        "...",   // Ellipsis
-        "<=>",   // Spaceship operator
+        ">>>=", // Shift assign
+        "<<=",  // Left shift assign
+        "===",  // Triple equal
+        "!==",  // Triple not equal
+        "...",  // Ellipsis
+        "<=>",  // Spaceship operator
     ];
 
     for seq in complex_sequences {
@@ -348,10 +369,10 @@ fn test_ligature_boundary_conditions() {
     let mut harness = LigatureTestHarness::new();
 
     let boundary_tests = vec![
-        ("=>", "=> "),     // Ligature followed by space
-        ("->", " ->"),     // Space followed by ligature
-        ("!=", " != "),    // Ligature with spaces on both sides
-        ("==", "a==b"),    // Ligature between characters
+        ("=>", "=> "),  // Ligature followed by space
+        ("->", " ->"),  // Space followed by ligature
+        ("!=", " != "), // Ligature with spaces on both sides
+        ("==", "a==b"), // Ligature between characters
     ];
 
     for (_ligature, text) in boundary_tests {

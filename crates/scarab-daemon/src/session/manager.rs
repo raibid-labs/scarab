@@ -1,5 +1,5 @@
 use super::pane::{Pane, PaneId};
-use super::tab::{Tab, TabId, SplitDirection};
+use super::tab::{SplitDirection, Tab, TabId};
 use super::{ClientId, SessionId, SessionStore, TerminalState};
 use anyhow::{bail, Result};
 use parking_lot::RwLock;
@@ -120,7 +120,12 @@ impl Session {
             *next_id = 2;
         }
 
-        log::info!("Restored session {} with new tab and PTY ({}x{})", self.id, cols, rows);
+        log::info!(
+            "Restored session {} with new tab and PTY ({}x{})",
+            self.id,
+            cols,
+            rows
+        );
         Ok(true)
     }
 
@@ -136,7 +141,13 @@ impl Session {
         };
 
         let title = title.unwrap_or_else(|| format!("Tab {}", tab_id));
-        let tab = Tab::new(tab_id, title, &self.default_shell, self.default_cols, self.default_rows)?;
+        let tab = Tab::new(
+            tab_id,
+            title,
+            &self.default_shell,
+            self.default_cols,
+            self.default_rows,
+        )?;
 
         {
             let mut tabs = self.tabs.write();
@@ -179,7 +190,12 @@ impl Session {
             *active = *tabs.keys().next().unwrap_or(&0);
         }
 
-        log::info!("Closed tab {} in session {} (destroyed {} panes)", tab_id, self.id, destroyed_panes.len());
+        log::info!(
+            "Closed tab {} in session {} (destroyed {} panes)",
+            tab_id,
+            self.id,
+            destroyed_panes.len()
+        );
         Ok(destroyed_panes)
     }
 
@@ -222,7 +238,14 @@ impl Session {
         let active_id = *self.active_tab_id.read();
 
         tabs.values()
-            .map(|tab| (tab.id, tab.title.clone(), tab.id == active_id, tab.pane_count()))
+            .map(|tab| {
+                (
+                    tab.id,
+                    tab.title.clone(),
+                    tab.id == active_id,
+                    tab.pane_count(),
+                )
+            })
             .collect()
     }
 
@@ -275,16 +298,21 @@ impl Session {
 
     /// Get the active pane's terminal state for VTE processing
     pub fn get_active_terminal_state(&self) -> Option<Arc<RwLock<TerminalState>>> {
-        self.get_active_pane().map(|pane| Arc::clone(&pane.terminal_state))
+        self.get_active_pane()
+            .map(|pane| Arc::clone(&pane.terminal_state))
     }
 
     /// Get the active pane's PTY master for reading output
-    pub fn get_active_pty_master(&self) -> Option<Arc<Mutex<Option<Box<dyn portable_pty::MasterPty + Send>>>>> {
+    pub fn get_active_pty_master(
+        &self,
+    ) -> Option<Arc<Mutex<Option<Box<dyn portable_pty::MasterPty + Send>>>>> {
         self.get_active_pane().map(|pane| pane.pty_master())
     }
 
     /// Get the active pane's PTY writer for sending input
-    pub fn get_active_pty_writer(&self) -> Option<Arc<Mutex<Option<Box<dyn std::io::Write + Send>>>>> {
+    pub fn get_active_pty_writer(
+        &self,
+    ) -> Option<Arc<Mutex<Option<Box<dyn std::io::Write + Send>>>>> {
         self.get_active_pane().map(|pane| pane.pty_writer())
     }
 
@@ -317,9 +345,7 @@ impl Session {
     /// Get all panes across all tabs in this session
     pub fn all_panes(&self) -> Vec<Arc<Pane>> {
         let tabs = self.tabs.read();
-        tabs.values()
-            .flat_map(|tab| tab.panes().cloned())
-            .collect()
+        tabs.values().flat_map(|tab| tab.panes().cloned()).collect()
     }
 
     // ==================== Client Management ====================
@@ -379,7 +405,11 @@ impl SessionManager {
         for session in persisted {
             // Spawn a new PTY for the restored session
             if let Err(e) = session.ensure_default_tab(shell, cols, rows) {
-                log::warn!("Failed to spawn PTY for restored session {}: {}", session.id, e);
+                log::warn!(
+                    "Failed to spawn PTY for restored session {}: {}",
+                    session.id,
+                    e
+                );
                 // Continue anyway - session exists but won't have PTY
             }
 

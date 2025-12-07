@@ -154,7 +154,8 @@ impl SemanticZone {
 
     /// Get duration in seconds for display
     pub fn duration_secs(&self) -> Option<f64> {
-        self.duration_micros.map(|micros| micros as f64 / 1_000_000.0)
+        self.duration_micros
+            .map(|micros| micros as f64 / 1_000_000.0)
     }
 }
 
@@ -256,7 +257,8 @@ impl CommandBlock {
 
     /// Get duration in seconds for display
     pub fn duration_secs(&self) -> Option<f64> {
-        self.duration_micros.map(|micros| micros as f64 / 1_000_000.0)
+        self.duration_micros
+            .map(|micros| micros as f64 / 1_000_000.0)
     }
 }
 
@@ -310,9 +312,12 @@ impl ZoneTracker {
     /// Handle OSC 133;B - Command/input start
     pub fn mark_command_start(&mut self, line: u32, timestamp: u64) {
         // Complete the previous prompt zone if any
-        if let Some(zone) = self.current_zones.iter_mut().rev().find(|z| {
-            z.zone_type == ZoneType::Prompt && !z.is_complete
-        }) {
+        if let Some(zone) = self
+            .current_zones
+            .iter_mut()
+            .rev()
+            .find(|z| z.zone_type == ZoneType::Prompt && !z.is_complete)
+        {
             zone.complete(line.saturating_sub(1), timestamp);
         }
 
@@ -331,9 +336,12 @@ impl ZoneTracker {
     /// Handle OSC 133;C - Command executed, output begins
     pub fn mark_command_executed(&mut self, line: u32, timestamp: u64) {
         // Complete the previous input zone if any
-        if let Some(zone) = self.current_zones.iter_mut().rev().find(|z| {
-            z.zone_type == ZoneType::Input && !z.is_complete
-        }) {
+        if let Some(zone) = self
+            .current_zones
+            .iter_mut()
+            .rev()
+            .find(|z| z.zone_type == ZoneType::Input && !z.is_complete)
+        {
             zone.complete(line.saturating_sub(1), timestamp);
         }
 
@@ -352,9 +360,12 @@ impl ZoneTracker {
     /// Handle OSC 133;D - Command finished
     pub fn mark_command_finished(&mut self, line: u32, exit_code: i32, timestamp: u64) {
         // Complete the previous output zone if any
-        if let Some(zone) = self.current_zones.iter_mut().rev().find(|z| {
-            z.zone_type == ZoneType::Output && !z.is_complete
-        }) {
+        if let Some(zone) = self
+            .current_zones
+            .iter_mut()
+            .rev()
+            .find(|z| z.zone_type == ZoneType::Output && !z.is_complete)
+        {
             zone.complete(line, timestamp);
             zone.set_exit_code(exit_code);
 
@@ -378,9 +389,12 @@ impl ZoneTracker {
 
     /// Set command text for the most recent input zone
     pub fn set_command_text(&mut self, command: String) {
-        if let Some(zone) = self.current_zones.iter_mut().rev().find(|z| {
-            z.zone_type == ZoneType::Input
-        }) {
+        if let Some(zone) = self
+            .current_zones
+            .iter_mut()
+            .rev()
+            .find(|z| z.zone_type == ZoneType::Input)
+        {
             zone.set_command(command.clone());
         }
 
@@ -409,21 +423,24 @@ impl ZoneTracker {
 
     /// Find the command block containing the given line
     pub fn find_block_at_line(&self, line: u32) -> Option<&CommandBlock> {
-        self.command_blocks.iter()
+        self.command_blocks
+            .iter()
             .rev()
             .find(|block| block.contains_line(line))
     }
 
     /// Find the zone containing the given line
     pub fn find_zone_at_line(&self, line: u32) -> Option<&SemanticZone> {
-        self.current_zones.iter()
+        self.current_zones
+            .iter()
             .rev()
             .find(|zone| zone.contains_line(line))
     }
 
     /// Get the last output zone for "copy last output" functionality
     pub fn last_output_zone(&self) -> Option<&SemanticZone> {
-        self.command_blocks.iter()
+        self.command_blocks
+            .iter()
             .rev()
             .find_map(|block| block.output_zone.as_ref())
     }
@@ -549,7 +566,11 @@ mod tests {
         assert_eq!(tracker.zones().len(), 2);
 
         // Check prompt zone was completed
-        let prompt_zone = tracker.zones().iter().find(|z| z.zone_type == ZoneType::Prompt).unwrap();
+        let prompt_zone = tracker
+            .zones()
+            .iter()
+            .find(|z| z.zone_type == ZoneType::Prompt)
+            .unwrap();
         assert!(prompt_zone.is_complete);
         assert_eq!(prompt_zone.end_row, 0);
 
@@ -558,7 +579,11 @@ mod tests {
         assert_eq!(tracker.zones().len(), 3);
 
         // Check input zone was completed
-        let input_zone = tracker.zones().iter().find(|z| z.zone_type == ZoneType::Input).unwrap();
+        let input_zone = tracker
+            .zones()
+            .iter()
+            .find(|z| z.zone_type == ZoneType::Input)
+            .unwrap();
         assert!(input_zone.is_complete);
         assert_eq!(input_zone.end_row, 1);
 
@@ -566,7 +591,11 @@ mod tests {
         tracker.mark_command_finished(10, 0, 4000);
 
         // Check output zone was completed
-        let output_zone = tracker.zones().iter().find(|z| z.zone_type == ZoneType::Output).unwrap();
+        let output_zone = tracker
+            .zones()
+            .iter()
+            .find(|z| z.zone_type == ZoneType::Output)
+            .unwrap();
         assert!(output_zone.is_complete);
         assert_eq!(output_zone.end_row, 10);
         assert_eq!(output_zone.exit_code, Some(0));
@@ -667,13 +696,25 @@ mod tests {
         tracker.adjust_for_scroll(5);
 
         // Check that all zones were adjusted
-        let prompt = tracker.zones().iter().find(|z| z.zone_type == ZoneType::Prompt).unwrap();
+        let prompt = tracker
+            .zones()
+            .iter()
+            .find(|z| z.zone_type == ZoneType::Prompt)
+            .unwrap();
         assert_eq!(prompt.start_row, 15);
 
-        let input = tracker.zones().iter().find(|z| z.zone_type == ZoneType::Input).unwrap();
+        let input = tracker
+            .zones()
+            .iter()
+            .find(|z| z.zone_type == ZoneType::Input)
+            .unwrap();
         assert_eq!(input.start_row, 16);
 
-        let output = tracker.zones().iter().find(|z| z.zone_type == ZoneType::Output).unwrap();
+        let output = tracker
+            .zones()
+            .iter()
+            .find(|z| z.zone_type == ZoneType::Output)
+            .unwrap();
         assert_eq!(output.start_row, 17);
     }
 }

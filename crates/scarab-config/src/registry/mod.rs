@@ -80,11 +80,7 @@ impl RegistryManager {
     }
 
     /// Install plugin from registry
-    pub async fn install(
-        &mut self,
-        name: &str,
-        version: Option<&str>,
-    ) -> Result<InstalledPlugin> {
+    pub async fn install(&mut self, name: &str, version: Option<&str>) -> Result<InstalledPlugin> {
         // Get plugin entry
         let entry = self
             .cache
@@ -98,11 +94,12 @@ impl RegistryManager {
         let download = self.client.download_plugin(name, version).await?;
 
         // Verify signature and checksum
-        let verification_status = self.verifier
-            .verify(&download.content, &entry, version)?;
+        let verification_status = self.verifier.verify(&download.content, &entry, version)?;
 
         // Install plugin with verification status
-        let installed = self.installer.install(name, version, download.content, verification_status)?;
+        let installed =
+            self.installer
+                .install(name, version, download.content, verification_status)?;
 
         Ok(installed)
     }

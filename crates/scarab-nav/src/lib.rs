@@ -1,14 +1,14 @@
 use async_trait::async_trait;
+use prost::Message;
 use regex::Regex;
+use scarab_nav_protocol::v1::UpdateLayout;
 use scarab_plugin_api::{
     types::{OverlayStyle, RemoteCommand},
     Action, Plugin, PluginContext, PluginMetadata, Result,
 };
-use scarab_nav_protocol::v1::UpdateLayout;
 use std::sync::{Arc, Mutex};
-use tokio::net::UnixListener;
 use tokio::io::AsyncReadExt;
-use prost::Message;
+use tokio::net::UnixListener;
 
 pub struct NavigationPlugin {
     metadata: PluginMetadata,
@@ -42,7 +42,7 @@ impl NavigationPlugin {
         let state_clone = state.clone();
 
         // Start the socket listener in a background task
-        // We use a standard path for now. In a real integration, the daemon would 
+        // We use a standard path for now. In a real integration, the daemon would
         // likely pass a unique socket path or FD to the plugin.
         // For this MVP, we'll use /tmp/scarab-nav.sock
         std::thread::spawn(move || {
@@ -51,7 +51,7 @@ impl NavigationPlugin {
                 let socket_path = "/tmp/scarab-nav.sock";
                 // Remove existing socket if it exists
                 let _ = tokio::fs::remove_file(socket_path).await;
-                
+
                 match UnixListener::bind(socket_path) {
                     Ok(listener) => {
                         log::info!("Scarab Nav listening on {}", socket_path);
@@ -71,7 +71,7 @@ impl NavigationPlugin {
                                             if stream.read_exact(&mut buf).await.is_err() {
                                                 break;
                                             }
-                                            
+
                                             if let Ok(layout) = UpdateLayout::decode(&buf[..]) {
                                                 if let Ok(mut s) = state_ref.lock() {
                                                     s.latest_layout = Some(layout);
@@ -104,7 +104,7 @@ impl NavigationPlugin {
     fn generate_labels(count: usize) -> Vec<String> {
         let chars: Vec<char> = "asdfghjklqwertyuiopzxcvbnm".chars().collect();
         let mut labels = Vec::new();
-        
+
         if count <= chars.len() {
             for i in 0..count {
                 labels.push(chars[i].to_string());
@@ -154,7 +154,7 @@ impl Plugin for NavigationPlugin {
 
         // Trigger: Alt+f (Esc + f) -> [0x1b, b'f']
         // Or Ctrl+f -> [0x06]
-        
+
         if !state.active {
             // Activation check
             if input == [0x1b, b'f'] || input == [0x06] {
@@ -172,9 +172,12 @@ impl Plugin for NavigationPlugin {
                         // The layout coords are 0-based relative to window.
                         // We assume window 0,0 maps to terminal 0,0 for this MVP.
                         hints_to_generate.push((
-                            element.x as u16, 
-                            element.y as u16, 
-                            HintAction::Click(element.x + element.width / 2, element.y + element.height / 2)
+                            element.x as u16,
+                            element.y as u16,
+                            HintAction::Click(
+                                element.x + element.width / 2,
+                                element.y + element.height / 2,
+                            ),
                         ));
                     }
                 }
@@ -187,7 +190,7 @@ impl Plugin for NavigationPlugin {
                             hints_to_generate.push((
                                 mat.start() as u16,
                                 y,
-                                HintAction::OpenUrl(mat.as_str().to_string())
+                                HintAction::OpenUrl(mat.as_str().to_string()),
                             ));
                         }
                     }
@@ -197,8 +200,10 @@ impl Plugin for NavigationPlugin {
                 let mut hint_id = 0;
 
                 for (i, (x, y, action)) in hints_to_generate.into_iter().enumerate() {
-                    if i >= labels.len() { break; }
-                    
+                    if i >= labels.len() {
+                        break;
+                    }
+
                     let label = labels[i].clone();
                     let id = hint_id;
                     hint_id += 1;
@@ -224,11 +229,11 @@ impl Plugin for NavigationPlugin {
 
                 return Ok(Action::Modify(Vec::new())); // Consume trigger
             }
-            
+
             return Ok(Action::Continue);
         } else {
             // Handling input while active
-            
+
             // Esc -> Cancel
             if input == [0x1b] {
                 state.active = false;
@@ -241,7 +246,7 @@ impl Plugin for NavigationPlugin {
                 // We handle single char for now, or build buffer if multi-char labels
                 // Assuming labels are generated alphabetically, we can just append to buffer
                 state.input_buffer.push_str(s);
-                
+
                 // Check for exact match
                 if let Some(hint) = state.hints.iter().find(|h| h.label == state.input_buffer) {
                     // Execute Action
@@ -257,7 +262,7 @@ impl Plugin for NavigationPlugin {
                             let x = x + 1;
                             let y = y + 1;
                             let seq = format!("\x1b[<0;{};{}M\x1b[<0;{};{}m", x, y, x, y);
-                            
+
                             state.active = false;
                             ctx.queue_command(RemoteCommand::ClearOverlays { id: None });
                             return Ok(Action::Modify(seq.into_bytes()));
@@ -268,9 +273,12 @@ impl Plugin for NavigationPlugin {
                     ctx.queue_command(RemoteCommand::ClearOverlays { id: None });
                     return Ok(Action::Modify(Vec::new()));
                 }
-                
+
                 // Partial match check? If buffer doesn't match start of any label, reset or cancel.
-                let has_prefix = state.hints.iter().any(|h| h.label.starts_with(&state.input_buffer));
+                let has_prefix = state
+                    .hints
+                    .iter()
+                    .any(|h| h.label.starts_with(&state.input_buffer));
                 if !has_prefix {
                     // Invalid input, deactivate and pass through to terminal
                     state.active = false;

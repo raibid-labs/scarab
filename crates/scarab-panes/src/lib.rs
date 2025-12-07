@@ -5,10 +5,7 @@
 
 use async_trait::async_trait;
 use parking_lot::Mutex;
-use scarab_plugin_api::{
-    types::ModalItem,
-    Action, Plugin, PluginContext, PluginMetadata, Result,
-};
+use scarab_plugin_api::{types::ModalItem, Action, Plugin, PluginContext, PluginMetadata, Result};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -118,13 +115,8 @@ impl PluginState {
                 let mut l1 = layout.clone();
                 l1.height = height1;
 
-                let mut l2 = PaneLayout::new(
-                    new_id,
-                    layout.x,
-                    layout.y + height1,
-                    layout.width,
-                    height2,
-                );
+                let mut l2 =
+                    PaneLayout::new(new_id, layout.x, layout.y + height1, layout.width, height2);
                 l2.parent_id = Some(pane_id);
                 l2.split_direction = Some(direction);
                 l2.is_focused = true;
@@ -139,13 +131,8 @@ impl PluginState {
                 let mut l1 = layout.clone();
                 l1.width = width1;
 
-                let mut l2 = PaneLayout::new(
-                    new_id,
-                    layout.x + width1,
-                    layout.y,
-                    width2,
-                    layout.height,
-                );
+                let mut l2 =
+                    PaneLayout::new(new_id, layout.x + width1, layout.y, width2, layout.height);
                 l2.parent_id = Some(pane_id);
                 l2.split_direction = Some(direction);
                 l2.is_focused = true;
@@ -209,11 +196,10 @@ impl PluginState {
         };
 
         // Find all siblings - panes that share the same parent
-        let siblings: Vec<u64> = self.panes
+        let siblings: Vec<u64> = self
+            .panes
             .iter()
-            .filter(|(id, pane)| {
-                **id != closed_id && pane.layout.parent_id == Some(parent_id)
-            })
+            .filter(|(id, pane)| **id != closed_id && pane.layout.parent_id == Some(parent_id))
             .map(|(id, _)| *id)
             .collect();
 
@@ -292,7 +278,8 @@ impl PluginState {
             };
 
             if is_valid {
-                let distance = ((px as i32 - cx as i32).abs() + (py as i32 - cy as i32).abs()) as u32;
+                let distance =
+                    ((px as i32 - cx as i32).abs() + (py as i32 - cy as i32).abs()) as u32;
                 candidates.push((*id, distance));
             }
         }
@@ -347,9 +334,10 @@ impl PluginState {
 
             // Find siblings (other panes with the same parent and split direction)
             for (id, pane) in &self.panes {
-                if *id != pane_id &&
-                   pane.layout.parent_id == Some(pid) &&
-                   pane.layout.split_direction == Some(split_direction) {
+                if *id != pane_id
+                    && pane.layout.parent_id == Some(pid)
+                    && pane.layout.split_direction == Some(split_direction)
+                {
                     related_panes.push(*id);
                 }
             }
@@ -372,13 +360,13 @@ impl PluginState {
 
         // Determine if this resize makes sense for the direction
         let new_ratio = match (direction, split_direction) {
-            (Direction::Down, SplitDirection::Horizontal) |
-            (Direction::Right, SplitDirection::Vertical) => {
+            (Direction::Down, SplitDirection::Horizontal)
+            | (Direction::Right, SplitDirection::Vertical) => {
                 // Expanding this pane
                 current_ratio + ratio_delta
             }
-            (Direction::Up, SplitDirection::Horizontal) |
-            (Direction::Left, SplitDirection::Vertical) => {
+            (Direction::Up, SplitDirection::Horizontal)
+            | (Direction::Left, SplitDirection::Vertical) => {
                 // Shrinking this pane
                 current_ratio - ratio_delta
             }
@@ -386,7 +374,9 @@ impl PluginState {
                 // Direction doesn't match split direction, invalid operation
                 log::warn!(
                     "Cannot resize pane {} in {:?} direction for {:?} split",
-                    pane_id, direction, split_direction
+                    pane_id,
+                    direction,
+                    split_direction
                 );
                 return false;
             }
@@ -415,7 +405,11 @@ impl PluginState {
 
         log::info!(
             "Resized pane {} {:?} by {} cells (ratio: {:.2} -> {:.2})",
-            pane_id, direction, amount, current_ratio, clamped_ratio
+            pane_id,
+            direction,
+            amount,
+            current_ratio,
+            clamped_ratio
         );
 
         // Recalculate layout to apply changes
@@ -435,11 +429,12 @@ impl PluginState {
 
         // Build a tree structure of splits
         // 1. Find root panes (those with no parent or whose parent doesn't exist)
-        let root_panes: Vec<u64> = self.panes
+        let root_panes: Vec<u64> = self
+            .panes
             .iter()
             .filter(|(_, pane)| {
-                pane.layout.parent_id.is_none() ||
-                !self.panes.contains_key(&pane.layout.parent_id.unwrap())
+                pane.layout.parent_id.is_none()
+                    || !self.panes.contains_key(&pane.layout.parent_id.unwrap())
             })
             .map(|(id, _)| *id)
             .collect();
@@ -494,13 +489,16 @@ impl PluginState {
         }
 
         // Find all children (panes that have this pane as parent)
-        let children: Vec<(u64, SplitDirection, f32)> = self.panes
+        let children: Vec<(u64, SplitDirection, f32)> = self
+            .panes
             .iter()
             .filter(|(_, pane)| pane.layout.parent_id == Some(pane_id))
             .map(|(id, pane)| {
                 (
                     *id,
-                    pane.layout.split_direction.unwrap_or(SplitDirection::Horizontal),
+                    pane.layout
+                        .split_direction
+                        .unwrap_or(SplitDirection::Horizontal),
                     pane.layout.split_ratio,
                 )
             })
@@ -536,13 +534,7 @@ impl PluginState {
                     (height as f32 * normalized_ratio) as u16
                 };
 
-                self.recalculate_subtree(
-                    *child_id,
-                    x,
-                    current_y,
-                    width,
-                    child_height,
-                );
+                self.recalculate_subtree(*child_id, x, current_y, width, child_height);
 
                 current_y += child_height;
             }
@@ -562,13 +554,7 @@ impl PluginState {
                     (width as f32 * normalized_ratio) as u16
                 };
 
-                self.recalculate_subtree(
-                    *child_id,
-                    current_x,
-                    y,
-                    child_width,
-                    height,
-                );
+                self.recalculate_subtree(*child_id, current_x, y, child_width, height);
 
                 current_x += child_width;
             }
@@ -650,7 +636,7 @@ impl PanesPlugin {
                 log::info!("Split pane horizontally, created pane {}", new_id);
                 ctx.notify_success(
                     "Split Pane",
-                    &format!("Created pane {} (horizontal)", new_id)
+                    &format!("Created pane {} (horizontal)", new_id),
                 );
                 return Ok(Action::Modify(Vec::new()));
             }
@@ -661,10 +647,7 @@ impl PanesPlugin {
             let active_id = state.active_pane_id;
             if let Some(new_id) = state.split_pane(active_id, SplitDirection::Vertical) {
                 log::info!("Split pane vertically, created pane {}", new_id);
-                ctx.notify_success(
-                    "Split Pane",
-                    &format!("Created pane {} (vertical)", new_id)
-                );
+                ctx.notify_success("Split Pane", &format!("Created pane {} (vertical)", new_id));
                 return Ok(Action::Modify(Vec::new()));
             }
         }
@@ -848,7 +831,11 @@ impl Plugin for PanesPlugin {
     async fn on_resize(&mut self, cols: u16, rows: u16, _ctx: &PluginContext) -> Result<()> {
         let mut state = self.state.lock();
         state.update_terminal_size(cols, rows);
-        log::info!("Panes plugin: Terminal resized to {}x{}, recalculated layout", cols, rows);
+        log::info!(
+            "Panes plugin: Terminal resized to {}x{}, recalculated layout",
+            cols,
+            rows
+        );
         Ok(())
     }
 }

@@ -1,6 +1,8 @@
 //! Tab object proxy for Fusabi scripts
 
-use super::{ObjectError, ObjectHandle, ObjectRegistry, ObjectType, PaneProxy, Result, WindowProxy};
+use super::{
+    ObjectError, ObjectHandle, ObjectRegistry, ObjectType, PaneProxy, Result, WindowProxy,
+};
 
 /// Proxy for a terminal tab
 #[derive(Debug, Clone)]
@@ -322,8 +324,12 @@ mod tests {
         let tab_handle = ObjectHandle::new(ObjectType::Tab, 1, 0);
         let window_handle = ObjectHandle::new(ObjectType::Window, 2, 0);
 
-        registry.objects.insert(1, RegistryEntry::new(tab_handle, TestObject));
-        registry.objects.insert(2, RegistryEntry::new(window_handle, TestObject));
+        registry
+            .objects
+            .insert(1, RegistryEntry::new(tab_handle, TestObject));
+        registry
+            .objects
+            .insert(2, RegistryEntry::new(window_handle, TestObject));
 
         // Set window as parent of tab
         registry.set_parent(tab_handle, window_handle);
@@ -344,9 +350,15 @@ mod tests {
         let pane1_handle = ObjectHandle::new(ObjectType::Pane, 2, 0);
         let pane2_handle = ObjectHandle::new(ObjectType::Pane, 3, 0);
 
-        registry.objects.insert(1, RegistryEntry::new(tab_handle, TestObject));
-        registry.objects.insert(2, RegistryEntry::new(pane1_handle, TestObject));
-        registry.objects.insert(3, RegistryEntry::new(pane2_handle, TestObject));
+        registry
+            .objects
+            .insert(1, RegistryEntry::new(tab_handle, TestObject));
+        registry
+            .objects
+            .insert(2, RegistryEntry::new(pane1_handle, TestObject));
+        registry
+            .objects
+            .insert(3, RegistryEntry::new(pane2_handle, TestObject));
 
         // Set tab as parent of panes
         registry.set_parent(pane1_handle, tab_handle);
@@ -369,9 +381,15 @@ mod tests {
         let pane1_handle = ObjectHandle::new(ObjectType::Pane, 2, 0);
         let pane2_handle = ObjectHandle::new(ObjectType::Pane, 3, 0);
 
-        registry.objects.insert(1, RegistryEntry::new(tab_handle, TestObject));
-        registry.objects.insert(2, RegistryEntry::new(pane1_handle, TestObject));
-        registry.objects.insert(3, RegistryEntry::new(pane2_handle, TestObject));
+        registry
+            .objects
+            .insert(1, RegistryEntry::new(tab_handle, TestObject));
+        registry
+            .objects
+            .insert(2, RegistryEntry::new(pane1_handle, TestObject));
+        registry
+            .objects
+            .insert(3, RegistryEntry::new(pane2_handle, TestObject));
 
         // Set tab as parent of panes
         registry.set_parent(pane1_handle, tab_handle);
@@ -389,7 +407,9 @@ mod tests {
         let mut registry = TestRegistry::new();
 
         let tab_handle = ObjectHandle::new(ObjectType::Tab, 1, 0);
-        registry.objects.insert(1, RegistryEntry::new(tab_handle, TestObject));
+        registry
+            .objects
+            .insert(1, RegistryEntry::new(tab_handle, TestObject));
 
         let tab_proxy = TabProxy::new(tab_handle).unwrap();
 
@@ -407,7 +427,9 @@ mod tests {
         let mut registry = TestRegistry::new();
 
         let tab_handle = ObjectHandle::new(ObjectType::Tab, 1, 0);
-        registry.objects.insert(1, RegistryEntry::new(tab_handle, TestObject));
+        registry
+            .objects
+            .insert(1, RegistryEntry::new(tab_handle, TestObject));
 
         let tab_proxy = TabProxy::new(tab_handle).unwrap();
 
@@ -424,8 +446,12 @@ mod tests {
         let tab_handle = ObjectHandle::new(ObjectType::Tab, 1, 0);
         let window_handle = ObjectHandle::new(ObjectType::Window, 2, 0);
 
-        registry.objects.insert(1, RegistryEntry::new(tab_handle, TestObject));
-        registry.objects.insert(2, RegistryEntry::new(window_handle, TestObject));
+        registry
+            .objects
+            .insert(1, RegistryEntry::new(tab_handle, TestObject));
+        registry
+            .objects
+            .insert(2, RegistryEntry::new(window_handle, TestObject));
 
         // Set tab as parent of window (should be pane)
         registry.set_parent(window_handle, tab_handle);

@@ -61,7 +61,8 @@ impl ImagePlacementState {
         self.next_id += 1;
 
         // Detect image format and extract pixel dimensions
-        let (pixel_width, pixel_height, format) = if let Some(meta) = detect_image(&image_data.data) {
+        let (pixel_width, pixel_height, format) = if let Some(meta) = detect_image(&image_data.data)
+        {
             (meta.width, meta.height, meta.format.to_protocol_u8())
         } else {
             // Fallback if detection fails
@@ -157,9 +158,17 @@ impl ImagePlacementState {
         });
 
         if lines > 0 {
-            debug!("Scrolled up {} lines, {} placements remain", lines, self.placements.len());
+            debug!(
+                "Scrolled up {} lines, {} placements remain",
+                lines,
+                self.placements.len()
+            );
         } else {
-            debug!("Scrolled down {} lines, {} placements remain", -lines, self.placements.len());
+            debug!(
+                "Scrolled down {} lines, {} placements remain",
+                -lines,
+                self.placements.len()
+            );
         }
     }
 
@@ -278,9 +287,9 @@ mod tests {
         state.scroll(3);
 
         assert_eq!(state.len(), 3);
-        assert_eq!(state.placements[0].y, 7);  // 10 - 3
+        assert_eq!(state.placements[0].y, 7); // 10 - 3
         assert_eq!(state.placements[1].y, 17); // 20 - 3
-        assert_eq!(state.placements[2].y, 2);  // 5 - 3
+        assert_eq!(state.placements[2].y, 2); // 5 - 3
     }
 
     #[test]

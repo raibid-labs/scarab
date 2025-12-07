@@ -244,7 +244,8 @@ impl MockTerminalState {
 
 impl TerminalStateReader for MockTerminalState {
     fn cell(&self, row: usize, col: usize) -> Option<&Cell> {
-        self.cell_index(row, col).and_then(|idx| self.cells.get(idx))
+        self.cell_index(row, col)
+            .and_then(|idx| self.cells.get(idx))
     }
 
     fn cells(&self) -> &[Cell] {

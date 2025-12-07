@@ -170,8 +170,8 @@ impl DaemonTestHarness {
         println!("Socket created at {}", SOCKET_PATH);
 
         // Connect to daemon socket
-        let socket_stream = UnixStream::connect(SOCKET_PATH)
-            .context("Failed to connect to daemon socket")?;
+        let socket_stream =
+            UnixStream::connect(SOCKET_PATH).context("Failed to connect to daemon socket")?;
         println!("Connected to daemon socket");
 
         // Wait for shared memory to be created
@@ -215,8 +215,8 @@ impl DaemonTestHarness {
         };
 
         // Serialize with rkyv
-        let bytes = rkyv::to_bytes::<_, MAX_MESSAGE_SIZE>(&msg)
-            .context("Failed to serialize message")?;
+        let bytes =
+            rkyv::to_bytes::<_, MAX_MESSAGE_SIZE>(&msg).context("Failed to serialize message")?;
 
         let len = bytes.len() as u32;
 
@@ -230,7 +230,9 @@ impl DaemonTestHarness {
             .write_all(&bytes)
             .context("Failed to write message data")?;
 
-        self.socket_stream.flush().context("Failed to flush stream")?;
+        self.socket_stream
+            .flush()
+            .context("Failed to flush stream")?;
 
         Ok(())
     }
@@ -353,11 +355,17 @@ fn test_ipc_input_and_shared_memory_output() -> Result<()> {
 
     // Wait for sequence number to change
     let seq_changed = harness.wait_for_sequence_change(seq_before, Duration::from_secs(3))?;
-    assert!(seq_changed, "Sequence number did not change after sending input");
+    assert!(
+        seq_changed,
+        "Sequence number did not change after sending input"
+    );
 
     let seq_after = harness.get_sequence();
     println!("Sequence after: {}", seq_after);
-    assert!(seq_after > seq_before, "Sequence number should have increased");
+    assert!(
+        seq_after > seq_before,
+        "Sequence number should have increased"
+    );
 
     // Wait for text to appear in shared memory
     let text_found = harness.wait_for_text("Hello from IPC test", Duration::from_secs(3))?;
@@ -437,7 +445,10 @@ fn test_prompt_and_command_output_via_ipc() -> Result<()> {
 
     // The output should contain either files or be empty but have a prompt
     // We just verify that sequence changed and we got some output
-    assert!(!output.trim().is_empty(), "Output should not be empty after ls command");
+    assert!(
+        !output.trim().is_empty(),
+        "Output should not be empty after ls command"
+    );
 
     println!("Prompt + command output detection working");
     Ok(())

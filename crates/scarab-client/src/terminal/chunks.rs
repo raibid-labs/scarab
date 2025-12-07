@@ -5,7 +5,9 @@ use bevy::prelude::*;
 use bevy::render::mesh::{Indices, Mesh, Mesh2d, PrimitiveTopology};
 use bevy::render::render_asset::RenderAssetUsages;
 use bevy::sprite::{ColorMaterial, MeshMaterial2d};
-use scarab_protocol::{terminal_state::TerminalStateReader, Cell, BUFFER_SIZE, GRID_HEIGHT, GRID_WIDTH};
+use scarab_protocol::{
+    terminal_state::TerminalStateReader, Cell, BUFFER_SIZE, GRID_HEIGHT, GRID_WIDTH,
+};
 
 use crate::integration::SharedMemoryReader;
 
@@ -14,11 +16,9 @@ pub const CHUNK_WIDTH: u16 = 64;
 pub const CHUNK_HEIGHT: u16 = 32;
 
 /// Number of chunks needed to cover the grid
-pub const CHUNKS_X: usize =
-    (GRID_WIDTH as usize + CHUNK_WIDTH as usize - 1) / CHUNK_WIDTH as usize;
+pub const CHUNKS_X: usize = (GRID_WIDTH as usize + CHUNK_WIDTH as usize - 1) / CHUNK_WIDTH as usize;
 pub const CHUNKS_Y: usize =
     (GRID_HEIGHT as usize + CHUNK_HEIGHT as usize - 1) / CHUNK_HEIGHT as usize;
-
 
 /// Marker component for terminal chunk entities
 ///
@@ -209,10 +209,7 @@ impl PreviousGridState {
 /// Ignoring padding fields for performance.
 #[inline]
 fn cells_equal(a: &Cell, b: &Cell) -> bool {
-    a.char_codepoint == b.char_codepoint
-        && a.fg == b.fg
-        && a.bg == b.bg
-        && a.flags == b.flags
+    a.char_codepoint == b.char_codepoint && a.fg == b.fg && a.bg == b.bg && a.flags == b.flags
 }
 
 /// Generate mesh for a chunk's cell range

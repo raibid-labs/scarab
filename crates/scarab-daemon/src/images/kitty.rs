@@ -418,14 +418,8 @@ pub fn convert_raw_to_png(
     use std::io::Cursor;
 
     let (color_type, expected_size) = match format {
-        KittyImageFormat::Rgb => (
-            png::ColorType::Rgb,
-            (width * height * 3) as usize,
-        ),
-        KittyImageFormat::Rgba => (
-            png::ColorType::Rgba,
-            (width * height * 4) as usize,
-        ),
+        KittyImageFormat::Rgb => (png::ColorType::Rgb, (width * height * 3) as usize),
+        KittyImageFormat::Rgba => (png::ColorType::Rgba, (width * height * 4) as usize),
         KittyImageFormat::Png => {
             // Already PNG, return as-is
             return Some(data.to_vec());
@@ -692,7 +686,8 @@ mod tests {
 
     #[test]
     fn test_parse_complex_sequence() {
-        let sequence = b"a=T,f=32,t=d,i=100,p=50,s=1920,v=1080,c=80,r=40,x=100,y=200,X=10,Y=5,z=1;aGVsbG8=";
+        let sequence =
+            b"a=T,f=32,t=d,i=100,p=50,s=1920,v=1080,c=80,r=40,x=100,y=200,X=10,Y=5,z=1;aGVsbG8=";
         let cmd = parse_kitty_graphics(sequence).unwrap();
 
         assert_eq!(cmd.action, KittyAction::TransmitAndDisplay);

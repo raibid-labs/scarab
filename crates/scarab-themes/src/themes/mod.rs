@@ -3,16 +3,16 @@
 //! This module contains 10+ professionally designed terminal themes,
 //! including popular community favorites and custom designs.
 
+mod catppuccin;
 mod dracula;
-mod solarized;
-mod nord;
+mod gruvbox;
 mod monokai;
+mod nord;
 mod one_dark;
 mod one_light;
-mod gruvbox;
-mod tokyo_night;
-mod catppuccin;
+mod solarized;
 mod synthwave;
+mod tokyo_night;
 
 use crate::theme::Theme;
 
