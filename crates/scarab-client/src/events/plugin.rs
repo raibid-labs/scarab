@@ -109,12 +109,18 @@ fn handle_bevy_window_focus(
 fn handle_bevy_window_resize(
     mut bevy_resize_events: EventReader<bevy::window::WindowResized>,
     mut resize_events: EventWriter<WindowResizedEvent>,
+    metrics: Option<Res<scarab_protocol::TerminalMetrics>>,
 ) {
     for event in bevy_resize_events.read() {
-        // Convert physical pixels to terminal cells
-        // TODO: Use actual cell dimensions from rendering system
-        let cell_width = 9.0;
-        let cell_height = 18.0;
+        // Get cell dimensions from TerminalMetrics resource (set by rendering system)
+        let (cell_width, cell_height) = if let Some(ref metrics) = metrics {
+            (metrics.cell_width, metrics.cell_height)
+        } else {
+            // Fallback if metrics not yet initialized (shouldn't happen after setup)
+            warn!("TerminalMetrics not available during resize, using defaults");
+            (9.0, 18.0)
+        };
+
         let cols = (event.width / cell_width).floor() as u16;
         let rows = (event.height / cell_height).floor() as u16;
 

@@ -428,8 +428,7 @@ impl NavInputRouter {
     /// Register Vimium-style keybindings
     fn register_vimium_bindings(&mut self) {
         let bindings = vec![
-            // Hint mode
-            KeyBinding::new(KeyCode::KeyF, NavAction::EnterHintMode),
+            // Hint mode - ONLY with Ctrl modifier to avoid intercepting normal typing
             KeyBinding::new(KeyCode::KeyF, NavAction::EnterHintMode)
                 .with_ctrl()
                 .in_mode(NavMode::Normal),
@@ -459,8 +458,8 @@ impl NavInputRouter {
     fn register_cosmos_bindings(&mut self) {
         let bindings = vec![
             // TODO: Implement leader key pattern for Space
-            // For now, use similar bindings to Vimium
-            KeyBinding::new(KeyCode::KeyF, NavAction::EnterHintMode),
+            // For now, use similar bindings to Vimium - require Ctrl to avoid intercepting typing
+            KeyBinding::new(KeyCode::KeyF, NavAction::EnterHintMode).with_ctrl(),
             KeyBinding::new(KeyCode::Escape, NavAction::CancelAllModes),
             KeyBinding::new(KeyCode::ArrowUp, NavAction::JumpToPrevPrompt).with_ctrl(),
             KeyBinding::new(KeyCode::ArrowDown, NavAction::JumpToNextPrompt).with_ctrl(),
@@ -474,8 +473,8 @@ impl NavInputRouter {
     fn register_spacemacs_bindings(&mut self) {
         let bindings = vec![
             // TODO: Implement SPC prefix pattern
-            // For now, use similar bindings to Vimium
-            KeyBinding::new(KeyCode::KeyF, NavAction::EnterHintMode),
+            // For now, use similar bindings to Vimium - require Ctrl to avoid intercepting typing
+            KeyBinding::new(KeyCode::KeyF, NavAction::EnterHintMode).with_ctrl(),
             KeyBinding::new(KeyCode::Escape, NavAction::CancelAllModes),
             KeyBinding::new(KeyCode::ArrowUp, NavAction::JumpToPrevPrompt).with_ctrl(),
             KeyBinding::new(KeyCode::ArrowDown, NavAction::JumpToNextPrompt).with_ctrl(),
@@ -582,6 +581,13 @@ pub fn route_nav_input(
     mut action_writer: EventWriter<NavAction>,
 ) {
     let current_mode = mode_stack.current();
+
+    // Debug: Always log mode on any keypress
+    if keyboard.get_just_pressed().len() > 0 {
+        eprintln!("DEBUG nav_input: mode={:?} depth={} keys={:?}",
+            current_mode, mode_stack.depth(),
+            keyboard.get_just_pressed().collect::<Vec<_>>());
+    }
 
     // Check each binding in the current style
     for binding in router.current_bindings() {

@@ -53,8 +53,8 @@ pub use terminal::chunks::{
     ChunkGrid, ChunkMesh, ChunkPlugin, TerminalChunk, CHUNK_HEIGHT, CHUNK_WIDTH,
 };
 
-// Re-export UI plugin
-pub use ui_stub::AdvancedUIPlugin;
+// Re-export UI plugin - use the real implementation, not the stub
+pub use ui::AdvancedUIPlugin;
 
 // Re-export copy mode system
 pub use copy_mode::{

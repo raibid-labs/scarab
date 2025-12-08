@@ -1,13 +1,14 @@
 // Integration module - wires all components together
 // This demonstrates the complete VTE → SharedState → Rendering pipeline
 
+use crate::events::WindowResizedEvent;
 use crate::rendering::config::FontConfig;
 use crate::rendering::text::{generate_terminal_mesh, TerminalMesh, TextRenderer};
 use crate::safe_state::SafeSharedState;
 use bevy::prelude::*;
 use bevy::render::mesh::Mesh2d;
 use bevy::sprite::MeshMaterial2d;
-use scarab_protocol::{terminal_state::TerminalStateReader, GRID_HEIGHT, GRID_WIDTH};
+use scarab_protocol::{terminal_state::TerminalStateReader, TerminalMetrics, GRID_HEIGHT, GRID_WIDTH};
 use shared_memory::Shmem;
 use std::sync::Arc;
 
@@ -50,6 +51,7 @@ impl Plugin for IntegrationPlugin {
             .add_systems(
                 Update,
                 (
+                    handle_terminal_resize_system,
                     sync_terminal_state_system,
                     update_terminal_rendering_system,
                     update_grid_position_system,
@@ -62,6 +64,41 @@ impl Plugin for IntegrationPlugin {
 /// Marker component for the terminal grid entity
 #[derive(Component)]
 pub struct TerminalGridEntity;
+
+/// Handle terminal resize events - update metrics and notify daemon
+fn handle_terminal_resize_system(
+    mut resize_events: EventReader<WindowResizedEvent>,
+    mut metrics: ResMut<TerminalMetrics>,
+    mut terminal_mesh_query: Query<&mut TerminalMesh, With<TerminalGridEntity>>,
+    ipc: Option<Res<crate::ipc::IpcChannel>>,
+) {
+    for event in resize_events.read() {
+        let cols = event.cols.min(scarab_protocol::GRID_WIDTH as u16).max(10);
+        let rows = event.rows.min(scarab_protocol::GRID_HEIGHT as u16).max(5);
+
+        // Only update if dimensions actually changed
+        if cols != metrics.columns || rows != metrics.rows {
+            info!(
+                "Terminal resize: {}x{} -> {}x{} cells",
+                metrics.columns, metrics.rows, cols, rows
+            );
+
+            // Update metrics resource
+            metrics.columns = cols;
+            metrics.rows = rows;
+
+            // Send resize to daemon so PTY knows the new terminal size
+            if let Some(ref ipc) = ipc {
+                ipc.send(scarab_protocol::ControlMessage::Resize { cols, rows });
+            }
+
+            // Mark mesh for full redraw to regenerate with new grid dimensions
+            for mut terminal_mesh in terminal_mesh_query.iter_mut() {
+                terminal_mesh.dirty_region.mark_full_redraw();
+            }
+        }
+    }
+}
 
 /// Align the terminal grid to the top-left of the window
 fn update_grid_position_system(
@@ -86,23 +123,8 @@ fn update_grid_position_system(
 
         // Only update if changed to avoid unnecessary dirty flags
         if transform.translation.x != x || transform.translation.y != y {
-            info!(
-                "Grid position update: ({:.2}, {:.2}, {:.2}) -> ({:.2}, {:.2}, {:.2})",
-                transform.translation.x,
-                transform.translation.y,
-                transform.translation.z,
-                x,
-                y,
-                transform.translation.z
-            );
             transform.translation.x = x;
             transform.translation.y = y;
-            // Z stays at 0.0
-        } else {
-            info!(
-                "Grid already at correct position: ({:.2}, {:.2}, {:.2})",
-                x, y, transform.translation.z
-            );
         }
     }
 }
@@ -240,16 +262,11 @@ fn sync_terminal_state_system(mut state_reader: ResMut<SharedMemoryReader>) {
             non_empty,
             safe_state.is_dirty()
         );
+
     }
 
     if current_seq != state_reader.last_sequence {
         // State has been updated by daemon
-        let (cursor_x, cursor_y) = safe_state.cursor_pos();
-        info!(
-            "Terminal state updated: seq {} -> {}, cursor ({}, {})",
-            state_reader.last_sequence, current_seq, cursor_x, cursor_y
-        );
-
         state_reader.last_sequence = current_seq;
     }
 }
@@ -272,10 +289,6 @@ fn update_terminal_rendering_system(
             terminal_mesh.last_sequence == 0 && terminal_mesh.dirty_region.is_full_redraw();
 
         if current_seq != terminal_mesh.last_sequence {
-            info!(
-                "Mesh update triggered: seq {} -> {}",
-                terminal_mesh.last_sequence, current_seq
-            );
             terminal_mesh.dirty_region.mark_full_redraw();
             terminal_mesh.last_sequence = current_seq;
         }
@@ -285,7 +298,6 @@ fn update_terminal_rendering_system(
             continue;
         }
 
-        info!("Generating mesh... (first_render: {})", is_first_render);
         // Generate new mesh from terminal state using safe wrapper
         let new_mesh = generate_terminal_mesh(
             &safe_state,
@@ -294,16 +306,8 @@ fn update_terminal_rendering_system(
             &mut images,
         );
 
-        info!(
-            "Mesh generated with {} vertices",
-            new_mesh
-                .attribute(Mesh::ATTRIBUTE_POSITION)
-                .map_or(0, |a| a.len())
-        );
-
         // Update mesh asset using insert (proper way for Bevy 0.15+)
         meshes.insert(&terminal_mesh.mesh_handle, new_mesh);
-        info!("Mesh updated successfully via insert");
 
         // Clear dirty region
         terminal_mesh.dirty_region.clear();

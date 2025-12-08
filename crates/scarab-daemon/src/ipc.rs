@@ -285,6 +285,7 @@ async fn handle_client(
             Ok(len) => len as usize,
             Err(e) if e.kind() == std::io::ErrorKind::UnexpectedEof => {
                 // Client disconnected gracefully
+                log::info!("Client {} disconnected", client_id);
                 break;
             }
             Err(e) => {
@@ -306,7 +307,7 @@ async fn handle_client(
         let msg = match rkyv::from_bytes::<ControlMessage>(&buffer[..len]) {
             Ok(msg) => msg,
             Err(e) => {
-                eprintln!("Failed to deserialize ControlMessage: {:?}", e);
+                log::warn!("Failed to deserialize ControlMessage: {:?}", e);
                 anyhow::bail!("Deserialization error");
             }
         };

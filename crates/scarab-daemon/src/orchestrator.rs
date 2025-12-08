@@ -11,7 +11,7 @@
 use crate::session::{Pane, PaneId, SessionManager};
 use parking_lot::RwLock;
 use std::collections::HashMap;
-use std::io::Read;
+use std::io::{Read, Write};
 use std::sync::Arc;
 use tokio::sync::mpsc;
 use tokio::task::JoinHandle;
@@ -117,11 +117,13 @@ impl PaneOrchestrator {
     async fn spawn_all_readers(&self) {
         // Get all sessions
         let sessions = self.session_manager.list_sessions();
+        log::debug!("Orchestrator: found {} sessions", sessions.len());
 
         for (session_id, _, _, _, _) in sessions {
             if let Some(session) = self.session_manager.get_session(&session_id) {
                 // Get all panes across all tabs in this session
                 let panes = session.all_panes();
+                log::debug!("Session {} has {} panes", session_id, panes.len());
 
                 for pane in panes {
                     self.spawn_reader_for_pane_arc(pane).await;
@@ -217,6 +219,23 @@ impl PaneOrchestrator {
                     let terminal_state_arc = pane.terminal_state();
                     let mut terminal_state = terminal_state_arc.write();
                     terminal_state.process_output(data);
+
+                    // Send any pending responses (e.g., DSR cursor position) back to PTY
+                    let responses: Vec<Vec<u8>> = terminal_state.pending_responses.drain(..).collect();
+                    drop(terminal_state); // Release lock before writing to PTY
+
+                    if !responses.is_empty() {
+                        let pty_writer_arc = pane.pty_writer();
+                        let mut writer_lock = pty_writer_arc.lock().unwrap();
+                        if let Some(ref mut writer) = *writer_lock {
+                            for response in responses {
+                                if let Err(e) = writer.write_all(&response) {
+                                    log::warn!("Failed to send DSR response: {}", e);
+                                }
+                            }
+                            let _ = writer.flush();
+                        }
+                    }
 
                     // Note: We do NOT blit here - the compositor does that
                     // for the active pane only

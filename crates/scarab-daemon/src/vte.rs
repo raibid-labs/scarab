@@ -217,6 +217,8 @@ pub struct TerminalState {
     dcs_buffer: Vec<u8>,
     /// Whether we're currently in a DCS sequence
     in_dcs: bool,
+    /// Pending responses to send back to PTY (e.g., DSR cursor position)
+    pub pending_responses: Vec<Vec<u8>>,
     /// Semantic zone tracker for deep shell integration
     pub zone_tracker: ZoneTracker,
 }
@@ -244,6 +246,7 @@ impl TerminalState {
             max_images: MAX_IMAGES_PER_PANE,
             dcs_buffer: Vec::new(),
             in_dcs: false,
+            pending_responses: Vec::new(),
             zone_tracker: ZoneTracker::new(500), // Keep last 500 command blocks
         }
     }
@@ -934,6 +937,22 @@ impl Perform for TerminalState {
                 self.cursor_x = self.saved_cursor.0;
                 self.cursor_y = self.saved_cursor.1;
                 self.attrs = self.saved_attrs;
+            }
+            'n' => {
+                // Device Status Report (DSR)
+                let n = params.get(0).copied().unwrap_or(0);
+                match n {
+                    5 => {
+                        // Status report - respond with "OK"
+                        self.pending_responses.push(b"\x1b[0n".to_vec());
+                    }
+                    6 => {
+                        // Cursor position report - respond with ESC[row;colR (1-indexed)
+                        let response = format!("\x1b[{};{}R", self.cursor_y + 1, self.cursor_x + 1);
+                        self.pending_responses.push(response.into_bytes());
+                    }
+                    _ => {}
+                }
             }
             _ => {}
         }
