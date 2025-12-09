@@ -847,9 +847,9 @@ fn export_debug_info(state: &PluginInspectorState) {
 
     // Write to file
     if let Err(e) = std::fs::write(&filename, content) {
-        eprintln!("Failed to export debug info: {}", e);
+        log::error!("Failed to export debug info: {}", e);
     } else {
-        println!("Debug info exported to: {}", filename);
+        log::info!("Debug info exported to: {}", filename);
     }
 }
 

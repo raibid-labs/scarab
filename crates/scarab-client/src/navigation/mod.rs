@@ -564,7 +564,7 @@ fn handle_nav_actions(mut events: EventReader<NavActionEvent>) {
             NavAction::Open(url) => {
                 // Use the `open` crate for cross-platform URL/file opening
                 if let Err(e) = open::that(url) {
-                    eprintln!("Failed to open URL/file {}: {}", url, e);
+                    log::warn!("Failed to open URL/file {}: {}", url, e);
                 }
             }
             NavAction::Click(col, row) => {
