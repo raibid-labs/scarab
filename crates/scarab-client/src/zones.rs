@@ -199,14 +199,14 @@ pub fn handle_copy_last_output(
             // Copy to clipboard
             if let Ok(mut ctx) = arboard::Clipboard::new() {
                 if let Err(e) = ctx.set_text(output_text) {
-                    eprintln!("Failed to copy to clipboard: {}", e);
+                    log::warn!("Failed to copy to clipboard: {}", e);
                 } else {
-                    println!("Copied last output to clipboard");
+                    log::debug!("Copied last output to clipboard");
                     copy_events.send(CopyLastOutputEvent);
                 }
             }
         } else {
-            println!("No output zone found to copy");
+            log::debug!("No output zone found to copy");
         }
     }
 }

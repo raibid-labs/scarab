@@ -53,7 +53,7 @@ impl IpcChannel {
         let inner_clone = inner.clone();
         runtime.spawn(async move {
             if let Err(e) = establish_connection(inner_clone, tx).await {
-                eprintln!("Failed to establish initial connection: {}", e);
+                log::error!("Failed to establish initial connection: {}", e);
             }
         });
 
@@ -69,7 +69,7 @@ impl IpcChannel {
         let inner = self.inner.clone();
         self.runtime.spawn(async move {
             if let Err(e) = send_message(inner, msg).await {
-                eprintln!("Failed to send message: {}", e);
+                log::warn!("Failed to send message: {}", e);
             }
         });
     }
@@ -87,7 +87,7 @@ impl IpcChannel {
     /// is already active in establish_connection()
     #[allow(dead_code)]
     pub fn reconnect(&self) {
-        eprintln!("Note: Automatic reconnection with exponential backoff is already implemented");
+        log::debug!("Reconnect requested - automatic reconnection with exponential backoff is already implemented");
     }
 }
 
@@ -125,7 +125,7 @@ async fn establish_connection(
                     ));
                 }
 
-                eprintln!(
+                log::debug!(
                     "Connection attempt {} failed: {}. Retrying in {}ms...",
                     attempts, e, delay_ms
                 );
@@ -150,13 +150,13 @@ async fn read_loop(mut stream: OwnedReadHalf, tx: std::sync::mpsc::Sender<Daemon
         };
 
         if len == 0 || len > MAX_MESSAGE_SIZE {
-            eprintln!("Invalid message length from daemon: {}", len);
+            log::error!("Invalid message length from daemon: {}", len);
             break;
         }
 
         // Read data
         if let Err(e) = stream.read_exact(&mut buffer[..len]).await {
-            eprintln!("Failed to read message body: {}", e);
+            log::error!("Failed to read message body: {}", e);
             break;
         }
 
@@ -164,16 +164,16 @@ async fn read_loop(mut stream: OwnedReadHalf, tx: std::sync::mpsc::Sender<Daemon
         match rkyv::from_bytes::<DaemonMessage>(&buffer[..len]) {
             Ok(msg) => {
                 if let Err(e) = tx.send(msg) {
-                    eprintln!("Failed to forward message to Bevy: {}", e);
+                    log::error!("Failed to forward message to Bevy: {}", e);
                     break;
                 }
             }
             Err(e) => {
-                eprintln!("Failed to deserialize daemon message: {:?}", e);
+                log::error!("Failed to deserialize daemon message: {:?}", e);
             }
         }
     }
-    println!("Read loop terminated");
+    log::debug!("Read loop terminated");
 }
 
 /// Send message with automatic reconnection on failure
@@ -205,14 +205,14 @@ async fn send_message(
                                 return Ok(());
                             }
                             Err(e) => {
-                                eprintln!("Write failed: {}", e);
+                                log::warn!("Write failed: {}", e);
                                 conn.connected = false;
                                 *conn_lock = None; // Drop connection
                             }
                         }
                     }
                     Err(e) => {
-                        eprintln!("Write length failed: {}", e);
+                        log::warn!("Write length failed: {}", e);
                         conn.connected = false;
                         *conn_lock = None; // Drop connection
                     }
@@ -413,8 +413,8 @@ impl Plugin for IpcPlugin {
                 );
             }
             Err(e) => {
-                eprintln!("Failed to initialize IPC: {}", e);
-                eprintln!("Client will run without IPC support");
+                log::error!("Failed to initialize IPC: {}", e);
+                log::warn!("Client will run without IPC support");
             }
         }
     }

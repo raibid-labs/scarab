@@ -582,3 +582,393 @@ fn test_nav_mode_helper_methods() {
         assert!(state.is_command_palette_mode());
     }
 }
+
+// ==================== URL Detection and Opening Tests ====================
+
+#[test]
+fn test_url_open_action() {
+    let mut app = create_test_app();
+    app.update();
+
+    // Send URL open action
+    let url = "https://github.com/raibid-labs/scarab".to_string();
+    app.world_mut()
+        .send_event(NavActionEvent::new(NavAction::Open(url.clone())));
+
+    app.update();
+
+    // Verify event was processed
+    let events = app.world().resource::<Events<NavActionEvent>>();
+    let mut cursor = events.get_cursor();
+    let action_events: Vec<_> = cursor.read(events).collect();
+
+    assert_eq!(action_events.len(), 1);
+    match &action_events[0].action {
+        NavAction::Open(opened_url) => assert_eq!(opened_url, &url),
+        _ => panic!("Expected Open action"),
+    }
+}
+
+#[test]
+fn test_file_path_open_action() {
+    let mut app = create_test_app();
+    app.update();
+
+    // Send file path open action
+    let path = "/home/user/code/src/main.rs".to_string();
+    app.world_mut()
+        .send_event(NavActionEvent::new(NavAction::Open(path.clone())));
+
+    app.update();
+
+    // Verify event was processed
+    let events = app.world().resource::<Events<NavActionEvent>>();
+    let mut cursor = events.get_cursor();
+    let action_events: Vec<_> = cursor.read(events).collect();
+
+    assert_eq!(action_events.len(), 1);
+    match &action_events[0].action {
+        NavAction::Open(opened_path) => assert_eq!(opened_path, &path),
+        _ => panic!("Expected Open action"),
+    }
+}
+
+// ==================== Hint Mode Entry/Exit Tests ====================
+
+#[test]
+fn test_hint_mode_entry() {
+    let mut app = create_test_app();
+    app.update();
+
+    {
+        let mut registry = app.world_mut().resource_mut::<NavStateRegistry>();
+        registry.create_for_pane(1);
+        registry.set_active_pane(1);
+    }
+
+    // Send EnterHintModeEvent
+    app.world_mut().send_event(EnterHintModeEvent);
+    app.update();
+
+    // Verify event was sent
+    let events = app.world().resource::<Events<EnterHintModeEvent>>();
+    let mut cursor = events.get_cursor();
+    let enter_events: Vec<_> = cursor.read(events).collect();
+    assert_eq!(enter_events.len(), 1);
+}
+
+#[test]
+fn test_hint_mode_exit() {
+    let mut app = create_test_app();
+    app.update();
+
+    {
+        let mut registry = app.world_mut().resource_mut::<NavStateRegistry>();
+        registry.create_for_pane(1);
+        registry.set_active_pane(1);
+    }
+
+    // Send ExitHintModeEvent
+    app.world_mut().send_event(ExitHintModeEvent);
+    app.update();
+
+    // Verify event was sent
+    let events = app.world().resource::<Events<ExitHintModeEvent>>();
+    let mut cursor = events.get_cursor();
+    let exit_events: Vec<_> = cursor.read(events).collect();
+    assert_eq!(exit_events.len(), 1);
+}
+
+// ==================== Pane Navigation Tests ====================
+
+#[test]
+fn test_next_pane_action() {
+    let mut app = create_test_app();
+    app.update();
+
+    app.world_mut()
+        .send_event(NavActionEvent::new(NavAction::NextPane));
+
+    app.update();
+
+    let events = app.world().resource::<Events<NavActionEvent>>();
+    let mut cursor = events.get_cursor();
+    let action_events: Vec<_> = cursor.read(events).collect();
+
+    assert_eq!(action_events.len(), 1);
+    assert_eq!(action_events[0].action, NavAction::NextPane);
+}
+
+#[test]
+fn test_prev_pane_action() {
+    let mut app = create_test_app();
+    app.update();
+
+    app.world_mut()
+        .send_event(NavActionEvent::new(NavAction::PrevPane));
+
+    app.update();
+
+    let events = app.world().resource::<Events<NavActionEvent>>();
+    let mut cursor = events.get_cursor();
+    let action_events: Vec<_> = cursor.read(events).collect();
+
+    assert_eq!(action_events.len(), 1);
+    assert_eq!(action_events[0].action, NavAction::PrevPane);
+}
+
+// ==================== Tab Navigation Tests ====================
+
+#[test]
+fn test_next_tab_action() {
+    let mut app = create_test_app();
+    app.update();
+
+    app.world_mut()
+        .send_event(NavActionEvent::new(NavAction::NextTab));
+
+    app.update();
+
+    let events = app.world().resource::<Events<NavActionEvent>>();
+    let mut cursor = events.get_cursor();
+    let action_events: Vec<_> = cursor.read(events).collect();
+
+    assert_eq!(action_events.len(), 1);
+    assert_eq!(action_events[0].action, NavAction::NextTab);
+}
+
+#[test]
+fn test_prev_tab_action() {
+    let mut app = create_test_app();
+    app.update();
+
+    app.world_mut()
+        .send_event(NavActionEvent::new(NavAction::PrevTab));
+
+    app.update();
+
+    let events = app.world().resource::<Events<NavActionEvent>>();
+    let mut cursor = events.get_cursor();
+    let action_events: Vec<_> = cursor.read(events).collect();
+
+    assert_eq!(action_events.len(), 1);
+    assert_eq!(action_events[0].action, NavAction::PrevTab);
+}
+
+// ==================== Prompt Jumping Tests ====================
+
+#[test]
+fn test_jump_prompt_action() {
+    let mut app = create_test_app();
+    app.update();
+
+    let target_line = 42;
+    app.world_mut()
+        .send_event(NavActionEvent::new(NavAction::JumpPrompt(target_line)));
+
+    app.update();
+
+    let events = app.world().resource::<Events<NavActionEvent>>();
+    let mut cursor = events.get_cursor();
+    let action_events: Vec<_> = cursor.read(events).collect();
+
+    assert_eq!(action_events.len(), 1);
+    match action_events[0].action {
+        NavAction::JumpPrompt(line) => assert_eq!(line, target_line),
+        _ => panic!("Expected JumpPrompt action"),
+    }
+}
+
+// ==================== Focus Tracking Tests ====================
+
+#[test]
+fn test_focus_tracking_across_pane_switches() {
+    let mut app = create_test_app();
+    app.update();
+
+    // Create three panes
+    {
+        let mut registry = app.world_mut().resource_mut::<NavStateRegistry>();
+        for i in 1..=3 {
+            registry.create_for_pane(i);
+        }
+    }
+
+    // Create entities to track focus
+    let entity1 = app.world_mut().spawn_empty().id();
+    let entity2 = app.world_mut().spawn_empty().id();
+    let entity3 = app.world_mut().spawn_empty().id();
+
+    // Set different focus for each pane
+    {
+        let mut registry = app.world_mut().resource_mut::<NavStateRegistry>();
+        registry.get_mut(1).unwrap().record_focus(entity1);
+        registry.get_mut(2).unwrap().record_focus(entity2);
+        registry.get_mut(3).unwrap().record_focus(entity3);
+    }
+
+    // Switch between panes and verify focus is tracked correctly
+    {
+        let mut registry = app.world_mut().resource_mut::<NavStateRegistry>();
+
+        registry.set_active_pane(1);
+        assert_eq!(
+            registry.get_active().unwrap().focus_history.last(),
+            Some(&entity1)
+        );
+
+        registry.set_active_pane(2);
+        assert_eq!(
+            registry.get_active().unwrap().focus_history.last(),
+            Some(&entity2)
+        );
+
+        registry.set_active_pane(3);
+        assert_eq!(
+            registry.get_active().unwrap().focus_history.last(),
+            Some(&entity3)
+        );
+    }
+}
+
+// ==================== Pane Lifecycle Tests ====================
+
+#[test]
+fn test_pane_created_event_processing() {
+    use scarab_plugin_api::object_model::{ObjectHandle, ObjectType};
+
+    let mut app = create_test_app();
+    app.update();
+
+    // Send PaneCreatedEvent
+    app.world_mut().send_event(PaneCreatedEvent {
+        window: ObjectHandle::new(ObjectType::Window, 1, 0),
+        tab: ObjectHandle::new(ObjectType::Tab, 1, 0),
+        pane: ObjectHandle::new(ObjectType::Pane, 1, 0),
+    });
+
+    app.update();
+
+    // Verify NavState was created
+    let registry = app.world().resource::<NavStateRegistry>();
+    assert!(registry.has_pane(1), "Pane 1 should have NavState");
+    assert_eq!(registry.pane_count(), 1);
+}
+
+#[test]
+fn test_pane_focused_event_processing() {
+    use scarab_plugin_api::object_model::{ObjectHandle, ObjectType};
+
+    let mut app = create_test_app();
+    app.update();
+
+    // Create pane first
+    app.world_mut().send_event(PaneCreatedEvent {
+        window: ObjectHandle::new(ObjectType::Window, 1, 0),
+        tab: ObjectHandle::new(ObjectType::Tab, 1, 0),
+        pane: ObjectHandle::new(ObjectType::Pane, 1, 0),
+    });
+
+    app.update();
+
+    // Send PaneFocusedEvent
+    app.world_mut().send_event(PaneFocusedEvent {
+        window: ObjectHandle::new(ObjectType::Window, 1, 0),
+        tab: ObjectHandle::new(ObjectType::Tab, 1, 0),
+        pane: ObjectHandle::new(ObjectType::Pane, 1, 0),
+    });
+
+    app.update();
+
+    // Verify pane became active
+    let registry = app.world().resource::<NavStateRegistry>();
+    assert_eq!(registry.active_pane(), Some(1));
+}
+
+#[test]
+fn test_pane_closed_event_processing() {
+    use scarab_plugin_api::object_model::{ObjectHandle, ObjectType};
+
+    let mut app = create_test_app();
+    app.update();
+
+    // Create and focus pane
+    app.world_mut().send_event(PaneCreatedEvent {
+        window: ObjectHandle::new(ObjectType::Window, 1, 0),
+        tab: ObjectHandle::new(ObjectType::Tab, 1, 0),
+        pane: ObjectHandle::new(ObjectType::Pane, 1, 0),
+    });
+
+    app.update();
+
+    app.world_mut().send_event(PaneFocusedEvent {
+        window: ObjectHandle::new(ObjectType::Window, 1, 0),
+        tab: ObjectHandle::new(ObjectType::Tab, 1, 0),
+        pane: ObjectHandle::new(ObjectType::Pane, 1, 0),
+    });
+
+    app.update();
+
+    // Close the pane
+    app.world_mut().send_event(PaneClosedEvent {
+        window: ObjectHandle::new(ObjectType::Window, 1, 0),
+        tab: ObjectHandle::new(ObjectType::Tab, 1, 0),
+        pane: ObjectHandle::new(ObjectType::Pane, 1, 0),
+    });
+
+    app.update();
+
+    // Verify pane was removed
+    let registry = app.world().resource::<NavStateRegistry>();
+    assert!(!registry.has_pane(1), "Pane 1 should be removed");
+    assert_eq!(registry.pane_count(), 0);
+    assert_eq!(registry.active_pane(), None);
+}
+
+// ==================== Click Action Tests ====================
+
+#[test]
+fn test_click_action() {
+    let mut app = create_test_app();
+    app.update();
+
+    let col = 10;
+    let row = 5;
+    app.world_mut()
+        .send_event(NavActionEvent::new(NavAction::Click(col, row)));
+
+    app.update();
+
+    let events = app.world().resource::<Events<NavActionEvent>>();
+    let mut cursor = events.get_cursor();
+    let action_events: Vec<_> = cursor.read(events).collect();
+
+    assert_eq!(action_events.len(), 1);
+    match action_events[0].action {
+        NavAction::Click(c, r) => {
+            assert_eq!(c, col);
+            assert_eq!(r, row);
+        }
+        _ => panic!("Expected Click action"),
+    }
+}
+
+// ==================== Cancel Action Tests ====================
+
+#[test]
+fn test_cancel_action() {
+    let mut app = create_test_app();
+    app.update();
+
+    app.world_mut()
+        .send_event(NavActionEvent::new(NavAction::Cancel));
+
+    app.update();
+
+    let events = app.world().resource::<Events<NavActionEvent>>();
+    let mut cursor = events.get_cursor();
+    let action_events: Vec<_> = cursor.read(events).collect();
+
+    assert_eq!(action_events.len(), 1);
+    assert_eq!(action_events[0].action, NavAction::Cancel);
+}

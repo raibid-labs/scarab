@@ -134,7 +134,7 @@ impl ClientRegistry {
         let map = self.clients.read().await;
         for (id, sender) in map.iter() {
             if let Err(e) = sender.send(msg.clone()).await {
-                eprintln!("Failed to broadcast to client {}: {}", id, e);
+                log::warn!("Failed to broadcast to client {}: {}", id, e);
             }
         }
     }
@@ -202,7 +202,7 @@ impl IpcServer {
                     };
 
                     if client_count > MAX_CLIENTS {
-                        eprintln!(
+                        log::warn!(
                             "Max clients ({}) reached, rejecting connection",
                             MAX_CLIENTS
                         );
@@ -217,7 +217,7 @@ impl IpcServer {
                         *counter
                     };
 
-                    println!("Client {} connected (active: {})", client_id, client_count);
+                    log::info!("Client {} connected (active: {})", client_id, client_count);
 
                     let pty_handle = self.pty_handle.clone();
                     let session_manager = self.session_manager.clone();
@@ -238,16 +238,16 @@ impl IpcServer {
                         )
                         .await
                         {
-                            eprintln!("Client {} error: {}", client_id, e);
+                            log::warn!("Client {} error: {}", client_id, e);
                         }
 
                         let mut count = active_clients.write().await;
                         *count -= 1;
-                        println!("Client {} disconnected (active: {})", client_id, *count);
+                        log::info!("Client {} disconnected (active: {})", client_id, *count);
                     });
                 }
                 Err(e) => {
-                    eprintln!("Failed to accept client: {}", e);
+                    log::error!("Failed to accept client: {}", e);
                 }
             }
         }
@@ -325,7 +325,7 @@ async fn handle_client(
         )
         .await
         {
-            eprintln!("Client {} message handling error: {}", client_id, e);
+            log::warn!("Client {} message handling error: {}", client_id, e);
             // Don't disconnect on individual message errors
         }
     }
