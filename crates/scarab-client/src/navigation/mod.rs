@@ -556,9 +556,13 @@ impl Plugin for NavigationPlugin {
 /// System to handle navigation actions
 ///
 /// Processes `NavActionEvent`s and executes the corresponding actions.
-/// Some actions are implemented immediately (like opening URLs), while
-/// others log placeholder messages for future implementation.
-fn handle_nav_actions(mut events: EventReader<NavActionEvent>) {
+/// Actions are dispatched to the appropriate subsystem or sent to the daemon via IPC.
+fn handle_nav_actions(
+    mut events: EventReader<NavActionEvent>,
+    ipc: Option<Res<crate::ipc::IpcChannel>>,
+) {
+    use scarab_protocol::ControlMessage;
+
     for event in events.read() {
         match &event.action {
             NavAction::Open(url) => {
@@ -568,28 +572,48 @@ fn handle_nav_actions(mut events: EventReader<NavActionEvent>) {
                 }
             }
             NavAction::Click(col, row) => {
-                // TODO: Send click event to terminal
-                println!("Nav click at ({}, {}) - not yet implemented", col, row);
+                // Send click coordinates to daemon for mouse event handling
+                if let Some(ref ipc) = ipc {
+                    ipc.send(ControlMessage::MouseClick {
+                        col: *col,
+                        row: *row,
+                        button: 0, // Left click
+                    });
+                }
+                log::debug!("Nav click at ({}, {})", col, row);
             }
             NavAction::JumpPrompt(line) => {
-                // TODO: Integrate with scrollback to jump to prompt
-                println!("Jump to prompt line {} - not yet implemented", line);
+                // TODO: Implement scroll-to-line functionality when ScrollToLineEvent is added
+                // For now, just log the action
+                log::debug!("Jump to prompt line {} requested (scroll not yet implemented)", line);
             }
             NavAction::NextPane => {
-                // TODO: Integrate with session/pane management
-                println!("Navigate to next pane - not yet implemented");
+                // Send pane focus request to daemon
+                if let Some(ref ipc) = ipc {
+                    ipc.send(ControlMessage::PaneFocusNext);
+                }
+                log::debug!("Navigate to next pane");
             }
             NavAction::PrevPane => {
-                // TODO: Integrate with session/pane management
-                println!("Navigate to previous pane - not yet implemented");
+                // Send pane focus request to daemon
+                if let Some(ref ipc) = ipc {
+                    ipc.send(ControlMessage::PaneFocusPrev);
+                }
+                log::debug!("Navigate to previous pane");
             }
             NavAction::NextTab => {
-                // TODO: Integrate with session/pane management
-                println!("Navigate to next tab - not yet implemented");
+                // Send tab switch request to daemon
+                if let Some(ref ipc) = ipc {
+                    ipc.send(ControlMessage::TabNext);
+                }
+                log::debug!("Navigate to next tab");
             }
             NavAction::PrevTab => {
-                // TODO: Integrate with session/pane management
-                println!("Navigate to previous tab - not yet implemented");
+                // Send tab switch request to daemon
+                if let Some(ref ipc) = ipc {
+                    ipc.send(ControlMessage::TabPrev);
+                }
+                log::debug!("Navigate to previous tab");
             }
             NavAction::Cancel => {
                 // Cancel action is typically handled by mode-switching systems

@@ -400,12 +400,30 @@ fn convert_protocol_item_to_render_item(item: StatusRenderItem) -> Option<Render
     }
 }
 
-/// Convert a sequence of RenderItems to Bevy Text string
+/// Styled text segment for status bar rendering
+#[derive(Debug, Clone)]
+pub struct StyledTextSegment {
+    pub text: String,
+    pub color: Color,
+    pub is_bold: bool,
+    pub is_italic: bool,
+}
+
+impl Default for StyledTextSegment {
+    fn default() -> Self {
+        Self {
+            text: String::new(),
+            color: Color::srgb(0.9, 0.9, 0.9), // Default light gray
+            is_bold: false,
+            is_italic: false,
+        }
+    }
+}
+
+/// Convert a sequence of RenderItems to styled text segments
 ///
-/// Processes the items sequentially, building up plain text.
-/// Note: In Bevy 0.15+, text styling is handled via separate components
-/// (TextColor, TextFont) rather than inline sections. For now, we just
-/// concatenate the text content and use the first color we encounter.
+/// Processes the items sequentially, building up styled text segments.
+/// Each segment has its own color and style attributes.
 ///
 /// # Arguments
 ///
@@ -413,7 +431,135 @@ fn convert_protocol_item_to_render_item(item: StatusRenderItem) -> Option<Render
 ///
 /// # Returns
 ///
-/// A tuple of (text_string, text_color) for rendering
+/// A vector of styled text segments for rendering with Bevy Text
+pub fn render_items_to_styled_text(items: &[RenderItem]) -> Vec<StyledTextSegment> {
+    let mut segments = Vec::new();
+    let mut current_segment = StyledTextSegment::default();
+    let mut current_fg = Color::srgb(0.9, 0.9, 0.9); // Default foreground
+    let mut is_bold = false;
+    let mut is_italic = false;
+
+    for item in items {
+        match item {
+            RenderItem::Text(s) => {
+                // If text is being added, finalize current segment if it has content
+                // and start a new one if style changed
+                if !current_segment.text.is_empty()
+                    && (current_segment.color != current_fg
+                        || current_segment.is_bold != is_bold
+                        || current_segment.is_italic != is_italic)
+                {
+                    segments.push(current_segment);
+                    current_segment = StyledTextSegment {
+                        text: String::new(),
+                        color: current_fg,
+                        is_bold,
+                        is_italic,
+                    };
+                }
+                current_segment.color = current_fg;
+                current_segment.is_bold = is_bold;
+                current_segment.is_italic = is_italic;
+                current_segment.text.push_str(s);
+            }
+            RenderItem::Icon(icon) => {
+                current_segment.text.push_str(icon);
+            }
+            RenderItem::Foreground(color) => {
+                // Push current segment if it has content, then change color
+                if !current_segment.text.is_empty() {
+                    segments.push(current_segment);
+                    current_segment = StyledTextSegment::default();
+                }
+                current_fg = color_to_bevy(color);
+            }
+            RenderItem::ForegroundAnsi(ansi) => {
+                if !current_segment.text.is_empty() {
+                    segments.push(current_segment);
+                    current_segment = StyledTextSegment::default();
+                }
+                current_fg = ansi_color_to_bevy(ansi);
+            }
+            RenderItem::Background(_color) => {
+                // Background colors would require spawning separate UI nodes
+                // For now, we skip background styling
+            }
+            RenderItem::BackgroundAnsi(_ansi) => {
+                // Background colors not yet supported
+            }
+            RenderItem::Bold => {
+                if !current_segment.text.is_empty() && !current_segment.is_bold {
+                    segments.push(current_segment);
+                    current_segment = StyledTextSegment::default();
+                }
+                is_bold = true;
+            }
+            RenderItem::Italic => {
+                if !current_segment.text.is_empty() && !current_segment.is_italic {
+                    segments.push(current_segment);
+                    current_segment = StyledTextSegment::default();
+                }
+                is_italic = true;
+            }
+            RenderItem::Underline(_style) => {
+                // Underline not directly supported by Bevy Text
+            }
+            RenderItem::Strikethrough => {
+                // Strikethrough not directly supported by Bevy Text
+            }
+            RenderItem::ResetAttributes => {
+                if !current_segment.text.is_empty() {
+                    segments.push(current_segment);
+                    current_segment = StyledTextSegment::default();
+                }
+                current_fg = Color::srgb(0.9, 0.9, 0.9);
+                is_bold = false;
+                is_italic = false;
+            }
+            RenderItem::ResetForeground => {
+                if !current_segment.text.is_empty() {
+                    segments.push(current_segment);
+                    current_segment = StyledTextSegment::default();
+                }
+                current_fg = Color::srgb(0.9, 0.9, 0.9);
+            }
+            RenderItem::ResetBackground => {
+                // Background reset - no-op since we don't render backgrounds
+            }
+            RenderItem::Spacer => {
+                current_segment.text.push(' ');
+            }
+            RenderItem::Padding(count) => {
+                for _ in 0..*count {
+                    current_segment.text.push(' ');
+                }
+            }
+            RenderItem::Separator(sep) => {
+                current_segment.text.push_str(sep);
+            }
+        }
+    }
+
+    // Push final segment if it has content
+    if !current_segment.text.is_empty() {
+        segments.push(current_segment);
+    }
+
+    segments
+}
+
+/// Convert a sequence of RenderItems to Bevy Text string (legacy compatibility)
+///
+/// Processes the items sequentially, building up plain text.
+/// For styled text, use `render_items_to_styled_text` instead.
+///
+/// # Arguments
+///
+/// * `items` - Slice of RenderItem elements to convert
+///
+/// # Returns
+///
+/// A plain text string (no styling)
 pub fn render_items_to_text(items: &[RenderItem]) -> String {
     let mut result = String::new();
 
@@ -423,43 +569,13 @@ pub fn render_items_to_text(items: &[RenderItem]) -> String {
                 result.push_str(s);
             }
             RenderItem::Icon(icon) => {
-                // Icons are rendered as text for now
                 result.push_str(icon);
             }
-            RenderItem::Foreground(_color) => {
-                // Color changes are not yet supported in the simplified implementation
-                // Future: could spawn multiple text entities with different colors
-            }
-            RenderItem::ForegroundAnsi(_ansi) => {
-                // Color changes are not yet supported
-            }
-            RenderItem::Background(_color) => {
-                // Background colors are not directly supported in Bevy text styling
-            }
-            RenderItem::BackgroundAnsi(_ansi) => {
-                // Background colors are not directly supported
-            }
-            RenderItem::Bold => {
-                // Bold styling not yet supported - would need font variants
-            }
-            RenderItem::Italic => {
-                // Italic styling not yet supported - would need font variants
-            }
-            RenderItem::Underline(_style) => {
-                // Underline not yet supported
-            }
-            RenderItem::Strikethrough => {
-                // Strikethrough not yet supported
-            }
-            RenderItem::ResetAttributes => {
-                // Reset has no effect in simplified implementation
-            }
-            RenderItem::ResetForeground => {
-                // Reset has no effect in simplified implementation
-            }
-            RenderItem::ResetBackground => {
-                // Reset has no effect in simplified implementation
-            }
+            RenderItem::Foreground(_) | RenderItem::ForegroundAnsi(_) => {}
+            RenderItem::Background(_) | RenderItem::BackgroundAnsi(_) => {}
+            RenderItem::Bold | RenderItem::Italic => {}
+            RenderItem::Underline(_) | RenderItem::Strikethrough => {}
+            RenderItem::ResetAttributes | RenderItem::ResetForeground | RenderItem::ResetBackground => {}
             RenderItem::Spacer => {
                 result.push(' ');
             }
@@ -478,7 +594,6 @@ pub fn render_items_to_text(items: &[RenderItem]) -> String {
 }
 
 /// Convert Color enum to Bevy color
-#[allow(dead_code)] // Will be used in Phase 2 for color support
 fn color_to_bevy(color: &StatusColor) -> Color {
     match color {
         StatusColor::Rgb(r, g, b) => Color::srgb_u8(*r, *g, *b),
@@ -488,7 +603,6 @@ fn color_to_bevy(color: &StatusColor) -> Color {
 }
 
 /// Convert AnsiColor to Bevy color
-#[allow(dead_code)] // Will be used in Phase 2 for color support
 fn ansi_color_to_bevy(ansi: &AnsiColor) -> Color {
     let (r, g, b) = ansi.to_rgb();
     Color::srgb_u8(r, g, b)
@@ -497,7 +611,6 @@ fn ansi_color_to_bevy(ansi: &AnsiColor) -> Color {
 /// Parse hex color string to Bevy color
 ///
 /// Supports formats: "#RRGGBB" or "RRGGBB"
-#[allow(dead_code)] // Will be used in Phase 2 for color support
 fn parse_hex_color(hex: &str) -> Color {
     let hex = hex.trim_start_matches('#');
 
@@ -516,7 +629,6 @@ fn parse_hex_color(hex: &str) -> Color {
 /// Parse named color to Bevy color
 ///
 /// Supports basic CSS color names
-#[allow(dead_code)] // Will be used in Phase 2 for color support
 fn parse_named_color(name: &str) -> Color {
     match name.to_lowercase().as_str() {
         "black" => Color::srgb(0.0, 0.0, 0.0),

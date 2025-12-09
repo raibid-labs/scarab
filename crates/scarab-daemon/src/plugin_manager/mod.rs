@@ -412,6 +412,55 @@ impl PluginManager {
                         })
                         .await;
                 }
+                RemoteCommand::ApplyTheme {
+                    plugin_name,
+                    theme_name,
+                } => {
+                    log::debug!(
+                        "Plugin {} applying theme: {}",
+                        plugin_name,
+                        theme_name
+                    );
+                    // Broadcast theme change to clients
+                    self.client_registry
+                        .broadcast(DaemonMessage::ThemeApply {
+                            theme_name: theme_name.into(),
+                        })
+                        .await;
+                }
+                RemoteCommand::SetPaletteColor {
+                    plugin_name,
+                    color_name,
+                    value,
+                } => {
+                    log::debug!(
+                        "Plugin {} setting palette color {} = {}",
+                        plugin_name,
+                        color_name,
+                        value
+                    );
+                    // Broadcast color change to clients
+                    self.client_registry
+                        .broadcast(DaemonMessage::PaletteColorSet {
+                            color_name: color_name.into(),
+                            value: value.into(),
+                        })
+                        .await;
+                }
+                RemoteCommand::GetCurrentTheme { plugin_name } => {
+                    log::debug!(
+                        "Plugin {} requesting current theme",
+                        plugin_name
+                    );
+                    // TODO: Retrieve actual current theme name from config
+                    // For now, return the default theme name
+                    self.client_registry
+                        .broadcast(DaemonMessage::ThemeInfoResponse {
+                            plugin_name: plugin_name.into(),
+                            theme_name: "slime".into(), // Default theme
+                        })
+                        .await;
+                }
             }
         }
     }

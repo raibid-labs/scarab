@@ -2,7 +2,6 @@ use crate::orchestrator::OrchestratorMessage;
 use crate::plugin_manager::PluginManager;
 use crate::session::{
     handle_pane_command, handle_session_command, handle_tab_command, SessionManager,
-    TabCommandResult,
 };
 use anyhow::{Context, Result};
 use portable_pty::PtySize;
@@ -966,6 +965,73 @@ async fn handle_message(
         | ControlMessage::PaneFocus { .. }
         | ControlMessage::PaneResize { .. } => {
             // Already handled by handle_pane_command
+        }
+        // Navigation pane/tab commands
+        ControlMessage::PaneFocusNext => {
+            log::debug!("Client {} requested focus next pane", client_id);
+            if let Some(session) = session_manager.get_default_session() {
+                if let Some(next_pane_id) = session.next_pane_id() {
+                    let _ = session.focus_pane(next_pane_id);
+                    client_registry
+                        .send(
+                            client_id,
+                            DaemonMessage::PaneFocused { pane_id: next_pane_id },
+                        )
+                        .await?;
+                }
+            }
+        }
+        ControlMessage::PaneFocusPrev => {
+            log::debug!("Client {} requested focus previous pane", client_id);
+            if let Some(session) = session_manager.get_default_session() {
+                if let Some(prev_pane_id) = session.prev_pane_id() {
+                    let _ = session.focus_pane(prev_pane_id);
+                    client_registry
+                        .send(
+                            client_id,
+                            DaemonMessage::PaneFocused { pane_id: prev_pane_id },
+                        )
+                        .await?;
+                }
+            }
+        }
+        ControlMessage::TabNext => {
+            log::debug!("Client {} requested next tab", client_id);
+            if let Some(session) = session_manager.get_default_session() {
+                if let Some(next_tab_id) = session.next_tab_id() {
+                    let _ = session.switch_tab(next_tab_id);
+                    client_registry
+                        .send(
+                            client_id,
+                            DaemonMessage::TabSwitched { tab_id: next_tab_id },
+                        )
+                        .await?;
+                }
+            }
+        }
+        ControlMessage::TabPrev => {
+            log::debug!("Client {} requested previous tab", client_id);
+            if let Some(session) = session_manager.get_default_session() {
+                if let Some(prev_tab_id) = session.prev_tab_id() {
+                    let _ = session.switch_tab(prev_tab_id);
+                    client_registry
+                        .send(
+                            client_id,
+                            DaemonMessage::TabSwitched { tab_id: prev_tab_id },
+                        )
+                        .await?;
+                }
+            }
+        }
+        ControlMessage::MouseClick { col, row, button } => {
+            log::debug!(
+                "Client {} sent mouse click at ({}, {}) button {}",
+                client_id, col, row, button
+            );
+            // Forward mouse click as escape sequence to PTY
+            // Format: CSI < button ; col ; row M (for press)
+            let mouse_seq = format!("\x1b[<{};{};{}M", button, col + 1, row + 1);
+            pty_handle.write_input(mouse_seq.as_bytes()).await?;
         }
         ControlMessage::PluginLog { .. } | ControlMessage::PluginNotify { .. } => {
             // These are internal messages sent BY plugins, not received FROM clients

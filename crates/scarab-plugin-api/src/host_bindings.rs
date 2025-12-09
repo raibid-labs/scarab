@@ -701,6 +701,133 @@ impl HostBindings {
 
         Ok(())
     }
+
+    // ========================================================================
+    // Theme Manipulation Bindings
+    // ========================================================================
+
+    /// Apply a named theme
+    ///
+    /// Dynamically applies a color theme to the terminal. The theme must be
+    /// one of the built-in themes or a custom theme registered with the
+    /// configuration system.
+    ///
+    /// # Built-in Themes
+    ///
+    /// - `slime` - Vibrant green tones (default)
+    /// - `dracula` - Dark purple theme
+    /// - `nord` - Arctic, north-bluish color palette
+    /// - `monokai` - Classic dark theme with warm accents
+    /// - `gruvbox_dark` - Retro groove color scheme
+    /// - `solarized_dark` - Precision colors for machines
+    /// - `solarized_light` - Light variant of solarized
+    /// - `tokyo_night` - A clean, dark theme from Tokyo
+    /// - `catppuccin` - Soothing pastel theme
+    ///
+    /// # Arguments
+    ///
+    /// * `ctx` - Plugin context
+    /// * `theme_name` - Name of the theme to apply
+    ///
+    /// # Errors
+    ///
+    /// Returns error if rate limit exceeded
+    ///
+    /// # Example
+    ///
+    /// ```fsharp
+    /// Host.applyTheme ctx "dracula"
+    /// ```
+    pub fn apply_theme(&self, ctx: &PluginContext, theme_name: &str) -> Result<()> {
+        self.check_rate_limit()?;
+
+        ctx.queue_command(crate::types::RemoteCommand::ApplyTheme {
+            plugin_name: ctx.logger_name.clone(),
+            theme_name: theme_name.to_string(),
+        });
+
+        Ok(())
+    }
+
+    /// Set a specific palette color
+    ///
+    /// Modifies a single color in the current palette. This allows fine-grained
+    /// customization of terminal colors without changing the entire theme.
+    ///
+    /// # Color Names
+    ///
+    /// - `foreground`, `background`
+    /// - `black`, `red`, `green`, `yellow`, `blue`, `magenta`, `cyan`, `white`
+    /// - `bright_black`, `bright_red`, `bright_green`, `bright_yellow`
+    /// - `bright_blue`, `bright_magenta`, `bright_cyan`, `bright_white`
+    /// - `cursor`, `selection`
+    ///
+    /// # Color Values
+    ///
+    /// Colors can be specified as:
+    /// - Hex: `#RRGGBB` or `RRGGBB`
+    /// - RGB: `rgb(255, 0, 128)`
+    /// - Named: `red`, `green`, `blue`, etc.
+    ///
+    /// # Arguments
+    ///
+    /// * `ctx` - Plugin context
+    /// * `color_name` - Name of the color to set
+    /// * `value` - New color value (hex, rgb, or named)
+    ///
+    /// # Errors
+    ///
+    /// Returns error if rate limit exceeded
+    ///
+    /// # Example
+    ///
+    /// ```fsharp
+    /// Host.setPaletteColor ctx "foreground" "#00FF00"
+    /// Host.setPaletteColor ctx "background" "rgb(30, 30, 30)"
+    /// ```
+    pub fn set_palette_color(
+        &self,
+        ctx: &PluginContext,
+        color_name: &str,
+        value: &str,
+    ) -> Result<()> {
+        self.check_rate_limit()?;
+
+        ctx.queue_command(crate::types::RemoteCommand::SetPaletteColor {
+            plugin_name: ctx.logger_name.clone(),
+            color_name: color_name.to_string(),
+            value: value.to_string(),
+        });
+
+        Ok(())
+    }
+
+    /// Request the current theme name
+    ///
+    /// Queries the current active theme name. Since this is an async operation,
+    /// the result will be delivered via a callback or event.
+    ///
+    /// # Arguments
+    ///
+    /// * `ctx` - Plugin context
+    ///
+    /// # Errors
+    ///
+    /// Returns error if rate limit exceeded
+    ///
+    /// # Note
+    ///
+    /// The theme name is returned asynchronously. Plugins should listen for
+    /// the `ThemeInfoResponse` event to receive the result.
+    pub fn get_current_theme(&self, ctx: &PluginContext) -> Result<()> {
+        self.check_rate_limit()?;
+
+        ctx.queue_command(crate::types::RemoteCommand::GetCurrentTheme {
+            plugin_name: ctx.logger_name.clone(),
+        });
+
+        Ok(())
+    }
 }
 
 /// Current resource usage snapshot

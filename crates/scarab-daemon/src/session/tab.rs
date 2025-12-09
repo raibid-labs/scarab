@@ -159,6 +159,42 @@ impl Tab {
         self.panes.keys().copied().collect()
     }
 
+    /// Get the next pane ID for navigation (cycles through panes)
+    pub fn next_pane_id(&self) -> Option<PaneId> {
+        if self.panes.is_empty() {
+            return None;
+        }
+
+        let mut ids: Vec<PaneId> = self.panes.keys().copied().collect();
+        ids.sort();
+
+        // Find current pane index and get next
+        if let Some(pos) = ids.iter().position(|&id| id == self.active_pane_id) {
+            let next_pos = (pos + 1) % ids.len();
+            Some(ids[next_pos])
+        } else {
+            ids.first().copied()
+        }
+    }
+
+    /// Get the previous pane ID for navigation (cycles through panes)
+    pub fn prev_pane_id(&self) -> Option<PaneId> {
+        if self.panes.is_empty() {
+            return None;
+        }
+
+        let mut ids: Vec<PaneId> = self.panes.keys().copied().collect();
+        ids.sort();
+
+        // Find current pane index and get previous
+        if let Some(pos) = ids.iter().position(|&id| id == self.active_pane_id) {
+            let prev_pos = if pos == 0 { ids.len() - 1 } else { pos - 1 };
+            Some(ids[prev_pos])
+        } else {
+            ids.last().copied()
+        }
+    }
+
     /// Recalculate pane layouts (simplified tiling algorithm)
     fn recalculate_layout(&mut self) -> Result<()> {
         // For MVP: simple horizontal tiling

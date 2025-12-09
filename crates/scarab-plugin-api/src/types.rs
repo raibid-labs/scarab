@@ -152,6 +152,21 @@ pub enum RemoteCommand {
         plugin_name: String,
         direction: JumpDirection,
     },
+    /// Apply a named theme
+    ApplyTheme {
+        plugin_name: String,
+        theme_name: String,
+    },
+    /// Set a specific palette color
+    SetPaletteColor {
+        plugin_name: String,
+        color_name: String,
+        value: String,
+    },
+    /// Get the current theme name (async response via callback)
+    GetCurrentTheme {
+        plugin_name: String,
+    },
 }
 
 /// Action that a plugin hook can return
