@@ -4,6 +4,9 @@
 //! programmable status bars with rich styling and dynamic content.
 
 use bevy::prelude::*;
+
+/// Height of the status bar in pixels
+pub const STATUS_BAR_HEIGHT: f32 = 24.0;
 use scarab_plugin_api::status_bar::Color as StatusColor;
 use scarab_plugin_api::status_bar::{AnsiColor, RenderItem};
 use scarab_protocol::{DaemonMessage, StatusBarSide as ProtocolStatusBarSide, StatusRenderItem};
@@ -118,7 +121,7 @@ fn setup_status_bar(mut commands: Commands) {
         .spawn((
             Node {
                 width: Val::Percent(100.0),
-                height: Val::Px(24.0),
+                height: Val::Px(STATUS_BAR_HEIGHT),
                 justify_content: JustifyContent::SpaceBetween,
                 align_items: AlignItems::Center,
                 padding: UiRect::horizontal(Val::Px(8.0)),

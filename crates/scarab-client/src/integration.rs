@@ -5,6 +5,7 @@ use crate::events::WindowResizedEvent;
 use crate::rendering::config::FontConfig;
 use crate::rendering::text::{generate_terminal_mesh, TerminalMesh, TextRenderer};
 use crate::safe_state::SafeSharedState;
+use crate::ui::STATUS_BAR_HEIGHT;
 use bevy::prelude::*;
 use bevy::render::mesh::Mesh2d;
 use bevy::sprite::MeshMaterial2d;
@@ -118,8 +119,9 @@ fn update_grid_position_system(
     for mut transform in query.iter_mut() {
         // Centered camera means world origin is at screen center.
         // Shift grid so its top-left sits at the visible top-left.
+        // Account for status bar at the bottom by reducing available height.
         let x = -window.width() * 0.5;
-        let y = window.height() * 0.5;
+        let y = (window.height() - STATUS_BAR_HEIGHT) * 0.5;
 
         // Only update if changed to avoid unnecessary dirty flags
         if transform.translation.x != x || transform.translation.y != y {
@@ -177,16 +179,18 @@ fn setup_terminal_rendering(
     let (cols, rows) = if let Ok(window) = window_query.get_single() {
         let width = window.width();
         let height = window.height();
+        // Account for status bar at the bottom - reduce available height
+        let available_height = height - STATUS_BAR_HEIGHT;
         let cols = ((width / cell_width).floor() as u16)
             .min(scarab_protocol::GRID_WIDTH as u16)
             .max(80);
-        let rows = ((height / cell_height).floor() as u16)
+        let rows = ((available_height / cell_height).floor() as u16)
             .min(scarab_protocol::GRID_HEIGHT as u16)
             .max(24);
 
         info!(
-            "Window: {}x{} pixels, Terminal: {}x{} cells, Cell: {:.2}x{:.2} pixels",
-            width, height, cols, rows, cell_width, cell_height
+            "Window: {}x{} pixels (available: {}x{} after status bar), Terminal: {}x{} cells, Cell: {:.2}x{:.2} pixels",
+            width, height, width, available_height, cols, rows, cell_width, cell_height
         );
         info!(
             "Grid will span: {:.2}x{:.2} pixels",
