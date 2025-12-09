@@ -5,6 +5,36 @@ All notable changes to the Scarab terminal emulator will be documented in this f
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.0-alpha.15] - 2025-12-08
+
+### Fixed - December 2025 Audit Findings
+
+**Critical Bug Fixes** (#155, #157, #161)
+- Window resize handler now accounts for STATUS_BAR_HEIGHT when calculating rows
+  - Prevents text rendering into status bar area during window resize
+- Theme merge logic fixed - telemetry/theme settings no longer lost during config merge
+  - Removed dead code (empty if block)
+  - Fixed scope of telemetry assignment
+- Changed input channel from unbounded to bounded (1024)
+  - Prevents memory exhaustion during rapid paste operations
+
+**Configuration** (#163)
+- Added ConfigValidator::validate() call in ConfigLoader::load()
+- Invalid configs now fail fast with descriptive error messages
+
+### Added
+
+**Status Bar Tabs** (#156)
+- Static tab labels: "meta", "phage", "tolaria"
+- Visual distinction between active/inactive tabs using Slime theme colors
+- Tab switching infrastructure via TabState and TabSwitchEvent
+- Keyboard-navigable tab system
+
+**Comprehensive Technical Audit**
+- Full audit report in docs/audits/claude/2025-12-08-comprehensive-audit/
+- 11 GitHub issues created for identified problems
+- Prioritized recommendations for future fixes
+
 ## [0.2.0-alpha.0] - 2025-12-03
 
 ### Added - Documentation & Testing Infrastructure (Audit 006-008)

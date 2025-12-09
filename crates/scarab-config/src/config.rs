@@ -75,7 +75,9 @@ impl ScarabConfig {
         }
 
         // Telemetry
-        if other.telemetry != TelemetryConfig::default() {}
+        if other.telemetry != TelemetryConfig::default() {
+            self.telemetry = other.telemetry;
+        }
 
         // Navigation
         if other.navigation != NavConfig::default() {
@@ -85,7 +87,6 @@ impl ScarabConfig {
             self.navigation
                 .keybindings
                 .extend(other.navigation.keybindings);
-            self.telemetry = other.telemetry;
         }
     }
 }

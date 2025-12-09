@@ -37,12 +37,12 @@ macro_rules! defer {
 /// Using channels for thread-safe communication
 #[derive(Clone)]
 pub struct PtyHandle {
-    input_tx: mpsc::UnboundedSender<Vec<u8>>,
+    input_tx: mpsc::Sender<Vec<u8>>,
     resize_tx: mpsc::Sender<PtySize>,
 }
 
 impl PtyHandle {
-    pub fn new(input_tx: mpsc::UnboundedSender<Vec<u8>>, resize_tx: mpsc::Sender<PtySize>) -> Self {
+    pub fn new(input_tx: mpsc::Sender<Vec<u8>>, resize_tx: mpsc::Sender<PtySize>) -> Self {
         Self {
             input_tx,
             resize_tx,
@@ -52,6 +52,7 @@ impl PtyHandle {
     pub async fn write_input(&self, data: &[u8]) -> Result<()> {
         self.input_tx
             .send(data.to_vec())
+            .await
             .context("Failed to send input to PTY channel")?;
         Ok(())
     }
