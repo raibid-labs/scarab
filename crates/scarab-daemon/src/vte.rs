@@ -618,7 +618,10 @@ impl Perform for TerminalState {
                 }
             }
             0x0A => {
-                // Line Feed
+                // Line Feed (LF)
+                // In most terminal emulators, LF also implies CR (newline mode / LNM)
+                // This matches expected shell behavior where \n starts a new line at column 0
+                self.cursor_x = 0;
                 self.cursor_y += 1;
                 if self.cursor_y >= self.rows {
                     self.scroll_up(1);
