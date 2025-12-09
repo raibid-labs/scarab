@@ -1,0 +1,46 @@
+# Slime Theme Configuration
+# Dark theme with green/cyan accents from github.com/beengud/theme-slime
+
+[terminal]
+default_shell = "/bin/zsh"
+scrollback_lines = 10000
+
+[font]
+family = "JetBrains Mono"
+size = 14.0
+line_height = 1.2
+bold_is_bright = true
+
+[colors]
+theme = "slime"
+foreground = "#e0e0e0"
+background = "#1e2324"
+cursor = "#a8df5a"
+selection_background = "#6c516e"
+
+[colors.palette]
+black = "#666666"
+red = "#cd6564"
+green = "#AEC199"
+yellow = "#fff099"
+blue = "#6D9CBE"
+magenta = "#B081B9"
+cyan = "#80B5B3"
+white = "#efefef"
+bright_black = "#888888"
+bright_red = "#e08080"
+bright_green = "#c8dba8"
+bright_yellow = "#ffffb0"
+bright_blue = "#8bb8d8"
+bright_magenta = "#c9a0d0"
+bright_cyan = "#9fd0ce"
+bright_white = "#ffffff"
+
+[ui]
+cursor_style = "block"
+cursor_blink = true
+animations = true
+smooth_scroll = true
+
+[effects]
+overlay_glow_color = "#a8df5a"
