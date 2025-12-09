@@ -73,7 +73,12 @@ impl TextRenderer {
         );
 
         buffer.set_size(&mut self.font_system, 100.0, 100.0);
-        buffer.set_text(&mut self.font_system, "M", Attrs::new(), Shaping::Advanced);
+        // Use Monospace family for consistent metrics
+        let attrs = Attrs::new().family(cosmic_text::Family::Monospace);
+        buffer.set_text(&mut self.font_system, "M", attrs, Shaping::Advanced);
+
+        // CRITICAL: Must shape before layout_runs() will return anything!
+        buffer.shape_until_scroll(&mut self.font_system, false);
 
         // Get actual glyph dimensions
         let mut found = false;
@@ -82,12 +87,19 @@ impl TextRenderer {
                 self.cell_width = glyph.w;
                 self.cell_height = self.config.size * self.config.line_height;
                 found = true;
+                info!(
+                    "Font metrics updated: cell_width={:.2}, cell_height={:.2}",
+                    self.cell_width, self.cell_height
+                );
                 break;
             }
         }
 
         if !found {
             warn!("update_metrics: No glyphs found for 'M', using fallback dimensions");
+            // Use approximate fallback
+            self.cell_width = self.config.size * 0.6;
+            self.cell_height = self.config.size * self.config.line_height;
         }
     }
 }
@@ -245,7 +257,7 @@ pub fn generate_terminal_mesh(
     }
 
     if glyph_attempts > 0 {
-        info!(
+        debug!(
             "Mesh generation: {}/{} glyphs rendered successfully",
             glyph_success, glyph_attempts
         );
@@ -355,8 +367,11 @@ fn render_glyph(
         // CRITICAL: Set buffer size or shaping won't work!
         buffer.set_size(&mut renderer.font_system, 100.0, 100.0);
 
-        // Build attrs with bold/italic
-        let mut cosmic_attrs = Attrs::new();
+        // Build attrs with font family and bold/italic
+        // CRITICAL: Specify monospace font family to prevent cosmic-text from
+        // picking different fonts for different characters
+        let mut cosmic_attrs = Attrs::new()
+            .family(cosmic_text::Family::Monospace);
 
         if attrs.bold {
             cosmic_attrs = cosmic_attrs.weight(cosmic_text::Weight::BOLD);
@@ -424,17 +439,32 @@ fn render_glyph(
 
     let fg_array = fg.to_srgba().to_f32_array();
 
-    // Add glyph quad
-    // Use CELL dimensions for positioning, not glyph dimensions
-    // This ensures all characters are in a fixed grid
-    let cell_width = renderer.cell_width;
-    let cell_height = renderer.cell_height;
+    // Use the ACTUAL glyph dimensions from the atlas to preserve aspect ratio
+    // This prevents stretching/distortion of characters
+    let glyph_width = atlas_rect.width as f32;
+    let glyph_height = atlas_rect.height as f32;
+
+    // For terminal rendering, we need FIXED cell positioning:
+    // - All characters occupy exactly one cell width horizontally
+    // - Glyphs are centered within their cells
+    // - Vertical positioning aligns to a common baseline
+
+    // Center the glyph horizontally within the cell
+    let horizontal_padding = (renderer.cell_width - glyph_width).max(0.0) / 2.0;
+    let glyph_x = x + horizontal_padding;
+
+    // Position glyph vertically:
+    // - The glyph's placement_top tells us how far up from baseline the glyph extends
+    // - For terminal rendering, we want consistent baseline positioning
+    // - Calculate baseline position within the cell (roughly 80% down from top)
+    let baseline_y = y - renderer.cell_height * 0.8;
+    let glyph_top_y = baseline_y + atlas_rect.placement_top as f32;
 
     positions.extend_from_slice(&[
-        [x, y, LAYER_TERMINAL_TEXT], // Above background
-        [x + cell_width, y, LAYER_TERMINAL_TEXT],
-        [x + cell_width, y - cell_height, LAYER_TERMINAL_TEXT],
-        [x, y - cell_height, LAYER_TERMINAL_TEXT],
+        [glyph_x, glyph_top_y, LAYER_TERMINAL_TEXT],
+        [glyph_x + glyph_width, glyph_top_y, LAYER_TERMINAL_TEXT],
+        [glyph_x + glyph_width, glyph_top_y - glyph_height, LAYER_TERMINAL_TEXT],
+        [glyph_x, glyph_top_y - glyph_height, LAYER_TERMINAL_TEXT],
     ]);
 
     // Use normal UVs (no flip)

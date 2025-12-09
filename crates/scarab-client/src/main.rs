@@ -1,13 +1,13 @@
 use bevy::prelude::*;
 use bevy::render::camera::OrthographicProjection;
-use scarab_client::input::{ModeStack, NavInputRouter, NavStyle};
+use bevy::winit::{UpdateMode, WinitSettings};
 use scarab_client::integration::{IntegrationPlugin, SharedMemWrapper, SharedMemoryReader};
 use scarab_client::navigation::{FocusablePlugin, NavigationPlugin};
 use scarab_client::rendering::HintOverlayPlugin;
 use scarab_client::{
     AccessibilityPlugin, AdvancedUIPlugin, CopyModePlugin, EventsPlugin, GraphicsInspectorPlugin,
-    ImagesPlugin, ScarabEffectsPlugin, ScarabTelemetryPlugin, ScriptingPlugin, ScrollbackPlugin,
-    TutorialPlugin,
+    ImagesPlugin, InputSystemSet, ScarabEffectsPlugin, ScarabTelemetryPlugin, ScriptingPlugin,
+    ScrollbackPlugin, TutorialPlugin,
 };
 use scarab_config::{ConfigLoader, FusabiConfigLoader};
 // Uncomment to enable hot-reloading config via bevy-fusabi:
@@ -155,8 +155,8 @@ fn run_headless(reader: SharedMemoryReader, command: Option<String>) {
 fn run_windowed(
     reader: SharedMemoryReader,
     config: scarab_config::ScarabConfig,
-    window_width: f32,
-    window_height: f32,
+    _window_width: f32,
+    _window_height: f32,
     command: Option<String>,
 ) {
     // Window icon loading note: Bevy 0.15 window icon support requires platform-specific handling
@@ -174,12 +174,18 @@ fn run_windowed(
         app.insert_resource(StartupCommand(cmd));
     }
 
+    // Default to left-half of a 1920x1080 screen
+    // Position at (0, 0) with half screen width
+    let default_width = 960.0;  // Half of 1920
+    let default_height = 1040.0; // 1080 minus typical panel height
+
     app.add_plugins(
         DefaultPlugins
             .set(WindowPlugin {
                 primary_window: Some(Window {
                     title: "Scarab Terminal".into(),
-                    resolution: (window_width, window_height).into(),
+                    resolution: (default_width, default_height).into(),
+                    position: bevy::window::WindowPosition::At(IVec2::new(0, 0)),
                     window_theme: Some(bevy::window::WindowTheme::Dark),
                     ..default()
                 }),
@@ -206,10 +212,23 @@ fn run_windowed(
     .add_plugins(ScarabEffectsPlugin) // Add post-processing effects (blur, glow)
     .add_plugins(ScarabTelemetryPlugin) // Add telemetry HUD overlay (Ctrl+Shift+T to toggle)
     .add_plugins(AccessibilityPlugin) // Add accessibility features (screen reader, export, high contrast)
+    .configure_sets(
+        Update,
+        (
+            InputSystemSet::Navigation,
+            InputSystemSet::Surface,
+            InputSystemSet::Daemon,
+        )
+            .chain(),
+    )
     .insert_resource(reader)
     .insert_resource(config) // Make initial config available (will be updated by plugin)
-    .insert_resource(NavInputRouter::new(NavStyle::VimiumStyle)) // Initialize navigation input router with Vimium-style keybindings
-    .insert_resource(ModeStack::new()) // Initialize mode stack (starts in Normal mode)
+    // Use reactive rendering - only update on input or when content changes
+    // This dramatically reduces CPU usage when terminal is idle
+    .insert_resource(WinitSettings {
+        focused_mode: UpdateMode::reactive_low_power(std::time::Duration::from_millis(100)),
+        unfocused_mode: UpdateMode::reactive_low_power(std::time::Duration::from_millis(250)),
+    })
     // NOTE: Uncomment the following line to enable hot-reloading config via bevy-fusabi
     // .add_plugins(ScarabConfigPlugin::new("config.fsx"))
     .add_systems(Startup, setup);
@@ -354,10 +373,7 @@ fn setup(mut commands: Commands, windows: Query<&Window, With<bevy::window::Prim
             clear_color: ClearColorConfig::Custom(Color::srgb(0.0, 0.0, 0.0)), // Black background
             ..default()
         },
-        OrthographicProjection {
-            viewport_origin: Vec2::new(0.0, 0.0),
-            ..OrthographicProjection::default_2d()
-        },
+        OrthographicProjection::default_2d(),
         // Keep camera at origin; grid is translated instead
         Transform::from_xyz(0.0, 0.0, 0.0),
     ));

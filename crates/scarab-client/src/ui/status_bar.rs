@@ -127,30 +127,30 @@ fn setup_status_bar(mut commands: Commands) {
                 left: Val::Px(0.0),
                 ..default()
             },
-            BackgroundColor(Color::srgba(0.1, 0.1, 0.1, 0.9)),
+            BackgroundColor(Color::srgba(0.15, 0.15, 0.18, 0.95)),
             ZIndex(1000),
             StatusBarContainer,
         ))
         .with_children(|parent| {
-            // Left section
+            // Left section - show default tab indicator
             parent.spawn((
-                Text::new(""),
+                Text::new(" 1: zsh "),
                 TextFont {
                     font_size: 14.0,
                     ..default()
                 },
-                TextColor(Color::srgb(0.9, 0.9, 0.9)),
+                TextColor(Color::srgb(0.4, 0.8, 1.0)),
                 StatusBarLeft,
             ));
 
-            // Right section
+            // Right section - show mode indicator
             parent.spawn((
-                Text::new(""),
+                Text::new("NORMAL"),
                 TextFont {
                     font_size: 14.0,
                     ..default()
                 },
-                TextColor(Color::srgb(0.9, 0.9, 0.9)),
+                TextColor(Color::srgb(0.6, 0.8, 0.6)),
                 StatusBarRight,
             ));
         });

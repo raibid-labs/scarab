@@ -1,6 +1,7 @@
 // Surface component and buffer management for Ratatui bridge
 // This module provides the infrastructure for rendering Ratatui widgets in Bevy
 
+use crate::InputSystemSet;
 use bevy::prelude::*;
 use ratatui::buffer::Buffer;
 use ratatui::layout::Rect;
@@ -266,10 +267,16 @@ impl Plugin for RatatuiBridgePlugin {
                     cleanup_removed_surfaces,
                     super::renderer::render_surfaces,
                     super::renderer::cleanup_overlays,
-                    super::input::handle_keyboard_input,
-                    super::input::handle_mouse_input,
                     super::input::cleanup_focus,
                 ),
+            )
+            .add_systems(
+                Update,
+                (
+                    super::input::handle_keyboard_input,
+                    super::input::handle_mouse_input,
+                )
+                    .in_set(InputSystemSet::Surface),
             );
 
         info!("RatatuiBridgePlugin initialized with rendering and input pipeline");

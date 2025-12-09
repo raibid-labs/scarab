@@ -363,7 +363,7 @@ async fn main() -> Result<()> {
                 match pm.dispatch_input(&data).await {
                     Ok(d) => d,
                     Err(e) => {
-                        eprintln!("Plugin input error: {}", e);
+                        log::warn!("Plugin input error: {}", e);
                         data
                     }
                 }
@@ -379,11 +379,11 @@ async fn main() -> Result<()> {
                     let mut writer_lock = writer_arc.lock().unwrap();
                     if let Some(ref mut writer) = *writer_lock {
                         if let Err(e) = writer.write_all(&processed_data) {
-                            eprintln!("PTY write error: {}", e);
+                            log::warn!("PTY write error: {}", e);
                             continue;
                         }
                         if let Err(e) = writer.flush() {
-                            eprintln!("PTY flush error: {}", e);
+                            log::warn!("PTY flush error: {}", e);
                             continue;
                         }
                     }

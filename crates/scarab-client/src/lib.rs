@@ -1,10 +1,22 @@
 // Scarab terminal emulator client library
 // Re-exports UI and rendering modules for use in binary and tests
 
+use bevy::prelude::*;
+
+/// System sets for input handling ordering
+#[derive(SystemSet, Debug, Clone, PartialEq, Eq, Hash)]
+pub enum InputSystemSet {
+    /// Navigation and mode handling (runs first)
+    Navigation,
+    /// Overlay/surface input handling (runs second)
+    Surface,
+    /// IPC communication to daemon (runs last)
+    Daemon,
+}
+
 pub mod safe_state;
 pub mod terminal;
 pub mod ui;
-pub mod ui_stub;
 
 pub mod accessibility;
 pub mod context_menu;
@@ -53,8 +65,8 @@ pub use terminal::chunks::{
     ChunkGrid, ChunkMesh, ChunkPlugin, TerminalChunk, CHUNK_HEIGHT, CHUNK_WIDTH,
 };
 
-// Re-export UI plugin
-pub use ui_stub::AdvancedUIPlugin;
+// Re-export UI plugin - use the real implementation, not the stub
+pub use ui::AdvancedUIPlugin;
 
 // Re-export copy mode system
 pub use copy_mode::{

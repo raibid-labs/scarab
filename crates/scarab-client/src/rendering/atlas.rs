@@ -2,6 +2,7 @@
 
 use bevy::prelude::*;
 use bevy::render::render_resource::{Extent3d, TextureDimension, TextureFormat};
+use bevy::image::ImageSampler;
 use cosmic_text::{
     CacheKey, CacheKeyFlags, FontSystem, SubpixelBin, SwashCache, SwashContent, SwashImage,
 };
@@ -32,13 +33,21 @@ impl From<CacheKey> for GlyphKey {
     }
 }
 
-/// Rectangle in the atlas texture (UV coordinates)
+/// Rectangle in the atlas texture with glyph placement info
 #[derive(Debug, Clone, Copy)]
 pub struct AtlasRect {
+    /// X position in atlas
     pub x: u32,
+    /// Y position in atlas
     pub y: u32,
+    /// Width of glyph in atlas
     pub width: u32,
+    /// Height of glyph in atlas
     pub height: u32,
+    /// Horizontal offset from glyph origin to left edge (can be negative)
+    pub placement_left: i32,
+    /// Vertical offset from glyph origin to top edge (typically positive = up from baseline)
+    pub placement_top: i32,
 }
 
 impl AtlasRect {
@@ -95,6 +104,10 @@ impl GlyphAtlas {
         image.texture_descriptor.usage =
             bevy::render::render_resource::TextureUsages::TEXTURE_BINDING
                 | bevy::render::render_resource::TextureUsages::COPY_DST;
+
+        // CRITICAL: Use NEAREST filtering for crisp pixel-perfect glyph rendering
+        // LINEAR filtering causes fuzzy/blurry text due to bilinear interpolation
+        image.sampler = ImageSampler::nearest();
 
         let texture = images.add(image);
 
@@ -178,8 +191,13 @@ impl GlyphAtlas {
             return None;
         }
 
-        // Pack the glyph
-        let rect = self.pack_glyph(glyph_width, glyph_height);
+        // Pack the glyph with placement offsets for proper positioning
+        let rect = self.pack_glyph(
+            glyph_width,
+            glyph_height,
+            image.placement.left,
+            image.placement.top,
+        );
 
         // Copy glyph data to atlas
         self.copy_glyph_data(image, &rect);
@@ -206,8 +224,14 @@ impl GlyphAtlas {
         next_y + padded_height <= ATLAS_SIZE
     }
 
-    /// Pack a glyph into the atlas and return its rect
-    fn pack_glyph(&mut self, width: u32, height: u32) -> AtlasRect {
+    /// Pack a glyph into the atlas and return its rect with placement info
+    fn pack_glyph(
+        &mut self,
+        width: u32,
+        height: u32,
+        placement_left: i32,
+        placement_top: i32,
+    ) -> AtlasRect {
         let padded_width = width + GLYPH_PADDING * 2;
         let padded_height = height + GLYPH_PADDING * 2;
 
@@ -223,6 +247,8 @@ impl GlyphAtlas {
             y: self.current_y,
             width,
             height,
+            placement_left,
+            placement_top,
         };
 
         self.current_x += padded_width;

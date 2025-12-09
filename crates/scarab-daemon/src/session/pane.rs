@@ -100,6 +100,9 @@ impl Pane {
         // Set environment variable for Navigation Protocol
         cmd.env("SCARAB_NAV_SOCKET", "/tmp/scarab-nav.sock");
 
+        // Set TERM so the shell knows what terminal capabilities we support
+        cmd.env("TERM", "xterm-256color");
+
         // Spawn shell in PTY
         let _child = pair.slave.spawn_command(cmd)?;
 

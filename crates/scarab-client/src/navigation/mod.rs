@@ -536,12 +536,78 @@ impl Plugin for NavigationPlugin {
             // Add pane lifecycle systems for NavState management
             .add_systems(
                 Update,
-                (on_pane_created, on_pane_focused, on_pane_closed).in_set(NavSystemSet::Update),
+                (
+                    on_pane_created,
+                    on_pane_focused,
+                    on_pane_closed,
+                    handle_nav_actions,
+                )
+                    .in_set(NavSystemSet::Update),
             );
 
         // Note: Actual navigation systems will be added by other plugins
         // that depend on this navigation plugin. This keeps the core
         // navigation module focused on types and infrastructure.
+    }
+}
+
+// ==================== Navigation Action Handler ====================
+
+/// System to handle navigation actions
+///
+/// Processes `NavActionEvent`s and executes the corresponding actions.
+/// Some actions are implemented immediately (like opening URLs), while
+/// others log placeholder messages for future implementation.
+fn handle_nav_actions(
+    mut events: EventReader<NavActionEvent>,
+) {
+    for event in events.read() {
+        match &event.action {
+            NavAction::Open(url) => {
+                #[cfg(target_os = "linux")]
+                {
+                    if let Err(e) = std::process::Command::new("xdg-open")
+                        .arg(url)
+                        .spawn()
+                    {
+                        eprintln!("Failed to open URL {}: {}", url, e);
+                    }
+                }
+                #[cfg(target_os = "macos")]
+                {
+                    if let Err(e) = std::process::Command::new("open")
+                        .arg(url)
+                        .spawn()
+                    {
+                        eprintln!("Failed to open URL {}: {}", url, e);
+                    }
+                }
+                #[cfg(target_os = "windows")]
+                {
+                    if let Err(e) = std::process::Command::new("cmd")
+                        .args(["/C", "start", "", url])
+                        .spawn()
+                    {
+                        eprintln!("Failed to open URL {}: {}", url, e);
+                    }
+                }
+            }
+            NavAction::Click(col, row) => {
+                // TODO: Send click event to terminal
+                println!("Nav click at ({}, {}) - not yet implemented", col, row);
+            }
+            NavAction::JumpPrompt(index) => {
+                // TODO: Integrate with scrollback to jump to prompt
+                println!("Jump to prompt {} - not yet implemented", index);
+            }
+            NavAction::NextPane | NavAction::PrevPane | NavAction::NextTab | NavAction::PrevTab => {
+                // TODO: Integrate with session/pane management
+                println!("Pane/tab navigation - not yet implemented");
+            }
+            NavAction::Cancel => {
+                // Usually handled elsewhere, but log for debugging
+            }
+        }
     }
 }
 

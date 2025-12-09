@@ -1,4 +1,5 @@
 use crate::rendering::text::TextRenderer;
+use crate::InputSystemSet;
 use anyhow::{Context, Result};
 use bevy::prelude::*;
 use scarab_protocol::{
@@ -196,17 +197,19 @@ async fn send_message(
             if let Some(ref mut conn) = *conn_lock {
                 // Write length prefix + data
                 match conn.sink.write_u32(len as u32).await {
-                    Ok(_) => match conn.sink.write_all(&bytes).await {
-                        Ok(_) => {
-                            conn.sink.flush().await.context("Failed to flush stream")?;
-                            return Ok(());
+                    Ok(_) => {
+                        match conn.sink.write_all(&bytes).await {
+                            Ok(_) => {
+                                conn.sink.flush().await.context("Failed to flush stream")?;
+                                return Ok(());
+                            }
+                            Err(e) => {
+                                eprintln!("Write failed: {}", e);
+                                conn.connected = false;
+                                *conn_lock = None; // Drop connection
+                            }
                         }
-                        Err(e) => {
-                            eprintln!("Write failed: {}", e);
-                            conn.connected = false;
-                            *conn_lock = None; // Drop connection
-                        }
-                    },
+                    }
                     Err(e) => {
                         eprintln!("Write length failed: {}", e);
                         conn.connected = false;
@@ -307,6 +310,12 @@ pub fn handle_character_input(
             continue;
         }
 
+        // Skip keys already handled by handle_keyboard_input
+        // This prevents double-sending for Space, Tab, etc.
+        if key_to_bytes(event.key_code).is_some() {
+            continue;
+        }
+
         // Handle text input via logical_key
         if let bevy::input::keyboard::Key::Character(ref s) = event.logical_key {
             let bytes = s.as_str().as_bytes().to_vec();
@@ -382,7 +391,8 @@ impl Plugin for IpcPlugin {
                         handle_window_resize,
                         receive_ipc_messages,
                         handle_startup_command,
-                    ),
+                    )
+                        .in_set(InputSystemSet::Daemon),
                 );
             }
             Err(e) => {
