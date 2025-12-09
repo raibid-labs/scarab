@@ -17,7 +17,7 @@ fn setup_test_app() -> App {
         .add_plugins(RatatuiBridgePlugin)
         .add_plugins(ContextMenuPlugin)
         .insert_resource(TerminalMetrics {
-            cols: 200,
+            columns: 200,
             rows: 100,
             cell_width: 10.0,
             cell_height: 20.0,
@@ -281,7 +281,7 @@ fn test_menu_with_shortcuts() {
 fn test_menu_position_clamping() {
     // Test that positions are properly clamped to grid bounds
     let metrics = TerminalMetrics {
-        cols: 200,
+        columns: 200,
         rows: 100,
         cell_width: 10.0,
         cell_height: 20.0,
@@ -291,9 +291,9 @@ fn test_menu_position_clamping() {
     let mut position = Position::new(250, 150);
 
     // In real code, this would be adjusted by handle_show_context_menu
-    position.x = position.x.min(metrics.cols - 1);
+    position.x = position.x.min(metrics.columns - 1);
     position.y = position.y.min(metrics.rows - 1);
 
-    assert!(position.x < metrics.cols);
+    assert!(position.x < metrics.columns);
     assert!(position.y < metrics.rows);
 }
