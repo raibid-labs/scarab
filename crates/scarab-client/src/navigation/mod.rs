@@ -558,54 +558,42 @@ impl Plugin for NavigationPlugin {
 /// Processes `NavActionEvent`s and executes the corresponding actions.
 /// Some actions are implemented immediately (like opening URLs), while
 /// others log placeholder messages for future implementation.
-fn handle_nav_actions(
-    mut events: EventReader<NavActionEvent>,
-) {
+fn handle_nav_actions(mut events: EventReader<NavActionEvent>) {
     for event in events.read() {
         match &event.action {
             NavAction::Open(url) => {
-                #[cfg(target_os = "linux")]
-                {
-                    if let Err(e) = std::process::Command::new("xdg-open")
-                        .arg(url)
-                        .spawn()
-                    {
-                        eprintln!("Failed to open URL {}: {}", url, e);
-                    }
-                }
-                #[cfg(target_os = "macos")]
-                {
-                    if let Err(e) = std::process::Command::new("open")
-                        .arg(url)
-                        .spawn()
-                    {
-                        eprintln!("Failed to open URL {}: {}", url, e);
-                    }
-                }
-                #[cfg(target_os = "windows")]
-                {
-                    if let Err(e) = std::process::Command::new("cmd")
-                        .args(["/C", "start", "", url])
-                        .spawn()
-                    {
-                        eprintln!("Failed to open URL {}: {}", url, e);
-                    }
+                // Use the `open` crate for cross-platform URL/file opening
+                if let Err(e) = open::that(url) {
+                    eprintln!("Failed to open URL/file {}: {}", url, e);
                 }
             }
             NavAction::Click(col, row) => {
                 // TODO: Send click event to terminal
                 println!("Nav click at ({}, {}) - not yet implemented", col, row);
             }
-            NavAction::JumpPrompt(index) => {
+            NavAction::JumpPrompt(line) => {
                 // TODO: Integrate with scrollback to jump to prompt
-                println!("Jump to prompt {} - not yet implemented", index);
+                println!("Jump to prompt line {} - not yet implemented", line);
             }
-            NavAction::NextPane | NavAction::PrevPane | NavAction::NextTab | NavAction::PrevTab => {
+            NavAction::NextPane => {
                 // TODO: Integrate with session/pane management
-                println!("Pane/tab navigation - not yet implemented");
+                println!("Navigate to next pane - not yet implemented");
+            }
+            NavAction::PrevPane => {
+                // TODO: Integrate with session/pane management
+                println!("Navigate to previous pane - not yet implemented");
+            }
+            NavAction::NextTab => {
+                // TODO: Integrate with session/pane management
+                println!("Navigate to next tab - not yet implemented");
+            }
+            NavAction::PrevTab => {
+                // TODO: Integrate with session/pane management
+                println!("Navigate to previous tab - not yet implemented");
             }
             NavAction::Cancel => {
-                // Usually handled elsewhere, but log for debugging
+                // Cancel action is typically handled by mode-switching systems
+                // No-op: handled elsewhere
             }
         }
     }
