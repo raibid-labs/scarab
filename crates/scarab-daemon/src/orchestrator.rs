@@ -193,7 +193,13 @@ impl PaneOrchestrator {
                 let pty_arc = Arc::clone(&pty_master_arc);
                 move || {
                     let mut buf = [0u8; 4096];
-                    let pty_lock = pty_arc.lock().unwrap();
+                    let pty_lock = match pty_arc.lock() {
+                        Ok(guard) => guard,
+                        Err(poisoned) => {
+                            log::warn!("PTY reader lock poisoned, recovering");
+                            poisoned.into_inner()
+                        }
+                    };
                     if let Some(ref master) = *pty_lock {
                         match master.try_clone_reader() {
                             Ok(mut reader) => reader.read(&mut buf).map(|n| (n, buf)),
@@ -226,7 +232,13 @@ impl PaneOrchestrator {
 
                     if !responses.is_empty() {
                         let pty_writer_arc = pane.pty_writer();
-                        let mut writer_lock = pty_writer_arc.lock().unwrap();
+                        let mut writer_lock = match pty_writer_arc.lock() {
+                            Ok(guard) => guard,
+                            Err(poisoned) => {
+                                log::warn!("PTY writer lock poisoned, recovering");
+                                poisoned.into_inner()
+                            }
+                        };
                         if let Some(ref mut writer) = *writer_lock {
                             for response in responses {
                                 if let Err(e) = writer.write_all(&response) {

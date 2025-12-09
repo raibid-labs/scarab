@@ -1,6 +1,6 @@
 //! Configuration file loading and discovery
 
-use crate::{error::Result, ConfigError, ConfigValidator, ScarabConfig};
+use crate::{error::Result, theme_resolver::ThemeResolver, ConfigError, ConfigValidator, ScarabConfig};
 use std::{
     env, fs,
     path::{Path, PathBuf},
@@ -10,6 +10,7 @@ use tracing::{debug, info};
 /// Configuration loader with discovery
 pub struct ConfigLoader {
     global_path: PathBuf,
+    theme_resolver: ThemeResolver,
 }
 
 impl ConfigLoader {
@@ -17,12 +18,16 @@ impl ConfigLoader {
     pub fn new() -> Self {
         Self {
             global_path: Self::default_config_path(),
+            theme_resolver: ThemeResolver::new(),
         }
     }
 
     /// Create a loader with custom global path (for testing)
     pub fn with_path(path: PathBuf) -> Self {
-        Self { global_path: path }
+        Self {
+            global_path: path,
+            theme_resolver: ThemeResolver::new(),
+        }
     }
 
     /// Get default global config path (~/.config/scarab/config.toml)
@@ -41,6 +46,9 @@ impl ConfigLoader {
             debug!("Found local config, merging with global");
             config.merge(local);
         }
+
+        // Resolve theme if specified
+        self.theme_resolver.resolve(&mut config.colors)?;
 
         ConfigValidator::validate(&config)?;
 

@@ -376,7 +376,13 @@ async fn main() -> Result<()> {
             // Route input to the active pane's PTY writer
             if let Some(session) = sm_writer.get_default_session() {
                 if let Some(writer_arc) = session.get_active_pty_writer() {
-                    let mut writer_lock = writer_arc.lock().unwrap();
+                    let mut writer_lock = match writer_arc.lock() {
+                        Ok(guard) => guard,
+                        Err(poisoned) => {
+                            log::warn!("PTY writer lock poisoned, recovering");
+                            poisoned.into_inner()
+                        }
+                    };
                     if let Some(ref mut writer) = *writer_lock {
                         if let Err(e) = writer.write_all(&processed_data) {
                             log::warn!("PTY write error: {}", e);

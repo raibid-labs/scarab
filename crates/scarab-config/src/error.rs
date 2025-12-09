@@ -89,6 +89,10 @@ pub enum ConfigError {
     /// Fusabi runtime error
     #[error("Fusabi runtime error: {0}")]
     FusabiRuntimeError(String),
+
+    /// Invalid theme name
+    #[error("Invalid theme: {0}")]
+    InvalidTheme(String),
 }
 
 /// Result type alias

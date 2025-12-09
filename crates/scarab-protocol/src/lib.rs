@@ -588,6 +588,12 @@ pub enum DaemonMessage {
         blocks: alloc::vec::Vec<CommandBlock>,
     },
 
+    /// Response to ExtractZoneText with the zone's text content
+    ZoneTextExtracted {
+        zone_id: u64,
+        text: alloc::string::String,
+    },
+
     // Event forwarding to clients
     Event(EventMessage),
 

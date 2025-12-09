@@ -34,7 +34,7 @@ fn main() {
         .add_plugins(RatatuiBridgePlugin)
         .add_plugins(ContextMenuPlugin)
         .insert_resource(TerminalMetrics {
-            cols: 120,
+            columns: 120,
             rows: 40,
             cell_width: 10.0,
             cell_height: 20.0,
@@ -47,7 +47,7 @@ fn main() {
 /// Setup the demo scene
 fn setup(mut commands: Commands) {
     // Spawn a 2D camera
-    commands.spawn(Camera2dBundle::default());
+    commands.spawn(Camera2d);
 
     info!("Context Menu Demo started");
     info!("Right-click anywhere to open the context menu");
@@ -108,88 +108,35 @@ struct InstructionsText;
 fn display_instructions(
     mut commands: Commands,
     query: Query<Entity, With<InstructionsText>>,
-    asset_server: Res<AssetServer>,
 ) {
     // Only spawn once
     if !query.is_empty() {
         return;
     }
 
-    let font = asset_server.load("fonts/FiraMono-Medium.ttf");
-
+    // Simple instructions text using Bevy 0.15 API
     commands.spawn((
-        TextBundle::from_sections([
-            TextSection::new(
-                "Context Menu Demo\n\n",
-                TextStyle {
-                    font: font.clone(),
-                    font_size: 24.0,
-                    color: Color::WHITE,
-                },
-            ),
-            TextSection::new(
-                "Controls:\n",
-                TextStyle {
-                    font: font.clone(),
-                    font_size: 20.0,
-                    color: Color::rgb(0.8, 0.8, 1.0),
-                },
-            ),
-            TextSection::new(
-                "• Right-click: Open context menu\n",
-                TextStyle {
-                    font: font.clone(),
-                    font_size: 16.0,
-                    color: Color::rgb(0.7, 0.7, 0.7),
-                },
-            ),
-            TextSection::new(
-                "• Up/Down: Navigate menu items\n",
-                TextStyle {
-                    font: font.clone(),
-                    font_size: 16.0,
-                    color: Color::rgb(0.7, 0.7, 0.7),
-                },
-            ),
-            TextSection::new(
-                "• Enter: Select item\n",
-                TextStyle {
-                    font: font.clone(),
-                    font_size: 16.0,
-                    color: Color::rgb(0.7, 0.7, 0.7),
-                },
-            ),
-            TextSection::new(
-                "• Escape: Close menu\n",
-                TextStyle {
-                    font: font.clone(),
-                    font_size: 16.0,
-                    color: Color::rgb(0.7, 0.7, 0.7),
-                },
-            ),
-            TextSection::new(
-                "• Mouse: Hover and click\n\n",
-                TextStyle {
-                    font: font.clone(),
-                    font_size: 16.0,
-                    color: Color::rgb(0.7, 0.7, 0.7),
-                },
-            ),
-            TextSection::new(
-                "Actions are logged to console",
-                TextStyle {
-                    font,
-                    font_size: 14.0,
-                    color: Color::rgb(0.5, 0.5, 0.5),
-                },
-            ),
-        ])
-        .with_style(Style {
+        Node {
             position_type: PositionType::Absolute,
             top: Val::Px(20.0),
             left: Val::Px(20.0),
             ..default()
-        }),
+        },
+        Text::new(concat!(
+            "Context Menu Demo\n\n",
+            "Controls:\n",
+            "• Right-click: Open context menu\n",
+            "• Up/Down: Navigate menu items\n",
+            "• Enter: Select item\n",
+            "• Escape: Close menu\n",
+            "• Mouse: Hover and click\n\n",
+            "Actions are logged to console"
+        )),
+        TextFont {
+            font_size: 16.0,
+            ..default()
+        },
+        TextColor(Color::srgba(0.8, 0.8, 0.8, 1.0)),
         InstructionsText,
     ));
 }

@@ -30,7 +30,7 @@ fn test_marketplace_plugin_initialization() {
 
     // Should have marketplace overlay entity
     app.update();
-    let query = app
+    let mut query = app
         .world_mut()
         .query_filtered::<Entity, With<MarketplaceOverlay>>();
     let count = query.iter(app.world()).count();

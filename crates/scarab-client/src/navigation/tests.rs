@@ -870,30 +870,32 @@ fn test_zone_scoping_with_multiple_prompts() {
     app.add_event::<crate::prompt_markers::PromptZoneFocusedEvent>();
 
     // Set up 3 prompt zones with focusables in each
-    let mut prompt_markers = app.world_mut().resource_mut::<PromptMarkers>();
-    prompt_markers.markers = vec![
-        // Prompt 1: lines 10-29
-        scarab_protocol::PromptMarkerInfo {
-            marker_type: 0,
-            line: 10,
-            exit_code: None,
-            timestamp_micros: 0,
-        },
-        // Prompt 2: lines 30-49
-        scarab_protocol::PromptMarkerInfo {
-            marker_type: 0,
-            line: 30,
-            exit_code: None,
-            timestamp_micros: 1000,
-        },
-        // Prompt 3: lines 50-69
-        scarab_protocol::PromptMarkerInfo {
-            marker_type: 0,
-            line: 50,
-            exit_code: None,
-            timestamp_micros: 2000,
-        },
-    ];
+    {
+        let mut prompt_markers = app.world_mut().resource_mut::<PromptMarkers>();
+        prompt_markers.markers = vec![
+            // Prompt 1: lines 10-29
+            scarab_protocol::PromptMarkerInfo {
+                marker_type: 0,
+                line: 10,
+                exit_code: None,
+                timestamp_micros: 0,
+            },
+            // Prompt 2: lines 30-49
+            scarab_protocol::PromptMarkerInfo {
+                marker_type: 0,
+                line: 30,
+                exit_code: None,
+                timestamp_micros: 1000,
+            },
+            // Prompt 3: lines 50-69
+            scarab_protocol::PromptMarkerInfo {
+                marker_type: 0,
+                line: 50,
+                exit_code: None,
+                timestamp_micros: 2000,
+            },
+        ];
+    }
 
     // Spawn focusables in each zone
     // Zone 1 (lines 10-29): 2 URLs
@@ -1010,7 +1012,10 @@ fn test_zone_scoping_with_multiple_prompts() {
     assert_eq!(zone2_focusables.len(), 1, "Zone 2 should have 1 focusable");
 
     // Zone 3 test
-    let zone3 = prompt_markers.current_prompt_zone(55);
+    let zone3 = app
+        .world()
+        .resource::<PromptMarkers>()
+        .current_prompt_zone(55);
     assert!(zone3.is_some());
     let (start3, end3) = zone3.unwrap();
     assert_eq!(start3, 50);

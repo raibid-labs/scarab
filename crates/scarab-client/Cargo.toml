@@ -50,6 +50,7 @@ base64 = "0.22"
 tracy-client = { workspace = true, optional = true }
 puffin = { workspace = true, optional = true }
 profiling = { workspace = true, optional = true }
+log = "0.4.29"
 
 [dev-dependencies]
 criterion = { workspace = true }
