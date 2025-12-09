@@ -119,9 +119,13 @@ fn update_grid_position_system(
     for mut transform in query.iter_mut() {
         // Centered camera means world origin is at screen center.
         // Shift grid so its top-left sits at the visible top-left.
-        // Account for status bar at the bottom by reducing available height.
+        // The grid renders DOWNWARD from its origin, so we need to:
+        // 1. Move left edge to -width/2 (left side of window)
+        // 2. Move top edge to +height/2 (top of window)
+        // The grid rows are already calculated to fit above the status bar,
+        // so we don't need to offset Y for the status bar here.
         let x = -window.width() * 0.5;
-        let y = (window.height() - STATUS_BAR_HEIGHT) * 0.5;
+        let y = window.height() * 0.5;
 
         // Only update if changed to avoid unnecessary dirty flags
         if transform.translation.x != x || transform.translation.y != y {

@@ -171,11 +171,11 @@ pub struct ColorConfig {
 impl Default for ColorConfig {
     fn default() -> Self {
         Self {
-            theme: Some("dracula".to_string()),
-            foreground: None,
-            background: None,
-            cursor: None,
-            selection_background: None,
+            theme: Some("slime".to_string()),
+            foreground: Some("#e0e0e0".to_string()),
+            background: Some("#1e2324".to_string()),
+            cursor: Some("#a8df5a".to_string()),
+            selection_background: Some("#6c516e".to_string()),
             selection_foreground: None,
             palette: ColorPalette::default(),
             opacity: 1.0,
@@ -211,23 +211,23 @@ pub struct ColorPalette {
 
 impl Default for ColorPalette {
     fn default() -> Self {
-        // Dracula theme colors
+        // Slime theme colors (from github.com/beengud/theme-slime)
         Self {
-            black: "#21222c".to_string(),
-            red: "#ff5555".to_string(),
-            green: "#50fa7b".to_string(),
-            yellow: "#f1fa8c".to_string(),
-            blue: "#bd93f9".to_string(),
-            magenta: "#ff79c6".to_string(),
-            cyan: "#8be9fd".to_string(),
-            white: "#f8f8f2".to_string(),
-            bright_black: "#6272a4".to_string(),
-            bright_red: "#ff6e6e".to_string(),
-            bright_green: "#69ff94".to_string(),
-            bright_yellow: "#ffffa5".to_string(),
-            bright_blue: "#d6acff".to_string(),
-            bright_magenta: "#ff92df".to_string(),
-            bright_cyan: "#a4ffff".to_string(),
+            black: "#666666".to_string(),
+            red: "#cd6564".to_string(),
+            green: "#AEC199".to_string(),
+            yellow: "#fff099".to_string(),
+            blue: "#6D9CBE".to_string(),
+            magenta: "#B081B9".to_string(),
+            cyan: "#80B5B3".to_string(),
+            white: "#efefef".to_string(),
+            bright_black: "#888888".to_string(),
+            bright_red: "#e08080".to_string(),
+            bright_green: "#c8dba8".to_string(),
+            bright_yellow: "#ffffb0".to_string(),
+            bright_blue: "#8bb8d8".to_string(),
+            bright_magenta: "#c9a0d0".to_string(),
+            bright_cyan: "#9fd0ce".to_string(),
             bright_white: "#ffffff".to_string(),
         }
     }
@@ -579,7 +579,7 @@ impl Default for EffectsConfig {
             overlay_blur_intensity: 0.8,
             overlay_glow_enabled: true,
             overlay_glow_radius: 6.0,
-            overlay_glow_color: "#8be9fd".to_string(), // Dracula cyan
+            overlay_glow_color: "#a8df5a".to_string(), // Slime green
             overlay_glow_intensity: 0.7,
             low_power_mode: false,
         }
@@ -604,17 +604,17 @@ impl EffectsConfig {
 
     /// Parse glow color from hex string to RGB values
     pub fn glow_color_rgb(&self) -> (f32, f32, f32) {
-        // Parse hex color (e.g., "#8be9fd" or "8be9fd")
+        // Parse hex color (e.g., "#a8df5a" or "a8df5a")
         let color_str = self.overlay_glow_color.trim_start_matches('#');
 
         if color_str.len() != 6 {
-            // Invalid color, return default cyan
-            return (0.545, 0.914, 0.992);
+            // Invalid color, return default slime green (#a8df5a)
+            return (0.659, 0.875, 0.353);
         }
 
-        let r = u8::from_str_radix(&color_str[0..2], 16).unwrap_or(139) as f32 / 255.0;
-        let g = u8::from_str_radix(&color_str[2..4], 16).unwrap_or(233) as f32 / 255.0;
-        let b = u8::from_str_radix(&color_str[4..6], 16).unwrap_or(253) as f32 / 255.0;
+        let r = u8::from_str_radix(&color_str[0..2], 16).unwrap_or(168) as f32 / 255.0;
+        let g = u8::from_str_radix(&color_str[2..4], 16).unwrap_or(223) as f32 / 255.0;
+        let b = u8::from_str_radix(&color_str[4..6], 16).unwrap_or(90) as f32 / 255.0;
 
         (r, g, b)
     }
@@ -631,7 +631,7 @@ mod effects_tests {
         assert!(config.overlay_glow_enabled);
         assert!(!config.low_power_mode);
         assert_eq!(config.overlay_blur_radius, 4.0);
-        assert_eq!(config.overlay_glow_color, "#8be9fd");
+        assert_eq!(config.overlay_glow_color, "#a8df5a"); // Slime green
     }
 
     #[test]
@@ -686,11 +686,11 @@ mod effects_tests {
     fn test_glow_color_parsing() {
         let mut config = EffectsConfig::default();
 
-        // Test default cyan color
+        // Test default slime green color (#a8df5a)
         let (r, g, b) = config.glow_color_rgb();
-        assert!((r - 0.545).abs() < 0.01);
-        assert!((g - 0.914).abs() < 0.01);
-        assert!((b - 0.992).abs() < 0.01);
+        assert!((r - 0.659).abs() < 0.01); // 0xa8/255 = 0.659
+        assert!((g - 0.875).abs() < 0.01); // 0xdf/255 = 0.875
+        assert!((b - 0.353).abs() < 0.01); // 0x5a/255 = 0.353
 
         // Test white
         config.overlay_glow_color = "#ffffff".to_string();
@@ -706,10 +706,10 @@ mod effects_tests {
         assert_eq!(g, 0.0);
         assert_eq!(b, 0.0);
 
-        // Test invalid color (should return default)
+        // Test invalid color (should return default slime green)
         config.overlay_glow_color = "invalid".to_string();
         let (r, g, b) = config.glow_color_rgb();
-        assert!((r - 0.545).abs() < 0.01);
+        assert!((r - 0.659).abs() < 0.01);
     }
 
     #[test]

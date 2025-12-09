@@ -89,8 +89,8 @@
         "theme": {
           "type": ["string", "null"],
           "description": "Predefined theme name",
-          "enum": ["dracula", "nord", "monokai", "solarized-dark", "solarized-light", "gruvbox", null],
-          "default": "dracula"
+          "enum": ["slime", "dracula", "nord", "monokai", "solarized-dark", "solarized-light", "gruvbox", null],
+          "default": "slime"
         },
         "foreground": {
           "type": ["string", "null"],
