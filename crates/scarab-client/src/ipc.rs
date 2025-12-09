@@ -1,4 +1,5 @@
 use crate::rendering::text::TextRenderer;
+use crate::InputSystemSet;
 use anyhow::{Context, Result};
 use bevy::prelude::*;
 use scarab_protocol::{
@@ -318,7 +319,6 @@ pub fn handle_character_input(
         // Handle text input via logical_key
         if let bevy::input::keyboard::Key::Character(ref s) = event.logical_key {
             let bytes = s.as_str().as_bytes().to_vec();
-            eprintln!("DEBUG char_input: sending {:?} ({:?})", s, bytes);
             ipc.send(ControlMessage::Input { data: bytes });
         }
     }
@@ -391,7 +391,8 @@ impl Plugin for IpcPlugin {
                         handle_window_resize,
                         receive_ipc_messages,
                         handle_startup_command,
-                    ),
+                    )
+                        .in_set(InputSystemSet::Daemon),
                 );
             }
             Err(e) => {

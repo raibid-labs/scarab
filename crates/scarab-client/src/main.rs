@@ -1,14 +1,13 @@
 use bevy::prelude::*;
 use bevy::render::camera::OrthographicProjection;
 use bevy::winit::{UpdateMode, WinitSettings};
-use scarab_client::input::{ModeStack, NavInputRouter, NavStyle};
 use scarab_client::integration::{IntegrationPlugin, SharedMemWrapper, SharedMemoryReader};
 use scarab_client::navigation::{FocusablePlugin, NavigationPlugin};
 use scarab_client::rendering::HintOverlayPlugin;
 use scarab_client::{
     AccessibilityPlugin, AdvancedUIPlugin, CopyModePlugin, EventsPlugin, GraphicsInspectorPlugin,
-    ImagesPlugin, ScarabEffectsPlugin, ScarabTelemetryPlugin, ScriptingPlugin, ScrollbackPlugin,
-    TutorialPlugin,
+    ImagesPlugin, InputSystemSet, ScarabEffectsPlugin, ScarabTelemetryPlugin, ScriptingPlugin,
+    ScrollbackPlugin, TutorialPlugin,
 };
 use scarab_config::{ConfigLoader, FusabiConfigLoader};
 // Uncomment to enable hot-reloading config via bevy-fusabi:
@@ -213,10 +212,17 @@ fn run_windowed(
     .add_plugins(ScarabEffectsPlugin) // Add post-processing effects (blur, glow)
     .add_plugins(ScarabTelemetryPlugin) // Add telemetry HUD overlay (Ctrl+Shift+T to toggle)
     .add_plugins(AccessibilityPlugin) // Add accessibility features (screen reader, export, high contrast)
+    .configure_sets(
+        Update,
+        (
+            InputSystemSet::Navigation,
+            InputSystemSet::Surface,
+            InputSystemSet::Daemon,
+        )
+            .chain(),
+    )
     .insert_resource(reader)
     .insert_resource(config) // Make initial config available (will be updated by plugin)
-    .insert_resource(NavInputRouter::new(NavStyle::VimiumStyle)) // Initialize navigation input router with Vimium-style keybindings
-    .insert_resource(ModeStack::new()) // Initialize mode stack (starts in Normal mode)
     // Use reactive rendering - only update on input or when content changes
     // This dramatically reduces CPU usage when terminal is idle
     .insert_resource(WinitSettings {

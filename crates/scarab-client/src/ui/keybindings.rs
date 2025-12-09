@@ -1,6 +1,7 @@
 // Configurable key bindings system
 // Allows users to customize keyboard shortcuts
 
+use crate::InputSystemSet;
 use bevy::input::keyboard::KeyCode;
 use bevy::prelude::*;
 use std::collections::HashMap;
@@ -12,7 +13,10 @@ impl Plugin for KeybindingsPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<KeyBindingConfig>()
             .add_event::<KeyBindingTriggeredEvent>()
-            .add_systems(Update, handle_keybindings_system);
+            .add_systems(
+                Update,
+                handle_keybindings_system.in_set(InputSystemSet::Navigation),
+            );
     }
 }
 

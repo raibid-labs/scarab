@@ -114,7 +114,6 @@ pub struct StatusBarContainer;
 /// Creates a horizontal container with left and right text sections.
 /// The status bar is positioned at the bottom of the window.
 fn setup_status_bar(mut commands: Commands) {
-    eprintln!("DEBUG: Setting up status bar");
     commands
         .spawn((
             Node {
