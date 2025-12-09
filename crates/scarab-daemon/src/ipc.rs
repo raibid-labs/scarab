@@ -7,7 +7,7 @@ use crate::session::{
 use anyhow::{Context, Result};
 use portable_pty::PtySize;
 use scarab_protocol::{
-    ControlMessage, DaemonMessage, MenuActionType, PluginInspectorInfo, MAX_CLIENTS,
+    ControlMessage, DaemonMessage, MenuActionType, PluginInspectorInfo, SemanticZone, MAX_CLIENTS,
     MAX_MESSAGE_SIZE, SOCKET_PATH,
 };
 use std::collections::HashMap;
@@ -985,23 +985,166 @@ async fn handle_message(
         // Semantic zone commands
         ControlMessage::ZonesRequest => {
             log::debug!("Client {} requested zones update", client_id);
-            // TODO: Send ZonesUpdate response with current zones
+            if let Some(session) = session_manager.get_default_session() {
+                if let Some(pane) = session.get_active_pane() {
+                    let terminal_state = pane.terminal_state.read();
+                    let zone_tracker = &terminal_state.zone_tracker;
+
+                    // Get all zones and command blocks
+                    let zones = zone_tracker.zones().to_vec();
+                    let blocks = zone_tracker.command_blocks().to_vec();
+
+                    // Send zones update
+                    client_registry
+                        .send(client_id, DaemonMessage::SemanticZonesUpdate { zones })
+                        .await?;
+
+                    // Send command blocks update
+                    client_registry
+                        .send(client_id, DaemonMessage::CommandBlocksUpdate { blocks })
+                        .await?;
+
+                    log::debug!(
+                        "Sent {} zones and {} blocks to client {}",
+                        zone_tracker.zones().len(),
+                        zone_tracker.command_blocks().len(),
+                        client_id
+                    );
+                } else {
+                    log::warn!("No active pane for zones request from client {}", client_id);
+                }
+            }
         }
         ControlMessage::CopyLastOutput => {
             log::debug!("Client {} requested last output copy", client_id);
-            // TODO: Copy last command output to clipboard
+            if let Some(session) = session_manager.get_default_session() {
+                if let Some(pane) = session.get_active_pane() {
+                    let terminal_state = pane.terminal_state.read();
+                    let zone_tracker = &terminal_state.zone_tracker;
+
+                    if let Some(output_zone) = zone_tracker.last_output_zone() {
+                        // Extract text from the zone using grid/scrollback
+                        let text = extract_zone_text(&terminal_state, output_zone);
+
+                        client_registry
+                            .send(
+                                client_id,
+                                DaemonMessage::ZoneTextExtracted {
+                                    zone_id: output_zone.id,
+                                    text,
+                                },
+                            )
+                            .await?;
+
+                        log::debug!(
+                            "Sent last output zone {} to client {}",
+                            output_zone.id,
+                            client_id
+                        );
+                    } else {
+                        log::warn!("No output zone found for client {}", client_id);
+                    }
+                }
+            }
         }
         ControlMessage::SelectZone { zone_id } => {
             log::debug!("Client {} selected zone {}", client_id, zone_id);
-            // TODO: Handle zone selection
+            if let Some(session) = session_manager.get_default_session() {
+                if let Some(pane) = session.get_active_pane() {
+                    let terminal_state = pane.terminal_state.read();
+                    let zone_tracker = &terminal_state.zone_tracker;
+
+                    // Find the zone by ID
+                    if let Some(zone) = zone_tracker.zones().iter().find(|z| z.id == zone_id) {
+                        // Send update with just this zone for highlighting
+                        client_registry
+                            .send(
+                                client_id,
+                                DaemonMessage::SemanticZonesUpdate {
+                                    zones: vec![zone.clone()],
+                                },
+                            )
+                            .await?;
+                        log::debug!("Sent zone {} selection to client {}", zone_id, client_id);
+                    } else {
+                        log::warn!("Zone {} not found for client {}", zone_id, client_id);
+                    }
+                }
+            }
         }
         ControlMessage::ExtractZoneText { zone_id } => {
             log::debug!("Client {} requested zone {} text", client_id, zone_id);
-            // TODO: Extract and send zone text
+            if let Some(session) = session_manager.get_default_session() {
+                if let Some(pane) = session.get_active_pane() {
+                    let terminal_state = pane.terminal_state.read();
+                    let zone_tracker = &terminal_state.zone_tracker;
+
+                    // Find zone in current zones or completed blocks
+                    let zone = zone_tracker
+                        .zones()
+                        .iter()
+                        .find(|z| z.id == zone_id)
+                        .or_else(|| {
+                            zone_tracker.command_blocks().iter().find_map(|block| {
+                                block
+                                    .prompt_zone
+                                    .as_ref()
+                                    .filter(|z| z.id == zone_id)
+                                    .or_else(|| block.input_zone.as_ref().filter(|z| z.id == zone_id))
+                                    .or_else(|| block.output_zone.as_ref().filter(|z| z.id == zone_id))
+                            })
+                        });
+
+                    let text = zone
+                        .map(|z| extract_zone_text(&terminal_state, z))
+                        .unwrap_or_default();
+
+                    client_registry
+                        .send(
+                            client_id,
+                            DaemonMessage::ZoneTextExtracted { zone_id, text },
+                        )
+                        .await?;
+                }
+            }
         }
     }
 
     Ok(())
+}
+
+/// Extract text content from a semantic zone
+///
+/// This reads the grid cells within the zone's line range and converts
+/// the codepoints to a UTF-8 string.
+fn extract_zone_text(
+    terminal_state: &crate::vte::TerminalState,
+    zone: &SemanticZone,
+) -> String {
+    let mut lines = Vec::new();
+    let (cols, rows) = terminal_state.dimensions();
+
+    for row in zone.start_row..=zone.end_row {
+        let mut line = String::new();
+        // Extract from grid (visible area)
+        if (row as u16) < rows {
+            for col in 0..cols {
+                if let Some(cell) = terminal_state.grid.get(col, row as u16) {
+                    if cell.char_codepoint != 0 {
+                        if let Some(c) = char::from_u32(cell.char_codepoint) {
+                            line.push(c);
+                        }
+                    }
+                }
+            }
+        }
+        // Trim trailing whitespace from each line
+        lines.push(line.trim_end().to_string());
+    }
+
+    // Join lines and trim trailing empty lines
+    let result = lines.join("\n");
+    result.trim_end().to_string()
 }
 
 /// Cleanup socket on server shutdown
