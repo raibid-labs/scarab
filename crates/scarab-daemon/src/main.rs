@@ -283,7 +283,7 @@ async fn main() -> Result<()> {
 
     // 3. Setup IPC Control Channel with channels for thread safety
     let (resize_tx, mut resize_rx) = mpsc::channel::<PtySize>(32);
-    let (input_tx, mut input_rx) = mpsc::unbounded_channel::<Vec<u8>>();
+    let (input_tx, mut input_rx) = mpsc::channel::<Vec<u8>>(1024);
     let pty_handle = PtyHandle::new(input_tx, resize_tx);
 
     let client_registry = ClientRegistry::new();

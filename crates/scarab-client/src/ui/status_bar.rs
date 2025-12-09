@@ -20,7 +20,9 @@ impl Plugin for StatusBarPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<StatusBarState>()
             .init_resource::<StatusUpdateTimer>()
+            .init_resource::<TabState>()
             .add_event::<StatusUpdateEvent>()
+            .add_event::<TabSwitchEvent>()
             .add_systems(Startup, setup_status_bar)
             .add_systems(
                 Update,
@@ -28,6 +30,8 @@ impl Plugin for StatusBarPlugin {
                     receive_status_updates,
                     trigger_status_update,
                     update_status_bar_system,
+                    handle_tab_switch,
+                    update_tab_display,
                 )
                     .chain(),
             );
@@ -55,6 +59,12 @@ impl Default for StatusUpdateTimer {
 /// Event to trigger status bar updates
 #[derive(Event)]
 pub struct StatusUpdateEvent;
+
+/// Event to switch tabs
+#[derive(Event)]
+pub struct TabSwitchEvent {
+    pub tab_index: usize,
+}
 
 /// Resource holding current status bar state
 ///
@@ -100,6 +110,26 @@ impl StatusBarState {
     }
 }
 
+/// Resource holding tab state
+#[derive(Resource)]
+pub struct TabState {
+    pub tabs: Vec<String>,
+    pub active_index: usize,
+}
+
+impl Default for TabState {
+    fn default() -> Self {
+        Self {
+            tabs: vec![
+                "meta".to_string(),
+                "phage".to_string(),
+                "tolaria".to_string(),
+            ],
+            active_index: 0,
+        }
+    }
+}
+
 /// Marker component for the left section of the status bar
 #[derive(Component)]
 pub struct StatusBarLeft;
@@ -112,11 +142,21 @@ pub struct StatusBarRight;
 #[derive(Component)]
 pub struct StatusBarContainer;
 
+/// Marker component for tab container
+#[derive(Component)]
+pub struct TabContainer;
+
+/// Marker component for individual tabs
+#[derive(Component)]
+pub struct TabLabel {
+    pub index: usize,
+}
+
 /// Setup the status bar UI hierarchy
 ///
 /// Creates a horizontal container with left and right text sections.
 /// The status bar is positioned at the bottom of the window.
-fn setup_status_bar(mut commands: Commands) {
+fn setup_status_bar(mut commands: Commands, tab_state: Res<TabState>) {
     commands
         .spawn((
             Node {
@@ -135,16 +175,54 @@ fn setup_status_bar(mut commands: Commands) {
             StatusBarContainer,
         ))
         .with_children(|parent| {
-            // Left section - show default tab indicator
-            parent.spawn((
-                Text::new(" 1: zsh "),
-                TextFont {
-                    font_size: 14.0,
-                    ..default()
-                },
-                TextColor(Color::srgb(0.4, 0.8, 1.0)),
-                StatusBarLeft,
-            ));
+            // Left section - tab container
+            parent
+                .spawn((
+                    Node {
+                        display: Display::Flex,
+                        flex_direction: FlexDirection::Row,
+                        column_gap: Val::Px(4.0),
+                        align_items: AlignItems::Center,
+                        ..default()
+                    },
+                    TabContainer,
+                ))
+                .with_children(|tabs_parent| {
+                    // Spawn tab labels
+                    for (index, tab_name) in tab_state.tabs.iter().enumerate() {
+                        let is_active = index == tab_state.active_index;
+
+                        // Slime theme colors
+                        let active_bg = Color::srgb(0.66, 0.87, 0.35); // #a8df5a - slime green
+                        let active_fg = Color::srgb(0.12, 0.14, 0.14); // #1e2324 - dark background
+                        let inactive_fg = Color::srgb(0.78, 0.76, 0.62); // #c8dba8 - muted green
+
+                        tabs_parent
+                            .spawn((
+                                Node {
+                                    padding: UiRect::axes(Val::Px(8.0), Val::Px(4.0)),
+                                    margin: UiRect::right(Val::Px(2.0)),
+                                    ..default()
+                                },
+                                BackgroundColor(if is_active {
+                                    active_bg
+                                } else {
+                                    Color::NONE
+                                }),
+                                TabLabel { index },
+                            ))
+                            .with_children(|label_parent| {
+                                label_parent.spawn((
+                                    Text::new(tab_name),
+                                    TextFont {
+                                        font_size: 14.0,
+                                        ..default()
+                                    },
+                                    TextColor(if is_active { active_fg } else { inactive_fg }),
+                                ));
+                            });
+                    }
+                });
 
             // Right section - show mode indicator
             parent.spawn((
@@ -153,7 +231,7 @@ fn setup_status_bar(mut commands: Commands) {
                     font_size: 14.0,
                     ..default()
                 },
-                TextColor(Color::srgb(0.6, 0.8, 0.6)),
+                TextColor(Color::srgb(0.78, 0.76, 0.62)), // Slime theme muted green
                 StatusBarRight,
             ));
         });
@@ -164,14 +242,9 @@ fn setup_status_bar(mut commands: Commands) {
 /// Converts RenderItem sequences to Bevy Text with appropriate styling.
 fn update_status_bar_system(
     mut status: ResMut<StatusBarState>,
-    mut left_query: Query<&mut Text, (With<StatusBarLeft>, Without<StatusBarRight>)>,
-    mut right_query: Query<&mut Text, (With<StatusBarRight>, Without<StatusBarLeft>)>,
+    mut right_query: Query<&mut Text, With<StatusBarRight>>,
 ) {
-    if status.left_dirty {
-        if let Ok(mut text) = left_query.get_single_mut() {
-            **text = render_items_to_text(&status.left_items);
-        }
-    }
+    // Note: Left side is now handled by tabs, not by left_items
 
     if status.right_dirty {
         if let Ok(mut text) = right_query.get_single_mut() {
@@ -182,6 +255,52 @@ fn update_status_bar_system(
     // Clear dirty flags after rendering
     if status.left_dirty || status.right_dirty {
         status.clear_dirty();
+    }
+}
+
+/// System to handle tab switch events
+fn handle_tab_switch(
+    mut events: EventReader<TabSwitchEvent>,
+    mut tab_state: ResMut<TabState>,
+) {
+    for event in events.read() {
+        if event.tab_index < tab_state.tabs.len() {
+            tab_state.active_index = event.tab_index;
+        }
+    }
+}
+
+/// System to update tab display when active tab changes
+fn update_tab_display(
+    tab_state: Res<TabState>,
+    mut tab_query: Query<(&TabLabel, &mut BackgroundColor, &Children)>,
+    mut text_query: Query<&mut TextColor>,
+) {
+    if !tab_state.is_changed() {
+        return;
+    }
+
+    // Slime theme colors
+    let active_bg = Color::srgb(0.66, 0.87, 0.35); // #a8df5a - slime green
+    let active_fg = Color::srgb(0.12, 0.14, 0.14); // #1e2324 - dark background
+    let inactive_fg = Color::srgb(0.78, 0.76, 0.62); // #c8dba8 - muted green
+
+    for (tab_label, mut bg_color, children) in tab_query.iter_mut() {
+        let is_active = tab_label.index == tab_state.active_index;
+
+        // Update background
+        *bg_color = if is_active {
+            BackgroundColor(active_bg)
+        } else {
+            BackgroundColor(Color::NONE)
+        };
+
+        // Update text color for child text entity
+        for &child in children.iter() {
+            if let Ok(mut text_color) = text_query.get_mut(child) {
+                *text_color = TextColor(if is_active { active_fg } else { inactive_fg });
+            }
+        }
     }
 }
 
@@ -577,5 +696,15 @@ mod tests {
     fn test_status_update_timer() {
         let timer = StatusUpdateTimer::default();
         assert_eq!(timer.timer.duration().as_millis(), 100);
+    }
+
+    #[test]
+    fn test_tab_state_default() {
+        let tab_state = TabState::default();
+        assert_eq!(tab_state.tabs.len(), 3);
+        assert_eq!(tab_state.tabs[0], "meta");
+        assert_eq!(tab_state.tabs[1], "phage");
+        assert_eq!(tab_state.tabs[2], "tolaria");
+        assert_eq!(tab_state.active_index, 0);
     }
 }

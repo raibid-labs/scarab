@@ -1,6 +1,6 @@
 //! Configuration file loading and discovery
 
-use crate::{error::Result, ConfigError, ScarabConfig};
+use crate::{error::Result, ConfigError, ConfigValidator, ScarabConfig};
 use std::{
     env, fs,
     path::{Path, PathBuf},
@@ -41,6 +41,8 @@ impl ConfigLoader {
             debug!("Found local config, merging with global");
             config.merge(local);
         }
+
+        ConfigValidator::validate(&config)?;
 
         Ok(config)
     }
