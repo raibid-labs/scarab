@@ -34,7 +34,7 @@ pub use scroll_indicator::{ScrollIndicatorConfig, ScrollIndicatorPlugin};
 pub use scrollback_selection::{ScrollbackSelectionPlugin, ScrollbackSelectionState};
 pub use search_overlay::{SearchOverlayConfig, SearchOverlayPlugin};
 pub use status_bar::{
-    StatusBarContainer, StatusBarLeft, StatusBarPlugin, StatusBarRight, StatusBarState,
+    StatusBarContainer, StatusBarLeft, StatusBarPlugin, StatusBarRight, StatusBarState, STATUS_BAR_HEIGHT,
 };
 pub use visual_selection::{SelectionMode, SelectionRegion, VisualSelectionPlugin};
 

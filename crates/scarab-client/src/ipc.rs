@@ -318,6 +318,21 @@ pub fn handle_character_input(
 
         // Handle text input via logical_key
         if let bevy::input::keyboard::Key::Character(ref s) = event.logical_key {
+            // CRITICAL FIX: Filter out control characters that might slip through
+            // Even if key_code is not recognized, we should not send control characters
+            // like \r, \n, \t via the character input path - they should go through handle_keyboard_input
+            //
+            // This fixes a bug where Enter (\r) was being sent twice or regular character keys
+            // were being interpreted as control characters:
+            // 1. Once via handle_keyboard_input (KeyCode::Enter -> '\r')
+            // 2. Again via handle_character_input (logical_key = Character("\r"))
+            //
+            // Filter out ASCII control characters (0x00-0x1F) and DEL (0x7F)
+            // This includes: \r (13), \n (10), \t (9), ESC (27), backspace (8), etc.
+            if s.bytes().any(|b| b < 0x20 || b == 0x7F) {
+                continue;
+            }
+
             let bytes = s.as_str().as_bytes().to_vec();
             ipc.send(ControlMessage::Input { data: bytes });
         }
