@@ -144,7 +144,14 @@ impl Pane {
     /// Resize the pane's PTY and terminal state
     pub fn resize(&self, cols: u16, rows: u16) -> Result<()> {
         // Resize PTY
-        if let Some(ref master) = *self.pty_master.lock().unwrap() {
+        let master_lock = match self.pty_master.lock() {
+            Ok(guard) => guard,
+            Err(poisoned) => {
+                log::warn!("PTY master lock poisoned during resize, recovering");
+                poisoned.into_inner()
+            }
+        };
+        if let Some(ref master) = *master_lock {
             master.resize(PtySize {
                 rows,
                 cols,
@@ -177,7 +184,14 @@ impl Pane {
 
     /// Check if this pane has an active PTY
     pub fn has_pty(&self) -> bool {
-        self.pty_master.lock().unwrap().is_some()
+        let master_lock = match self.pty_master.lock() {
+            Ok(guard) => guard,
+            Err(poisoned) => {
+                log::warn!("PTY master lock poisoned in has_pty check, recovering");
+                poisoned.into_inner()
+            }
+        };
+        master_lock.is_some()
     }
 
     /// Get the pane's dimensions

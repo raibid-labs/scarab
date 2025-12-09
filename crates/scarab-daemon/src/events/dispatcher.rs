@@ -79,7 +79,13 @@ impl DaemonEventDispatcher {
     pub fn dispatch(&self, args: &EventArgs) -> Vec<EventResult> {
         // Dispatch to local handlers first
         let results = {
-            let registry = self.registry.lock().unwrap();
+            let registry = match self.registry.lock() {
+                Ok(guard) => guard,
+                Err(poisoned) => {
+                    log::warn!("Event registry lock poisoned, recovering");
+                    poisoned.into_inner()
+                }
+            };
             registry.dispatch(args)
         };
 
@@ -219,13 +225,25 @@ impl DaemonEventDispatcher {
     where
         F: Fn(&EventArgs) -> EventResult + Send + Sync + 'static,
     {
-        let mut registry = self.registry.lock().unwrap();
+        let mut registry = match self.registry.lock() {
+            Ok(guard) => guard,
+            Err(poisoned) => {
+                log::warn!("Event registry lock poisoned during handler registration, recovering");
+                poisoned.into_inner()
+            }
+        };
         registry.register(event_type, priority, plugin_name, Box::new(handler))
     }
 
     /// Unregister a handler by ID
     pub fn unregister_handler(&self, handler_id: u64) -> bool {
-        let mut registry = self.registry.lock().unwrap();
+        let mut registry = match self.registry.lock() {
+            Ok(guard) => guard,
+            Err(poisoned) => {
+                log::warn!("Event registry lock poisoned during handler unregistration, recovering");
+                poisoned.into_inner()
+            }
+        };
         registry.unregister(handler_id)
     }
 
