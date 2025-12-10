@@ -156,7 +156,7 @@ pub struct TabLabel {
 ///
 /// Creates a horizontal container with left and right text sections.
 /// The status bar is positioned at the bottom of the window.
-fn setup_status_bar(mut commands: Commands, tab_state: Res<TabState>, asset_server: Res<AssetServer>) {
+fn setup_status_bar(mut commands: Commands, tab_state: Res<TabState>) {
     commands
         .spawn((
             Node {
@@ -210,11 +210,7 @@ fn setup_status_bar(mut commands: Commands, tab_state: Res<TabState>, asset_serv
                             .with_children(|label_parent| {
                                 label_parent.spawn((
                                     Text::new(tab_name),
-                                    TextFont {
-                                        font: asset_server.load("fonts/FiraCode-Regular.ttf"),
-                                        font_size: 14.0,
-                                        ..default()
-                                    },
+                                    TextFont::from_font_size(14.0),
                                     TextColor(if is_active { active_fg } else { inactive_fg }),
                                 ));
                             });
@@ -224,11 +220,7 @@ fn setup_status_bar(mut commands: Commands, tab_state: Res<TabState>, asset_serv
             // Right section - show mode indicator
             parent.spawn((
                 Text::new("NORMAL"),
-                TextFont {
-                    font: asset_server.load("fonts/FiraCode-Regular.ttf"),
-                    font_size: 14.0,
-                    ..default()
-                },
+                TextFont::from_font_size(14.0),
                 TextColor(Color::srgb(0.78, 0.76, 0.62)), // Slime theme muted green
                 StatusBarRight,
             ));

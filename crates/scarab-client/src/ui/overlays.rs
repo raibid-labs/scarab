@@ -48,7 +48,6 @@ fn handle_remote_messages(
     mut show_modal_events: EventWriter<crate::ui::command_palette::ShowRemoteModalEvent>,
     mut hide_modal_events: EventWriter<HideModalEvent>,
     overlay_query: Query<(Entity, &RemoteOverlay)>,
-    asset_server: Res<AssetServer>,
     time: Res<Time>,
 ) {
     for event in events.read() {
@@ -77,11 +76,7 @@ fn handle_remote_messages(
 
                 commands.spawn((
                     Text2d::new(text.as_str()),
-                    TextFont {
-                        font: asset_server.load("fonts/FiraCode-Regular.ttf"),
-                        font_size: 16.0,
-                        ..default()
-                    },
+                    TextFont::from_font_size(16.0),
                     TextColor(Color::srgba_u8(
                         (style.fg >> 24) as u8,
                         (style.fg >> 16) as u8,
@@ -131,7 +126,6 @@ fn handle_remote_messages(
             DaemonMessage::PluginNotification { title, body, level } => {
                 spawn_notification(
                     &mut commands,
-                    &asset_server,
                     title,
                     body,
                     *level,
@@ -146,7 +140,6 @@ fn handle_remote_messages(
 /// Spawn a notification UI element
 fn spawn_notification(
     commands: &mut Commands,
-    asset_server: &Res<AssetServer>,
     title: &str,
     body: &str,
     level: NotifyLevel,
@@ -192,22 +185,14 @@ fn spawn_notification(
                     // Icon
                     header.spawn((
                         Text::new(icon),
-                        TextFont {
-                            font: asset_server.load("fonts/FiraCode-Regular.ttf"),
-                            font_size: 14.0,
-                            ..default()
-                        },
+                        TextFont::from_font_size(14.0),
                         TextColor(Color::WHITE),
                     ));
 
                     // Title
                     header.spawn((
                         Text::new(title),
-                        TextFont {
-                            font: asset_server.load("fonts/FiraCode-Regular.ttf"),
-                            font_size: 16.0,
-                            ..default()
-                        },
+                        TextFont::from_font_size(16.0),
                         TextColor(Color::WHITE),
                         Node {
                             flex_grow: 1.0,
@@ -219,11 +204,7 @@ fn spawn_notification(
             // Notification body
             parent.spawn((
                 Text::new(body),
-                TextFont {
-                    font: asset_server.load("fonts/FiraCode-Regular.ttf"),
-                    font_size: 14.0,
-                    ..default()
-                },
+                TextFont::from_font_size(14.0),
                 TextColor(Color::srgba(1.0, 1.0, 1.0, 0.9)),
                 Node {
                     max_width: Val::Px(320.0),

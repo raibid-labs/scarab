@@ -370,7 +370,8 @@ fn setup(mut commands: Commands, windows: Query<&Window, With<bevy::window::Prim
     commands.spawn((
         Camera2d,
         Camera {
-            clear_color: ClearColorConfig::Custom(Color::srgb(0.0, 0.0, 0.0)), // Black background
+            // Slime theme background: #0d1208
+            clear_color: ClearColorConfig::Custom(Color::srgb(0.051, 0.071, 0.031)),
             ..default()
         },
         OrthographicProjection::default_2d(),
