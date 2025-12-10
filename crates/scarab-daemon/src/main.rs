@@ -135,10 +135,20 @@ async fn main() -> Result<()> {
         }
     };
 
-    // Initialize shared state with zeroed memory
+    // Initialize shared state with zeroed memory, then set default background
     let shared_ptr = shmem.as_ptr() as *mut SharedState;
     unsafe {
         std::ptr::write_bytes(shared_ptr, 0, 1);
+        // Initialize all cells with the default theme background color
+        // This ensures uniform background before any content is written
+        let state = &mut *shared_ptr;
+        let default_bg = 0xFF0D1208u32; // Slime theme background (#0d1208)
+        let default_fg = 0xFFA8DF5Au32; // Slime theme foreground (#a8df5a)
+        for cell in state.cells.iter_mut() {
+            cell.bg = default_bg;
+            cell.fg = default_fg;
+            cell.char_codepoint = b' ' as u32;
+        }
     }
 
     let sequence_counter = Arc::new(AtomicU64::new(0));
