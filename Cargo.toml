@@ -57,6 +57,7 @@ bevy = { version = "0.15", default-features = false, features = [
     "jpeg",
     "x11",
     "wayland",
+    "default_font",  # Embeds FiraMono subset for UI text rendering
 ]}
 tokio = { version = "1.36", features = ["full"] }
 portable-pty = "0.8"
