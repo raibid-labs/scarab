@@ -7,6 +7,12 @@ use bevy::prelude::*;
 
 /// Height of the status bar in pixels
 pub const STATUS_BAR_HEIGHT: f32 = 24.0;
+
+/// Height of the dock in pixels
+pub const DOCK_HEIGHT: f32 = 40.0;
+
+/// Total height of bottom UI elements (status bar + dock)
+pub const BOTTOM_UI_HEIGHT: f32 = STATUS_BAR_HEIGHT + DOCK_HEIGHT;
 use scarab_plugin_api::status_bar::Color as StatusColor;
 use scarab_plugin_api::status_bar::{AnsiColor, RenderItem};
 use scarab_protocol::{DaemonMessage, StatusBarSide as ProtocolStatusBarSide, StatusRenderItem};

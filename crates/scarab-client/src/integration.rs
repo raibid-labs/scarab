@@ -5,7 +5,7 @@ use crate::events::WindowResizedEvent;
 use crate::rendering::config::FontConfig;
 use crate::rendering::text::{generate_terminal_mesh, TerminalMesh, TextRenderer};
 use crate::safe_state::SafeSharedState;
-use crate::ui::STATUS_BAR_HEIGHT;
+use crate::ui::BOTTOM_UI_HEIGHT;
 use bevy::prelude::*;
 use bevy::render::mesh::Mesh2d;
 use bevy::sprite::MeshMaterial2d;
@@ -185,8 +185,8 @@ fn setup_terminal_rendering(
     let (cols, rows) = if let Ok(window) = window_query.get_single() {
         let width = window.width();
         let height = window.height();
-        // Account for status bar at the bottom - reduce available height
-        let available_height = height - STATUS_BAR_HEIGHT;
+        // Account for bottom UI (status bar + dock) - reduce available height
+        let available_height = height - BOTTOM_UI_HEIGHT;
         let cols = ((width / cell_width).floor() as u16)
             .min(scarab_protocol::GRID_WIDTH as u16)
             .max(80);
