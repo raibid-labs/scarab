@@ -59,7 +59,7 @@ impl Plugin for AdvancedUIPlugin {
             ScrollIndicatorPlugin,
             ScrollbackSelectionPlugin,
             SearchOverlayPlugin,
-            DockPlugin,
+            // DockPlugin disabled - was showing all plugins instead of just status items
             StatusBarPlugin,
         ))
         .insert_resource(UIConfig::default());
