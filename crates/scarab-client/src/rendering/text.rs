@@ -217,7 +217,8 @@ pub fn generate_terminal_mesh(
         let y = -(row as f32 * renderer.cell_height);
 
         // Background quad - always render to ensure uniform background
-        // Use theme default if cell bg is 0 (uninitialized)
+        // Use theme default if cell bg is 0 (uninitialized/transparent)
+        // Note: 0xFF0D1208 = ARGB format (A=FF, R=0D, G=12, B=08) = #0d1208
         let bg_color = if cell.bg == 0 {
             0xFF0D1208u32 // Slime theme background (#0d1208)
         } else {
