@@ -34,7 +34,8 @@ mod tests {
         y: usize,
     ) -> Cell {
         let ptr = state as *mut SharedState;
-        terminal.blit_to_shm(ptr, seq);
+        // SAFETY: ptr points to valid SharedState on the stack
+        unsafe { terminal.blit_to_shm(ptr, seq) };
         let idx = y * GRID_WIDTH + x;
         state.cells[idx]
     }
@@ -78,7 +79,8 @@ mod tests {
         assert_eq!(terminal.cursor_y, 0);
 
         // Also verify blit works
-        terminal.blit_to_shm(&mut *state as *mut SharedState, &seq);
+        // SAFETY: state is a valid SharedState on the stack
+        unsafe { terminal.blit_to_shm(&mut *state as *mut SharedState, &seq) };
         assert_eq!(state.cursor_x, 5);
         assert_eq!(state.cursor_y, 0);
     }
@@ -239,7 +241,8 @@ mod tests {
         assert_eq!(cell.char_codepoint, 'X' as u32);
 
         // Verify via blit
-        terminal.blit_to_shm(&mut *state as *mut SharedState, &seq);
+        // SAFETY: state is a valid SharedState on the stack
+        unsafe { terminal.blit_to_shm(&mut *state as *mut SharedState, &seq) };
         assert_eq!(state.cursor_x, 6); // Moved forward after writing
         assert_eq!(state.cursor_y, 3);
     }
@@ -501,7 +504,8 @@ mod tests {
         terminal.process_output(b"Test");
 
         // Blit to shared memory
-        terminal.blit_to_shm(&mut *state as *mut SharedState, &seq);
+        // SAFETY: state is a valid SharedState on the stack
+        unsafe { terminal.blit_to_shm(&mut *state as *mut SharedState, &seq) };
 
         // Dirty flag should be set
         assert_eq!(state.dirty_flag, 1);

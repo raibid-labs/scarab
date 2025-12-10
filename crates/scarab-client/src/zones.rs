@@ -120,7 +120,7 @@ pub fn receive_zone_updates(
 /// NOTE: Full rendering implementation pending - currently logs to console
 pub fn render_zone_indicators(
     zones: Res<SemanticZones>,
-    metrics: Res<scarab_protocol::TerminalMetrics>,
+    _metrics: Res<scarab_protocol::TerminalMetrics>,
 ) {
     // Only update if zones changed
     if !zones.is_changed() {
@@ -239,7 +239,7 @@ pub fn handle_zone_selection(
         if let Ok(window) = windows.get_single() {
             if let Some(cursor_pos) = window.cursor_position() {
                 // Convert screen coordinates to grid coordinates
-                let (col, row) = metrics.screen_to_grid(cursor_pos.x, cursor_pos.y);
+                let (_col, row) = metrics.screen_to_grid(cursor_pos.x, cursor_pos.y);
 
                 // Find zone at this position
                 if let Some(zone) = zones.find_zone_at_line(row as u32) {

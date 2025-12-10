@@ -12,7 +12,7 @@ Successfully implemented test infrastructure for Issues #168-173. All test files
 |-------|------|-------|------|--------|
 | #168 | `ratatui_testlib_cell_attributes.rs` | 10 | 4.1K | ✓ Created |
 | #169 | `ratatui_testlib_seqlock_verifier.rs` | 8 | 3.4K | ✓ Created |
-| #170 | `ratatui_testlib_osc133_zones.rs` | 10 | 3.6K | ✓ Created |
+| #170 | `ratatui_testlib_osc133_zones.rs` | 18 | 19K (519 lines) | ✓ Implemented |
 | #171 | `ratatui_testlib_ui_region_tester.rs` | 10 | 19K | ✓ Created |
 | #172 | `ratatui_testlib_color_palette.rs` | 10 | 15K | ✓ Created |
 | #173 | `ratatui_testlib_test_auditor.rs` | 10 (+5 examples) | 16K | ✓ Created |
@@ -44,13 +44,17 @@ Successfully implemented test infrastructure for Issues #168-173. All test files
    - Torn read detection and retry
    - Lock-free operation verification
 
-3. **OSC 133 Zones (Issue #170)**: 10 tests
+3. **OSC 133 Zones (Issue #170)**: 18 tests (IMPLEMENTED)
+   - OSC 133 parser unit tests (5 tests - basic, multiple commands, failed commands, incomplete sequences, ST terminator)
    - Prompt zone detection
    - Input zone detection
    - Output zone detection
    - Exit code capture
    - Prompt navigation (Ctrl+Up/Down)
    - Zone selection and boundaries
+   - Zone text extraction
+   - Zone position lookup
+   - Scarab navigation integration
 
 4. **UiRegionTester (Issue #171)**: 10 tests
    - Status bar region
@@ -179,10 +183,10 @@ This test infrastructure provides:
 - Issues: #168, #169, #170, #171, #172, #173
 - Test Location: `crates/scarab-client/tests/ratatui_testlib_*.rs`
 - Documentation: `crates/scarab-client/tests/README_RATATUI_TESTLIB_V0.5.md`
-- Current Version: ratatui-testlib 0.1.0 (in Cargo.toml workspace dependencies)
-- Blocked By: ratatui-testlib v0.5.0 release
+- Current Version: ratatui-testlib v0.5.0 (from git repository)
+- Issue #170 Status: COMPLETED - OSC 133 zone tests fully implemented
 
 ---
 
-**Date**: December 9, 2025  
-**Status**: Test infrastructure complete, awaiting ratatui-testlib v0.5.0 release
+**Date**: December 10, 2025
+**Status**: Issue #170 completed. OSC 133 zone tests implemented with 18 passing tests (5 parser unit tests + 13 integration tests). Remaining issues (#168, #169, #171-173) awaiting full implementation when Scarab daemon supports the required features.

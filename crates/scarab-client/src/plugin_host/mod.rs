@@ -428,7 +428,8 @@ fn process_plugin_actions(
                 );
 
                 // Convert plugin action to navigation action
-                let nav_action = match action {
+                // TODO: Use nav_action when FocusableRegion supports storing the action
+                let _nav_action = match action {
                     NavFocusableAction::OpenUrl(url) => NavAction::Open(url.clone()),
                     NavFocusableAction::OpenFile(path) => NavAction::Open(path.clone()),
                     NavFocusableAction::Custom(action_name) => {
@@ -603,8 +604,8 @@ mod tests {
         assert_eq!(overlays, 1);
 
         // Check that response was sent
-        let mut response_reader = app.world_mut().resource_mut::<Events<PluginResponse>>();
-        let mut reader = response_reader.get_reader();
+        let response_reader = app.world_mut().resource_mut::<Events<PluginResponse>>();
+        let mut reader = response_reader.get_cursor();
         let responses: Vec<_> = reader.read(&response_reader).cloned().collect();
         assert_eq!(responses.len(), 1);
 
@@ -663,8 +664,8 @@ mod tests {
         assert_eq!(overlays, 0);
 
         // Check that error response was sent
-        let mut response_reader = app.world_mut().resource_mut::<Events<PluginResponse>>();
-        let mut reader = response_reader.get_reader();
+        let response_reader = app.world_mut().resource_mut::<Events<PluginResponse>>();
+        let mut reader = response_reader.get_cursor();
         let responses: Vec<_> = reader.read(&response_reader).cloned().collect();
         assert_eq!(responses.len(), 1);
 
@@ -690,7 +691,7 @@ mod tests {
         app.add_event::<PluginResponse>();
 
         // Manually spawn a notification that's already expired
-        let mut time = app.world_mut().resource_mut::<Time>();
+        let time = app.world_mut().resource_mut::<Time>();
         let now = time.elapsed_secs_f64();
         drop(time);
 
@@ -740,8 +741,8 @@ mod tests {
         app.update();
 
         // Check that response was sent
-        let mut response_reader = app.world_mut().resource_mut::<Events<PluginResponse>>();
-        let mut reader = response_reader.get_reader();
+        let response_reader = app.world_mut().resource_mut::<Events<PluginResponse>>();
+        let mut reader = response_reader.get_cursor();
         let responses: Vec<_> = reader.read(&response_reader).cloned().collect();
         assert_eq!(responses.len(), 1);
 
@@ -753,8 +754,8 @@ mod tests {
         }
 
         // Check that EnterHintModeEvent was emitted
-        let mut hint_events = app.world_mut().resource_mut::<Events<EnterHintModeEvent>>();
-        let mut hint_reader = hint_events.get_reader();
+        let hint_events = app.world_mut().resource_mut::<Events<EnterHintModeEvent>>();
+        let mut hint_reader = hint_events.get_cursor();
         let hint_events_list: Vec<_> = hint_reader.read(&hint_events).collect();
         assert_eq!(hint_events_list.len(), 1);
     }
@@ -811,8 +812,8 @@ mod tests {
         assert_eq!(region.source, FocusableSource::Ratatui);
 
         // Check that response was sent
-        let mut response_reader = app.world_mut().resource_mut::<Events<PluginResponse>>();
-        let mut reader = response_reader.get_reader();
+        let response_reader = app.world_mut().resource_mut::<Events<PluginResponse>>();
+        let mut reader = response_reader.get_cursor();
         let responses: Vec<_> = reader.read(&response_reader).cloned().collect();
         assert_eq!(responses.len(), 1);
 
@@ -857,8 +858,8 @@ mod tests {
         app.update();
 
         // Check that response was sent
-        let mut response_reader = app.world_mut().resource_mut::<Events<PluginResponse>>();
-        let mut reader = response_reader.get_reader();
+        let response_reader = app.world_mut().resource_mut::<Events<PluginResponse>>();
+        let mut reader = response_reader.get_cursor();
         let responses: Vec<_> = reader.read(&response_reader).cloned().collect();
         assert_eq!(responses.len(), 1);
 
@@ -870,8 +871,8 @@ mod tests {
         }
 
         // Check that ExitHintModeEvent was emitted
-        let mut exit_events = app.world_mut().resource_mut::<Events<ExitHintModeEvent>>();
-        let mut exit_reader = exit_events.get_reader();
+        let exit_events = app.world_mut().resource_mut::<Events<ExitHintModeEvent>>();
+        let mut exit_reader = exit_events.get_cursor();
         let exit_events_list: Vec<_> = exit_reader.read(&exit_events).collect();
         assert_eq!(exit_events_list.len(), 1);
     }
@@ -905,8 +906,8 @@ mod tests {
         app.update();
 
         // Check that error response was sent
-        let mut response_reader = app.world_mut().resource_mut::<Events<PluginResponse>>();
-        let mut reader = response_reader.get_reader();
+        let response_reader = app.world_mut().resource_mut::<Events<PluginResponse>>();
+        let mut reader = response_reader.get_cursor();
         let responses: Vec<_> = reader.read(&response_reader).cloned().collect();
         assert_eq!(responses.len(), 1);
 

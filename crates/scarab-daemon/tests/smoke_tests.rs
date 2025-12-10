@@ -505,7 +505,8 @@ mod smoke_tests {
         let sequence_counter = Arc::new(AtomicU64::new(0));
 
         // Blit to shared memory
-        state.blit_to_shm(&mut shared_state as *mut SharedState, &sequence_counter);
+        // SAFETY: shared_state is a valid SharedState on the stack
+        unsafe { state.blit_to_shm(&mut shared_state as *mut SharedState, &sequence_counter) };
 
         // Verify shared memory was updated
         assert_eq!(shared_state.sequence_number, 1, "Sequence should increment");

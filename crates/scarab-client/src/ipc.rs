@@ -193,40 +193,33 @@ async fn send_message(
     }
 
     // Try to send
-    let _retry_count = 0;
-    loop {
-        {
-            let mut conn_lock = inner.write().await;
-            if let Some(ref mut conn) = *conn_lock {
-                // Write length prefix + data
-                match conn.sink.write_u32(len as u32).await {
-                    Ok(_) => {
-                        match conn.sink.write_all(&bytes).await {
-                            Ok(_) => {
-                                conn.sink.flush().await.context("Failed to flush stream")?;
-                                return Ok(());
-                            }
-                            Err(e) => {
-                                log::warn!("Write failed: {}", e);
-                                conn.connected = false;
-                                *conn_lock = None; // Drop connection
-                            }
-                        }
-                    }
-                    Err(e) => {
-                        log::warn!("Write length failed: {}", e);
-                        conn.connected = false;
-                        *conn_lock = None; // Drop connection
-                    }
+    let mut conn_lock = inner.write().await;
+    if let Some(ref mut conn) = *conn_lock {
+        // Write length prefix + data
+        match conn.sink.write_u32(len as u32).await {
+            Ok(_) => match conn.sink.write_all(&bytes).await {
+                Ok(_) => {
+                    conn.sink.flush().await.context("Failed to flush stream")?;
+                    return Ok(());
                 }
+                Err(e) => {
+                    log::warn!("Write failed: {}", e);
+                    conn.connected = false;
+                    *conn_lock = None; // Drop connection
+                }
+            },
+            Err(e) => {
+                log::warn!("Write length failed: {}", e);
+                conn.connected = false;
+                *conn_lock = None; // Drop connection
             }
         }
-
-        // If we are here, connection failed.
-        // Note: We can't easily reconnect here because we don't have the 'tx' for the read loop.
-        // For now, we just fail. A full reconnect logic requires more state management.
-        anyhow::bail!("Connection lost, cannot send message");
     }
+
+    // If we are here, connection failed or was not established.
+    // Note: We can't easily reconnect here because we don't have the 'tx' for the read loop.
+    // A full reconnect logic requires more state management.
+    anyhow::bail!("Connection lost, cannot send message");
 }
 
 /// System to send startup command once connected

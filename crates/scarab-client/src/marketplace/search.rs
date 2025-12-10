@@ -60,7 +60,7 @@ impl SearchState {
 }
 
 /// Format search bar for display
-pub fn format_search_bar(state: &SearchState) -> Line {
+pub fn format_search_bar(state: &SearchState) -> Line<'_> {
     let icon = if state.focused { "🔍" } else { "🔎" };
     let query_text = if state.query.is_empty() {
         "Type to search plugins...".to_string()

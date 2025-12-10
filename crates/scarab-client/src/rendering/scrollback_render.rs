@@ -183,18 +183,16 @@ fn render_scrollback_glyph(
             Shaping::Advanced,
         );
 
-        let mut key = None;
-        for run in buffer.layout_runs() {
-            for glyph in run.glyphs {
-                key = Some(GlyphKey {
-                    font_id: glyph.font_id,
-                    glyph_id: glyph.glyph_id,
-                    font_size_bits: glyph.font_size.to_bits(),
-                });
-                break;
-            }
-        }
-        key
+        // Get the first glyph from the first run
+        buffer
+            .layout_runs()
+            .next()
+            .and_then(|run| run.glyphs.first())
+            .map(|glyph| GlyphKey {
+                font_id: glyph.font_id,
+                glyph_id: glyph.glyph_id,
+                font_size_bits: glyph.font_size.to_bits(),
+            })
     };
 
     let glyph_key = match glyph_key {

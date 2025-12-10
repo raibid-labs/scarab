@@ -357,8 +357,8 @@ fn setup(mut commands: Commands, windows: Query<&Window, With<bevy::window::Prim
     // Use 2D camera for terminal rendering (terminal is 2D, not 3D!)
     println!("Camera setup: Using Camera2d for 2D terminal rendering");
 
-    // Get window dimensions to set up proper viewport
-    let (width, height) = if let Ok(window) = windows.get_single() {
+    // Get window dimensions (kept for potential future viewport setup)
+    let (_width, _height) = if let Ok(window) = windows.get_single() {
         (window.width(), window.height())
     } else {
         (800.0, 600.0)

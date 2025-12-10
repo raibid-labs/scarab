@@ -1,5 +1,10 @@
 //! Issue #168: Use ratatui-testlib CellAttributes for status bar color verification
 //!
+//! **IMPORTANT**: This file contains placeholder tests. See the comprehensive implementations:
+//! - `status_bar_color_tests.rs` - 12 tests for status bar color verification
+//! - `theme_integration_tests.rs` - 29 tests for theme color palette verification
+//! - `README_STATUS_BAR_COLOR_TESTS.md` - Comprehensive documentation
+//!
 //! This test file validates that ratatui-testlib's CellAttributes and CellFlags types
 //! can be used to verify status bar cell colors (foreground/background) and cell styling
 //! flags (BOLD, ITALIC, etc.).
