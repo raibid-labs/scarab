@@ -370,8 +370,7 @@ fn render_glyph(
         // Build attrs with font family and bold/italic
         // CRITICAL: Specify monospace font family to prevent cosmic-text from
         // picking different fonts for different characters
-        let mut cosmic_attrs = Attrs::new()
-            .family(cosmic_text::Family::Monospace);
+        let mut cosmic_attrs = Attrs::new().family(cosmic_text::Family::Monospace);
 
         if attrs.bold {
             cosmic_attrs = cosmic_attrs.weight(cosmic_text::Weight::BOLD);
@@ -463,7 +462,11 @@ fn render_glyph(
     positions.extend_from_slice(&[
         [glyph_x, glyph_top_y, LAYER_TERMINAL_TEXT],
         [glyph_x + glyph_width, glyph_top_y, LAYER_TERMINAL_TEXT],
-        [glyph_x + glyph_width, glyph_top_y - glyph_height, LAYER_TERMINAL_TEXT],
+        [
+            glyph_x + glyph_width,
+            glyph_top_y - glyph_height,
+            LAYER_TERMINAL_TEXT,
+        ],
         [glyph_x, glyph_top_y - glyph_height, LAYER_TERMINAL_TEXT],
     ]);
 

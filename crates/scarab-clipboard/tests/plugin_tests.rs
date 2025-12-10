@@ -81,7 +81,11 @@ fn test_plugin_commands_have_descriptions() {
 
     // All commands should have labels
     for command in &commands {
-        assert!(!command.label.is_empty(), "Command {} has no label", command.id);
+        assert!(
+            !command.label.is_empty(),
+            "Command {} has no label",
+            command.id
+        );
     }
 
     // Most commands should have descriptions

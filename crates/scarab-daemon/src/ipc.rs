@@ -975,7 +975,9 @@ async fn handle_message(
                     client_registry
                         .send(
                             client_id,
-                            DaemonMessage::PaneFocused { pane_id: next_pane_id },
+                            DaemonMessage::PaneFocused {
+                                pane_id: next_pane_id,
+                            },
                         )
                         .await?;
                 }
@@ -989,7 +991,9 @@ async fn handle_message(
                     client_registry
                         .send(
                             client_id,
-                            DaemonMessage::PaneFocused { pane_id: prev_pane_id },
+                            DaemonMessage::PaneFocused {
+                                pane_id: prev_pane_id,
+                            },
                         )
                         .await?;
                 }
@@ -1003,7 +1007,9 @@ async fn handle_message(
                     client_registry
                         .send(
                             client_id,
-                            DaemonMessage::TabSwitched { tab_id: next_tab_id },
+                            DaemonMessage::TabSwitched {
+                                tab_id: next_tab_id,
+                            },
                         )
                         .await?;
                 }
@@ -1017,7 +1023,9 @@ async fn handle_message(
                     client_registry
                         .send(
                             client_id,
-                            DaemonMessage::TabSwitched { tab_id: prev_tab_id },
+                            DaemonMessage::TabSwitched {
+                                tab_id: prev_tab_id,
+                            },
                         )
                         .await?;
                 }
@@ -1026,7 +1034,10 @@ async fn handle_message(
         ControlMessage::MouseClick { col, row, button } => {
             log::debug!(
                 "Client {} sent mouse click at ({}, {}) button {}",
-                client_id, col, row, button
+                client_id,
+                col,
+                row,
+                button
             );
             // Forward mouse click as escape sequence to PTY
             // Format: CSI < button ; col ; row M (for press)
@@ -1156,8 +1167,12 @@ async fn handle_message(
                                     .prompt_zone
                                     .as_ref()
                                     .filter(|z| z.id == zone_id)
-                                    .or_else(|| block.input_zone.as_ref().filter(|z| z.id == zone_id))
-                                    .or_else(|| block.output_zone.as_ref().filter(|z| z.id == zone_id))
+                                    .or_else(|| {
+                                        block.input_zone.as_ref().filter(|z| z.id == zone_id)
+                                    })
+                                    .or_else(|| {
+                                        block.output_zone.as_ref().filter(|z| z.id == zone_id)
+                                    })
                             })
                         });
 
@@ -1183,10 +1198,7 @@ async fn handle_message(
 ///
 /// This reads the grid cells within the zone's line range and converts
 /// the codepoints to a UTF-8 string.
-fn extract_zone_text(
-    terminal_state: &crate::vte::TerminalState,
-    zone: &SemanticZone,
-) -> String {
+fn extract_zone_text(terminal_state: &crate::vte::TerminalState, zone: &SemanticZone) -> String {
     let mut lines = Vec::new();
     let (cols, rows) = terminal_state.dimensions();
 

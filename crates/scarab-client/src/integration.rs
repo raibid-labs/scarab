@@ -9,7 +9,9 @@ use crate::ui::STATUS_BAR_HEIGHT;
 use bevy::prelude::*;
 use bevy::render::mesh::Mesh2d;
 use bevy::sprite::MeshMaterial2d;
-use scarab_protocol::{terminal_state::TerminalStateReader, TerminalMetrics, GRID_HEIGHT, GRID_WIDTH};
+use scarab_protocol::{
+    terminal_state::TerminalStateReader, TerminalMetrics, GRID_HEIGHT, GRID_WIDTH,
+};
 use shared_memory::Shmem;
 use std::sync::Arc;
 
@@ -270,7 +272,6 @@ fn sync_terminal_state_system(mut state_reader: ResMut<SharedMemoryReader>) {
             non_empty,
             safe_state.is_dirty()
         );
-
     }
 
     if current_seq != state_reader.last_sequence {

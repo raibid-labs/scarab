@@ -416,11 +416,7 @@ impl PluginManager {
                     plugin_name,
                     theme_name,
                 } => {
-                    log::debug!(
-                        "Plugin {} applying theme: {}",
-                        plugin_name,
-                        theme_name
-                    );
+                    log::debug!("Plugin {} applying theme: {}", plugin_name, theme_name);
                     // Broadcast theme change to clients
                     self.client_registry
                         .broadcast(DaemonMessage::ThemeApply {
@@ -448,10 +444,7 @@ impl PluginManager {
                         .await;
                 }
                 RemoteCommand::GetCurrentTheme { plugin_name } => {
-                    log::debug!(
-                        "Plugin {} requesting current theme",
-                        plugin_name
-                    );
+                    log::debug!("Plugin {} requesting current theme", plugin_name);
                     // TODO: Retrieve actual current theme name from config
                     // For now, return the default theme name
                     self.client_registry

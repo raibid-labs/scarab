@@ -86,12 +86,12 @@ fn test_square_terminal() {
 fn test_common_terminal_sizes() {
     // Test with various common terminal sizes
     let common_sizes = vec![
-        (80, 24),   // Traditional VT100
-        (80, 25),   // DOS
-        (132, 24),  // Wide VT100
-        (120, 40),  // Modern large
-        (100, 30),  // Mid-size
-        (160, 48),  // Very large
+        (80, 24),  // Traditional VT100
+        (80, 25),  // DOS
+        (132, 24), // Wide VT100
+        (120, 40), // Modern large
+        (100, 30), // Mid-size
+        (160, 48), // Very large
     ];
 
     for (cols, rows) in common_sizes {
@@ -216,9 +216,7 @@ fn test_split_direction_copy_trait() {
 fn test_pane_layout_with_various_ratios() {
     use scarab_panes::PaneLayout;
 
-    let test_ratios = vec![
-        0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0,
-    ];
+    let test_ratios = vec![0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0];
 
     for ratio in test_ratios {
         let layout = PaneLayout {

@@ -204,11 +204,7 @@ fn setup_status_bar(mut commands: Commands, tab_state: Res<TabState>) {
                                     margin: UiRect::right(Val::Px(2.0)),
                                     ..default()
                                 },
-                                BackgroundColor(if is_active {
-                                    active_bg
-                                } else {
-                                    Color::NONE
-                                }),
+                                BackgroundColor(if is_active { active_bg } else { Color::NONE }),
                                 TabLabel { index },
                             ))
                             .with_children(|label_parent| {
@@ -259,10 +255,7 @@ fn update_status_bar_system(
 }
 
 /// System to handle tab switch events
-fn handle_tab_switch(
-    mut events: EventReader<TabSwitchEvent>,
-    mut tab_state: ResMut<TabState>,
-) {
+fn handle_tab_switch(mut events: EventReader<TabSwitchEvent>, mut tab_state: ResMut<TabState>) {
     for event in events.read() {
         if event.tab_index < tab_state.tabs.len() {
             tab_state.active_index = event.tab_index;
@@ -575,7 +568,9 @@ pub fn render_items_to_text(items: &[RenderItem]) -> String {
             RenderItem::Background(_) | RenderItem::BackgroundAnsi(_) => {}
             RenderItem::Bold | RenderItem::Italic => {}
             RenderItem::Underline(_) | RenderItem::Strikethrough => {}
-            RenderItem::ResetAttributes | RenderItem::ResetForeground | RenderItem::ResetBackground => {}
+            RenderItem::ResetAttributes
+            | RenderItem::ResetForeground
+            | RenderItem::ResetBackground => {}
             RenderItem::Spacer => {
                 result.push(' ');
             }

@@ -240,7 +240,9 @@ impl DaemonEventDispatcher {
         let mut registry = match self.registry.lock() {
             Ok(guard) => guard,
             Err(poisoned) => {
-                log::warn!("Event registry lock poisoned during handler unregistration, recovering");
+                log::warn!(
+                    "Event registry lock poisoned during handler unregistration, recovering"
+                );
                 poisoned.into_inner()
             }
         };

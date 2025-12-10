@@ -257,11 +257,19 @@ mod linux_specific {
 
         // Copy to primary selection
         let copy_result = manager.copy(test_text, ClipboardType::Primary);
-        assert!(copy_result.is_ok(), "Copy to primary failed: {:?}", copy_result);
+        assert!(
+            copy_result.is_ok(),
+            "Copy to primary failed: {:?}",
+            copy_result
+        );
 
         // Paste from primary selection
         let paste_result = manager.paste(ClipboardType::Primary);
-        assert!(paste_result.is_ok(), "Paste from primary failed: {:?}", paste_result);
+        assert!(
+            paste_result.is_ok(),
+            "Paste from primary failed: {:?}",
+            paste_result
+        );
 
         let pasted = paste_result.unwrap();
         assert_eq!(pasted, test_text);
@@ -281,7 +289,9 @@ mod linux_specific {
         let primary_text = "Primary selection";
 
         // Copy different text to each clipboard
-        manager.copy(standard_text, ClipboardType::Standard).unwrap();
+        manager
+            .copy(standard_text, ClipboardType::Standard)
+            .unwrap();
         manager.copy(primary_text, ClipboardType::Primary).unwrap();
 
         // Verify each clipboard has its own content

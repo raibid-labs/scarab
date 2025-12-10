@@ -1,8 +1,8 @@
 // GPU texture atlas for glyph caching
 
+use bevy::image::ImageSampler;
 use bevy::prelude::*;
 use bevy::render::render_resource::{Extent3d, TextureDimension, TextureFormat};
-use bevy::image::ImageSampler;
 use cosmic_text::{
     CacheKey, CacheKeyFlags, FontSystem, SubpixelBin, SwashCache, SwashContent, SwashImage,
 };

@@ -176,7 +176,7 @@ fn run_windowed(
 
     // Default to left-half of a 1920x1080 screen
     // Position at (0, 0) with half screen width
-    let default_width = 960.0;  // Half of 1920
+    let default_width = 960.0; // Half of 1920
     let default_height = 1040.0; // 1080 minus typical panel height
 
     app.add_plugins(

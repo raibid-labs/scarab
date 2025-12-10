@@ -1,6 +1,8 @@
 //! Configuration file loading and discovery
 
-use crate::{error::Result, theme_resolver::ThemeResolver, ConfigError, ConfigValidator, ScarabConfig};
+use crate::{
+    error::Result, theme_resolver::ThemeResolver, ConfigError, ConfigValidator, ScarabConfig,
+};
 use std::{
     env, fs,
     path::{Path, PathBuf},

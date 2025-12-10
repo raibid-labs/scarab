@@ -237,8 +237,7 @@ impl Session {
         let tabs = self.tabs.read();
         let active_tab_id = *self.active_tab_id.read();
 
-        tabs.get(&active_tab_id)
-            .and_then(|tab| tab.next_pane_id())
+        tabs.get(&active_tab_id).and_then(|tab| tab.next_pane_id())
     }
 
     /// Get the previous pane ID in the active tab for navigation
@@ -246,8 +245,7 @@ impl Session {
         let tabs = self.tabs.read();
         let active_tab_id = *self.active_tab_id.read();
 
-        tabs.get(&active_tab_id)
-            .and_then(|tab| tab.prev_pane_id())
+        tabs.get(&active_tab_id).and_then(|tab| tab.prev_pane_id())
     }
 
     /// Get all tab IDs sorted

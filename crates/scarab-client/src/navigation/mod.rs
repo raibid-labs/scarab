@@ -592,7 +592,10 @@ fn handle_nav_actions(
             NavAction::JumpPrompt(line) => {
                 // TODO: Implement scroll-to-line functionality when ScrollToLineEvent is added
                 // For now, just log the action
-                log::debug!("Jump to prompt line {} requested (scroll not yet implemented)", line);
+                log::debug!(
+                    "Jump to prompt line {} requested (scroll not yet implemented)",
+                    line
+                );
             }
             NavAction::NextPane => {
                 // Send pane focus request to daemon
