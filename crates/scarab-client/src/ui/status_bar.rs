@@ -156,7 +156,7 @@ pub struct TabLabel {
 ///
 /// Creates a horizontal container with left and right text sections.
 /// The status bar is positioned at the bottom of the window.
-fn setup_status_bar(mut commands: Commands, tab_state: Res<TabState>) {
+fn setup_status_bar(mut commands: Commands, tab_state: Res<TabState>, asset_server: Res<AssetServer>) {
     commands
         .spawn((
             Node {
@@ -211,6 +211,7 @@ fn setup_status_bar(mut commands: Commands, tab_state: Res<TabState>) {
                                 label_parent.spawn((
                                     Text::new(tab_name),
                                     TextFont {
+                                        font: asset_server.load("fonts/FiraCode-Regular.ttf"),
                                         font_size: 14.0,
                                         ..default()
                                     },
@@ -224,6 +225,7 @@ fn setup_status_bar(mut commands: Commands, tab_state: Res<TabState>) {
             parent.spawn((
                 Text::new("NORMAL"),
                 TextFont {
+                    font: asset_server.load("fonts/FiraCode-Regular.ttf"),
                     font_size: 14.0,
                     ..default()
                 },

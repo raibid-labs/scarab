@@ -76,8 +76,7 @@ fn handle_remote_messages(
                 };
 
                 commands.spawn((
-                    Text2d::default(),
-                    Text::new(text.as_str()),
+                    Text2d::new(text.as_str()),
                     TextFont {
                         font: asset_server.load("fonts/FiraCode-Regular.ttf"),
                         font_size: 16.0,
