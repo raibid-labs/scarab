@@ -216,22 +216,26 @@ pub fn generate_terminal_mesh(
         let x = col as f32 * renderer.cell_width;
         let y = -(row as f32 * renderer.cell_height);
 
-        // Background quad
-        if cell.bg != 0 {
-            add_background_quad(
-                &mut positions,
-                &mut uvs,
-                &mut colors,
-                &mut indices,
-                &mut vertex_index,
-                x,
-                y,
-                renderer.cell_width,
-                renderer.cell_height,
-                cell.bg,
-                white_uv_rect,
-            );
-        }
+        // Background quad - always render to ensure uniform background
+        // Use theme default if cell bg is 0 (uninitialized)
+        let bg_color = if cell.bg == 0 {
+            0xFF0D1208u32 // Slime theme background (#0d1208)
+        } else {
+            cell.bg
+        };
+        add_background_quad(
+            &mut positions,
+            &mut uvs,
+            &mut colors,
+            &mut indices,
+            &mut vertex_index,
+            x,
+            y,
+            renderer.cell_width,
+            renderer.cell_height,
+            bg_color,
+            white_uv_rect,
+        );
 
         // Foreground glyph
         if cell.char_codepoint != 0 && cell.char_codepoint != 32 {
