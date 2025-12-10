@@ -70,8 +70,8 @@ impl Default for HintOverlay {
         Self {
             label: String::new(),
             position: Vec2::ZERO,
-            background_color: Color::srgba(1.0, 0.75, 0.0, 0.9), // Amber/yellow
-            text_color: Color::srgb(0.0, 0.0, 0.0),              // Black
+            background_color: Color::srgba(0.66, 0.87, 0.35, 0.95), // Slime green #a8df5a
+            text_color: Color::srgb(0.05, 0.07, 0.03),               // Slime dark #0d1208
             matched: false,
             z_layer: LAYER_HINTS,
             nav_hint_entity: Entity::PLACEHOLDER,
@@ -155,11 +155,12 @@ pub struct HintOverlayConfig {
 impl Default for HintOverlayConfig {
     fn default() -> Self {
         Self {
-            background_color: Color::srgba(1.0, 0.75, 0.0, 0.9), // Amber
-            text_color: Color::srgb(0.0, 0.0, 0.0),              // Black
-            matched_color: Color::srgba(0.0, 1.0, 0.0, 0.95),    // Green
-            partial_match_color: Color::srgba(1.0, 0.85, 0.0, 0.9), // Lighter yellow
-            dimmed_text_color: Color::srgba(0.3, 0.3, 0.3, 0.6), // Gray
+            // Slime theme colors
+            background_color: Color::srgba(0.66, 0.87, 0.35, 0.95), // Slime green #a8df5a
+            text_color: Color::srgb(0.05, 0.07, 0.03),               // Slime dark #0d1208
+            matched_color: Color::srgba(0.95, 0.98, 0.55, 0.95),     // Bright yellow #f1fa8c
+            partial_match_color: Color::srgba(0.77, 0.94, 0.48, 0.9), // Lighter slime #c4f07a
+            dimmed_text_color: Color::srgba(0.3, 0.3, 0.3, 0.6),     // Gray
             font_size: 14.0,
             padding: Vec2::new(6.0, 4.0),
             border_radius: 3.0,

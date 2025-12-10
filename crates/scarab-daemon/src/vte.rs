@@ -27,9 +27,10 @@ const SCROLLBACK_SIZE: usize = 10_000;
 /// Maximum images per pane (matches SharedImageBuffer MAX_IMAGES)
 const MAX_IMAGES_PER_PANE: usize = 64;
 
-/// Default colors
-const DEFAULT_FG: u32 = 0xFFCCCCCC; // Light gray
-const DEFAULT_BG: u32 = 0xFF000000; // Black
+/// Default colors - Slime theme
+/// These match the default slime theme: foreground #a8df5a, background #0d1208
+const DEFAULT_FG: u32 = 0xFFA8DF5A; // Slime green (#a8df5a)
+const DEFAULT_BG: u32 = 0xFF0D1208; // Slime dark (#0d1208)
 
 /// Text attribute flags
 pub const FLAG_BOLD: u8 = 1 << 0;
@@ -969,31 +970,33 @@ impl Perform for TerminalState {
 }
 
 /// Convert ANSI color index (0-7) to RGBA
+/// Colors match the Slime theme palette
 fn ansi_color_to_rgba(index: u8) -> u32 {
     match index {
-        0 => 0xFF000000, // Black
-        1 => 0xFFCD0000, // Red
-        2 => 0xFF00CD00, // Green
-        3 => 0xFFCDCD00, // Yellow
-        4 => 0xFF0000EE, // Blue
-        5 => 0xFFCD00CD, // Magenta
-        6 => 0xFF00CDCD, // Cyan
-        7 => 0xFFE5E5E5, // White
+        0 => 0xFF0D1208, // Black (slime dark #0d1208)
+        1 => 0xFFFF5555, // Red (#ff5555)
+        2 => 0xFFA8DF5A, // Green (slime green #a8df5a)
+        3 => 0xFFF1FA8C, // Yellow (#f1fa8c)
+        4 => 0xFF6272A4, // Blue (#6272a4)
+        5 => 0xFFFF79C6, // Magenta (#ff79c6)
+        6 => 0xFF8BE9FD, // Cyan (#8be9fd)
+        7 => 0xFFF8F8F2, // White (#f8f8f2)
         _ => DEFAULT_FG,
     }
 }
 
 /// Convert ANSI bright color index (0-7) to RGBA
+/// Colors match the Slime theme bright palette
 fn ansi_bright_color_to_rgba(index: u8) -> u32 {
     match index {
-        0 => 0xFF7F7F7F, // Bright Black (Gray)
-        1 => 0xFFFF0000, // Bright Red
-        2 => 0xFF00FF00, // Bright Green
-        3 => 0xFFFFFF00, // Bright Yellow
-        4 => 0xFF5C5CFF, // Bright Blue
-        5 => 0xFFFF00FF, // Bright Magenta
-        6 => 0xFF00FFFF, // Bright Cyan
-        7 => 0xFFFFFFFF, // Bright White
+        0 => 0xFF44475A, // Bright Black (#44475a)
+        1 => 0xFFFF6E6E, // Bright Red (#ff6e6e)
+        2 => 0xFFC4F07A, // Bright Green (#c4f07a)
+        3 => 0xFFFFFFA5, // Bright Yellow (#ffffa5)
+        4 => 0xFF7C8DBD, // Bright Blue (#7c8dbd)
+        5 => 0xFFFF92DF, // Bright Magenta (#ff92df)
+        6 => 0xFFA4FFFF, // Bright Cyan (#a4ffff)
+        7 => 0xFFFFFFFF, // Bright White (#ffffff)
         _ => DEFAULT_FG,
     }
 }
@@ -1028,9 +1031,10 @@ mod tests {
 
     #[test]
     fn test_ansi_color_conversion() {
-        assert_eq!(ansi_color_to_rgba(0), 0xFF000000); // Black
-        assert_eq!(ansi_color_to_rgba(1), 0xFFCD0000); // Red
-        assert_eq!(ansi_color_to_rgba(7), 0xFFE5E5E5); // White
+        // Slime theme colors
+        assert_eq!(ansi_color_to_rgba(0), 0xFF0D1208); // Black (slime dark)
+        assert_eq!(ansi_color_to_rgba(1), 0xFFFF5555); // Red
+        assert_eq!(ansi_color_to_rgba(7), 0xFFF8F8F2); // White
     }
 
     #[test]
