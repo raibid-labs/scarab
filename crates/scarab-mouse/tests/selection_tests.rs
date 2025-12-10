@@ -7,9 +7,14 @@ use scarab_mouse::types::Position;
 fn create_test_grid() -> Vec<Vec<char>> {
     vec![
         vec!['H', 'e', 'l', 'l', 'o', ' ', 'W', 'o', 'r', 'l', 'd'],
-        vec!['T', 'h', 'i', 's', ' ', 'i', 's', ' ', 'a', ' ', 't', 'e', 's', 't'],
+        vec![
+            'T', 'h', 'i', 's', ' ', 'i', 's', ' ', 'a', ' ', 't', 'e', 's', 't',
+        ],
         vec!['f', 'o', 'o', '-', 'b', 'a', 'r', '_', 'b', 'a', 'z'],
-        vec!['h', 't', 't', 'p', 's', ':', '/', '/', 'e', 'x', 'a', 'm', 'p', 'l', 'e', '.', 'c', 'o', 'm'],
+        vec![
+            'h', 't', 't', 'p', 's', ':', '/', '/', 'e', 'x', 'a', 'm', 'p', 'l', 'e', '.', 'c',
+            'o', 'm',
+        ],
     ]
 }
 
@@ -21,7 +26,11 @@ fn get_char_from_grid(grid: &[Vec<char>], pos: Position) -> Option<char> {
 
 #[test]
 fn test_selection_creation() {
-    let sel = Selection::new(Position::new(0, 0), Position::new(5, 0), SelectionKind::Normal);
+    let sel = Selection::new(
+        Position::new(0, 0),
+        Position::new(5, 0),
+        SelectionKind::Normal,
+    );
     assert_eq!(sel.start, Position::new(0, 0));
     assert_eq!(sel.end, Position::new(5, 0));
     assert_eq!(sel.kind, SelectionKind::Normal);
@@ -101,7 +110,11 @@ fn test_selection_contains_linear() {
 
 #[test]
 fn test_selection_contains_block() {
-    let sel = Selection::new(Position::new(2, 1), Position::new(5, 3), SelectionKind::Block);
+    let sel = Selection::new(
+        Position::new(2, 1),
+        Position::new(5, 3),
+        SelectionKind::Block,
+    );
 
     // Inside rectangle
     assert!(sel.contains(Position::new(2, 1)));
@@ -137,7 +150,7 @@ fn test_expand_to_word() {
 
     // Should expand to full word "World"
     assert_eq!(sel.start.x, 6); // 'W'
-    assert_eq!(sel.end.x, 10);   // 'd'
+    assert_eq!(sel.end.x, 10); // 'd'
     assert_eq!(sel.kind, SelectionKind::Word);
 }
 
@@ -151,8 +164,8 @@ fn test_expand_to_word_with_hyphens() {
     sel.expand_to_word(|pos| get_char_from_grid(&grid, pos));
 
     // Should expand to full compound word
-    assert_eq!(sel.start.x, 0);   // 'f'
-    assert_eq!(sel.end.x, 10);    // 'z'
+    assert_eq!(sel.start.x, 0); // 'f'
+    assert_eq!(sel.end.x, 10); // 'z'
     assert_eq!(sel.kind, SelectionKind::Word);
 }
 
@@ -181,7 +194,11 @@ fn test_get_text_block_selection() {
     let grid = create_test_grid();
 
     // Select a rectangular block
-    let sel = Selection::new(Position::new(0, 0), Position::new(4, 1), SelectionKind::Block);
+    let sel = Selection::new(
+        Position::new(0, 0),
+        Position::new(4, 1),
+        SelectionKind::Block,
+    );
 
     let text = sel.get_text(|pos| get_char_from_grid(&grid, pos), 14);
 
@@ -297,10 +314,7 @@ fn test_empty_selection() {
 
 #[test]
 fn test_selection_across_empty_cells() {
-    let sparse_grid = vec![
-        vec!['A', ' ', ' ', 'B'],
-        vec![' ', 'C', ' ', ' '],
-    ];
+    let sparse_grid = vec![vec!['A', ' ', ' ', 'B'], vec![' ', 'C', ' ', ' ']];
 
     let sel = Selection::character(Position::new(0, 0), Position::new(3, 1));
     let text = sel.get_text(|pos| get_char_from_grid(&sparse_grid, pos), 4);
@@ -321,7 +335,11 @@ fn test_block_selection_text_extraction() {
     ];
 
     // Select middle 3x3 block
-    let sel = Selection::new(Position::new(1, 0), Position::new(3, 2), SelectionKind::Block);
+    let sel = Selection::new(
+        Position::new(1, 0),
+        Position::new(3, 2),
+        SelectionKind::Block,
+    );
 
     let text = sel.get_text(|pos| get_char_from_grid(&grid, pos), 5);
     let lines: Vec<&str> = text.lines().collect();

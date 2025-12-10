@@ -71,7 +71,11 @@ fn test_all_commands_have_descriptions() {
     let commands = plugin.get_commands();
 
     for command in commands {
-        assert!(!command.label.is_empty(), "Command {} has no label", command.id);
+        assert!(
+            !command.label.is_empty(),
+            "Command {} has no label",
+            command.id
+        );
         assert!(
             command.description.is_some(),
             "Command {} has no description",

@@ -1,6 +1,8 @@
 //! Integration tests for core mouse types
 
-use scarab_mouse::types::{ClickType, Modifiers, MouseButton, MouseEvent, MouseEventKind, MouseMode, Position};
+use scarab_mouse::types::{
+    ClickType, Modifiers, MouseButton, MouseEvent, MouseEventKind, MouseMode, Position,
+};
 
 #[test]
 fn test_position_creation() {

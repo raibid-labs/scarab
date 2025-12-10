@@ -1,7 +1,11 @@
 //! Integration tests for click detection and handling
 
-use scarab_mouse::click_handler::{generate_cursor_position_sequence, generate_mouse_sequence, ClickDetector};
-use scarab_mouse::types::{ClickType, Modifiers, MouseButton, MouseEvent, MouseEventKind, Position};
+use scarab_mouse::click_handler::{
+    generate_cursor_position_sequence, generate_mouse_sequence, ClickDetector,
+};
+use scarab_mouse::types::{
+    ClickType, Modifiers, MouseButton, MouseEvent, MouseEventKind, Position,
+};
 use std::thread::sleep;
 use std::time::Duration;
 

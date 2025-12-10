@@ -227,7 +227,8 @@ impl PaneOrchestrator {
                     terminal_state.process_output(data);
 
                     // Send any pending responses (e.g., DSR cursor position) back to PTY
-                    let responses: Vec<Vec<u8>> = terminal_state.pending_responses.drain(..).collect();
+                    let responses: Vec<Vec<u8>> =
+                        terminal_state.pending_responses.drain(..).collect();
                     drop(terminal_state); // Release lock before writing to PTY
 
                     if !responses.is_empty() {

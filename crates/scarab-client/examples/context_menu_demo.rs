@@ -105,10 +105,7 @@ fn handle_actions(mut events: EventReader<DispatchContextMenuAction>) {
 struct InstructionsText;
 
 /// Display instructions on screen
-fn display_instructions(
-    mut commands: Commands,
-    query: Query<Entity, With<InstructionsText>>,
-) {
+fn display_instructions(mut commands: Commands, query: Query<Entity, With<InstructionsText>>) {
     // Only spawn once
     if !query.is_empty() {
         return;

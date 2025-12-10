@@ -34,10 +34,7 @@ fn test_nav_state_registry_creation() {
 
     // Registry should exist
     let registry = app.world().resource::<NavStateRegistry>();
-    assert!(
-        registry.active_pane().is_none(),
-        "No active pane initially"
-    );
+    assert!(registry.active_pane().is_none(), "No active pane initially");
 }
 
 #[test]
@@ -179,11 +176,7 @@ fn test_enter_exit_hint_mode_events() {
     let events = app.world().resource::<Events<EnterHintModeEvent>>();
     let mut cursor = events.get_cursor();
     let enter_events: Vec<_> = cursor.read(events).collect();
-    assert_eq!(
-        enter_events.len(),
-        1,
-        "Should have one EnterHintModeEvent"
-    );
+    assert_eq!(enter_events.len(), 1, "Should have one EnterHintModeEvent");
 
     // Send ExitHintModeEvent
     app.world_mut().send_event(ExitHintModeEvent);

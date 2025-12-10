@@ -2,11 +2,15 @@
 //!
 //! Tests the interaction between multiple modules and real-world scenarios
 
-use scarab_mouse::click_handler::{generate_cursor_position_sequence, generate_mouse_sequence, ClickDetector};
+use scarab_mouse::click_handler::{
+    generate_cursor_position_sequence, generate_mouse_sequence, ClickDetector,
+};
 use scarab_mouse::context_menu::ContextMenu;
 use scarab_mouse::mode::{AppHeuristics, ModeDetector};
 use scarab_mouse::selection::{find_word_at, Selection, SelectionKind};
-use scarab_mouse::types::{ClickType, Modifiers, MouseButton, MouseEvent, MouseEventKind, MouseMode, Position};
+use scarab_mouse::types::{
+    ClickType, Modifiers, MouseButton, MouseEvent, MouseEventKind, MouseMode, Position,
+};
 
 // Mock terminal grid for testing
 struct MockTerminalGrid {
@@ -15,10 +19,7 @@ struct MockTerminalGrid {
 
 impl MockTerminalGrid {
     fn new(lines: Vec<&str>) -> Self {
-        let data = lines
-            .iter()
-            .map(|line| line.chars().collect())
-            .collect();
+        let data = lines.iter().map(|line| line.chars().collect()).collect();
         Self { data }
     }
 
@@ -311,13 +312,60 @@ fn test_cursor_positioning_sequence() {
 #[test]
 fn test_complex_modifier_combinations() {
     let test_cases = vec![
-        (Modifiers { shift: true, ..Default::default() }, 4),
-        (Modifiers { alt: true, ..Default::default() }, 8),
-        (Modifiers { ctrl: true, ..Default::default() }, 16),
-        (Modifiers { shift: true, alt: true, ..Default::default() }, 12),
-        (Modifiers { shift: true, ctrl: true, ..Default::default() }, 20),
-        (Modifiers { alt: true, ctrl: true, ..Default::default() }, 24),
-        (Modifiers { shift: true, alt: true, ctrl: true, meta: false }, 28),
+        (
+            Modifiers {
+                shift: true,
+                ..Default::default()
+            },
+            4,
+        ),
+        (
+            Modifiers {
+                alt: true,
+                ..Default::default()
+            },
+            8,
+        ),
+        (
+            Modifiers {
+                ctrl: true,
+                ..Default::default()
+            },
+            16,
+        ),
+        (
+            Modifiers {
+                shift: true,
+                alt: true,
+                ..Default::default()
+            },
+            12,
+        ),
+        (
+            Modifiers {
+                shift: true,
+                ctrl: true,
+                ..Default::default()
+            },
+            20,
+        ),
+        (
+            Modifiers {
+                alt: true,
+                ctrl: true,
+                ..Default::default()
+            },
+            24,
+        ),
+        (
+            Modifiers {
+                shift: true,
+                alt: true,
+                ctrl: true,
+                meta: false,
+            },
+            28,
+        ),
     ];
 
     for (modifiers, expected_offset) in test_cases {

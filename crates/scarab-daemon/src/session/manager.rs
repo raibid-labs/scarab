@@ -232,6 +232,62 @@ impl Session {
         self.tabs.read().len()
     }
 
+    /// Get the next pane ID in the active tab for navigation
+    pub fn next_pane_id(&self) -> Option<PaneId> {
+        let tabs = self.tabs.read();
+        let active_tab_id = *self.active_tab_id.read();
+
+        tabs.get(&active_tab_id).and_then(|tab| tab.next_pane_id())
+    }
+
+    /// Get the previous pane ID in the active tab for navigation
+    pub fn prev_pane_id(&self) -> Option<PaneId> {
+        let tabs = self.tabs.read();
+        let active_tab_id = *self.active_tab_id.read();
+
+        tabs.get(&active_tab_id).and_then(|tab| tab.prev_pane_id())
+    }
+
+    /// Get all tab IDs sorted
+    fn sorted_tab_ids(&self) -> Vec<TabId> {
+        let tabs = self.tabs.read();
+        let mut ids: Vec<TabId> = tabs.keys().copied().collect();
+        ids.sort();
+        ids
+    }
+
+    /// Get the next tab ID for navigation (cycles through tabs)
+    pub fn next_tab_id(&self) -> Option<TabId> {
+        let ids = self.sorted_tab_ids();
+        if ids.is_empty() {
+            return None;
+        }
+
+        let active_id = *self.active_tab_id.read();
+        if let Some(pos) = ids.iter().position(|&id| id == active_id) {
+            let next_pos = (pos + 1) % ids.len();
+            Some(ids[next_pos])
+        } else {
+            ids.first().copied()
+        }
+    }
+
+    /// Get the previous tab ID for navigation (cycles through tabs)
+    pub fn prev_tab_id(&self) -> Option<TabId> {
+        let ids = self.sorted_tab_ids();
+        if ids.is_empty() {
+            return None;
+        }
+
+        let active_id = *self.active_tab_id.read();
+        if let Some(pos) = ids.iter().position(|&id| id == active_id) {
+            let prev_pos = if pos == 0 { ids.len() - 1 } else { pos - 1 };
+            Some(ids[prev_pos])
+        } else {
+            ids.last().copied()
+        }
+    }
+
     /// List all tabs
     pub fn list_tabs(&self) -> Vec<(TabId, String, bool, usize)> {
         let tabs = self.tabs.read();

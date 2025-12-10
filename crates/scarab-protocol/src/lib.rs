@@ -270,6 +270,24 @@ pub enum ControlMessage {
         width: u16,
         height: u16,
     },
+    /// Focus the next pane in the current tab (for navigation)
+    PaneFocusNext,
+    /// Focus the previous pane in the current tab (for navigation)
+    PaneFocusPrev,
+
+    // Tab navigation commands
+    /// Switch to the next tab
+    TabNext,
+    /// Switch to the previous tab
+    TabPrev,
+
+    // Mouse input commands
+    /// Send mouse click event to the terminal
+    MouseClick {
+        col: u16,
+        row: u16,
+        button: u8,
+    },
 
     // Remote UI Responses
     CommandSelected {
@@ -658,6 +676,20 @@ pub enum DaemonMessage {
     PromptJump {
         plugin_name: alloc::string::String,
         direction: PromptJumpDirection,
+    },
+    /// Apply a theme by name
+    ThemeApply {
+        theme_name: alloc::string::String,
+    },
+    /// Set a specific palette color
+    PaletteColorSet {
+        color_name: alloc::string::String,
+        value: alloc::string::String,
+    },
+    /// Response with current theme info
+    ThemeInfoResponse {
+        plugin_name: alloc::string::String,
+        theme_name: alloc::string::String,
     },
 }
 

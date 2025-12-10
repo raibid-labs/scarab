@@ -110,7 +110,11 @@ mod tests {
 
     #[test]
     fn test_blur_uniforms_size() {
-        // Ensure proper alignment for GPU
-        assert_eq!(std::mem::align_of::<BlurUniforms>(), 8);
+        // BlurUniforms contains Vec2 (2x f32) + 2 f32s
+        // Vec2 in glam has 4-byte alignment (f32), not 8-byte
+        // The ShaderType derive handles proper GPU padding during serialization
+        assert_eq!(std::mem::align_of::<BlurUniforms>(), 4);
+        // Total size: Vec2 (8 bytes) + f32 (4 bytes) + f32 (4 bytes) = 16 bytes
+        assert_eq!(std::mem::size_of::<BlurUniforms>(), 16);
     }
 }

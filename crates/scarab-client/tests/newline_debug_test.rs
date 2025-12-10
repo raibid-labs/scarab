@@ -4,7 +4,10 @@
 //! to see if newlines are being inserted unexpectedly.
 
 use anyhow::{Context, Result};
-use scarab_protocol::{ControlMessage, SharedState, MAX_MESSAGE_SIZE, SHMEM_PATH, SHMEM_PATH_ENV, IMAGE_SHMEM_PATH_ENV, SOCKET_PATH};
+use scarab_protocol::{
+    ControlMessage, SharedState, IMAGE_SHMEM_PATH_ENV, MAX_MESSAGE_SIZE, SHMEM_PATH,
+    SHMEM_PATH_ENV, SOCKET_PATH,
+};
 use shared_memory::{Shmem, ShmemConf};
 use std::io::Write;
 use std::os::unix::net::UnixStream;
@@ -30,7 +33,8 @@ fn find_workspace_root() -> Result<PathBuf> {
     loop {
         let cargo_toml = current.join("Cargo.toml");
         if cargo_toml.exists() {
-            let contents = std::fs::read_to_string(&cargo_toml).context("Failed to read Cargo.toml")?;
+            let contents =
+                std::fs::read_to_string(&cargo_toml).context("Failed to read Cargo.toml")?;
             if contents.contains("[workspace]") {
                 return Ok(current);
             }
@@ -117,7 +121,9 @@ impl TestHarness {
         let start = Instant::now();
         let shmem = loop {
             if start.elapsed() > DAEMON_STARTUP_TIMEOUT {
-                anyhow::bail!("Shared memory timeout - daemon may not have started or used different path");
+                anyhow::bail!(
+                    "Shared memory timeout - daemon may not have started or used different path"
+                );
             }
             match ShmemConf::new()
                 .size(std::mem::size_of::<SharedState>())
@@ -127,7 +133,10 @@ impl TestHarness {
                 Ok(s) => break s,
                 Err(e) => {
                     if start.elapsed() > Duration::from_secs(3) {
-                        println!("Still waiting for shared memory at {} ... ({})", TEST_SHMEM_PATH, e);
+                        println!(
+                            "Still waiting for shared memory at {} ... ({})",
+                            TEST_SHMEM_PATH, e
+                        );
                     }
                     thread::sleep(Duration::from_millis(50));
                 }
@@ -137,7 +146,11 @@ impl TestHarness {
         // Let shell initialize
         thread::sleep(Duration::from_millis(1000));
 
-        Ok(Self { daemon, socket, shmem })
+        Ok(Self {
+            daemon,
+            socket,
+            shmem,
+        })
     }
 
     fn send(&mut self, text: &str) -> Result<()> {

@@ -27,7 +27,10 @@ mod smoke_tests {
         };
 
         // Verify initial state
-        assert_eq!(state.sequence_number, 0, "Sequence number should start at 0");
+        assert_eq!(
+            state.sequence_number, 0,
+            "Sequence number should start at 0"
+        );
         assert_eq!(state.dirty_flag, 0, "Dirty flag should start at 0");
         assert_eq!(state.error_mode, 0, "Error mode should start at 0 (normal)");
         assert_eq!(state.cursor_x, 0, "Cursor X should start at 0");
@@ -43,12 +46,17 @@ mod smoke_tests {
         // Verify default cell values
         let first_cell = state.cells[0];
         assert_eq!(
-            first_cell.char_codepoint,
-            b' ' as u32,
+            first_cell.char_codepoint, b' ' as u32,
             "Default cell should be space"
         );
-        assert_eq!(first_cell.fg, 0xFFFFFFFF, "Default foreground should be white");
-        assert_eq!(first_cell.bg, 0xFF000000, "Default background should be black");
+        assert_eq!(
+            first_cell.fg, 0xFFFFFFFF,
+            "Default foreground should be white"
+        );
+        assert_eq!(
+            first_cell.bg, 0xFF000000,
+            "Default background should be black"
+        );
         assert_eq!(first_cell.flags, 0, "Default flags should be 0");
 
         // Simulate daemon writing to shared memory
@@ -97,7 +105,10 @@ mod smoke_tests {
 
         // Test cursor positioning (CSI H)
         state.process_output(b"\x1b[5;10H"); // Move to row 5, col 10
-        assert_eq!(state.cursor_x, 9, "Cursor X should be at column 9 (0-indexed)");
+        assert_eq!(
+            state.cursor_x, 9,
+            "Cursor X should be at column 9 (0-indexed)"
+        );
         assert_eq!(state.cursor_y, 4, "Cursor Y should be at row 4 (0-indexed)");
 
         // Test SGR (Select Graphic Rendition) - bold
@@ -165,7 +176,10 @@ mod smoke_tests {
         state.process_output(b"\n");
 
         // Cursor should remain on row 4 after scroll
-        assert_eq!(state.cursor_y, 4, "Cursor should stay on last row after scroll");
+        assert_eq!(
+            state.cursor_y, 4,
+            "Cursor should stay on last row after scroll"
+        );
 
         // First line (Line0) should have scrolled off, Line1 should now be at top
         assert_eq!(
@@ -284,11 +298,11 @@ mod smoke_tests {
     /// Test plugin manager can be created and initialized
     #[test]
     fn test_plugin_manager_initialization() {
+        use parking_lot::Mutex;
         use scarab_daemon::ipc::ClientRegistry;
         use scarab_daemon::plugin_manager::PluginManager;
         use scarab_plugin_api::context::{PluginConfigData, PluginContext, PluginSharedState};
         use std::sync::Arc;
-        use parking_lot::Mutex;
 
         // Create minimal plugin context for testing
         let config = PluginConfigData::default();
@@ -342,7 +356,10 @@ mod smoke_tests {
         let collector = MetricsCollector::new();
 
         // Verify collector is enabled by default
-        assert!(collector.is_enabled(), "Metrics should be enabled by default");
+        assert!(
+            collector.is_enabled(),
+            "Metrics should be enabled by default"
+        );
 
         // Record some VTE parsing metrics
         collector.record_vte_parse(Duration::from_micros(100), 1024);
@@ -386,8 +403,7 @@ mod smoke_tests {
 
         // Count should not have changed
         assert_eq!(
-            report_after_disable.avg_vte_parse_time_us,
-            report.avg_vte_parse_time_us,
+            report_after_disable.avg_vte_parse_time_us, report.avg_vte_parse_time_us,
             "Metrics should not update when disabled"
         );
 

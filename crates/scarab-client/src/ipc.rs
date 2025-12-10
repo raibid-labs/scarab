@@ -127,7 +127,9 @@ async fn establish_connection(
 
                 log::debug!(
                     "Connection attempt {} failed: {}. Retrying in {}ms...",
-                    attempts, e, delay_ms
+                    attempts,
+                    e,
+                    delay_ms
                 );
 
                 sleep(Duration::from_millis(delay_ms)).await;

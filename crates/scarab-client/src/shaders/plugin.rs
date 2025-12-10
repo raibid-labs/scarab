@@ -38,9 +38,10 @@ impl Plugin for ScarabEffectsPlugin {
         app.add_systems(Startup, setup_effects);
 
         // Add render pipeline setup if RenderApp exists
-        let render_app = app.sub_app_mut(RenderApp);
-        // TODO: Add render graph nodes when render pipeline is needed
-        // render_app.add_systems(Render, render_effects);
+        if let Some(_render_app) = app.get_sub_app_mut(RenderApp) {
+            // TODO: Add render graph nodes when render pipeline is needed
+            // render_app.add_systems(Render, render_effects);
+        }
     }
 }
 

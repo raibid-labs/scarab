@@ -2,13 +2,13 @@
 //!
 //! These tests verify async plugin behavior including command handling and event processing.
 
+use parking_lot::Mutex;
 use scarab_panes::PanesPlugin;
 use scarab_plugin_api::{
     context::{PluginConfigData, PluginContext, PluginSharedState},
     Plugin,
 };
 use std::sync::Arc;
-use parking_lot::Mutex;
 
 // Helper function to create a test context
 fn create_test_context() -> PluginContext {
@@ -32,7 +32,9 @@ async fn test_split_horizontal_command() {
     let mut plugin = PanesPlugin::with_size(80, 40);
     let ctx = create_test_context();
 
-    let result = plugin.on_remote_command("panes.split_horizontal", &ctx).await;
+    let result = plugin
+        .on_remote_command("panes.split_horizontal", &ctx)
+        .await;
     assert!(result.is_ok());
 }
 
@@ -51,7 +53,10 @@ async fn test_close_pane_command() {
     let ctx = create_test_context();
 
     // First create a split
-    plugin.on_remote_command("panes.split_horizontal", &ctx).await.unwrap();
+    plugin
+        .on_remote_command("panes.split_horizontal", &ctx)
+        .await
+        .unwrap();
 
     // Then close it
     let result = plugin.on_remote_command("panes.close", &ctx).await;
@@ -74,7 +79,10 @@ async fn test_navigate_up_command() {
     let ctx = create_test_context();
 
     // Create horizontal split first
-    plugin.on_remote_command("panes.split_horizontal", &ctx).await.unwrap();
+    plugin
+        .on_remote_command("panes.split_horizontal", &ctx)
+        .await
+        .unwrap();
 
     // Try to navigate up
     let result = plugin.on_remote_command("panes.navigate_up", &ctx).await;
@@ -86,7 +94,10 @@ async fn test_navigate_down_command() {
     let mut plugin = PanesPlugin::with_size(80, 40);
     let ctx = create_test_context();
 
-    plugin.on_remote_command("panes.split_horizontal", &ctx).await.unwrap();
+    plugin
+        .on_remote_command("panes.split_horizontal", &ctx)
+        .await
+        .unwrap();
 
     let result = plugin.on_remote_command("panes.navigate_down", &ctx).await;
     assert!(result.is_ok());
@@ -97,7 +108,10 @@ async fn test_navigate_left_command() {
     let mut plugin = PanesPlugin::with_size(80, 40);
     let ctx = create_test_context();
 
-    plugin.on_remote_command("panes.split_vertical", &ctx).await.unwrap();
+    plugin
+        .on_remote_command("panes.split_vertical", &ctx)
+        .await
+        .unwrap();
 
     let result = plugin.on_remote_command("panes.navigate_left", &ctx).await;
     assert!(result.is_ok());
@@ -108,7 +122,10 @@ async fn test_navigate_right_command() {
     let mut plugin = PanesPlugin::with_size(80, 40);
     let ctx = create_test_context();
 
-    plugin.on_remote_command("panes.split_vertical", &ctx).await.unwrap();
+    plugin
+        .on_remote_command("panes.split_vertical", &ctx)
+        .await
+        .unwrap();
 
     let result = plugin.on_remote_command("panes.navigate_right", &ctx).await;
     assert!(result.is_ok());
@@ -119,7 +136,10 @@ async fn test_resize_up_command() {
     let mut plugin = PanesPlugin::with_size(80, 40);
     let ctx = create_test_context();
 
-    plugin.on_remote_command("panes.split_horizontal", &ctx).await.unwrap();
+    plugin
+        .on_remote_command("panes.split_horizontal", &ctx)
+        .await
+        .unwrap();
 
     let result = plugin.on_remote_command("panes.resize_up", &ctx).await;
     assert!(result.is_ok());
@@ -130,7 +150,10 @@ async fn test_resize_down_command() {
     let mut plugin = PanesPlugin::with_size(80, 40);
     let ctx = create_test_context();
 
-    plugin.on_remote_command("panes.split_horizontal", &ctx).await.unwrap();
+    plugin
+        .on_remote_command("panes.split_horizontal", &ctx)
+        .await
+        .unwrap();
 
     let result = plugin.on_remote_command("panes.resize_down", &ctx).await;
     assert!(result.is_ok());
@@ -141,7 +164,10 @@ async fn test_resize_left_command() {
     let mut plugin = PanesPlugin::with_size(80, 40);
     let ctx = create_test_context();
 
-    plugin.on_remote_command("panes.split_vertical", &ctx).await.unwrap();
+    plugin
+        .on_remote_command("panes.split_vertical", &ctx)
+        .await
+        .unwrap();
 
     let result = plugin.on_remote_command("panes.resize_left", &ctx).await;
     assert!(result.is_ok());
@@ -152,7 +178,10 @@ async fn test_resize_right_command() {
     let mut plugin = PanesPlugin::with_size(80, 40);
     let ctx = create_test_context();
 
-    plugin.on_remote_command("panes.split_vertical", &ctx).await.unwrap();
+    plugin
+        .on_remote_command("panes.split_vertical", &ctx)
+        .await
+        .unwrap();
 
     let result = plugin.on_remote_command("panes.resize_right", &ctx).await;
     assert!(result.is_ok());
@@ -173,7 +202,9 @@ async fn test_unknown_command() {
     let ctx = create_test_context();
 
     // Unknown command should not error, just be ignored
-    let result = plugin.on_remote_command("panes.unknown_command", &ctx).await;
+    let result = plugin
+        .on_remote_command("panes.unknown_command", &ctx)
+        .await;
     assert!(result.is_ok());
 }
 
@@ -183,10 +214,22 @@ async fn test_multiple_sequential_commands() {
     let ctx = create_test_context();
 
     // Execute a sequence of commands
-    plugin.on_remote_command("panes.split_horizontal", &ctx).await.unwrap();
-    plugin.on_remote_command("panes.split_vertical", &ctx).await.unwrap();
-    plugin.on_remote_command("panes.navigate_up", &ctx).await.unwrap();
-    plugin.on_remote_command("panes.resize_down", &ctx).await.unwrap();
+    plugin
+        .on_remote_command("panes.split_horizontal", &ctx)
+        .await
+        .unwrap();
+    plugin
+        .on_remote_command("panes.split_vertical", &ctx)
+        .await
+        .unwrap();
+    plugin
+        .on_remote_command("panes.navigate_up", &ctx)
+        .await
+        .unwrap();
+    plugin
+        .on_remote_command("panes.resize_down", &ctx)
+        .await
+        .unwrap();
 
     // All commands should complete without error
 }
@@ -197,7 +240,10 @@ async fn test_resize_after_terminal_resize() {
     let ctx = create_test_context();
 
     // Create splits
-    plugin.on_remote_command("panes.split_horizontal", &ctx).await.unwrap();
+    plugin
+        .on_remote_command("panes.split_horizontal", &ctx)
+        .await
+        .unwrap();
 
     // Resize terminal
     plugin.on_resize(120, 40, &ctx).await.unwrap();

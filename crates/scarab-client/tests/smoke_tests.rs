@@ -9,14 +9,14 @@
 
 #[cfg(test)]
 mod smoke_tests {
+    use bevy::input::keyboard::KeyCode as BevyKeyCode;
+    use scarab_client::input::key_tables::bevy_to_api_keycode;
+    use scarab_client::ui::STATUS_BAR_HEIGHT;
     use scarab_client::MockTerminalState;
+    use scarab_config::{ColorConfig, ColorPalette};
+    use scarab_plugin_api::key_tables::KeyCode as ApiKeyCode;
     use scarab_protocol::terminal_state::TerminalStateReader;
     use scarab_protocol::{Cell, TerminalMetrics, GRID_HEIGHT, GRID_WIDTH};
-    use scarab_config::{ColorConfig, ColorPalette};
-    use scarab_client::input::key_tables::bevy_to_api_keycode;
-    use bevy::input::keyboard::KeyCode as BevyKeyCode;
-    use scarab_plugin_api::key_tables::KeyCode as ApiKeyCode;
-    use scarab_client::ui::STATUS_BAR_HEIGHT;
 
     // ========================================
     // 1. Shared Memory Reading Tests
@@ -260,18 +260,42 @@ mod smoke_tests {
 
     #[test]
     fn test_keycode_conversion_letters() {
-        assert_eq!(bevy_to_api_keycode(BevyKeyCode::KeyA), Some(ApiKeyCode::KeyA));
-        assert_eq!(bevy_to_api_keycode(BevyKeyCode::KeyB), Some(ApiKeyCode::KeyB));
-        assert_eq!(bevy_to_api_keycode(BevyKeyCode::KeyZ), Some(ApiKeyCode::KeyZ));
-        assert_eq!(bevy_to_api_keycode(BevyKeyCode::KeyM), Some(ApiKeyCode::KeyM));
+        assert_eq!(
+            bevy_to_api_keycode(BevyKeyCode::KeyA),
+            Some(ApiKeyCode::KeyA)
+        );
+        assert_eq!(
+            bevy_to_api_keycode(BevyKeyCode::KeyB),
+            Some(ApiKeyCode::KeyB)
+        );
+        assert_eq!(
+            bevy_to_api_keycode(BevyKeyCode::KeyZ),
+            Some(ApiKeyCode::KeyZ)
+        );
+        assert_eq!(
+            bevy_to_api_keycode(BevyKeyCode::KeyM),
+            Some(ApiKeyCode::KeyM)
+        );
     }
 
     #[test]
     fn test_keycode_conversion_numbers() {
-        assert_eq!(bevy_to_api_keycode(BevyKeyCode::Digit0), Some(ApiKeyCode::Digit0));
-        assert_eq!(bevy_to_api_keycode(BevyKeyCode::Digit1), Some(ApiKeyCode::Digit1));
-        assert_eq!(bevy_to_api_keycode(BevyKeyCode::Digit5), Some(ApiKeyCode::Digit5));
-        assert_eq!(bevy_to_api_keycode(BevyKeyCode::Digit9), Some(ApiKeyCode::Digit9));
+        assert_eq!(
+            bevy_to_api_keycode(BevyKeyCode::Digit0),
+            Some(ApiKeyCode::Digit0)
+        );
+        assert_eq!(
+            bevy_to_api_keycode(BevyKeyCode::Digit1),
+            Some(ApiKeyCode::Digit1)
+        );
+        assert_eq!(
+            bevy_to_api_keycode(BevyKeyCode::Digit5),
+            Some(ApiKeyCode::Digit5)
+        );
+        assert_eq!(
+            bevy_to_api_keycode(BevyKeyCode::Digit9),
+            Some(ApiKeyCode::Digit9)
+        );
     }
 
     #[test]
@@ -283,41 +307,104 @@ mod smoke_tests {
 
     #[test]
     fn test_keycode_conversion_special_keys() {
-        assert_eq!(bevy_to_api_keycode(BevyKeyCode::Escape), Some(ApiKeyCode::Escape));
-        assert_eq!(bevy_to_api_keycode(BevyKeyCode::Enter), Some(ApiKeyCode::Enter));
+        assert_eq!(
+            bevy_to_api_keycode(BevyKeyCode::Escape),
+            Some(ApiKeyCode::Escape)
+        );
+        assert_eq!(
+            bevy_to_api_keycode(BevyKeyCode::Enter),
+            Some(ApiKeyCode::Enter)
+        );
         assert_eq!(bevy_to_api_keycode(BevyKeyCode::Tab), Some(ApiKeyCode::Tab));
-        assert_eq!(bevy_to_api_keycode(BevyKeyCode::Backspace), Some(ApiKeyCode::Backspace));
-        assert_eq!(bevy_to_api_keycode(BevyKeyCode::Space), Some(ApiKeyCode::Space));
+        assert_eq!(
+            bevy_to_api_keycode(BevyKeyCode::Backspace),
+            Some(ApiKeyCode::Backspace)
+        );
+        assert_eq!(
+            bevy_to_api_keycode(BevyKeyCode::Space),
+            Some(ApiKeyCode::Space)
+        );
     }
 
     #[test]
     fn test_keycode_conversion_arrow_keys() {
-        assert_eq!(bevy_to_api_keycode(BevyKeyCode::ArrowLeft), Some(ApiKeyCode::Left));
-        assert_eq!(bevy_to_api_keycode(BevyKeyCode::ArrowRight), Some(ApiKeyCode::Right));
-        assert_eq!(bevy_to_api_keycode(BevyKeyCode::ArrowUp), Some(ApiKeyCode::Up));
-        assert_eq!(bevy_to_api_keycode(BevyKeyCode::ArrowDown), Some(ApiKeyCode::Down));
+        assert_eq!(
+            bevy_to_api_keycode(BevyKeyCode::ArrowLeft),
+            Some(ApiKeyCode::Left)
+        );
+        assert_eq!(
+            bevy_to_api_keycode(BevyKeyCode::ArrowRight),
+            Some(ApiKeyCode::Right)
+        );
+        assert_eq!(
+            bevy_to_api_keycode(BevyKeyCode::ArrowUp),
+            Some(ApiKeyCode::Up)
+        );
+        assert_eq!(
+            bevy_to_api_keycode(BevyKeyCode::ArrowDown),
+            Some(ApiKeyCode::Down)
+        );
     }
 
     #[test]
     fn test_keycode_conversion_navigation_keys() {
-        assert_eq!(bevy_to_api_keycode(BevyKeyCode::Home), Some(ApiKeyCode::Home));
+        assert_eq!(
+            bevy_to_api_keycode(BevyKeyCode::Home),
+            Some(ApiKeyCode::Home)
+        );
         assert_eq!(bevy_to_api_keycode(BevyKeyCode::End), Some(ApiKeyCode::End));
-        assert_eq!(bevy_to_api_keycode(BevyKeyCode::PageUp), Some(ApiKeyCode::PageUp));
-        assert_eq!(bevy_to_api_keycode(BevyKeyCode::PageDown), Some(ApiKeyCode::PageDown));
-        assert_eq!(bevy_to_api_keycode(BevyKeyCode::Insert), Some(ApiKeyCode::Insert));
-        assert_eq!(bevy_to_api_keycode(BevyKeyCode::Delete), Some(ApiKeyCode::Delete));
+        assert_eq!(
+            bevy_to_api_keycode(BevyKeyCode::PageUp),
+            Some(ApiKeyCode::PageUp)
+        );
+        assert_eq!(
+            bevy_to_api_keycode(BevyKeyCode::PageDown),
+            Some(ApiKeyCode::PageDown)
+        );
+        assert_eq!(
+            bevy_to_api_keycode(BevyKeyCode::Insert),
+            Some(ApiKeyCode::Insert)
+        );
+        assert_eq!(
+            bevy_to_api_keycode(BevyKeyCode::Delete),
+            Some(ApiKeyCode::Delete)
+        );
     }
 
     #[test]
     fn test_keycode_conversion_modifiers() {
-        assert_eq!(bevy_to_api_keycode(BevyKeyCode::ControlLeft), Some(ApiKeyCode::ControlLeft));
-        assert_eq!(bevy_to_api_keycode(BevyKeyCode::ControlRight), Some(ApiKeyCode::ControlRight));
-        assert_eq!(bevy_to_api_keycode(BevyKeyCode::AltLeft), Some(ApiKeyCode::AltLeft));
-        assert_eq!(bevy_to_api_keycode(BevyKeyCode::AltRight), Some(ApiKeyCode::AltRight));
-        assert_eq!(bevy_to_api_keycode(BevyKeyCode::ShiftLeft), Some(ApiKeyCode::ShiftLeft));
-        assert_eq!(bevy_to_api_keycode(BevyKeyCode::ShiftRight), Some(ApiKeyCode::ShiftRight));
-        assert_eq!(bevy_to_api_keycode(BevyKeyCode::SuperLeft), Some(ApiKeyCode::SuperLeft));
-        assert_eq!(bevy_to_api_keycode(BevyKeyCode::SuperRight), Some(ApiKeyCode::SuperRight));
+        assert_eq!(
+            bevy_to_api_keycode(BevyKeyCode::ControlLeft),
+            Some(ApiKeyCode::ControlLeft)
+        );
+        assert_eq!(
+            bevy_to_api_keycode(BevyKeyCode::ControlRight),
+            Some(ApiKeyCode::ControlRight)
+        );
+        assert_eq!(
+            bevy_to_api_keycode(BevyKeyCode::AltLeft),
+            Some(ApiKeyCode::AltLeft)
+        );
+        assert_eq!(
+            bevy_to_api_keycode(BevyKeyCode::AltRight),
+            Some(ApiKeyCode::AltRight)
+        );
+        assert_eq!(
+            bevy_to_api_keycode(BevyKeyCode::ShiftLeft),
+            Some(ApiKeyCode::ShiftLeft)
+        );
+        assert_eq!(
+            bevy_to_api_keycode(BevyKeyCode::ShiftRight),
+            Some(ApiKeyCode::ShiftRight)
+        );
+        assert_eq!(
+            bevy_to_api_keycode(BevyKeyCode::SuperLeft),
+            Some(ApiKeyCode::SuperLeft)
+        );
+        assert_eq!(
+            bevy_to_api_keycode(BevyKeyCode::SuperRight),
+            Some(ApiKeyCode::SuperRight)
+        );
     }
 
     // ========================================
