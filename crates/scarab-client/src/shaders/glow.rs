@@ -36,6 +36,7 @@ impl Default for GlowSettings {
 
 /// Uniform data passed to glow shader
 #[derive(Clone, Copy, ShaderType)]
+#[allow(dead_code)]
 struct GlowUniforms {
     /// Glow color (RGB + intensity in alpha)
     glow_color: Vec4,

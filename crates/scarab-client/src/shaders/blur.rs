@@ -27,6 +27,7 @@ impl Default for BlurSettings {
 
 /// Uniform data passed to blur shader
 #[derive(Clone, Copy, ShaderType)]
+#[allow(dead_code)]
 struct BlurUniforms {
     /// Direction: (1, 0) for horizontal, (0, 1) for vertical
     direction: Vec2,

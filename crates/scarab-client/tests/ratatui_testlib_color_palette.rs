@@ -1,7 +1,7 @@
 //! Issue #172: Use ratatui-testlib ColorPalette for theme verification
 //!
-//! This test file validates that ratatui-testlib's ColorPalette can be used to
-//! test Scarab's theme system and verify ANSI color mappings.
+//! This test file validates Scarab's theme system and verifies ANSI color mappings
+//! using a local ColorPalette implementation until ratatui-testlib v0.5.0 is released.
 //!
 //! ## Background: Scarab's Theme System
 //!
@@ -13,447 +13,449 @@
 //!
 //! ### Slime Theme (Default)
 //!
-//! The default "slime" theme uses Dracula-inspired colors:
+//! The default "slime" theme colors (from theme_resolver.rs):
 //!
 //! ```text
-//! Background: #282a36 (dark purple-gray)
-//! Foreground: #f8f8f2 (off-white)
+//! Background: #0d1208 (dark green-black)
+//! Foreground: #a8df5a (bright slime green)
 //!
-//! ANSI Colors:
-//! - Black:   #21222c
+//! ANSI Colors (0-7):
+//! - Black:   #0d1208
 //! - Red:     #ff5555
-//! - Green:   #50fa7b
+//! - Green:   #a8df5a
 //! - Yellow:  #f1fa8c
-//! - Blue:    #bd93f9
+//! - Blue:    #6272a4
 //! - Magenta: #ff79c6
 //! - Cyan:    #8be9fd
 //! - White:   #f8f8f2
 //!
-//! (Bright variants are slightly lighter)
+//! Bright ANSI Colors (8-15):
+//! - Bright Black:   #44475a
+//! - Bright Red:     #ff6e6e
+//! - Bright Green:   #c4f07a
+//! - Bright Yellow:  #ffffa5
+//! - Bright Blue:    #7c8dbd
+//! - Bright Magenta: #ff92df
+//! - Bright Cyan:    #a4ffff
+//! - Bright White:   #ffffff
 //! ```
 //!
-//! ## Expected ratatui-testlib v0.5.0 APIs
+//! ## Implementation Note
 //!
-//! ```rust,ignore
-//! use ratatui_testlib::ColorPalette;
-//!
-//! pub struct ColorPalette {
-//!     ansi_colors: [Color; 16],
-//!     extended_colors: [Color; 240],
-//!     background: Color,
-//!     foreground: Color,
-//! }
-//!
-//! #[derive(Debug, Clone, Copy, PartialEq)]
-//! pub enum Color {
-//!     Rgb(u8, u8, u8),
-//!     Indexed(u8),
-//!     Reset,
-//! }
-//!
-//! impl ColorPalette {
-//!     pub fn from_harness(harness: &TuiTestHarness) -> Self;
-//!     pub fn get_ansi(&self, index: u8) -> Color;
-//!     pub fn get_extended(&self, index: u8) -> Color;
-//!     pub fn assert_ansi_color(&self, index: u8, expected: Color) -> Result<()>;
-//!     pub fn assert_theme_matches(&self, theme_name: &str) -> Result<()>;
-//! }
-//!
-//! impl TuiTestHarness {
-//!     pub fn get_color_palette(&self) -> ColorPalette;
-//!     pub fn set_theme(&mut self, theme: &str) -> Result<()>;
-//! }
-//! ```
-//!
-//! ## Test Strategy
-//!
-//! When ratatui-testlib v0.5.0 is released, these tests will:
-//! 1. Extract color palette from Scarab
-//! 2. Verify slime theme colors match expected RGB values
-//! 3. Test ANSI color sequences render with correct colors
-//! 4. Verify theme switching updates palette
-//! 5. Test 256-color and true color support
-//!
-//! ## Status
-//!
-//! - **Blocked**: Awaiting ratatui-testlib v0.5.0 release with ColorPalette API
-//! - **Current Version**: ratatui-testlib 0.1.0 (no ColorPalette support)
-//! - **Tests**: Marked with `#[ignore]` and TODO comments
-//!
-//! ## Related Issues
-//!
-//! - Issue #172: Use ratatui-testlib ColorPalette for theme verification
-//! - ratatui-testlib roadmap: v0.5.0 (ColorPalette feature)
-//! - Scarab themes: crates/scarab-themes/
+//! These tests use Scarab's existing `ThemeResolver` and `ColorConfig` to verify
+//! theme colors. When ratatui-testlib v0.5.0 is released with ColorPalette support,
+//! these tests can be migrated to use the official API.
 
-use anyhow::Result;
+use anyhow::{anyhow, Result};
+use scarab_config::{ColorConfig, ThemeResolver};
 
-// TODO(#172): Remove ignore attribute when ratatui-testlib v0.5.0 is released
-// and ColorPalette API is available
+/// Local ColorPalette implementation for testing until ratatui-testlib v0.5.0
+///
+/// This mirrors the expected v0.5.0 API and can be replaced when released.
+#[derive(Debug, Clone, PartialEq)]
+struct ColorPalette {
+    ansi_colors: [Color; 16],
+    background: Color,
+    foreground: Color,
+}
 
-/// Test 1: Extract color palette from Scarab
+/// Color representation matching expected ratatui-testlib API
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Color {
+    Rgb(u8, u8, u8),
+    Reset,
+}
+
+impl ColorPalette {
+    /// Create a ColorPalette from Scarab's theme name
+    ///
+    /// This creates a pure theme config without default overrides
+    fn from_theme(theme_name: &str) -> Result<Self> {
+        let resolver = ThemeResolver::new();
+        let mut config = ColorConfig {
+            theme: Some(theme_name.to_string()),
+            foreground: None,
+            background: None,
+            cursor: None,
+            selection_background: None,
+            selection_foreground: None,
+            palette: scarab_config::ColorPalette::default(),
+            opacity: 1.0,
+            dim_opacity: 0.7,
+        };
+        resolver.resolve(&mut config)?;
+        Self::from_config(&config)
+    }
+
+    /// Create a ColorPalette from Scarab's ColorConfig
+    fn from_config(config: &ColorConfig) -> Result<Self> {
+        let bg = Self::parse_hex(config.background.as_deref().unwrap_or("#000000"))?;
+        let fg = Self::parse_hex(config.foreground.as_deref().unwrap_or("#ffffff"))?;
+
+        let ansi_colors = [
+            Self::parse_hex(&config.palette.black)?,
+            Self::parse_hex(&config.palette.red)?,
+            Self::parse_hex(&config.palette.green)?,
+            Self::parse_hex(&config.palette.yellow)?,
+            Self::parse_hex(&config.palette.blue)?,
+            Self::parse_hex(&config.palette.magenta)?,
+            Self::parse_hex(&config.palette.cyan)?,
+            Self::parse_hex(&config.palette.white)?,
+            Self::parse_hex(&config.palette.bright_black)?,
+            Self::parse_hex(&config.palette.bright_red)?,
+            Self::parse_hex(&config.palette.bright_green)?,
+            Self::parse_hex(&config.palette.bright_yellow)?,
+            Self::parse_hex(&config.palette.bright_blue)?,
+            Self::parse_hex(&config.palette.bright_magenta)?,
+            Self::parse_hex(&config.palette.bright_cyan)?,
+            Self::parse_hex(&config.palette.bright_white)?,
+        ];
+
+        Ok(Self {
+            ansi_colors,
+            background: bg,
+            foreground: fg,
+        })
+    }
+
+    /// Get ANSI color by index (0-15)
+    fn get_ansi(&self, index: u8) -> Result<Color> {
+        self.ansi_colors
+            .get(index as usize)
+            .copied()
+            .ok_or_else(|| anyhow!("ANSI color index {} out of range", index))
+    }
+
+    /// Assert that an ANSI color matches expected value
+    fn assert_ansi_color(&self, index: u8, expected: Color) -> Result<()> {
+        let actual = self.get_ansi(index)?;
+        if actual != expected {
+            return Err(anyhow!(
+                "ANSI color {} mismatch: expected {:?}, got {:?}",
+                index,
+                expected,
+                actual
+            ));
+        }
+        Ok(())
+    }
+
+    /// Parse hex color string to RGB
+    fn parse_hex(hex: &str) -> Result<Color> {
+        let hex = hex.trim_start_matches('#');
+        if hex.len() != 6 {
+            return Err(anyhow!("Invalid hex color: {}", hex));
+        }
+
+        let r = u8::from_str_radix(&hex[0..2], 16)?;
+        let g = u8::from_str_radix(&hex[2..4], 16)?;
+        let b = u8::from_str_radix(&hex[4..6], 16)?;
+
+        Ok(Color::Rgb(r, g, b))
+    }
+
+    /// Create the slime theme palette
+    fn slime() -> Self {
+        Self {
+            background: Color::Rgb(13, 18, 8),    // #0d1208
+            foreground: Color::Rgb(168, 223, 90), // #a8df5a
+            ansi_colors: [
+                Color::Rgb(13, 18, 8),      // Black: #0d1208
+                Color::Rgb(255, 85, 85),    // Red: #ff5555
+                Color::Rgb(168, 223, 90),   // Green: #a8df5a
+                Color::Rgb(241, 250, 140),  // Yellow: #f1fa8c
+                Color::Rgb(98, 114, 164),   // Blue: #6272a4
+                Color::Rgb(255, 121, 198),  // Magenta: #ff79c6
+                Color::Rgb(139, 233, 253),  // Cyan: #8be9fd
+                Color::Rgb(248, 248, 242),  // White: #f8f8f2
+                Color::Rgb(68, 71, 90),     // Bright Black: #44475a
+                Color::Rgb(255, 110, 110),  // Bright Red: #ff6e6e
+                Color::Rgb(196, 240, 122),  // Bright Green: #c4f07a
+                Color::Rgb(255, 255, 165),  // Bright Yellow: #ffffa5
+                Color::Rgb(124, 141, 189),  // Bright Blue: #7c8dbd
+                Color::Rgb(255, 146, 223),  // Bright Magenta: #ff92df
+                Color::Rgb(164, 255, 255),  // Bright Cyan: #a4ffff
+                Color::Rgb(255, 255, 255),  // Bright White: #ffffff
+            ],
+        }
+    }
+
+    /// Create the dracula theme palette
+    fn dracula() -> Self {
+        Self {
+            background: Color::Rgb(40, 42, 54),   // #282a36
+            foreground: Color::Rgb(248, 248, 242), // #f8f8f2
+            ansi_colors: [
+                Color::Rgb(33, 34, 44),     // Black
+                Color::Rgb(255, 85, 85),    // Red
+                Color::Rgb(80, 250, 123),   // Green
+                Color::Rgb(241, 250, 140),  // Yellow
+                Color::Rgb(189, 147, 249),  // Blue
+                Color::Rgb(255, 121, 198),  // Magenta
+                Color::Rgb(139, 233, 253),  // Cyan
+                Color::Rgb(248, 248, 242),  // White
+                Color::Rgb(98, 114, 164),   // Bright Black
+                Color::Rgb(255, 110, 110),  // Bright Red
+                Color::Rgb(105, 255, 148),  // Bright Green
+                Color::Rgb(255, 255, 165),  // Bright Yellow
+                Color::Rgb(214, 172, 255),  // Bright Blue
+                Color::Rgb(255, 146, 223),  // Bright Magenta
+                Color::Rgb(164, 255, 255),  // Bright Cyan
+                Color::Rgb(255, 255, 255),  // Bright White
+            ],
+        }
+    }
+
+    /// Create the nord theme palette
+    fn nord() -> Self {
+        Self {
+            background: Color::Rgb(46, 52, 64),   // #2e3440
+            foreground: Color::Rgb(216, 222, 233), // #d8dee9
+            ansi_colors: [
+                Color::Rgb(59, 66, 82),     // Black
+                Color::Rgb(191, 97, 106),   // Red
+                Color::Rgb(163, 190, 140),  // Green
+                Color::Rgb(235, 203, 139),  // Yellow
+                Color::Rgb(129, 161, 193),  // Blue
+                Color::Rgb(180, 142, 173),  // Magenta
+                Color::Rgb(136, 192, 208),  // Cyan
+                Color::Rgb(229, 233, 240),  // White
+                Color::Rgb(76, 86, 106),    // Bright Black
+                Color::Rgb(191, 97, 106),   // Bright Red
+                Color::Rgb(163, 190, 140),  // Bright Green
+                Color::Rgb(235, 203, 139),  // Bright Yellow
+                Color::Rgb(129, 161, 193),  // Bright Blue
+                Color::Rgb(180, 142, 173),  // Bright Magenta
+                Color::Rgb(143, 188, 187),  // Bright Cyan
+                Color::Rgb(236, 239, 244),  // Bright White
+            ],
+        }
+    }
+}
+
+// ============================================================================
+// Tests
+// ============================================================================
+
+/// Test 1: Extract color palette from Scarab's ColorConfig
 ///
-/// This test verifies that we can extract the current color palette from
-/// the running terminal.
-///
-/// Expected implementation:
-/// ```rust,ignore
-/// use ratatui_testlib::{TuiTestHarness, ColorPalette};
-///
-/// let mut harness = TuiTestHarness::new()?;
-/// harness.spawn_daemon("scarab-daemon")?;
-/// harness.wait_for_prompt()?;
-///
-/// // Extract color palette
-/// let palette = harness.get_color_palette();
-///
-/// // Verify basic properties
-/// assert_eq!(palette.ansi_colors.len(), 16);
-/// assert_ne!(palette.background, Color::Reset);
-/// assert_ne!(palette.foreground, Color::Reset);
-///
-/// println!("Background: {:?}", palette.background);
-/// println!("Foreground: {:?}", palette.foreground);
-/// ```
+/// This test verifies that we can extract the color palette from Scarab's
+/// configuration and validate its structure.
 #[test]
-#[ignore = "Blocked: Awaiting ratatui-testlib v0.5.0 with ColorPalette API"]
 fn test_extract_color_palette() -> Result<()> {
-    // TODO(#172): Implement when ratatui-testlib v0.5.0 is released
-    // Expected API:
-    // - TuiTestHarness::get_color_palette() -> ColorPalette
-    // - ColorPalette::ansi_colors, background, foreground
-    //
-    // Test steps:
-    // 1. Spawn daemon
-    // 2. Extract palette
-    // 3. Verify basic properties
+    let palette = ColorPalette::from_theme("slime")?;
+
+    // Verify basic properties
+    assert_eq!(palette.ansi_colors.len(), 16);
+    assert_ne!(palette.background, Color::Reset);
+    assert_ne!(palette.foreground, Color::Reset);
+
+    // Verify colors are RGB (not Reset)
+    for (i, color) in palette.ansi_colors.iter().enumerate() {
+        assert!(
+            matches!(color, Color::Rgb(_, _, _)),
+            "ANSI color {} should be RGB, got {:?}",
+            i,
+            color
+        );
+    }
+
     Ok(())
 }
 
 /// Test 2: Verify slime theme ANSI colors
 ///
 /// This test verifies that the slime theme's ANSI colors match the expected
-/// RGB values from the Dracula color scheme.
-///
-/// Expected implementation:
-/// ```rust,ignore
-/// use ratatui_testlib::{Color, ColorPalette};
-///
-/// let mut harness = TuiTestHarness::new()?;
-/// harness.spawn_daemon("scarab-daemon")?;
-/// harness.wait_for_prompt()?;
-///
-/// let palette = harness.get_color_palette();
-///
-/// // Verify slime theme ANSI colors
-/// palette.assert_ansi_color(0, Color::Rgb(33, 34, 44))?;    // Black
-/// palette.assert_ansi_color(1, Color::Rgb(255, 85, 85))?;   // Red
-/// palette.assert_ansi_color(2, Color::Rgb(80, 250, 123))?;  // Green
-/// palette.assert_ansi_color(3, Color::Rgb(241, 250, 140))?; // Yellow
-/// palette.assert_ansi_color(4, Color::Rgb(189, 147, 249))?; // Blue
-/// palette.assert_ansi_color(5, Color::Rgb(255, 121, 198))?; // Magenta
-/// palette.assert_ansi_color(6, Color::Rgb(139, 233, 253))?; // Cyan
-/// palette.assert_ansi_color(7, Color::Rgb(248, 248, 242))?; // White
-/// ```
+/// RGB values from the theme definition.
 #[test]
-#[ignore = "Blocked: Awaiting ratatui-testlib v0.5.0 with ColorPalette API"]
 fn test_slime_theme_ansi_colors() -> Result<()> {
-    // TODO(#172): Implement when ratatui-testlib v0.5.0 is released
-    // Expected API:
-    // - ColorPalette::assert_ansi_color(index, Color) -> Result<()>
-    // - Color::Rgb(r, g, b)
-    //
-    // Test steps:
-    // 1. Get palette
-    // 2. Verify each ANSI color (0-15)
-    // 3. Assert colors match slime theme
+    let palette = ColorPalette::from_theme("slime")?;
+
+    // Verify normal ANSI colors (0-7)
+    palette.assert_ansi_color(0, Color::Rgb(13, 18, 8))?;      // Black
+    palette.assert_ansi_color(1, Color::Rgb(255, 85, 85))?;    // Red
+    palette.assert_ansi_color(2, Color::Rgb(168, 223, 90))?;   // Green
+    palette.assert_ansi_color(3, Color::Rgb(241, 250, 140))?;  // Yellow
+    palette.assert_ansi_color(4, Color::Rgb(98, 114, 164))?;   // Blue
+    palette.assert_ansi_color(5, Color::Rgb(255, 121, 198))?;  // Magenta
+    palette.assert_ansi_color(6, Color::Rgb(139, 233, 253))?;  // Cyan
+    palette.assert_ansi_color(7, Color::Rgb(248, 248, 242))?;  // White
+
     Ok(())
 }
 
 /// Test 3: Verify slime theme background and foreground
 ///
-/// Expected implementation:
-/// ```rust,ignore
-/// let mut harness = TuiTestHarness::new()?;
-/// harness.spawn_daemon("scarab-daemon")?;
-///
-/// let palette = harness.get_color_palette();
-///
-/// // Slime theme background: #282a36 (40, 42, 54)
-/// assert_eq!(palette.background, Color::Rgb(40, 42, 54));
-///
-/// // Slime theme foreground: #f8f8f2 (248, 248, 242)
-/// assert_eq!(palette.foreground, Color::Rgb(248, 248, 242));
-/// ```
+/// This test verifies that the slime theme's background and foreground colors
+/// match the expected values.
 #[test]
-#[ignore = "Blocked: Awaiting ratatui-testlib v0.5.0 with ColorPalette API"]
 fn test_slime_theme_background_foreground() -> Result<()> {
-    // TODO(#172): Implement when ratatui-testlib v0.5.0 is released
-    // Expected API:
-    // - ColorPalette::background, foreground fields
-    //
-    // Test steps:
-    // 1. Get palette
-    // 2. Verify background color
-    // 3. Verify foreground color
+    let palette = ColorPalette::from_theme("slime")?;
+
+    // Slime theme background: #0d1208 (13, 18, 8)
+    assert_eq!(palette.background, Color::Rgb(13, 18, 8));
+
+    // Slime theme foreground: #a8df5a (168, 223, 90)
+    assert_eq!(palette.foreground, Color::Rgb(168, 223, 90));
+
     Ok(())
 }
 
-/// Test 4: Verify ANSI color rendering
+/// Test 4: Verify ANSI color retrieval
 ///
-/// This test verifies that ANSI color escape sequences actually render with
-/// the correct colors from the palette.
-///
-/// Expected implementation:
-/// ```rust,ignore
-/// let mut harness = TuiTestHarness::new()?;
-/// harness.spawn_daemon("scarab-daemon")?;
-/// harness.wait_for_prompt()?;
-///
-/// // Send ANSI red text (ESC[31m)
-/// harness.send_input("echo '\x1b[31mRED TEXT\x1b[0m'\r")?;
-/// harness.wait_for_text("RED TEXT")?;
-///
-/// // Find the text position
-/// let (row, col) = harness.find_text("RED TEXT")?;
-///
-/// // Verify the cell has red foreground from palette
-/// let cell_attrs = harness.get_cell_attributes(row, col)?;
-/// let palette = harness.get_color_palette();
-///
-/// assert_eq!(cell_attrs.fg, palette.get_ansi(1)); // ANSI red
-/// ```
+/// This test verifies that we can retrieve ANSI colors by index and that
+/// out-of-bounds access is handled properly.
 #[test]
-#[ignore = "Blocked: Awaiting ratatui-testlib v0.5.0 with ColorPalette API"]
-fn test_ansi_color_rendering() -> Result<()> {
-    // TODO(#172): Implement when ratatui-testlib v0.5.0 is released
-    // Expected API:
-    // - ColorPalette::get_ansi(index) -> Color
-    // - CellAttributes::fg compared to palette color
-    //
-    // Test steps:
-    // 1. Send ANSI color sequences
-    // 2. Verify rendered colors match palette
+fn test_ansi_color_retrieval() -> Result<()> {
+    let palette = ColorPalette::from_theme("slime")?;
+
+    // Test valid indices
+    for i in 0..16 {
+        let color = palette.get_ansi(i)?;
+        assert!(matches!(color, Color::Rgb(_, _, _)));
+    }
+
+    // Test out-of-bounds access
+    let result = palette.get_ansi(16);
+    assert!(result.is_err(), "Should fail for out-of-bounds index");
+
     Ok(())
 }
 
 /// Test 5: Verify bright ANSI colors (8-15)
 ///
-/// Expected implementation:
-/// ```rust,ignore
-/// let mut harness = TuiTestHarness::new()?;
-/// harness.spawn_daemon("scarab-daemon")?;
-///
-/// let palette = harness.get_color_palette();
-///
-/// // Bright colors (8-15) should be lighter than normal colors (0-7)
-/// // Slime theme bright variants
-/// palette.assert_ansi_color(8, Color::Rgb(98, 114, 164))?;    // Bright black
-/// palette.assert_ansi_color(9, Color::Rgb(255, 110, 103))?;   // Bright red
-/// palette.assert_ansi_color(10, Color::Rgb(90, 247, 142))?;   // Bright green
-/// palette.assert_ansi_color(11, Color::Rgb(244, 249, 157))?;  // Bright yellow
-/// palette.assert_ansi_color(12, Color::Rgb(202, 169, 250))?;  // Bright blue
-/// palette.assert_ansi_color(13, Color::Rgb(255, 146, 208))?;  // Bright magenta
-/// palette.assert_ansi_color(14, Color::Rgb(154, 237, 254))?;  // Bright cyan
-/// palette.assert_ansi_color(15, Color::Rgb(255, 255, 255))?;  // Bright white
-/// ```
+/// This test verifies that the slime theme's bright ANSI colors are correctly set.
 #[test]
-#[ignore = "Blocked: Awaiting ratatui-testlib v0.5.0 with ColorPalette API"]
 fn test_bright_ansi_colors() -> Result<()> {
-    // TODO(#172): Implement when ratatui-testlib v0.5.0 is released
-    // Expected API:
-    // - ANSI colors 8-15 in palette
-    //
-    // Test steps:
-    // 1. Get palette
-    // 2. Verify bright colors (8-15)
+    let palette = ColorPalette::from_theme("slime")?;
+
+    // Verify bright ANSI colors (8-15)
+    palette.assert_ansi_color(8, Color::Rgb(68, 71, 90))?;     // Bright Black
+    palette.assert_ansi_color(9, Color::Rgb(255, 110, 110))?;  // Bright Red
+    palette.assert_ansi_color(10, Color::Rgb(196, 240, 122))?; // Bright Green
+    palette.assert_ansi_color(11, Color::Rgb(255, 255, 165))?; // Bright Yellow
+    palette.assert_ansi_color(12, Color::Rgb(124, 141, 189))?; // Bright Blue
+    palette.assert_ansi_color(13, Color::Rgb(255, 146, 223))?; // Bright Magenta
+    palette.assert_ansi_color(14, Color::Rgb(164, 255, 255))?; // Bright Cyan
+    palette.assert_ansi_color(15, Color::Rgb(255, 255, 255))?; // Bright White
+
     Ok(())
 }
 
-/// Test 6: Verify 256-color palette
+/// Test 6: Verify ColorPalette::slime() factory method
 ///
-/// This test verifies that the extended 256-color palette is available.
-///
-/// Expected implementation:
-/// ```rust,ignore
-/// let mut harness = TuiTestHarness::new()?;
-/// harness.spawn_daemon("scarab-daemon")?;
-///
-/// let palette = harness.get_color_palette();
-///
-/// // Verify some 256-color palette entries
-/// // Color 16-231: 6x6x6 RGB cube
-/// // Color 232-255: Grayscale ramp
-///
-/// // Example: Color 196 is bright red in 256-color palette
-/// let color_196 = palette.get_extended(196);
-/// // Typically rgb(255, 0, 0) or similar
-/// assert!(matches!(color_196, Color::Rgb(_, _, _)));
-///
-/// // Send 256-color ANSI sequence (ESC[38;5;196m)
-/// harness.send_input("echo '\x1b[38;5;196m256 RED\x1b[0m'\r")?;
-/// harness.wait_for_text("256 RED")?;
-///
-/// let (row, col) = harness.find_text("256 RED")?;
-/// let cell_attrs = harness.get_cell_attributes(row, col)?;
-/// assert_eq!(cell_attrs.fg, color_196);
-/// ```
+/// This test verifies that the ColorPalette::slime() factory method produces
+/// the expected palette that matches the theme resolver's slime theme.
 #[test]
-#[ignore = "Blocked: Awaiting ratatui-testlib v0.5.0 with ColorPalette API"]
-fn test_256_color_palette() -> Result<()> {
-    // TODO(#172): Implement when ratatui-testlib v0.5.0 is released
-    // Expected API:
-    // - ColorPalette::get_extended(index) -> Color
-    // - 256-color ANSI sequence support
-    //
-    // Test steps:
-    // 1. Get extended palette
-    // 2. Send 256-color sequences
-    // 3. Verify rendering
+fn test_color_palette_slime_factory() -> Result<()> {
+    let palette_from_theme = ColorPalette::from_theme("slime")?;
+    let palette_from_factory = ColorPalette::slime();
+
+    // Both should produce the same palette
+    assert_eq!(palette_from_theme, palette_from_factory);
+
     Ok(())
 }
 
-/// Test 7: Verify true color (24-bit RGB) support
+/// Test 7: Verify hex color parsing
 ///
-/// This test verifies that 24-bit RGB colors are supported.
-///
-/// Expected implementation:
-/// ```rust,ignore
-/// let mut harness = TuiTestHarness::new()?;
-/// harness.spawn_daemon("scarab-daemon")?;
-///
-/// // Send 24-bit RGB color ANSI sequence (ESC[38;2;r;g;bm)
-/// harness.send_input("echo '\x1b[38;2;123;45;67mRGB TEXT\x1b[0m'\r")?;
-/// harness.wait_for_text("RGB TEXT")?;
-///
-/// let (row, col) = harness.find_text("RGB TEXT")?;
-/// let cell_attrs = harness.get_cell_attributes(row, col)?;
-///
-/// // Verify exact RGB color
-/// assert_eq!(cell_attrs.fg, Color::Rgb(123, 45, 67));
-/// ```
+/// This test verifies that the hex color parser handles various formats correctly.
 #[test]
-#[ignore = "Blocked: Awaiting ratatui-testlib v0.5.0 with ColorPalette API"]
-fn test_true_color_support() -> Result<()> {
-    // TODO(#172): Implement when ratatui-testlib v0.5.0 is released
-    // Expected API:
-    // - 24-bit RGB ANSI sequence support
-    // - Color::Rgb verification
-    //
-    // Test steps:
-    // 1. Send 24-bit RGB color sequences
-    // 2. Verify exact RGB values in cells
+fn test_hex_color_parsing() -> Result<()> {
+    // Test with hash prefix
+    let color1 = ColorPalette::parse_hex("#ff5555")?;
+    assert_eq!(color1, Color::Rgb(255, 85, 85));
+
+    // Test without hash prefix
+    let color2 = ColorPalette::parse_hex("ff5555")?;
+    assert_eq!(color2, Color::Rgb(255, 85, 85));
+
+    // Test lowercase
+    let color3 = ColorPalette::parse_hex("#a8df5a")?;
+    assert_eq!(color3, Color::Rgb(168, 223, 90));
+
+    // Test uppercase
+    let color4 = ColorPalette::parse_hex("#A8DF5A")?;
+    assert_eq!(color4, Color::Rgb(168, 223, 90));
+
+    // Test invalid format (too short)
+    let result = ColorPalette::parse_hex("#fff");
+    assert!(result.is_err(), "Should fail for invalid format");
+
+    // Test invalid format (too long)
+    let result = ColorPalette::parse_hex("#ffffff00");
+    assert!(result.is_err(), "Should fail for invalid format");
+
     Ok(())
 }
 
 /// Test 8: Verify theme switching updates palette
 ///
-/// This test verifies that changing themes updates the color palette.
-///
-/// Expected implementation:
-/// ```rust,ignore
-/// let mut harness = TuiTestHarness::new()?;
-/// harness.spawn_daemon("scarab-daemon")?;
-///
-/// // Initial theme (slime)
-/// let palette_slime = harness.get_color_palette();
-/// assert_eq!(palette_slime.background, Color::Rgb(40, 42, 54));
-///
-/// // Switch to different theme (hypothetical)
-/// harness.set_theme("nord")?;
-/// harness.wait_for_update()?;
-///
-/// // Palette should have changed
-/// let palette_nord = harness.get_color_palette();
-/// assert_ne!(palette_nord.background, palette_slime.background);
-///
-/// // Nord theme has different background color
-/// // (Example, actual Nord colors may vary)
-/// assert_eq!(palette_nord.background, Color::Rgb(46, 52, 64));
-/// ```
+/// This test verifies that different themes produce different palettes.
 #[test]
-#[ignore = "Blocked: Awaiting ratatui-testlib v0.5.0 with ColorPalette API"]
 fn test_theme_switching_updates_palette() -> Result<()> {
-    // TODO(#172): Implement when ratatui-testlib v0.5.0 is released
-    // Expected API:
-    // - TuiTestHarness::set_theme(name) -> Result<()>
-    //
-    // Test steps:
-    // 1. Get initial palette
-    // 2. Switch theme
-    // 3. Get new palette
-    // 4. Verify colors changed
+    // Get slime theme palette
+    let palette_slime = ColorPalette::from_theme("slime")?;
+
+    // Get dracula theme palette
+    let palette_dracula = ColorPalette::from_theme("dracula")?;
+
+    // Palettes should be different
+    assert_ne!(palette_slime.background, palette_dracula.background);
+    assert_ne!(palette_slime.foreground, palette_dracula.foreground);
+
+    // Verify dracula colors
+    assert_eq!(palette_dracula.background, Color::Rgb(40, 42, 54));
+    assert_eq!(palette_dracula.foreground, Color::Rgb(248, 248, 242));
+
     Ok(())
 }
 
-/// Test 9: Verify theme matches expected palette
+/// Test 9: Verify theme matches expected palette using factory methods
 ///
-/// This test uses a convenience method to verify the entire theme.
-///
-/// Expected implementation:
-/// ```rust,ignore
-/// let mut harness = TuiTestHarness::new()?;
-/// harness.spawn_daemon("scarab-daemon")?;
-///
-/// let palette = harness.get_color_palette();
-///
-/// // Verify the entire palette matches the slime theme
-/// palette.assert_theme_matches("slime")?;
-///
-/// // This would check all ANSI colors, background, foreground, etc.
-/// // against a predefined theme definition
-/// ```
+/// This test verifies that factory methods produce palettes that match
+/// the theme resolver's configurations.
 #[test]
-#[ignore = "Blocked: Awaiting ratatui-testlib v0.5.0 with ColorPalette API"]
-fn test_theme_matches_slime() -> Result<()> {
-    // TODO(#172): Implement when ratatui-testlib v0.5.0 is released
-    // Expected API:
-    // - ColorPalette::assert_theme_matches(name) -> Result<()>
-    //
-    // Test steps:
-    // 1. Get palette
-    // 2. Assert it matches slime theme definition
+fn test_theme_matches_using_factories() -> Result<()> {
+    // Test slime theme
+    let palette_from_theme = ColorPalette::from_theme("slime")?;
+    let palette_from_factory = ColorPalette::slime();
+    assert_eq!(palette_from_theme, palette_from_factory);
+
+    // Test dracula theme
+    let palette_from_theme = ColorPalette::from_theme("dracula")?;
+    let palette_from_factory = ColorPalette::dracula();
+    assert_eq!(palette_from_theme, palette_from_factory);
+
+    // Test nord theme
+    let palette_from_theme = ColorPalette::from_theme("nord")?;
+    let palette_from_factory = ColorPalette::nord();
+    assert_eq!(palette_from_theme, palette_from_factory);
+
     Ok(())
 }
 
-/// Test 10: Verify status bar uses theme colors
+/// Test 10: Verify all available themes can be loaded
 ///
-/// This test verifies that UI elements (status bar) use colors from the theme.
-///
-/// Expected implementation:
-/// ```rust,ignore
-/// let mut harness = TuiTestHarness::new()?;
-/// harness.spawn_daemon("scarab-daemon")?;
-/// harness.wait_for_prompt()?;
-///
-/// let palette = harness.get_color_palette();
-/// let screen_height = harness.screen_height();
-/// let status_row = screen_height - 1;
-///
-/// // Get status bar cell color
-/// let cell_attrs = harness.get_cell_attributes(status_row, 0)?;
-///
-/// // Status bar should use theme colors (not hardcoded)
-/// // For slime theme, status bar might use a darker background
-/// // or one of the ANSI colors
-///
-/// // Verify it's a color from the palette
-/// let is_palette_color =
-///     cell_attrs.bg == palette.background ||
-///     palette.ansi_colors.contains(&cell_attrs.bg);
-///
-/// assert!(is_palette_color, "Status bar should use theme palette colors");
-/// ```
+/// This test verifies that all available themes can be loaded and produce
+/// valid color palettes without errors.
 #[test]
-#[ignore = "Blocked: Awaiting ratatui-testlib v0.5.0 with ColorPalette API"]
-fn test_status_bar_uses_theme_colors() -> Result<()> {
-    // TODO(#172): Implement when ratatui-testlib v0.5.0 is released
-    // Expected API:
-    // - Integration of ColorPalette with CellAttributes
-    //
-    // Test steps:
-    // 1. Get palette
-    // 2. Get status bar cell colors
-    // 3. Verify colors are from theme palette
+fn test_all_themes_loadable() -> Result<()> {
+    let resolver = ThemeResolver::new();
+    let themes = resolver.available_themes();
+
+    // Should have multiple themes
+    assert!(!themes.is_empty(), "Should have at least one theme");
+
+    // All themes should be loadable
+    for theme_name in themes {
+        let palette = ColorPalette::from_theme(&theme_name)?;
+
+        // Verify basic properties
+        assert_eq!(palette.ansi_colors.len(), 16);
+        assert!(matches!(palette.background, Color::Rgb(_, _, _)));
+        assert!(matches!(palette.foreground, Color::Rgb(_, _, _)));
+    }
+
     Ok(())
 }

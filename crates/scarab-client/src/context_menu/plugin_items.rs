@@ -28,6 +28,7 @@ pub fn get_plugin_menu_items(_context: &str) -> Vec<MenuItem> {
 ///
 /// This function allows plugins to register callbacks that will be invoked
 /// when building context menus.
+#[allow(dead_code)]
 pub fn register_plugin_menu_provider(
     _context: &str,
     _provider: Box<dyn Fn() -> Vec<MenuItem> + Send + Sync>,

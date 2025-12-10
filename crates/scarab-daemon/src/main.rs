@@ -442,7 +442,8 @@ async fn main() -> Result<()> {
                         // The orchestrator updates terminal_state but doesn't signal this.
                         // Blitting every frame is cheap (memcpy) and ensures the client
                         // always sees the latest content.
-                        terminal_state.blit_to_shm(shared_ptr, &sequence_counter);
+                        // SAFETY: shared_ptr points to valid SharedState in shared memory
+                        unsafe { terminal_state.blit_to_shm(shared_ptr, &sequence_counter) };
 
                         // Blit images to SharedImageBuffer
                         blit_images_to_shm(&terminal_state, image_ptr);
@@ -470,7 +471,8 @@ async fn main() -> Result<()> {
                         // Force blit after resize
                         let terminal_state_arc = active_pane.terminal_state();
                         let terminal_state = terminal_state_arc.read();
-                        terminal_state.blit_to_shm(shared_ptr, &sequence_counter);
+                        // SAFETY: shared_ptr points to valid SharedState in shared memory
+                        unsafe { terminal_state.blit_to_shm(shared_ptr, &sequence_counter) };
 
                         // Blit images after resize
                         blit_images_to_shm(&terminal_state, image_ptr);

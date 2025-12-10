@@ -28,6 +28,7 @@ pub struct SurfaceOverlay {
 /// - Named colors (16 standard + variants)
 /// - RGB colors
 /// - 256-color indexed palette
+#[allow(dead_code)]
 fn ratatui_to_bevy_color(color: RatColor) -> Color {
     match color {
         RatColor::Reset => Color::srgba(0.0, 0.0, 0.0, 0.0),
@@ -58,6 +59,7 @@ fn ratatui_to_bevy_color(color: RatColor) -> Color {
 /// - 0-15: Standard colors (handled by named color mapping)
 /// - 16-231: 6x6x6 RGB color cube
 /// - 232-255: 24-step grayscale ramp
+#[allow(dead_code)]
 fn indexed_color(idx: u8) -> Color {
     if idx < 16 {
         // Standard colors - simplified mapping

@@ -68,6 +68,7 @@ pub struct NavMetrics {
     pub pane_switches: AtomicU64,
 
     /// Timing samples for pane switch operations (microseconds)
+    #[allow(dead_code)]
     pane_switch_times: Mutex<TimingSamples>,
 
     /// Number of focusables restored during pane switches

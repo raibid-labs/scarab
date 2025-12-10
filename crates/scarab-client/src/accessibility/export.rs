@@ -145,8 +145,9 @@ impl TerminalExporter {
                 }
 
                 // Only add span if we have non-default colors or styles
+                // Default fg is white (0xFFFFFFFF), default bg is black (0xFF000000) in ARGB format
                 let has_custom_fg = fg != 0xFFFFFFFF;
-                let has_custom_bg = bg != 0x000000FF;
+                let has_custom_bg = bg != 0xFF000000;
                 let has_styles = classes.len() > 1;
 
                 if has_custom_fg || has_custom_bg || has_styles {
@@ -295,7 +296,8 @@ mod tests {
         let grid = create_test_grid();
         let html = TerminalExporter::export_to_html(&grid, 80, 24);
         assert!(html.contains("<!DOCTYPE html>"));
-        assert!(html.contains("Hello, World!"));
+        // Spaces are encoded as &nbsp; in HTML output
+        assert!(html.contains("Hello,&nbsp;World!"));
     }
 
     #[test]

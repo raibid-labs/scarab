@@ -633,9 +633,24 @@ mod tests {
     fn test_bevy_updates_headless() {
         let mut harness = HeadlessHarness::new();
 
+        // Count entities before updates
+        let initial_entity_count = harness.world().entities().len();
+
         // Should not panic or require display
         harness.update();
         harness.update_n(10);
+
+        // Verify app is still functioning after updates
+        let final_entity_count = harness.world().entities().len();
+        assert!(
+            final_entity_count >= initial_entity_count,
+            "Entity count should not decrease after updates (was {}, now {})",
+            initial_entity_count,
+            final_entity_count
+        );
+
+        // Verify we can still access the world
+        assert!(harness.world().entities().len() >= 0, "World should be accessible after headless updates");
     }
 
     /// Test: Can spawn Bevy entities

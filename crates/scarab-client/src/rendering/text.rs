@@ -80,22 +80,20 @@ impl TextRenderer {
         // CRITICAL: Must shape before layout_runs() will return anything!
         buffer.shape_until_scroll(&mut self.font_system, false);
 
-        // Get actual glyph dimensions
-        let mut found = false;
-        for run in buffer.layout_runs() {
-            for glyph in run.glyphs {
-                self.cell_width = glyph.w;
-                self.cell_height = self.config.size * self.config.line_height;
-                found = true;
-                info!(
-                    "Font metrics updated: cell_width={:.2}, cell_height={:.2}",
-                    self.cell_width, self.cell_height
-                );
-                break;
-            }
-        }
+        // Get actual glyph dimensions from the first glyph
+        let first_glyph = buffer
+            .layout_runs()
+            .next()
+            .and_then(|run| run.glyphs.first());
 
-        if !found {
+        if let Some(glyph) = first_glyph {
+            self.cell_width = glyph.w;
+            self.cell_height = self.config.size * self.config.line_height;
+            info!(
+                "Font metrics updated: cell_width={:.2}, cell_height={:.2}",
+                self.cell_width, self.cell_height
+            );
+        } else {
             warn!("update_metrics: No glyphs found for 'M', using fallback dimensions");
             // Use approximate fallback
             self.cell_width = self.config.size * 0.6;
@@ -389,20 +387,19 @@ fn render_glyph(
         // CRITICAL: Must shape the buffer before layout_runs() will work!
         buffer.shape_until_scroll(&mut renderer.font_system, false);
 
-        let mut key = None;
-        let mut run_count = 0;
-        for run in buffer.layout_runs() {
-            run_count += 1;
-            for glyph in run.glyphs {
-                // Create GlyphKey from glyph info (cosmic-text API changed)
-                key = Some(GlyphKey {
-                    font_id: glyph.font_id,
-                    glyph_id: glyph.glyph_id,
-                    font_size_bits: glyph.font_size.to_bits(),
-                });
-                break;
-            }
-        }
+        // Get the first glyph from the first run
+        let layout_runs: Vec<_> = buffer.layout_runs().collect();
+        let run_count = layout_runs.len();
+
+        let key = layout_runs
+            .first()
+            .and_then(|run| run.glyphs.first())
+            .map(|glyph| GlyphKey {
+                font_id: glyph.font_id,
+                glyph_id: glyph.glyph_id,
+                font_size_bits: glyph.font_size.to_bits(),
+            });
+
         if key.is_none() {
             warn!(
                 "No glyph found for char '{}' (U+{:04X}), runs: {}",

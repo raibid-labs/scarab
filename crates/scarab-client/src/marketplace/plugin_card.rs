@@ -18,7 +18,7 @@ pub enum PluginCardStyle {
 }
 
 /// Format a plugin as a card for display in the list
-pub fn format_plugin_card(plugin: &PluginEntry, style: PluginCardStyle) -> Vec<Line> {
+pub fn format_plugin_card(plugin: &PluginEntry, style: PluginCardStyle) -> Vec<Line<'_>> {
     let (fg_color, highlight_color, bg_modifier) = match style {
         PluginCardStyle::Normal => (Color::White, Color::Cyan, None),
         PluginCardStyle::Selected => (Color::Black, Color::Yellow, Some(Modifier::REVERSED)),
@@ -135,7 +135,8 @@ fn truncate(s: &str, max_len: usize) -> String {
 }
 
 /// Create a compact single-line card format
-pub fn format_plugin_card_compact(plugin: &PluginEntry, style: PluginCardStyle) -> Line {
+#[allow(dead_code)]
+pub fn format_plugin_card_compact(plugin: &PluginEntry, style: PluginCardStyle) -> Line<'_> {
     let (fg_color, highlight_color, bg_modifier) = match style {
         PluginCardStyle::Normal => (Color::White, Color::Cyan, None),
         PluginCardStyle::Selected => (Color::Black, Color::Yellow, Some(Modifier::REVERSED)),

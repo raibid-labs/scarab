@@ -1,6 +1,4 @@
-use crate::images::{
-    parse_iterm2_image, parse_sixel_dcs, ImageFormat, ImagePlacementState, ImageSize,
-};
+use crate::images::{parse_iterm2_image, parse_sixel_dcs, ImagePlacementState, ImageSize};
 use scarab_protocol::{Cell, SharedState, ZoneTracker, GRID_HEIGHT, GRID_WIDTH};
 use std::collections::VecDeque;
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -252,8 +250,15 @@ impl TerminalState {
     }
 
     /// Create with legacy SharedState pointer (for backwards compatibility during migration)
+    ///
+    /// # Safety
+    /// The caller must ensure that `shared_ptr` is a valid, properly aligned pointer to a
+    /// `SharedState` instance and that no other thread is concurrently writing to it.
     #[deprecated(note = "Use new(cols, rows) instead - this is for migration only")]
-    pub fn new_legacy(shared_ptr: *mut SharedState, sequence_counter: Arc<AtomicU64>) -> Self {
+    pub unsafe fn new_legacy(
+        shared_ptr: *mut SharedState,
+        sequence_counter: Arc<AtomicU64>,
+    ) -> Self {
         let state = Self::new(GRID_WIDTH as u16, GRID_HEIGHT as u16);
         // Initialize by blitting to shared memory immediately
         state.blit_to_shm(shared_ptr, &sequence_counter);
@@ -274,32 +279,34 @@ impl TerminalState {
     /// This is called when this pane is active to update the client's view.
     /// The sequence counter is incremented to signal to the client that
     /// new data is available.
-    pub fn blit_to_shm(&self, shm: *mut SharedState, sequence_counter: &Arc<AtomicU64>) {
-        unsafe {
-            let state = &mut *shm;
+    ///
+    /// # Safety
+    /// The caller must ensure that `shm` is a valid, properly aligned pointer to a
+    /// `SharedState` instance and that no other thread is concurrently writing to it.
+    pub unsafe fn blit_to_shm(&self, shm: *mut SharedState, sequence_counter: &Arc<AtomicU64>) {
+        let state = &mut *shm;
 
-            // Copy cells from local grid to shared memory
-            // We need to map from local grid layout to SharedState's fixed GRID_WIDTH layout
-            for y in 0..self.rows.min(GRID_HEIGHT as u16) {
-                for x in 0..self.cols.min(GRID_WIDTH as u16) {
-                    let local_idx = y as usize * self.cols as usize + x as usize;
-                    let shm_idx = y as usize * GRID_WIDTH + x as usize;
+        // Copy cells from local grid to shared memory
+        // We need to map from local grid layout to SharedState's fixed GRID_WIDTH layout
+        for y in 0..self.rows.min(GRID_HEIGHT as u16) {
+            for x in 0..self.cols.min(GRID_WIDTH as u16) {
+                let local_idx = y as usize * self.cols as usize + x as usize;
+                let shm_idx = y as usize * GRID_WIDTH + x as usize;
 
-                    if local_idx < self.grid.cells.len() && shm_idx < state.cells.len() {
-                        state.cells[shm_idx] = self.grid.cells[local_idx];
-                    }
+                if local_idx < self.grid.cells.len() && shm_idx < state.cells.len() {
+                    state.cells[shm_idx] = self.grid.cells[local_idx];
                 }
             }
-
-            // Update cursor position
-            state.cursor_x = self.cursor_x;
-            state.cursor_y = self.cursor_y;
-
-            // Mark dirty and increment sequence number
-            state.dirty_flag = 1;
-            let new_seq = sequence_counter.fetch_add(1, Ordering::SeqCst) + 1;
-            state.sequence_number = new_seq;
         }
+
+        // Update cursor position
+        state.cursor_x = self.cursor_x;
+        state.cursor_y = self.cursor_y;
+
+        // Mark dirty and increment sequence number
+        state.dirty_flag = 1;
+        let new_seq = sequence_counter.fetch_add(1, Ordering::SeqCst) + 1;
+        state.sequence_number = new_seq;
     }
 
     /// Get dimensions

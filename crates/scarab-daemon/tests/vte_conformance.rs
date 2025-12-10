@@ -22,7 +22,8 @@ fn test_vte_basic_text_rendering() {
     scarab_vte.process_output(input.as_bytes());
 
     // Blit local grid to shared memory
-    scarab_vte.blit_to_shm(shared_ptr, &seq);
+    // SAFETY: shared_ptr points to valid SharedState on heap
+    unsafe { scarab_vte.blit_to_shm(shared_ptr, &seq) };
 
     // 3. Verify Scarab State via shared memory
     // cells is a flat array: cells[row * GRID_WIDTH + col]

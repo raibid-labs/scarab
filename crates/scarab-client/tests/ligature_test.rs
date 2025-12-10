@@ -302,6 +302,23 @@ fn test_monospace_property_preserved() {
         );
         eprintln!("  This may indicate the font is not truly monospace");
     }
+
+    // Verify that measurements were successfully taken
+    assert!(ligature.total_width > 0.0, "Ligature width should be measured");
+    assert!(regular.total_width > 0.0, "Regular text width should be measured");
+    assert!(ligature.glyph_count > 0, "Ligature should have glyphs");
+    assert!(regular.glyph_count > 0, "Regular text should have glyphs");
+
+    // Document whether monospace property is preserved (informational, not strict)
+    // Some fonts with ligatures intentionally break strict monospace for better appearance
+    if width_diff <= tolerance {
+        eprintln!("  PASS: Monospace property preserved within tolerance");
+    } else {
+        eprintln!(
+            "  INFO: Font uses proportional ligatures (width diff: {:.2}px)",
+            width_diff
+        );
+    }
 }
 
 #[test]
