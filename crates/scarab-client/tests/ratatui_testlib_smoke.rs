@@ -527,3 +527,75 @@ fn test_multiple_commands_via_ipc() -> Result<()> {
     println!("Multiple commands sequence works via IPC");
     Ok(())
 }
+
+/// Test 6: Uniform background color across all cells
+///
+/// Validates that all cells have a consistent background color (either the theme
+/// default or explicitly set). This catches regressions where uninitialized cells
+/// might show black/transparent backgrounds instead of the theme color.
+#[test]
+fn test_uniform_background_color() -> Result<()> {
+    if !should_run_rtl_tests() {
+        println!("Skipping test (SCARAB_TEST_RTL != 1)");
+        return Ok(());
+    }
+
+    println!("=== Test: Uniform Background Color ===");
+
+    let harness = DaemonTestHarness::new()?;
+
+    // Give daemon time to fully initialize shared memory
+    thread::sleep(Duration::from_millis(500));
+
+    let state = harness.get_state();
+
+    // Expected theme background color (Slime theme: #0d1208)
+    let theme_bg = 0xFF0D1208u32;
+
+    // Count cells with different background values
+    let mut theme_bg_count = 0;
+    let mut zero_bg_count = 0;
+    let mut other_bg_count = 0;
+
+    for (idx, cell) in state.cells.iter().enumerate() {
+        if cell.bg == theme_bg {
+            theme_bg_count += 1;
+        } else if cell.bg == 0 {
+            zero_bg_count += 1;
+        } else {
+            other_bg_count += 1;
+            // Log first few cells with unexpected backgrounds
+            if other_bg_count <= 5 {
+                let row = idx / scarab_protocol::GRID_WIDTH;
+                let col = idx % scarab_protocol::GRID_WIDTH;
+                println!(
+                    "Cell ({}, {}) has unexpected bg: 0x{:08X}",
+                    row, col, cell.bg
+                );
+            }
+        }
+    }
+
+    let total_cells = state.cells.len();
+    println!(
+        "Background color distribution ({} total cells):",
+        total_cells
+    );
+    println!("  - Theme background (0x{:08X}): {}", theme_bg, theme_bg_count);
+    println!("  - Zero/uninitialized (0x00000000): {}", zero_bg_count);
+    println!("  - Other colors: {}", other_bg_count);
+
+    // Assert no cells have uninitialized (zero) background
+    // Allow some tolerance for cells that shell might have colored
+    let zero_bg_percentage = (zero_bg_count as f64 / total_cells as f64) * 100.0;
+    assert!(
+        zero_bg_percentage < 1.0,
+        "Too many cells ({:.2}%) have uninitialized (black) background. \
+         Expected < 1%. This indicates the daemon is not properly initializing \
+         shared memory cell backgrounds.",
+        zero_bg_percentage
+    );
+
+    println!("Background color uniformity test passed");
+    Ok(())
+}
