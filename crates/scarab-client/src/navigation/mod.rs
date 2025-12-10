@@ -518,11 +518,18 @@ impl Plugin for NavigationPlugin {
         app
             // Register navigation state registry (per-pane isolation)
             .init_resource::<NavStateRegistry>()
+            // Register focusable generation tracking (required by on_pane_closed)
+            .init_resource::<crate::navigation::focusable::FocusableGeneration>()
             // Register navigation events
             .add_event::<EnterHintModeEvent>()
             .add_event::<ExitHintModeEvent>()
             .add_event::<NavActionEvent>()
             .add_event::<FocusChangedEvent>()
+            // Register pane lifecycle events (required by on_pane_* systems)
+            // These are also registered by EventsPlugin, but Bevy allows double-registration
+            .add_event::<crate::events::PaneCreatedEvent>()
+            .add_event::<crate::events::PaneFocusedEvent>()
+            .add_event::<crate::events::PaneClosedEvent>()
             // Configure system sets for proper ordering
             .configure_sets(
                 Update,
