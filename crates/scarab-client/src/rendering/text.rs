@@ -201,12 +201,11 @@ pub fn generate_terminal_mesh(
     let (width, _height) = state.dimensions();
 
     // Iterate through all cells
+    // Note: We always regenerate the full mesh because partial updates would require
+    // incremental mesh modification which is complex. The dirty_region parameter is
+    // kept for future optimization but currently ignored.
+    let _ = dirty_region; // Silence unused warning
     for (idx, cell) in state.cells().iter().enumerate() {
-        // Skip if not dirty (optimization)
-        if !dirty_region.is_empty() && !dirty_region.is_dirty(idx) {
-            continue;
-        }
-
         let row = idx / width;
         let col = idx % width;
 
@@ -216,27 +215,28 @@ pub fn generate_terminal_mesh(
         let x = col as f32 * renderer.cell_width;
         let y = -(row as f32 * renderer.cell_height);
 
-        // Background quad - always render to ensure uniform background
-        // Use theme default if cell bg is 0 (uninitialized/transparent)
-        // Note: 0xFF0D1208 = ARGB format (A=FF, R=0D, G=12, B=08) = #0d1208
-        let bg_color = if cell.bg == 0 {
-            0xFF0D1208u32 // Slime theme background (#0d1208)
-        } else {
-            cell.bg
-        };
-        add_background_quad(
-            &mut positions,
-            &mut uvs,
-            &mut colors,
-            &mut indices,
-            &mut vertex_index,
-            x,
-            y,
-            renderer.cell_width,
-            renderer.cell_height,
-            bg_color,
-            white_uv_rect,
-        );
+        // Background quad - only render when cell bg differs from theme default
+        // The TerminalBackgroundEntity sprite provides the uniform theme background,
+        // so we only need to render background quads for cells with custom colors.
+        // This significantly reduces vertex count and improves performance.
+        // Theme default: 0xFF0D1208 (Slime dark #0d1208)
+        // Also treat 0 and 0xFF000000 as theme default to avoid rendering unnecessary quads
+        let needs_custom_bg = cell.bg != 0 && cell.bg != 0xFF000000 && cell.bg != 0xFF0D1208;
+        if needs_custom_bg {
+            add_background_quad(
+                &mut positions,
+                &mut uvs,
+                &mut colors,
+                &mut indices,
+                &mut vertex_index,
+                x,
+                y,
+                renderer.cell_width,
+                renderer.cell_height,
+                cell.bg,
+                white_uv_rect,
+            );
+        }
 
         // Foreground glyph
         if cell.char_codepoint != 0 && cell.char_codepoint != 32 {
