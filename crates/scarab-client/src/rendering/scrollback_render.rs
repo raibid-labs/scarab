@@ -8,8 +8,11 @@ use scarab_protocol::{Cell, GRID_HEIGHT, GRID_WIDTH};
 
 use super::atlas::GlyphKey;
 use super::config::{color, TextAttributes};
+use super::layers::{LAYER_TERMINAL_BG, LAYER_TERMINAL_TEXT, LAYER_TEXT_DECORATIONS};
 use super::text::TextRenderer;
 use crate::terminal::scrollback::{ScrollbackBuffer, ScrollbackState};
+
+const DEFAULT_BG: u32 = 0xFF0D1208; // Slime dark
 
 /// Generate mesh for scrollback view
 /// Combines scrollback lines with live view at the bottom
@@ -35,46 +38,58 @@ pub fn generate_scrollback_mesh(
     // Get scrollback lines to display
     let visible_lines = scrollback.get_visible_lines(GRID_HEIGHT);
 
-    // Render scrollback lines
-    for (row_offset, line) in visible_lines.iter().enumerate() {
-        let y_pos = start_y - (row_offset as f32 * renderer.cell_height);
+    // Render full grid: draw backgrounds for every cell to avoid holes, then
+    // draw glyphs where present. This prevents flashing seams when fewer
+    // scrollback lines are available than the viewport height.
+    let white_uv = renderer.atlas.get_white_pixel_uv();
 
-        for (col, cell) in line.cells.iter().enumerate() {
-            if col >= GRID_WIDTH {
-                break; // Don't overflow grid width
-            }
+    for row in 0..GRID_HEIGHT {
+        let y_pos = start_y - (row as f32 * renderer.cell_height);
+        let line = visible_lines.get(row);
 
+        for col in 0..GRID_WIDTH {
             let x_pos = start_x + (col as f32 * renderer.cell_width);
 
-            // Render cell background
-            if cell.bg != 0 {
-                add_background_quad(
-                    &mut positions,
-                    &mut uvs,
-                    &mut colors,
-                    &mut indices,
-                    &mut vertex_index,
-                    x_pos,
-                    y_pos,
-                    renderer.cell_width,
-                    renderer.cell_height,
-                    cell.bg,
-                );
-            }
+            // Pick cell if present, else fallback
+            let cell = line.and_then(|l| l.cells.get(col));
+            let bg_color = cell
+                .map(|c| {
+                    let mut bg = c.bg;
+                    if bg == 0 || bg == 0xFF000000 {
+                        bg = DEFAULT_BG;
+                    }
+                    bg
+                })
+                .unwrap_or(DEFAULT_BG);
 
-            // Render cell glyph
-            if cell.char_codepoint != 0 && cell.char_codepoint != 32 {
-                render_scrollback_glyph(
-                    cell,
-                    renderer,
-                    &mut positions,
-                    &mut uvs,
-                    &mut colors,
-                    &mut indices,
-                    &mut vertex_index,
-                    x_pos,
-                    y_pos,
-                );
+            add_background_quad(
+                &mut positions,
+                &mut uvs,
+                &mut colors,
+                &mut indices,
+                &mut vertex_index,
+                x_pos,
+                y_pos,
+                renderer.cell_width,
+                renderer.cell_height,
+                bg_color,
+                white_uv,
+            );
+
+            if let Some(c) = cell {
+                if c.char_codepoint != 0 && c.char_codepoint != 32 {
+                    render_scrollback_glyph(
+                        c,
+                        renderer,
+                        &mut positions,
+                        &mut uvs,
+                        &mut colors,
+                        &mut indices,
+                        &mut vertex_index,
+                        x_pos,
+                        y_pos,
+                    );
+                }
             }
         }
     }
@@ -83,9 +98,10 @@ pub fn generate_scrollback_mesh(
     renderer.atlas.update_texture(images);
 
     // Build mesh
+    // Use MAIN_WORLD | RENDER_WORLD so the mesh can be accessed from update systems
     let mut mesh = Mesh::new(
         PrimitiveTopology::TriangleList,
-        RenderAssetUsages::RENDER_WORLD,
+        RenderAssetUsages::MAIN_WORLD | RenderAssetUsages::RENDER_WORLD,
     );
 
     mesh.insert_attribute(Mesh::ATTRIBUTE_POSITION, positions);
@@ -108,18 +124,24 @@ fn add_background_quad(
     width: f32,
     height: f32,
     bg_color: u32,
+    uv_rect: [f32; 4],
 ) {
     let bg = color::from_rgba(bg_color);
     let color_array = bg.to_srgba().to_f32_array();
 
     positions.extend_from_slice(&[
-        [x, y, 0.0],
-        [x + width, y, 0.0],
-        [x + width, y - height, 0.0],
-        [x, y - height, 0.0],
+        [x, y, LAYER_TERMINAL_BG],
+        [x + width, y, LAYER_TERMINAL_BG],
+        [x + width, y - height, LAYER_TERMINAL_BG],
+        [x, y - height, LAYER_TERMINAL_BG],
     ]);
 
-    uvs.extend_from_slice(&[[0.0, 0.0], [1.0, 0.0], [1.0, 1.0], [0.0, 1.0]]);
+    uvs.extend_from_slice(&[
+        [uv_rect[0], uv_rect[1]],
+        [uv_rect[2], uv_rect[1]],
+        [uv_rect[2], uv_rect[3]],
+        [uv_rect[0], uv_rect[3]],
+    ]);
 
     for _ in 0..4 {
         colors.push(color_array);
@@ -149,6 +171,8 @@ fn render_scrollback_glyph(
     x: f32,
     y: f32,
 ) {
+    let white_uv = renderer.atlas.get_white_pixel_uv();
+
     // Get character from codepoint
     let ch = match char::from_u32(cell.char_codepoint) {
         Some(c) => c,
@@ -168,7 +192,12 @@ fn render_scrollback_glyph(
         );
         let mut buffer = Buffer::new(&mut renderer.font_system, metrics);
 
-        let mut cosmic_attrs = Attrs::new();
+        // CRITICAL: Set buffer size or shaping won't work!
+        buffer.set_size(&mut renderer.font_system, 100.0, 100.0);
+
+        // CRITICAL: Specify monospace font family to prevent cosmic-text from
+        // picking different fonts for different characters
+        let mut cosmic_attrs = Attrs::new().family(cosmic_text::Family::Monospace);
         if attrs.bold {
             cosmic_attrs = cosmic_attrs.weight(cosmic_text::Weight::BOLD);
         }
@@ -182,6 +211,9 @@ fn render_scrollback_glyph(
             cosmic_attrs,
             Shaping::Advanced,
         );
+
+        // CRITICAL: Must shape the buffer before layout_runs() will work!
+        buffer.shape_until_scroll(&mut renderer.font_system, false);
 
         // Get the first glyph from the first run
         buffer
@@ -229,10 +261,10 @@ fn render_scrollback_glyph(
     let glyph_height = atlas_rect.height as f32;
 
     positions.extend_from_slice(&[
-        [x, y, 0.1],
-        [x + glyph_width, y, 0.1],
-        [x + glyph_width, y - glyph_height, 0.1],
-        [x, y - glyph_height, 0.1],
+        [x, y, LAYER_TERMINAL_TEXT],
+        [x + glyph_width, y, LAYER_TERMINAL_TEXT],
+        [x + glyph_width, y - glyph_height, LAYER_TERMINAL_TEXT],
+        [x, y - glyph_height, LAYER_TERMINAL_TEXT],
     ]);
 
     uvs.extend_from_slice(&[
@@ -270,6 +302,7 @@ fn render_scrollback_glyph(
             renderer.cell_width,
             1.0,
             cell.fg,
+            white_uv,
         );
     }
 
@@ -286,6 +319,7 @@ fn render_scrollback_glyph(
             renderer.cell_width,
             1.0,
             cell.fg,
+            white_uv,
         );
     }
 }

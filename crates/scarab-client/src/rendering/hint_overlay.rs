@@ -234,7 +234,6 @@ fn render_hint_overlays(
     config: Res<HintOverlayConfig>,
     nav_hints: Query<(Entity, &NavHint)>,
     existing_overlays: Query<(Entity, &HintOverlay)>,
-    asset_server: Res<AssetServer>,
 ) {
     // Get the active pane's NavState
     let nav_state = match nav_registry.get_active() {
@@ -311,11 +310,7 @@ fn render_hint_overlays(
             parent.spawn((
                 HintText,
                 Text2d::new(&overlay.label),
-                TextFont {
-                    font: asset_server.load("fonts/FiraCode-Regular.ttf"),
-                    font_size: config.font_size,
-                    ..default()
-                },
+                TextFont::from_font_size(config.font_size),
                 TextColor(overlay.text_color),
                 Transform::from_translation(Vec3::new(bg_size.x / 2.0, -bg_size.y / 2.0, 0.0)),
                 TextLayout::new_with_justify(JustifyText::Center),

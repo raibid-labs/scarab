@@ -1,5 +1,5 @@
 use crate::rendering::text::TextRenderer;
-use crate::ui::STATUS_BAR_HEIGHT;
+use crate::ui::BOTTOM_UI_HEIGHT;
 use crate::InputSystemSet;
 use anyhow::{Context, Result};
 use bevy::prelude::*;
@@ -356,7 +356,7 @@ pub fn handle_window_resize(
         }
 
         let cols: u16 = (event.width / cell_width).floor() as u16;
-        let available_height = event.height - STATUS_BAR_HEIGHT;
+        let available_height = event.height - BOTTOM_UI_HEIGHT;
         let rows: u16 = (available_height / cell_height).floor() as u16;
 
         // Clamp to protocol limits

@@ -35,7 +35,8 @@ pub use scrollback_selection::{ScrollbackSelectionPlugin, ScrollbackSelectionSta
 pub use search_overlay::{SearchOverlayConfig, SearchOverlayPlugin};
 pub use status_bar::{
     StatusBarContainer, StatusBarLeft, StatusBarPlugin, StatusBarRight, StatusBarState,
-    TabContainer, TabLabel, TabState, TabSwitchEvent, STATUS_BAR_HEIGHT,
+    TabContainer, TabLabel, TabState, TabSwitchEvent, BOTTOM_UI_HEIGHT, DOCK_HEIGHT,
+    STATUS_BAR_HEIGHT,
 };
 pub use visual_selection::{SelectionMode, SelectionRegion, VisualSelectionPlugin};
 
@@ -58,7 +59,7 @@ impl Plugin for AdvancedUIPlugin {
             ScrollIndicatorPlugin,
             ScrollbackSelectionPlugin,
             SearchOverlayPlugin,
-            DockPlugin,
+            // DockPlugin disabled - was showing all plugins instead of just status items
             StatusBarPlugin,
         ))
         .insert_resource(UIConfig::default());

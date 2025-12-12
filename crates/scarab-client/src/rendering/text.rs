@@ -201,12 +201,11 @@ pub fn generate_terminal_mesh(
     let (width, _height) = state.dimensions();
 
     // Iterate through all cells
+    // Note: We always regenerate the full mesh because partial updates would require
+    // incremental mesh modification which is complex. The dirty_region parameter is
+    // kept for future optimization but currently ignored.
+    let _ = dirty_region; // Silence unused warning
     for (idx, cell) in state.cells().iter().enumerate() {
-        // Skip if not dirty (optimization)
-        if !dirty_region.is_empty() && !dirty_region.is_dirty(idx) {
-            continue;
-        }
-
         let row = idx / width;
         let col = idx % width;
 
@@ -216,8 +215,14 @@ pub fn generate_terminal_mesh(
         let x = col as f32 * renderer.cell_width;
         let y = -(row as f32 * renderer.cell_height);
 
-        // Background quad
-        if cell.bg != 0 {
+        // Background quad - only render when cell bg differs from theme default
+        // The TerminalBackgroundEntity sprite provides the uniform theme background,
+        // so we only need to render background quads for cells with custom colors.
+        // This significantly reduces vertex count and improves performance.
+        // Theme default: 0xFF0D1208 (Slime dark #0d1208)
+        // Also treat 0 and 0xFF000000 as theme default to avoid rendering unnecessary quads
+        let needs_custom_bg = cell.bg != 0 && cell.bg != 0xFF000000 && cell.bg != 0xFF0D1208;
+        if needs_custom_bg {
             add_background_quad(
                 &mut positions,
                 &mut uvs,

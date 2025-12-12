@@ -7,6 +7,13 @@ use bevy::prelude::*;
 
 /// Height of the status bar in pixels
 pub const STATUS_BAR_HEIGHT: f32 = 24.0;
+
+/// Height of the dock in pixels (currently disabled)
+pub const DOCK_HEIGHT: f32 = 40.0;
+
+/// Total height of bottom UI elements
+/// Note: Dock is currently disabled, so this only includes the status bar
+pub const BOTTOM_UI_HEIGHT: f32 = STATUS_BAR_HEIGHT;
 use scarab_plugin_api::status_bar::Color as StatusColor;
 use scarab_plugin_api::status_bar::{AnsiColor, RenderItem};
 use scarab_protocol::{DaemonMessage, StatusBarSide as ProtocolStatusBarSide, StatusRenderItem};
@@ -110,7 +117,7 @@ impl StatusBarState {
     }
 }
 
-/// Resource holding tab state
+/// Resource holding tab state (for terminal sessions/panes)
 #[derive(Resource)]
 pub struct TabState {
     pub tabs: Vec<String>,
@@ -120,11 +127,7 @@ pub struct TabState {
 impl Default for TabState {
     fn default() -> Self {
         Self {
-            tabs: vec![
-                "meta".to_string(),
-                "phage".to_string(),
-                "tolaria".to_string(),
-            ],
+            tabs: Vec::new(), // No tabs by default - populated by session manager
             active_index: 0,
         }
     }
@@ -156,7 +159,11 @@ pub struct TabLabel {
 ///
 /// Creates a horizontal container with left and right text sections.
 /// The status bar is positioned at the bottom of the window.
-fn setup_status_bar(mut commands: Commands, tab_state: Res<TabState>, asset_server: Res<AssetServer>) {
+fn setup_status_bar(mut commands: Commands, tab_state: Res<TabState>) {
+    // Slime theme colors
+    let status_bar_bg = Color::srgba(0.15, 0.15, 0.18, 0.95); // Dark gray status bar
+    let text_color = Color::srgb(0.66, 0.87, 0.35); // #a8df5a - slime green
+
     commands
         .spawn((
             Node {
@@ -170,12 +177,12 @@ fn setup_status_bar(mut commands: Commands, tab_state: Res<TabState>, asset_serv
                 left: Val::Px(0.0),
                 ..default()
             },
-            BackgroundColor(Color::srgba(0.15, 0.15, 0.18, 0.95)),
+            BackgroundColor(status_bar_bg),
             ZIndex(1000),
             StatusBarContainer,
         ))
         .with_children(|parent| {
-            // Left section - tab container
+            // Left section - tab container (only if tabs exist)
             parent
                 .spawn((
                     Node {
@@ -188,14 +195,18 @@ fn setup_status_bar(mut commands: Commands, tab_state: Res<TabState>, asset_serv
                     TabContainer,
                 ))
                 .with_children(|tabs_parent| {
-                    // Spawn tab labels
+                    // Only spawn tab labels if there are tabs
+                    if tab_state.tabs.is_empty() {
+                        // Show nothing on the left if no tabs
+                        return;
+                    }
+
+                    let active_bg = Color::srgb(0.66, 0.87, 0.35); // #a8df5a - slime green
+                    let active_fg = Color::srgb(0.12, 0.14, 0.14); // dark text on active tab
+                    let inactive_fg = Color::srgb(0.66, 0.87, 0.35).with_alpha(0.6); // muted slime green
+
                     for (index, tab_name) in tab_state.tabs.iter().enumerate() {
                         let is_active = index == tab_state.active_index;
-
-                        // Slime theme colors
-                        let active_bg = Color::srgb(0.66, 0.87, 0.35); // #a8df5a - slime green
-                        let active_fg = Color::srgb(0.12, 0.14, 0.14); // #1e2324 - dark background
-                        let inactive_fg = Color::srgb(0.78, 0.76, 0.62); // #c8dba8 - muted green
 
                         tabs_parent
                             .spawn((
@@ -210,11 +221,7 @@ fn setup_status_bar(mut commands: Commands, tab_state: Res<TabState>, asset_serv
                             .with_children(|label_parent| {
                                 label_parent.spawn((
                                     Text::new(tab_name),
-                                    TextFont {
-                                        font: asset_server.load("fonts/FiraCode-Regular.ttf"),
-                                        font_size: 14.0,
-                                        ..default()
-                                    },
+                                    TextFont::from_font_size(14.0),
                                     TextColor(if is_active { active_fg } else { inactive_fg }),
                                 ));
                             });
@@ -224,12 +231,8 @@ fn setup_status_bar(mut commands: Commands, tab_state: Res<TabState>, asset_serv
             // Right section - show mode indicator
             parent.spawn((
                 Text::new("NORMAL"),
-                TextFont {
-                    font: asset_server.load("fonts/FiraCode-Regular.ttf"),
-                    font_size: 14.0,
-                    ..default()
-                },
-                TextColor(Color::srgb(0.78, 0.76, 0.62)), // Slime theme muted green
+                TextFont::from_font_size(14.0),
+                TextColor(text_color),
                 StatusBarRight,
             ));
         });

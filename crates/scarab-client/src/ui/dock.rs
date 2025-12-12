@@ -119,8 +119,9 @@ pub struct DockConfig {
 
 impl Default for DockConfig {
     fn default() -> Self {
+        use crate::ui::status_bar::DOCK_HEIGHT;
         Self {
-            height: 40.0,
+            height: DOCK_HEIGHT,
             item_padding: 8.0,
             item_spacing: 4.0,
             bg_color: Color::srgba(0.15, 0.15, 0.18, 0.95),
@@ -194,12 +195,14 @@ fn spawn_dock(
     info!("Spawning plugin dock");
 
     // Spawn the dock container
+    // Position above the status bar (STATUS_BAR_HEIGHT = 24.0)
+    use crate::ui::status_bar::STATUS_BAR_HEIGHT;
     commands
         .spawn((
             DockContainer,
             Node {
                 position_type: PositionType::Absolute,
-                bottom: Val::Px(0.0),
+                bottom: Val::Px(STATUS_BAR_HEIGHT), // Position above status bar
                 left: Val::Px(0.0),
                 width: Val::Percent(100.0),
                 height: Val::Px(config.height),
@@ -211,7 +214,7 @@ fn spawn_dock(
             },
             BackgroundColor(config.bg_color),
             BorderColor(config.border_color),
-            ZIndex(1000), // Keep dock above other UI elements
+            ZIndex(999), // Below status bar (which has 1000)
         ))
         .with_children(|parent| {
             // Initially empty - will be populated by update_dock_items
