@@ -287,7 +287,22 @@ impl TerminalState {
     pub unsafe fn blit_to_shm(&self, shm: *mut SharedState, sequence_counter: &Arc<AtomicU64>) {
         let state = &mut *shm;
 
-        // Copy cells from local grid to shared memory
+        // Fill the ENTIRE shared memory grid with theme background color
+        // This ensures areas outside the active terminal area have uniform color
+        let empty_cell = Cell {
+            char_codepoint: b' ' as u32,
+            fg: DEFAULT_FG,
+            bg: DEFAULT_BG,
+            flags: 0,
+            _padding: [0; 3],
+        };
+
+        // First, fill the entire buffer with empty cells (theme colors)
+        for cell in state.cells.iter_mut() {
+            *cell = empty_cell;
+        }
+
+        // Then copy cells from local grid to shared memory
         // We need to map from local grid layout to SharedState's fixed GRID_WIDTH layout
         for y in 0..self.rows.min(GRID_HEIGHT as u16) {
             for x in 0..self.cols.min(GRID_WIDTH as u16) {

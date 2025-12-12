@@ -40,8 +40,8 @@ impl Default for Cell {
     fn default() -> Self {
         Self {
             char_codepoint: b' ' as u32,
-            fg: 0xFFFFFFFF, // White (ARGB: A=FF, R=FF, G=FF, B=FF)
-            bg: 0xFF000000, // Black (ARGB: A=FF, R=00, G=00, B=00)
+            fg: 0xFFA8DF5A, // Slime green foreground (ARGB: #a8df5a)
+            bg: 0xFF0D1208, // Slime dark background (ARGB: #0d1208)
             flags: 0,
             _padding: [0; 3],
         }
