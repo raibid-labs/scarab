@@ -813,10 +813,8 @@ mod tests {
     #[test]
     fn test_tab_state_default() {
         let tab_state = TabState::default();
-        assert_eq!(tab_state.tabs.len(), 3);
-        assert_eq!(tab_state.tabs[0], "meta");
-        assert_eq!(tab_state.tabs[1], "phage");
-        assert_eq!(tab_state.tabs[2], "tolaria");
+        // Default TabState now starts empty - tabs are populated by session manager
+        assert_eq!(tab_state.tabs.len(), 0);
         assert_eq!(tab_state.active_index, 0);
     }
 }

@@ -2,6 +2,7 @@ use bevy::prelude::*;
 use bevy::render::camera::OrthographicProjection;
 use bevy::winit::{UpdateMode, WinitSettings};
 use scarab_client::integration::{IntegrationPlugin, SharedMemWrapper, SharedMemoryReader};
+use scarab_client::rendering::config::color;
 use scarab_client::navigation::{FocusablePlugin, NavigationPlugin};
 use scarab_client::rendering::HintOverlayPlugin;
 use scarab_client::{
@@ -367,16 +368,15 @@ fn setup(mut commands: Commands, windows: Query<&Window, With<bevy::window::Prim
     // Camera2d defaults to center origin. We keep the camera at origin and shift
     // the grid itself (see update_grid_position_system) so the grid's top-left
     // aligns to the window's top-left.
+    // Slime theme background: #0d1208 (ARGB format: 0xFF0D1208)
+    // Use the same color conversion as cell backgrounds to ensure exact match
+    let theme_bg = color::from_rgba(0xFF0D1208u32);
+
     commands.spawn((
         Camera2d,
         Camera {
-            // Slime theme background: #0d1208 (must match cell bg exactly)
-            // Values: R=13/255, G=18/255, B=8/255
-            clear_color: ClearColorConfig::Custom(Color::srgb(
-                13.0 / 255.0,
-                18.0 / 255.0,
-                8.0 / 255.0,
-            )),
+            // Use exact same color as cell backgrounds to prevent visible seams
+            clear_color: ClearColorConfig::Custom(theme_bg),
             ..default()
         },
         OrthographicProjection::default_2d(),

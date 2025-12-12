@@ -2,13 +2,14 @@
 // This demonstrates the complete VTE → SharedState → Rendering pipeline
 
 use crate::events::WindowResizedEvent;
-use crate::rendering::config::FontConfig;
+use crate::rendering::config::{color, FontConfig};
+use crate::rendering::layers::LAYER_TERMINAL_BG;
 use crate::rendering::text::{generate_terminal_mesh, TerminalMesh, TextRenderer};
 use crate::safe_state::SafeSharedState;
 use crate::ui::BOTTOM_UI_HEIGHT;
 use bevy::prelude::*;
 use bevy::render::mesh::Mesh2d;
-use bevy::sprite::MeshMaterial2d;
+use bevy::sprite::{MeshMaterial2d, Sprite};
 use scarab_protocol::{
     terminal_state::TerminalStateReader, TerminalMetrics, GRID_HEIGHT, GRID_WIDTH,
 };
@@ -48,9 +49,13 @@ impl SharedMemoryReader {
 /// Integration plugin that wires all systems together
 pub struct IntegrationPlugin;
 
+#[derive(Resource, Default)]
+struct ColorDumpOnce(bool);
+
 impl Plugin for IntegrationPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(Startup, setup_terminal_rendering)
+        app.insert_resource(ColorDumpOnce::default())
+            .add_systems(Startup, setup_terminal_rendering)
             .add_systems(
                 Update,
                 (
@@ -58,6 +63,8 @@ impl Plugin for IntegrationPlugin {
                     sync_terminal_state_system,
                     update_terminal_rendering_system,
                     update_grid_position_system,
+                    update_background_size_system,
+                    debug_dump_colors_once,
                 )
                     .chain(),
             );
@@ -67,6 +74,12 @@ impl Plugin for IntegrationPlugin {
 /// Marker component for the terminal grid entity
 #[derive(Component)]
 pub struct TerminalGridEntity;
+
+/// Marker component for the terminal background sprite
+/// This fills the entire window with the theme background color
+/// to ensure perfect color matching (no camera clear color mismatch)
+#[derive(Component)]
+pub struct TerminalBackgroundEntity;
 
 /// Handle terminal resize events - update metrics and notify daemon
 fn handle_terminal_resize_system(
@@ -218,6 +231,35 @@ fn setup_terminal_rendering(
         -(rows as f32 * cell_height)
     );
 
+    // Get window dimensions for background sizing
+    let (window_width, window_height) = if let Ok(window) = window_query.get_single() {
+        (window.width(), window.height())
+    } else {
+        (960.0, 1040.0) // Fallback
+    };
+
+    // Spawn background sprite that fills the entire window
+    // Use the same color conversion as cell backgrounds to ensure exact color match
+    // This avoids any mismatch between camera clear color and rendered backgrounds
+    let theme_bg_argb = 0xFF0D1208u32; // Slime theme background
+    let bg_color = color::from_rgba(theme_bg_argb);
+
+    commands.spawn((
+        TerminalBackgroundEntity,
+        Sprite {
+            color: bg_color,
+            custom_size: Some(Vec2::new(window_width, window_height)),
+            ..default()
+        },
+        // Position at center (sprite anchor is center), behind everything
+        Transform::from_xyz(0.0, 0.0, LAYER_TERMINAL_BG - 0.01),
+    ));
+
+    info!(
+        "Spawned terminal background sprite: {}x{} pixels",
+        window_width, window_height
+    );
+
     // Spawn 2D mesh entity (Bevy 0.15 2D API)
     commands.spawn((
         TerminalGridEntity,
@@ -277,6 +319,44 @@ fn sync_terminal_state_system(mut state_reader: ResMut<SharedMemoryReader>) {
     if current_seq != state_reader.last_sequence {
         // State has been updated by daemon
         state_reader.last_sequence = current_seq;
+    }
+}
+
+/// One-time dump of distinct background colors in the grid (for debugging)
+fn debug_dump_colors_once(
+    mut flag: ResMut<ColorDumpOnce>,
+    state_reader: Res<SharedMemoryReader>,
+) {
+    if !flag.0 {
+        return;
+    }
+    flag.0 = false;
+
+    let state = state_reader.get_safe_state();
+    let mut colors = std::collections::BTreeMap::<u32, usize>::new();
+    for cell in state.cells().iter().take(4000) {
+        *colors.entry(cell.bg).or_insert(0) += 1;
+    }
+    println!("DEBUG BG COLORS (first 4000 cells):");
+    for (color, count) in colors.iter() {
+        println!("  {color:#010X} -> {count}");
+    }
+}
+
+/// Update background sprite size when window is resized
+fn update_background_size_system(
+    mut query: Query<&mut Sprite, With<TerminalBackgroundEntity>>,
+    window_query: Query<&Window, With<bevy::window::PrimaryWindow>>,
+) {
+    let Ok(window) = window_query.get_single() else {
+        return;
+    };
+
+    for mut sprite in query.iter_mut() {
+        let new_size = Vec2::new(window.width(), window.height());
+        if sprite.custom_size != Some(new_size) {
+            sprite.custom_size = Some(new_size);
+        }
     }
 }
 
