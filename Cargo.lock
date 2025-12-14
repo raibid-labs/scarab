@@ -3428,6 +3428,7 @@ dependencies = [
 [[package]]
 name = "fusabi-tui-core"
 version = "0.1.0"
+source = "git+https://github.com/fusabi-lang/fusabi-tui-runtime#4ffdd1636839e4b00b8d2f3b616b0878f91d6e7a"
 dependencies = [
  "unicode-width 0.1.14",
 ]
@@ -3435,6 +3436,7 @@ dependencies = [
 [[package]]
 name = "fusabi-tui-render"
 version = "0.1.0"
+source = "git+https://github.com/fusabi-lang/fusabi-tui-runtime#4ffdd1636839e4b00b8d2f3b616b0878f91d6e7a"
 dependencies = [
  "crossterm",
  "fusabi-tui-core",
@@ -3444,6 +3446,7 @@ dependencies = [
 [[package]]
 name = "fusabi-tui-widgets"
 version = "0.1.0"
+source = "git+https://github.com/fusabi-lang/fusabi-tui-runtime#4ffdd1636839e4b00b8d2f3b616b0878f91d6e7a"
 dependencies = [
  "bitflags 2.10.0",
  "fusabi-tui-core",
