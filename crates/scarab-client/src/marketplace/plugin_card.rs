@@ -1,9 +1,7 @@
 //! Plugin card formatting for marketplace list view
 
-use ratatui::{
-    style::{Color, Modifier, Style},
-    text::{Line, Span},
-};
+use fusabi_tui_core::{Color, Modifier, Style};
+use fusabi_tui_widgets::{Line, Span};
 use scarab_config::registry::PluginEntry;
 
 /// Style for plugin card rendering
@@ -47,13 +45,13 @@ pub fn format_plugin_card(plugin: &PluginEntry, style: PluginCardStyle) -> Vec<L
     name_line.push(Span::styled(stars, base_style.fg(Color::Yellow)));
     name_line.push(Span::styled(
         format!(" ({:.1})", plugin.stats.rating),
-        base_style.fg(Color::Gray),
+        base_style.fg(Color::DarkGray),
     ));
 
     // Line 2: Description
     let description_line = vec![Span::styled(
         format!("  {}", truncate(&plugin.description, 80)),
-        base_style.fg(Color::Gray),
+        base_style.fg(Color::DarkGray),
     )];
 
     // Line 3: Metadata (author, license, downloads)
@@ -162,7 +160,7 @@ pub fn format_plugin_card_compact(plugin: &PluginEntry, style: PluginCardStyle) 
         Span::styled(format!("{} ", stars), base_style.fg(Color::Yellow)),
         Span::styled(
             format!("{:40}", truncate(&plugin.description, 40)),
-            base_style.fg(Color::Gray),
+            base_style.fg(Color::DarkGray),
         ),
     ])
 }

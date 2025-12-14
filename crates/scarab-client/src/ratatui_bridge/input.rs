@@ -6,7 +6,7 @@
 use bevy::input::keyboard::KeyboardInput;
 use bevy::input::mouse::{MouseButton, MouseButtonInput};
 use bevy::prelude::*;
-use ratatui::crossterm::event::{
+use crossterm::event::{
     Event as RatEvent, KeyCode as RatKeyCode, KeyEvent, KeyModifiers,
     MouseButton as RatMouseButton, MouseEvent, MouseEventKind,
 };

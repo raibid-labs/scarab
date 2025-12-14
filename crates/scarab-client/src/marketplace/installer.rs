@@ -1,12 +1,8 @@
 //! Plugin installation progress tracking and UI
 
 use bevy::prelude::*;
-use ratatui::{
-    layout::Rect,
-    style::{Color, Modifier, Style},
-    text::{Line, Span},
-    widgets::{Block, Borders, Gauge, Paragraph, Widget},
-};
+use fusabi_tui_core::{Rect, Color, Modifier, Style};
+use fusabi_tui_widgets::{Block, Borders, Gauge, Paragraph, Widget, Line, Span};
 
 use crate::ratatui_bridge::{Buffer, RatatuiSurface, SurfaceBuffers};
 
@@ -192,7 +188,7 @@ pub fn render_install_progress(
 
 /// Render progress widget to buffer
 fn render_progress_widget(buffer: &mut Buffer, progress: &InstallProgress) {
-    let area = buffer.area();
+    let area = buffer.area;
 
     // Center the progress widget
     let width = 60.min(area.width);
@@ -213,7 +209,7 @@ fn render_progress_widget(buffer: &mut Buffer, progress: &InstallProgress) {
     let mut lines = vec![
         Line::from(""),
         Line::from(vec![
-            Span::styled("Plugin: ", Style::default().fg(Color::Gray)),
+            Span::styled("Plugin: ", Style::default().fg(Color::DarkGray)),
             Span::styled(
                 &progress.plugin_name,
                 Style::default()
@@ -223,7 +219,7 @@ fn render_progress_widget(buffer: &mut Buffer, progress: &InstallProgress) {
         ]),
         Line::from(""),
         Line::from(vec![
-            Span::styled("Status: ", Style::default().fg(Color::Gray)),
+            Span::styled("Status: ", Style::default().fg(Color::DarkGray)),
             Span::styled(
                 status_text(&progress.status),
                 Style::default().fg(title_color),
@@ -235,7 +231,6 @@ fn render_progress_widget(buffer: &mut Buffer, progress: &InstallProgress) {
     // Add progress bar if in progress
     if progress.is_active() {
         let gauge = Gauge::default()
-            .block(Block::default())
             .gauge_style(Style::default().fg(Color::Cyan).bg(Color::DarkGray))
             .percent(progress.progress as u16);
 
@@ -253,14 +248,14 @@ fn render_progress_widget(buffer: &mut Buffer, progress: &InstallProgress) {
     lines.push(Line::from(""));
     lines.push(Line::from(vec![Span::styled(
         &progress.message,
-        Style::default().fg(Color::Gray),
+        Style::default().fg(Color::DarkGray),
     )]));
 
     // Add elapsed time for completed/failed
     if !progress.is_active() {
         lines.push(Line::from(""));
         lines.push(Line::from(vec![
-            Span::styled("Time: ", Style::default().fg(Color::Gray)),
+            Span::styled("Time: ", Style::default().fg(Color::DarkGray)),
             Span::styled(
                 format!("{}s", progress.elapsed_seconds()),
                 Style::default().fg(Color::White),

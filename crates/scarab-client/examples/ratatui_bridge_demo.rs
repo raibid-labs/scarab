@@ -7,8 +7,9 @@
 // Run with: cargo run -p scarab-client --example ratatui_bridge_demo
 
 use bevy::prelude::*;
-use ratatui::widgets::{Block, Borders, Widget};
-use scarab_client::ratatui_bridge::{Buffer, RatatuiBridgePlugin, RatatuiSurface, SurfaceBuffers};
+use fusabi_tui_core::{Color, Style};
+use fusabi_tui_widgets::{Block, Borders, Widget};
+use scarab_client::ratatui_bridge::{RatatuiBridgePlugin, RatatuiSurface, SurfaceBuffers};
 use scarab_protocol::TerminalMetrics;
 
 fn main() {
@@ -81,7 +82,7 @@ fn render_widgets(
             let widget = Block::default()
                 .title("Command Palette")
                 .borders(Borders::ALL)
-                .border_style(ratatui::style::Style::default().fg(ratatui::style::Color::Cyan));
+                .border_style(Style::default().fg(Color::Cyan));
 
             widget.render(surface.rect(), buffer);
 
@@ -101,7 +102,7 @@ fn render_widgets(
             let widget = Block::default()
                 .title("Notification")
                 .borders(Borders::ALL)
-                .border_style(ratatui::style::Style::default().fg(ratatui::style::Color::Yellow));
+                .border_style(Style::default().fg(Color::Yellow));
 
             widget.render(surface.rect(), buffer);
 

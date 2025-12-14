@@ -101,9 +101,7 @@ pub use input::{
 pub use renderer::{cleanup_overlays, render_surfaces, SurfaceOverlay};
 pub use surface::{RatatuiBridgePlugin, RatatuiSurface, SurfaceBuffers};
 
-// Re-export commonly used Ratatui types for convenience
-pub use ratatui::buffer::Buffer;
-pub use ratatui::crossterm::event::{Event as RatEvent, KeyCode as RatKeyCode, KeyEvent};
-pub use ratatui::layout::Rect;
-pub use ratatui::style::{Color, Modifier, Style};
-pub use ratatui::widgets::Widget;
+// Re-export commonly used Fusabi TUI types for convenience
+pub use crossterm::event::{Event as RatEvent, KeyCode as RatKeyCode, KeyEvent};
+pub use fusabi_tui_core::{Buffer, Color, Modifier, Rect, Style};
+pub use fusabi_tui_widgets::Widget;

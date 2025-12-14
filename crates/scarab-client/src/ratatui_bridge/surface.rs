@@ -3,8 +3,7 @@
 
 use crate::InputSystemSet;
 use bevy::prelude::*;
-use ratatui::buffer::Buffer;
-use ratatui::layout::Rect;
+use fusabi_tui_core::{Buffer, Rect};
 use std::collections::HashMap;
 
 /// Component marking an entity as a Ratatui rendering surface
@@ -188,7 +187,7 @@ impl SurfaceBuffers {
             .entry(entity)
             .and_modify(|buffer| {
                 // Resize buffer if dimensions changed
-                let current_area = buffer.area();
+                let current_area = buffer.area;
                 if current_area.width != width || current_area.height != height {
                     *buffer = Buffer::empty(Rect::new(0, 0, width, height));
                 }
@@ -428,8 +427,8 @@ mod tests {
         let entity = Entity::from_raw(42);
 
         let buffer = buffers.get_or_create(entity, 80, 24);
-        assert_eq!(buffer.area().width, 80);
-        assert_eq!(buffer.area().height, 24);
+        assert_eq!(buffer.area.width, 80);
+        assert_eq!(buffer.area.height, 24);
         assert_eq!(buffers.len(), 1);
     }
 
@@ -443,8 +442,8 @@ mod tests {
 
         // Request different size - should resize
         let buffer = buffers.get_or_create(entity, 100, 30);
-        assert_eq!(buffer.area().width, 100);
-        assert_eq!(buffer.area().height, 30);
+        assert_eq!(buffer.area.width, 100);
+        assert_eq!(buffer.area.height, 30);
         assert_eq!(buffers.len(), 1); // Still only one buffer
     }
 

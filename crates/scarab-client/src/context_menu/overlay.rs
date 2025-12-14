@@ -8,11 +8,8 @@
 //! - Keyboard shortcuts displayed on the right
 
 use bevy::prelude::*;
-use ratatui::{
-    style::{Color, Modifier, Style},
-    text::{Line, Span},
-    widgets::{Block, Borders, List, ListItem, Widget},
-};
+use fusabi_tui_core::{Color, Modifier, Style};
+use fusabi_tui_widgets::{Block, Borders, List, ListItem, ListState, Widget, StatefulWidget, Line, Span};
 
 use super::{ContextMenuState, ContextMenuSurface};
 use crate::ratatui_bridge::SurfaceBuffers;
@@ -49,7 +46,7 @@ pub fn render_context_menu(
     let area = surface.rect();
 
     // Clear buffer
-    buffer.reset();
+    buffer.clear();
 
     // Build list items
     let items: Vec<ListItem> = menu
@@ -120,11 +117,13 @@ pub fn render_context_menu(
     let list = List::new(items).block(
         Block::default()
             .borders(Borders::ALL)
-            .border_style(Style::default().fg(Color::Gray))
+            .border_style(Style::default().fg(Color::DarkGray))
             .style(Style::default().bg(Color::Black)),
     );
 
-    list.render(area, buffer);
+    let mut list_state = ListState::default();
+    list_state.select(Some(menu.selected_index));
+    list.render(area, buffer, &mut list_state);
 
     surface.mark_clean();
 }

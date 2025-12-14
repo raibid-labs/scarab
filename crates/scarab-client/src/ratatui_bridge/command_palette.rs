@@ -8,11 +8,9 @@
 // - Toggle visibility
 
 use bevy::prelude::*;
-use ratatui::{
-    layout::{Constraint, Direction, Layout},
-    style::{Color, Modifier, Style},
-    text::{Line, Span},
-    widgets::{Block, Borders, List, ListItem, Paragraph, Widget},
+use fusabi_tui_core::{Constraint, Direction, Layout, Color, Modifier, Style};
+use fusabi_tui_widgets::{
+    Block, Borders, List, ListItem, ListState, Paragraph, Widget, StatefulWidget, Line, Span,
 };
 
 use super::{
@@ -252,7 +250,7 @@ pub fn handle_palette_input(
             continue;
         }
 
-        use ratatui::crossterm::event::{Event, KeyCode};
+        use crossterm::event::{Event, KeyCode};
         if let Event::Key(key) = &event.event {
             match key.code {
                 KeyCode::Up => state.select_previous(),
@@ -305,12 +303,12 @@ pub fn render_command_palette(
     let area = surface.rect();
 
     // Clear buffer
-    buffer.reset();
+    buffer.clear();
 
     // Layout: input at top, list below
     let chunks = Layout::default()
         .direction(Direction::Vertical)
-        .constraints([
+        .constraints(&[
             Constraint::Length(3), // Input box
             Constraint::Min(1),    // Command list
         ])
@@ -351,7 +349,7 @@ pub fn render_command_palette(
             // Add description
             if let Some(desc) = &cmd.description {
                 spans.push(Span::raw(" - "));
-                spans.push(Span::styled(desc, Style::default().fg(Color::Gray)));
+                spans.push(Span::styled(desc, Style::default().fg(Color::DarkGray)));
             }
 
             // Add shortcut at the end
@@ -374,7 +372,9 @@ pub fn render_command_palette(
     );
 
     let list = List::new(items).block(Block::default().title(list_title).borders(Borders::ALL));
-    list.render(chunks[1], buffer);
+    let mut list_state = ListState::default();
+    list_state.select(Some(state.selected));
+    list.render(chunks[1], buffer, &mut list_state);
 }
 
 /// System to spawn command palette surface

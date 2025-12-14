@@ -8,7 +8,7 @@ use bevy::prelude::*;
 use bevy::render::mesh::{Indices, Mesh2d, PrimitiveTopology};
 use bevy::render::render_asset::RenderAssetUsages;
 use bevy::sprite::{ColorMaterial, MeshMaterial2d};
-use ratatui::style::Color as RatColor;
+use fusabi_tui_core::Color as RatColor;
 use scarab_protocol::TerminalMetrics;
 
 /// Marker component for surface overlay entities
@@ -39,7 +39,7 @@ fn ratatui_to_bevy_color(color: RatColor) -> Color {
         RatColor::Blue => Color::srgb(0.0, 0.0, 0.8),
         RatColor::Magenta => Color::srgb(0.8, 0.0, 0.8),
         RatColor::Cyan => Color::srgb(0.0, 0.8, 0.8),
-        RatColor::Gray => Color::srgb(0.5, 0.5, 0.5),
+        RatColor::White => Color::srgb(1.0, 1.0, 1.0),
         RatColor::DarkGray => Color::srgb(0.3, 0.3, 0.3),
         RatColor::LightRed => Color::srgb(1.0, 0.3, 0.3),
         RatColor::LightGreen => Color::srgb(0.3, 1.0, 0.3),
@@ -47,7 +47,7 @@ fn ratatui_to_bevy_color(color: RatColor) -> Color {
         RatColor::LightBlue => Color::srgb(0.3, 0.3, 1.0),
         RatColor::LightMagenta => Color::srgb(1.0, 0.3, 1.0),
         RatColor::LightCyan => Color::srgb(0.3, 1.0, 1.0),
-        RatColor::White => Color::srgb(1.0, 1.0, 1.0),
+        RatColor::LightWhite => Color::srgb(1.0, 1.0, 1.0),
         RatColor::Rgb(r, g, b) => Color::srgb(r as f32 / 255.0, g as f32 / 255.0, b as f32 / 255.0),
         RatColor::Indexed(idx) => indexed_color(idx),
     }

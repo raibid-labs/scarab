@@ -29,13 +29,8 @@
 
 use bevy::prelude::*;
 use bevy::window::PrimaryWindow;
-use ratatui::{
-    buffer::Buffer,
-    layout::{Constraint, Direction, Layout, Rect},
-    style::{Color, Modifier, Style},
-    text::{Line, Span},
-    widgets::{Block, Borders, List, ListItem, Paragraph, Widget},
-};
+use fusabi_tui_core::{Buffer, Constraint, Direction, Layout, Rect, Color, Modifier, Style};
+use fusabi_tui_widgets::{Block, Borders, List, ListItem, ListState, Paragraph, Widget, StatefulWidget, Line, Span};
 use std::collections::HashSet;
 
 use crate::ratatui_bridge::{
@@ -337,11 +332,11 @@ struct InspectorWidget<'a> {
 }
 
 impl<'a> Widget for InspectorWidget<'a> {
-    fn render(self, area: Rect, buf: &mut Buffer) {
+    fn render(&self, area: Rect, buf: &mut Buffer) {
         // Main layout: horizontal split for entity list and details
         let chunks = Layout::default()
             .direction(Direction::Horizontal)
-            .constraints([Constraint::Percentage(40), Constraint::Percentage(60)])
+            .constraints(&[Constraint::Percentage(40), Constraint::Percentage(60)])
             .split(area);
 
         // Render entity list on the left
@@ -402,7 +397,11 @@ impl<'a> InspectorWidget<'a> {
             .collect();
 
         let list = List::new(items);
-        list.render(inner, buf);
+        let mut list_state = ListState::default();
+        if !self.state.entity_infos.is_empty() && self.state.selected_index < self.state.entity_infos.len() {
+            list_state.select(Some(self.state.selected_index));
+        }
+        list.render(inner, buf, &mut list_state);
     }
 
     fn render_entity_details(&self, area: Rect, buf: &mut Buffer) {
@@ -485,9 +484,9 @@ impl<'a> InspectorWidget<'a> {
 
         // Clear the status bar area
         for x in status_area.x..status_area.x + status_area.width {
-            if let Some(cell) = buf.cell_mut((x, status_area.y)) {
-                cell.set_char(' ')
-                    .set_style(Style::default().bg(Color::White));
+            if let Some(cell) = buf.get_mut(x, status_area.y) {
+                cell.symbol = " ".to_string();
+                cell.set_style(Style::default().bg(Color::White));
             }
         }
 
@@ -499,8 +498,9 @@ impl<'a> InspectorWidget<'a> {
                 .chars()
                 .take((status_area.width - (x_offset - status_area.x)) as usize)
             {
-                if let Some(cell) = buf.cell_mut((x_offset, status_area.y)) {
-                    cell.set_char(ch).set_style(span.style);
+                if let Some(cell) = buf.get_mut(x_offset, status_area.y) {
+                    cell.symbol = ch.to_string();
+                    cell.set_style(span.style);
                 }
                 x_offset += 1;
             }
@@ -545,7 +545,7 @@ fn handle_inspector_input(
 
 fn handle_navigation_input(
     state: &mut BevyInspectorState,
-    key: &ratatui::crossterm::event::KeyEvent,
+    key: &crossterm::event::KeyEvent,
 ) {
     match key.code {
         // Navigation
@@ -596,7 +596,7 @@ fn handle_navigation_input(
     }
 }
 
-fn handle_search_input(state: &mut BevyInspectorState, key: &ratatui::crossterm::event::KeyEvent) {
+fn handle_search_input(state: &mut BevyInspectorState, key: &crossterm::event::KeyEvent) {
     match key.code {
         RatKeyCode::Char(c) => {
             state.search_query.push(c);
