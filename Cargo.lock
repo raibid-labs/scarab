@@ -7065,7 +7065,7 @@ dependencies = [
 
 [[package]]
 name = "scarab-client"
-version = "0.2.0-alpha.17"
+version = "0.3.0"
 dependencies = [
  "anyhow",
  "arboard",
@@ -7109,7 +7109,7 @@ dependencies = [
 
 [[package]]
 name = "scarab-clipboard"
-version = "0.2.0-alpha.17"
+version = "0.3.0"
 dependencies = [
  "arboard",
  "async-trait",
@@ -7122,7 +7122,7 @@ dependencies = [
 
 [[package]]
 name = "scarab-config"
-version = "0.2.0-alpha.17"
+version = "0.3.0"
 dependencies = [
  "anyhow",
  "base64 0.22.1",
@@ -7147,7 +7147,7 @@ dependencies = [
 
 [[package]]
 name = "scarab-daemon"
-version = "0.2.0-alpha.17"
+version = "0.3.0"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -7190,7 +7190,7 @@ dependencies = [
 
 [[package]]
 name = "scarab-mouse"
-version = "0.2.0-alpha.17"
+version = "0.3.0"
 dependencies = [
  "async-trait",
  "bevy",
@@ -7207,7 +7207,7 @@ dependencies = [
 
 [[package]]
 name = "scarab-nav"
-version = "0.2.0-alpha.17"
+version = "0.3.0"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -7232,7 +7232,7 @@ dependencies = [
 
 [[package]]
 name = "scarab-palette"
-version = "0.2.0-alpha.17"
+version = "0.3.0"
 dependencies = [
  "async-trait",
  "log",
@@ -7242,7 +7242,7 @@ dependencies = [
 
 [[package]]
 name = "scarab-panes"
-version = "0.2.0-alpha.17"
+version = "0.3.0"
 dependencies = [
  "async-trait",
  "log",
@@ -7258,7 +7258,7 @@ dependencies = [
 
 [[package]]
 name = "scarab-platform"
-version = "0.2.0-alpha.17"
+version = "0.3.0"
 dependencies = [
  "anyhow",
  "cocoa",
@@ -7275,7 +7275,7 @@ dependencies = [
 
 [[package]]
 name = "scarab-plugin-api"
-version = "0.2.0-alpha.17"
+version = "0.3.0"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -7297,7 +7297,7 @@ dependencies = [
 
 [[package]]
 name = "scarab-plugin-compiler"
-version = "0.2.0-alpha.17"
+version = "0.3.0"
 dependencies = [
  "anyhow",
  "bincode",
@@ -7310,7 +7310,7 @@ dependencies = [
 
 [[package]]
 name = "scarab-protocol"
-version = "0.2.0-alpha.17"
+version = "0.3.0"
 dependencies = [
  "bevy_ecs",
  "bytemuck",
@@ -7320,7 +7320,7 @@ dependencies = [
 
 [[package]]
 name = "scarab-session"
-version = "0.2.0-alpha.17"
+version = "0.3.0"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -7337,7 +7337,7 @@ dependencies = [
 
 [[package]]
 name = "scarab-tabs"
-version = "0.2.0-alpha.17"
+version = "0.3.0"
 dependencies = [
  "async-trait",
  "log",
@@ -7349,7 +7349,7 @@ dependencies = [
 
 [[package]]
 name = "scarab-telemetry-hud"
-version = "0.2.0-alpha.17"
+version = "0.3.0"
 dependencies = [
  "bevy",
  "log",
@@ -7358,7 +7358,7 @@ dependencies = [
 
 [[package]]
 name = "scarab-themes"
-version = "0.2.0-alpha.17"
+version = "0.3.0"
 dependencies = [
  "async-trait",
  "log",
