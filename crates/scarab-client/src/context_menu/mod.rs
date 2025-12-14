@@ -209,7 +209,7 @@ pub fn handle_context_menu_input(
             continue;
         }
 
-        use ratatui::crossterm::event::{Event, KeyCode, MouseButton, MouseEventKind};
+        use crossterm::event::{Event, KeyCode, MouseButton, MouseEventKind};
 
         match &event.event {
             Event::Key(key) => match key.code {

@@ -33,14 +33,16 @@ rust-version = "1.75"
 # Updated to use shared runtime and stdlib modules (Issues #95, #101, #104)
 # - fusabi-plugin-runtime: Plugin loader with hot-reload and manifest validation
 # - fusabi-stdlib-ext: Terminal/GPU/FS modules for plugins
-# - fusabi-tui: Ratatui bindings and widgets (Issue #97)
+# - fusabi-tui-*: Fusabi TUI runtime (replacing ratatui)
 # - fusabi-host: Host profile for plugin runtime
 fusabi-vm = { version = "0.17.0", features = ["serde"] }
 fusabi-frontend = "0.17.0"
 bevy-fusabi = "0.1.4"
 fusabi-plugin-runtime = "0.1.1"
 fusabi-stdlib-ext = "0.1.1"
-fusabi-tui = "0.1.0"
+fusabi-tui-core = { path = "/home/beengud/fusabi-lang/fusabi-tui-runtime/crates/fusabi-tui-core" }
+fusabi-tui-widgets = { path = "/home/beengud/fusabi-lang/fusabi-tui-runtime/crates/fusabi-tui-widgets" }
+fusabi-tui-render = { path = "/home/beengud/fusabi-lang/fusabi-tui-runtime/crates/fusabi-tui-render" }
 ratatui-testlib = { git = "https://github.com/raibid-labs/ratatui-testlib.git", branch = "main" }
 
 # Base Bevy configuration

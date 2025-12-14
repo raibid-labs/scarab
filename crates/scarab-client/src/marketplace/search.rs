@@ -1,7 +1,7 @@
 //! Search and filtering logic for plugin marketplace
 
-use ratatui::style::{Color, Modifier, Style};
-use ratatui::text::{Line, Span};
+use fusabi_tui_core::{Color, Modifier, Style};
+use fusabi_tui_widgets::{Line, Span};
 use scarab_config::registry::types::{PluginEntry, PluginFilter, SortOrder};
 
 /// Search and filter state
@@ -73,7 +73,7 @@ pub fn format_search_bar(state: &SearchState) -> Line<'_> {
             .fg(Color::Yellow)
             .add_modifier(Modifier::BOLD)
     } else {
-        Style::default().fg(Color::Gray)
+        Style::default().fg(Color::DarkGray)
     };
 
     let cursor = if state.focused { "_" } else { "" };

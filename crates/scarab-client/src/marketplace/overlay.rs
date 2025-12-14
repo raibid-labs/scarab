@@ -6,12 +6,8 @@ use super::{
 };
 use crate::ratatui_bridge::{Buffer, RatatuiSurface, SurfaceBuffers};
 use bevy::prelude::*;
-use ratatui::{
-    layout::{Constraint, Direction, Layout, Rect},
-    style::{Color, Modifier, Style},
-    text::{Line, Span},
-    widgets::{Block, Borders, List, ListItem, Paragraph, Tabs, Widget},
-};
+use fusabi_tui_core::{Constraint, Direction, Layout, Rect, Color, Modifier, Style};
+use fusabi_tui_widgets::{Block, Borders, List, ListItem, ListState, Paragraph, Tabs, Widget, StatefulWidget, Line, Span};
 use scarab_config::registry::PluginEntry;
 
 /// Marker component for marketplace overlay
@@ -347,12 +343,12 @@ pub fn render_marketplace(
 
 /// Render the plugin list view
 fn render_plugin_list(buffer: &mut Buffer, state: &MarketplaceState, cache: &PluginListCache) {
-    let area = Rect::new(0, 0, buffer.area().width, buffer.area().height);
+    let area = Rect::new(0, 0, buffer.area.width, buffer.area.height);
 
     // Create layout: header | categories | search | plugin list | footer
     let chunks = Layout::default()
         .direction(Direction::Vertical)
-        .constraints([
+        .constraints(&[
             Constraint::Length(3), // Header
             Constraint::Length(3), // Categories
             Constraint::Length(3), // Search
@@ -374,7 +370,7 @@ fn render_plugin_list(buffer: &mut Buffer, state: &MarketplaceState, cache: &Plu
             if state.search.focused {
                 Style::default().fg(Color::Yellow)
             } else {
-                Style::default().fg(Color::Gray)
+                Style::default().fg(Color::DarkGray)
             },
         ));
     search_paragraph.render(chunks[2], buffer);
@@ -397,7 +393,7 @@ fn render_header(buffer: &mut Buffer, area: Rect) {
         )]),
         Line::from(vec![Span::styled(
             "Browse, search, and install plugins",
-            Style::default().fg(Color::Gray),
+            Style::default().fg(Color::DarkGray),
         )]),
     ];
 
@@ -420,7 +416,6 @@ fn render_categories(buffer: &mut Buffer, area: Rect, state: &MarketplaceState) 
 
     let tabs = Tabs::new(state.categories.clone())
         .select(selected)
-        .block(Block::default().borders(Borders::ALL).title("Categories"))
         .style(Style::default().fg(Color::White))
         .highlight_style(
             Style::default()
@@ -459,7 +454,7 @@ fn render_plugins(
     if plugins.is_empty() {
         let empty = Paragraph::new("No plugins found. Try adjusting your search or filters.")
             .block(Block::default().borders(Borders::ALL).title("Plugins"))
-            .style(Style::default().fg(Color::Gray));
+            .style(Style::default().fg(Color::DarkGray));
         empty.render(area, buffer);
         return;
     }
@@ -490,7 +485,9 @@ fn render_plugins(
         plugins.len()
     )));
 
-    list.render(area, buffer);
+    let mut list_state = ListState::default();
+    list_state.select(Some(state.selected_index));
+    list.render(area, buffer, &mut list_state);
 }
 
 /// Render footer with keybindings
@@ -519,7 +516,7 @@ fn render_footer(buffer: &mut Buffer, area: Rect) {
 
 /// Render plugin details view
 fn render_plugin_details(buffer: &mut Buffer, state: &MarketplaceState) {
-    let area = Rect::new(0, 0, buffer.area().width, buffer.area().height);
+    let area = Rect::new(0, 0, buffer.area.width, buffer.area.height);
 
     let Some(plugin) = state.selected_plugin() else {
         return;
@@ -598,7 +595,7 @@ fn render_plugin_details(buffer: &mut Buffer, state: &MarketplaceState) {
 
 /// Render installation progress view
 fn render_installation(buffer: &mut Buffer, progress: &InstallProgress) {
-    let area = Rect::new(0, 0, buffer.area().width, buffer.area().height);
+    let area = Rect::new(0, 0, buffer.area.width, buffer.area.height);
 
     let message = match progress.status {
         super::InstallStatus::Idle => "No installation in progress".to_string(),

@@ -24,7 +24,9 @@ scarab-mouse = { path = "../scarab-mouse" }
 scarab-telemetry-hud = { path = "../scarab-telemetry-hud" }
 scarab-nav-protocol = "0.1.0"
 fusabi-frontend = { workspace = true }
-fusabi-tui = { workspace = true }
+fusabi-tui-core = { workspace = true }
+fusabi-tui-widgets = { workspace = true }
+fusabi-tui-render = { workspace = true }
 bevy = { workspace = true }
 bevy_egui = { version = "0.31" }
 serde = { workspace = true }
@@ -42,7 +44,7 @@ open = "5.0"
 image = "0.25"
 prost = "0.12"
 clap = { version = "4.4", features = ["derive"] }
-ratatui = { version = "0.28", default-features = false, features = ["crossterm"] }
+crossterm = "0.28"
 chrono = "0.4"
 base64 = "0.22"
 

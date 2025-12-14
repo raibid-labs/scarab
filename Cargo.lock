@@ -630,8 +630,8 @@ checksum = "a9a7ac77c028f5370165b3ed1d918453bd35f7f94bf81a4bf6949e40864b64e0"
 dependencies = [
  "anyhow",
  "bevy",
- "fusabi-frontend 0.17.0",
- "fusabi-vm 0.17.0",
+ "fusabi-frontend",
+ "fusabi-vm",
  "serde",
  "thiserror 1.0.69",
  "tracing",
@@ -1149,7 +1149,7 @@ dependencies = [
  "bitflags 2.10.0",
  "color-eyre",
  "crossterm",
- "ratatui 0.29.0",
+ "ratatui",
  "smol_str",
 ]
 
@@ -3373,32 +3373,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e6d5a32815ae3f33302d95fdcb2ce17862f8c65363dcfd29360480ba1001fc9c"
 
 [[package]]
-name = "fusabi"
-version = "0.16.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "141c355328910f87694d55048bf12ab2b318223d375b00b82a22859032337e58"
-dependencies = [
- "colored",
- "fusabi-frontend 0.16.0",
- "fusabi-vm 0.16.0",
-]
-
-[[package]]
-name = "fusabi-frontend"
-version = "0.16.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f55f31e8c0eede440aa638d8bfa0c9f19f53b74d00abe277f85defd918c0b086"
-dependencies = [
- "fusabi-vm 0.16.0",
-]
-
-[[package]]
 name = "fusabi-frontend"
 version = "0.17.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "90c2e9c1ad85e4e711060f57249d90d5b7a8695332eb85dcf4a368f833cd86d3"
 dependencies = [
- "fusabi-vm 0.17.0",
+ "fusabi-vm",
 ]
 
 [[package]]
@@ -3446,30 +3426,28 @@ dependencies = [
 ]
 
 [[package]]
-name = "fusabi-tui"
+name = "fusabi-tui-core"
 version = "0.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a487f5dd7b912c4e91bd8e173c5cae3ebdfd301a9917b414699a2ec9f91e1077"
 dependencies = [
- "anyhow",
- "crossterm",
- "fusabi",
- "fusabi-vm 0.16.0",
- "ratatui 0.28.1",
- "serde",
- "serde_json",
- "tracing",
+ "unicode-width 0.1.14",
 ]
 
 [[package]]
-name = "fusabi-vm"
-version = "0.16.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1b5b52961ac4903dfaa2910a085c91f8ecba163c42715af6e7e88463cd6d99a3"
+name = "fusabi-tui-render"
+version = "0.1.0"
 dependencies = [
- "bincode",
- "serde",
- "serde_json",
+ "crossterm",
+ "fusabi-tui-core",
+ "thiserror 1.0.69",
+]
+
+[[package]]
+name = "fusabi-tui-widgets"
+version = "0.1.0"
+dependencies = [
+ "bitflags 2.10.0",
+ "fusabi-tui-core",
+ "unicode-width 0.1.14",
 ]
 
 [[package]]
@@ -6463,27 +6441,6 @@ checksum = "acbbbbea733ec66275512d0b9694f34102e7d5406fdbe2ad8d21b28dce92887c"
 
 [[package]]
 name = "ratatui"
-version = "0.28.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fdef7f9be5c0122f890d58bdf4d964349ba6a6161f705907526d891efabba57d"
-dependencies = [
- "bitflags 2.10.0",
- "cassowary",
- "compact_str",
- "crossterm",
- "instability",
- "itertools 0.13.0",
- "lru",
- "paste",
- "strum",
- "strum_macros",
- "unicode-segmentation",
- "unicode-truncate",
- "unicode-width 0.1.14",
-]
-
-[[package]]
-name = "ratatui"
 version = "0.29.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "eabd94c2f37801c20583fc49dd5cd6b0ba68c716787c2dd6ed18571e1e63117b"
@@ -6519,7 +6476,7 @@ dependencies = [
  "insta",
  "libc",
  "portable-pty",
- "ratatui 0.29.0",
+ "ratatui",
  "regex",
  "serde",
  "serde_json",
@@ -7117,8 +7074,11 @@ dependencies = [
  "cosmic-text 0.11.2",
  "criterion",
  "crossbeam",
- "fusabi-frontend 0.17.0",
- "fusabi-tui",
+ "crossterm",
+ "fusabi-frontend",
+ "fusabi-tui-core",
+ "fusabi-tui-render",
+ "fusabi-tui-widgets",
  "fuzzy-matcher",
  "image",
  "insta",
@@ -7127,7 +7087,6 @@ dependencies = [
  "profiling",
  "prost",
  "puffin",
- "ratatui 0.28.1",
  "ratatui-testlib",
  "regex",
  "rkyv",
@@ -7168,8 +7127,8 @@ dependencies = [
  "bevy-fusabi",
  "bevy_ecs",
  "dirs 5.0.1",
- "fusabi-frontend 0.17.0",
- "fusabi-vm 0.17.0",
+ "fusabi-frontend",
+ "fusabi-vm",
  "notify",
  "reqwest",
  "sequoia-openpgp",
@@ -7193,10 +7152,10 @@ dependencies = [
  "clap",
  "crossbeam",
  "env_logger",
- "fusabi-frontend 0.17.0",
+ "fusabi-frontend",
  "fusabi-plugin-runtime",
  "fusabi-stdlib-ext",
- "fusabi-vm 0.17.0",
+ "fusabi-vm",
  "libc",
  "log",
  "lru",
@@ -7341,8 +7300,8 @@ dependencies = [
  "bincode",
  "clap",
  "colored",
- "fusabi-frontend 0.17.0",
- "fusabi-vm 0.17.0",
+ "fusabi-frontend",
+ "fusabi-vm",
  "serde",
 ]
 
