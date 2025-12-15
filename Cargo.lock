@@ -3428,7 +3428,8 @@ dependencies = [
 [[package]]
 name = "fusabi-tui-core"
 version = "0.1.0"
-source = "git+https://github.com/fusabi-lang/fusabi-tui-runtime#4ffdd1636839e4b00b8d2f3b616b0878f91d6e7a"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7a501888667586d74ae99e1dac9eab821979dba6905291ebd30eb1fcbc796354"
 dependencies = [
  "unicode-width 0.1.14",
 ]
@@ -3436,7 +3437,8 @@ dependencies = [
 [[package]]
 name = "fusabi-tui-render"
 version = "0.1.0"
-source = "git+https://github.com/fusabi-lang/fusabi-tui-runtime#4ffdd1636839e4b00b8d2f3b616b0878f91d6e7a"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "23cbed90cf7e61fd394b3e756b4a250d0f463775a8e3de5fb8b02f2934e8c168"
 dependencies = [
  "crossterm",
  "fusabi-tui-core",
@@ -3446,7 +3448,8 @@ dependencies = [
 [[package]]
 name = "fusabi-tui-widgets"
 version = "0.1.0"
-source = "git+https://github.com/fusabi-lang/fusabi-tui-runtime#4ffdd1636839e4b00b8d2f3b616b0878f91d6e7a"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2d75c9202830bea84cc97601ff20535cd26e14c3dbcc1d5ba904a3edb6b1f5cb"
 dependencies = [
  "bitflags 2.10.0",
  "fusabi-tui-core",
