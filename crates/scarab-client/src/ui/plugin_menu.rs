@@ -693,8 +693,13 @@ fn compute_menu_item_bounds(
 fn send_menu_layout_to_nav(
     query: Query<(&MenuItemComponent, &MenuItemBounds)>,
     menu_state: Res<MenuState>,
-    mut nav_connection: ResMut<NavConnection>,
+    nav_connection: Option<ResMut<NavConnection>>,
 ) {
+    // NavConnection might not be available if DockPlugin hasn't been added
+    let Some(mut nav_connection) = nav_connection else {
+        return;
+    };
+
     // Only send if menu is active
     if !menu_state.active || menu_state.loading || menu_state.error.is_some() {
         return;
@@ -740,19 +745,22 @@ fn send_menu_layout_to_nav(
 /// System to unregister menu elements from nav when menu closes
 fn unregister_menu_on_close(
     menu_state: Res<MenuState>,
-    mut nav_connection: ResMut<NavConnection>,
+    nav_connection: Option<ResMut<NavConnection>>,
     mut last_active: Local<bool>,
 ) {
     // Detect menu close transition
     if *last_active && !menu_state.active {
-        // Send empty layout to unregister all menu items
-        let layout = UpdateLayout {
-            window_id: "plugin-menu".to_string(),
-            elements: vec![],
-        };
+        // NavConnection might not be available if DockPlugin hasn't been added
+        if let Some(mut nav_connection) = nav_connection {
+            // Send empty layout to unregister all menu items
+            let layout = UpdateLayout {
+                window_id: "plugin-menu".to_string(),
+                elements: vec![],
+            };
 
-        nav_connection.send_layout(layout);
-        debug!("Unregistered menu items from nav plugin");
+            nav_connection.send_layout(layout);
+            debug!("Unregistered menu items from nav plugin");
+        }
     }
 
     *last_active = menu_state.active;
