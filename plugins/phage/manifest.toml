@@ -1,0 +1,27 @@
+# Phage Plugin Manifest
+# This file tells Scarab how to load the Phage plugin
+
+[plugin]
+name = "phage"
+version = "0.1.0"
+description = "Phage AI context management integration"
+author = "Raibid Labs"
+icon = "🦠"
+
+[source]
+# Path to the Fusabi script (relative to manifest)
+path = "phage.fsx"
+# Type of plugin: "script" for .fsx files, "bytecode" for .fzb files
+type = "script"
+
+[menu]
+# Enable dock integration
+dock = true
+# Position in dock (lower = left, higher = right)
+dock_priority = 50
+
+[permissions]
+# Allow file system access for workspace initialization
+filesystem = true
+# Allow network access for Phage daemon communication
+network = true
