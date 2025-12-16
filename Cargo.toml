@@ -8,7 +8,6 @@ members = [
     "crates/scarab-plugin-compiler",
     "crates/scarab-config",
     "crates/scarab-platform",
-    "crates/scarab-nav",
     "crates/scarab-session",
     "crates/scarab-tabs",
     "crates/scarab-panes",
