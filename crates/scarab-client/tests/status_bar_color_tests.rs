@@ -31,7 +31,7 @@
 //! ## Expected ratatui-testlib v0.5.0 API
 //!
 //! ```rust,ignore
-//! use ratatui_testlib::{CellAttributes, CellFlags, Color};
+//! use terminal_testlib::{CellAttributes, CellFlags, Color};
 //!
 //! // Core types
 //! pub struct CellAttributes {
@@ -98,7 +98,7 @@
 use anyhow::Result;
 
 // Expected API imports when ratatui-testlib v0.5.0 is released:
-// use ratatui_testlib::{CellAttributes, CellFlags, Color, TuiTestHarness};
+// use terminal_testlib::{CellAttributes, CellFlags, Color, TuiTestHarness};
 
 // =============================================================================
 // HELPER FUNCTIONS FOR COLOR CONVERSION

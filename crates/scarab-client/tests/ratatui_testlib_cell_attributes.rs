@@ -12,7 +12,7 @@
 //! ## Expected ratatui-testlib v0.5.0 APIs
 //!
 //! ```rust,ignore
-//! use ratatui_testlib::{CellAttributes, CellFlags};
+//! use terminal_testlib::{CellAttributes, CellFlags};
 //!
 //! // Expected API from ratatui-testlib v0.5.0
 //! pub struct CellAttributes {

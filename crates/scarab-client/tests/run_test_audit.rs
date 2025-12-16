@@ -81,7 +81,7 @@ fn audit_all_tests() -> Result<()> {
         .filter(|t| {
             !t.file.contains("test_auditor")
                 && !t.file.contains("run_test_audit")
-                && !t.file.contains("ratatui_testlib_test_auditor")
+                && !t.file.contains("terminal_testlib_test_auditor")
         })
         .cloned()
         .collect();

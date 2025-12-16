@@ -56,7 +56,7 @@ log = "0.4.29"
 
 [dev-dependencies]
 criterion = { workspace = true }
-ratatui-testlib = { workspace = true, features = ["mvp", "sixel-image", "ipc"] }
+terminal-testlib = { workspace = true, features = ["mvp", "sixel-image", "ipc"] }
 tempfile = "3.8"
 insta = "1.34"
 
