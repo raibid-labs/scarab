@@ -163,7 +163,7 @@ impl NavConnection {
     }
 
     /// Send an UpdateLayout message to the nav plugin
-    fn send_layout(&mut self, layout: UpdateLayout) {
+    pub fn send_layout(&mut self, layout: UpdateLayout) {
         self.ensure_connected();
 
         if let Some(ref mut stream) = self.stream {
@@ -580,6 +580,8 @@ fn send_menu_request(mut events: EventReader<RequestPluginMenuEvent>, ipc: Res<I
 fn handle_plugin_menu_response(
     mut events: EventReader<RemoteMessageEvent>,
     mut menu_events: EventWriter<ShowPluginMenuEvent>,
+    dock_items: Query<(&DockItem, &DockItemBounds)>,
+    _state: Res<DockState>,
 ) {
     for event in events.read() {
         if let DaemonMessage::PluginMenuResponse {
@@ -596,9 +598,23 @@ fn handle_plugin_menu_response(
                     plugin_name,
                     items.len()
                 );
+
+                // Try to find the dock item position
+                let position = dock_items
+                    .iter()
+                    .find(|(item, _)| item.plugin_name == *plugin_name)
+                    .map(|(_, bounds)| {
+                        use crate::ui::plugin_menu::MenuPosition;
+                        MenuPosition {
+                            x: bounds.x + (bounds.width / 2.0), // Center of the dock item
+                            y: bounds.y,
+                        }
+                    });
+
                 menu_events.send(ShowPluginMenuEvent {
                     plugin_name: plugin_name.clone(),
                     items,
+                    position,
                 });
             } else {
                 warn!(
