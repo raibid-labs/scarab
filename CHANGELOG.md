@@ -5,6 +5,41 @@ All notable changes to the Scarab terminal emulator will be documented in this f
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.1] - 2025-12-16
+
+### Fixed
+
+- **Plugin Menu Panic** (#205): Fixed crash on startup where `send_menu_layout_to_nav`
+  could not access `NavConnection` resource. Changed to optional resource access.
+
+### Added
+
+- **Phage Plugin Skeleton** (#203): Initial Fusabi script plugin for Phage integration
+  - Dock tab with menu items: Init Workspace, Chat, Explain Selection, Fix Last Command, Context Info
+  - Workspace initialization creates `.phage/` directory structure
+  - Plugin manifest with dock integration and permissions
+
+- **Menu Positioning** (#201): Plugin menus now position above their dock items
+  - Nav protocol integration for menu item hint labels
+  - Proper menu close cleanup
+
+### Changed
+
+- **Dependencies Updated** (#202, #204):
+  - tokio 1.36 → 1.48
+  - alacritty_terminal 0.24 → 0.25
+  - base64 0.21 → 0.22
+  - terminal-testlib (renamed from ratatui-testlib) 0.6.0
+
+- **Documentation** (#198, #199, #200):
+  - Comprehensive plugin development guide
+  - IPC synchronization protocol documentation (SeqLock pattern)
+  - Documentation cleanup and consolidation
+
+### Removed
+
+- **Duplicated scarab-nav crate** (#197): Now uses upstream `scarab-nav-protocol` from crates.io
+
 ## [0.2.0-alpha.15] - 2025-12-08
 
 ### Fixed - December 2025 Audit Findings
