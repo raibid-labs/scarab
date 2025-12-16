@@ -12,21 +12,36 @@ Scarab is a high-performance, split-process terminal emulator built in Rust. It 
 
 ## Workspace Structure
 
-This is a Cargo workspace with 5 crates:
+This is a Cargo workspace with 20+ crates:
 
 ```
 scarab/
 ├── crates/
-│   ├── scarab-daemon/      # Headless server, owns PTY processes
-│   ├── scarab-client/      # Bevy GUI, renders via shared memory
-│   ├── scarab-protocol/    # IPC definitions, shared memory layout (#[repr(C)])
-│   ├── scarab-plugin-api/  # Shared plugin traits
-│   └── scarab-config/      # Configuration management
+│   ├── scarab-daemon/         # Headless server, owns PTY processes
+│   ├── scarab-client/         # Bevy GUI, renders via shared memory
+│   ├── scarab-protocol/       # IPC definitions, shared memory layout (#[repr(C)])
+│   ├── scarab-plugin-api/     # Shared plugin traits
+│   ├── scarab-config/         # Configuration management
+│   ├── scarab-nav/            # Navigation plugin (link hints, pane switching)
+│   ├── scarab-palette/        # Command palette plugin
+│   ├── scarab-session/        # Session management plugin
+│   ├── scarab-platform/       # Platform-specific utilities
+│   ├── scarab-clipboard/      # Clipboard integration
+│   ├── scarab-mouse/          # Mouse event handling
+│   ├── scarab-tabs/           # Tab management
+│   ├── scarab-panes/          # Pane splitting and management
+│   ├── scarab-themes/         # Theme system
+│   ├── scarab-telemetry-hud/  # Performance telemetry overlay
+│   └── scarab-plugin-compiler/# Plugin compilation tooling
 ```
 
 **External Dependencies:**
 - `fusabi-vm` - Official Fusabi VM runtime for .fzb bytecode (from https://github.com/fusabi-lang/fusabi)
 - `fusabi-frontend` - Official Fusabi compiler/parser for .fsx scripts (from https://github.com/fusabi-lang/fusabi)
+- `fusabi-tui-runtime` - Published TUI runtime (migrated from local in v0.3.0)
+  - `fusabi-tui-core` - Core TUI primitives
+  - `fusabi-tui-render` - Rendering layer
+  - `fusabi-tui-widgets` - Widget library
 
 ## Build Commands
 
@@ -114,6 +129,10 @@ Two runtimes for different use cases:
 - **Fusabi** - Official F# scripting language for Rust
   - `fusabi-vm` - Bytecode VM runtime
   - `fusabi-frontend` - Parser, type checker, compiler
+- **fusabi-tui-runtime** - Published TUI runtime (from crates.io as of v0.3.0)
+  - `fusabi-tui-core` - Core TUI primitives
+  - `fusabi-tui-render` - Rendering layer
+  - `fusabi-tui-widgets` - Widget library
 - `bevy` 0.15 - Game engine (minimal features: winit, ui, render, x11, wayland)
 - `portable-pty` 0.8 - Cross-platform PTY handling
 - `alacritty_terminal` 0.24 - VTE parser
@@ -122,33 +141,29 @@ Two runtimes for different use cases:
 - `bytemuck` 1.14 - Safe zero-copy casting
 - `tokio` 1.36 - Async runtime
 
-## Development Roadmap
+## Development Status
 
-Current phase: **Scaffolding** (IPC and PTY bridging)
+**Current Phase**: Phase 5 (Integration & Polish) - ~85% complete
 
-Next phases:
-1. Implement Shared Memory IPC Bridge
-2. Integrate `cosmic-text` rendering in Bevy
-3. Integrate Fusabi VM for daemon plugins
-4. Integrate Fusabi Frontend for client UI scripts
+**Completed Phases (1-4)**:
+- ✅ Core terminal emulation (VTE parser, rendering)
+- ✅ Zero-copy IPC with shared memory
+- ✅ Plugin system with Fusabi integration
+- ✅ Session management and persistence
+- ✅ Configuration system with hot-reload
+- ✅ Remote UI protocol (daemon controls client UI)
+- ✅ Core plugins: nav, palette, session
 
-## Critical TODOs in Code
+**In Progress**:
+- 🔄 Bevy 0.15 migration (core complete, advanced UI in progress)
+- 🔄 E2E testing with real daemon-client interaction
+- 🔄 Documentation consolidation
+- 🔄 Tutorial system
 
-**scarab-daemon/src/main.rs:**
-- Initialize Shared Memory writer
-- Feed PTY output to Alacritty VTE parser
-- Update SharedState grid from parsed terminal commands
-- Increment sequence_number atomically
-
-**scarab-client/src/main.rs:**
-- Initialize Shared Memory reader
-- Check SharedState sequence_number in sync_grid()
-- Update texture/mesh when sequence changes
-- Send input to daemon via socket
-
-**scarab-protocol/src/lib.rs:**
-- Fix incomplete `cells` field definition in SharedState (line 33)
-- Fix incomplete ControlMessage enum attribute (line 37)
+**See Also**:
+- [ROADMAP.md](ROADMAP.md) - Detailed roadmap and future phases
+- [docs/ADR-HISTORICAL-DECISIONS.md](docs/ADR-HISTORICAL-DECISIONS.md) - Architectural decision records
+- [CHANGELOG.md](CHANGELOG.md) - Version history and changes
 
 ## Release Profile
 
