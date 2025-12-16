@@ -22,7 +22,7 @@ scarab-config = { path = "../scarab-config" }
 scarab-plugin-api = { path = "../scarab-plugin-api" }
 scarab-mouse = { path = "../scarab-mouse" }
 scarab-telemetry-hud = { path = "../scarab-telemetry-hud" }
-scarab-nav-protocol = "0.1.0"
+scarab-nav-protocol = { version = "0.2.0", path = "/home/beengud/raibid-labs/scarab-nav/crates/scarab-nav-protocol" }
 fusabi-frontend = { workspace = true }
 fusabi-tui-core = { workspace = true }
 fusabi-tui-widgets = { workspace = true }

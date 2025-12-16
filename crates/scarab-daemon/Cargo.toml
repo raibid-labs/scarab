@@ -19,7 +19,6 @@ path = "src/main.rs"
 scarab-protocol = { path = "../scarab-protocol" }
 scarab-plugin-api = { path = "../scarab-plugin-api" }
 scarab-config = { path = "../scarab-config" }
-scarab-nav = { path = "../scarab-nav" }
 scarab-palette = { path = "../scarab-palette" }
 scarab-session = { path = "../scarab-session" }
 fusabi-vm = { workspace = true }

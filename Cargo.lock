@@ -7175,7 +7175,6 @@ dependencies = [
  "rkyv",
  "rusqlite",
  "scarab-config",
- "scarab-nav",
  "scarab-palette",
  "scarab-plugin-api",
  "scarab-protocol",
@@ -7209,25 +7208,8 @@ dependencies = [
 ]
 
 [[package]]
-name = "scarab-nav"
-version = "0.3.0"
-dependencies = [
- "anyhow",
- "async-trait",
- "log",
- "prost",
- "regex",
- "scarab-nav-protocol",
- "scarab-plugin-api",
- "serde",
- "tokio",
-]
-
-[[package]]
 name = "scarab-nav-protocol"
-version = "0.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8b51366e30af044a851b8376d82b8f7c00f4ce44e1267163e8107e4da8b2d24f"
+version = "0.2.0"
 dependencies = [
  "prost",
  "prost-build",

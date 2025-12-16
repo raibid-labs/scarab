@@ -310,13 +310,6 @@ async fn main() -> Result<()> {
     ));
     let mut plugin_manager = PluginManager::new(plugin_ctx, client_registry.clone());
 
-    if let Err(e) = plugin_manager
-        .register_plugin(Box::new(scarab_nav::NavigationPlugin::new()))
-        .await
-    {
-        eprintln!("Failed to register NavigationPlugin: {}", e);
-    }
-
     // Register Palette Plugin
     if let Err(e) = plugin_manager
         .register_plugin(Box::new(scarab_palette::PalettePlugin::new()))
