@@ -29,7 +29,7 @@ pub use keybindings::{KeyBinding, KeyBindingConfig, KeybindingsPlugin};
 pub use leader_key::{LeaderKeyPlugin, LeaderKeyState};
 pub use link_hints::{LinkDetector, LinkHint, LinkHintsPlugin};
 pub use overlays::RemoteUiPlugin;
-pub use plugin_menu::{MenuState, PluginMenuPlugin, ShowPluginMenuEvent};
+pub use plugin_menu::{MenuPosition, MenuState, PluginMenuPlugin, ShowPluginMenuEvent};
 pub use scroll_indicator::{ScrollIndicatorConfig, ScrollIndicatorPlugin};
 pub use scrollback_selection::{ScrollbackSelectionPlugin, ScrollbackSelectionState};
 pub use search_overlay::{SearchOverlayConfig, SearchOverlayPlugin};

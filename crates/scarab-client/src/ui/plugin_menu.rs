@@ -5,9 +5,11 @@
 
 use crate::ipc::{IpcChannel, RemoteMessageEvent};
 use crate::ui::command_palette::CommandExecutedEvent;
+use crate::ui::dock::NavConnection;
 // use crate::ui::dock::RequestPluginMenuEvent;
 use bevy::input::keyboard::KeyCode;
 use bevy::prelude::*;
+use scarab_nav_protocol::{ElementType, InteractiveElement, UpdateLayout};
 use scarab_plugin_api::menu::{MenuAction, MenuItem};
 use scarab_protocol::{ControlMessage, DaemonMessage, MenuActionType};
 
@@ -27,6 +29,9 @@ impl Plugin for PluginMenuPlugin {
                     handle_daemon_menu_response,
                     handle_menu_input_system,
                     render_menu_system,
+                    compute_menu_item_bounds,
+                    send_menu_layout_to_nav,
+                    unregister_menu_on_close,
                     execute_menu_action_system,
                 )
                     .chain(),
@@ -50,6 +55,15 @@ impl Plugin for PluginMenuPlugin {
 pub struct ShowPluginMenuEvent {
     pub plugin_name: String,
     pub items: Vec<MenuItem>,
+    /// Optional position to show the menu at (defaults to center if None)
+    pub position: Option<MenuPosition>,
+}
+
+/// Position for the menu
+#[derive(Debug, Clone, Copy)]
+pub struct MenuPosition {
+    pub x: f32,
+    pub y: f32,
 }
 
 /// Event fired when a menu action is triggered
@@ -75,6 +89,8 @@ pub struct MenuState {
     pub loading: bool,
     /// Error message if menu loading failed
     pub error: Option<String>,
+    /// Position to display the menu (None = center)
+    pub position: Option<MenuPosition>,
 }
 
 impl MenuState {
@@ -91,6 +107,11 @@ impl MenuState {
 
     /// Open a new menu
     pub fn open(&mut self, plugin_name: String, items: Vec<MenuItem>) {
+        self.open_with_position(plugin_name, items, None);
+    }
+
+    /// Open a new menu with a specific position
+    pub fn open_with_position(&mut self, plugin_name: String, items: Vec<MenuItem>, position: Option<MenuPosition>) {
         self.active = true;
         self.plugin_name = plugin_name;
         self.current_items = items;
@@ -98,6 +119,7 @@ impl MenuState {
         self.menu_stack.clear();
         self.loading = false;
         self.error = None;
+        self.position = position;
     }
 
     /// Set error state
@@ -149,8 +171,16 @@ struct MenuUI;
 /// Component for menu items
 #[derive(Component)]
 struct MenuItemComponent {
-    #[allow(dead_code)]
     index: usize,
+}
+
+/// Component to store computed bounds for menu items (for nav protocol)
+#[derive(Component)]
+struct MenuItemBounds {
+    pub x: f32,
+    pub y: f32,
+    pub width: f32,
+    pub height: f32,
 }
 
 /// Handle show menu events (legacy direct menu passing)
@@ -159,7 +189,7 @@ fn handle_show_menu_event(
     mut menu_state: ResMut<MenuState>,
 ) {
     for event in events.read() {
-        menu_state.open(event.plugin_name.clone(), event.items.clone());
+        menu_state.open_with_position(event.plugin_name.clone(), event.items.clone(), event.position);
     }
 }
 
@@ -257,6 +287,7 @@ fn render_menu_system(
     mut commands: Commands,
     menu_state: Res<MenuState>,
     existing_ui: Query<Entity, With<MenuUI>>,
+    windows: Query<&Window>,
 ) {
     // Remove existing menu UI
     for entity in existing_ui.iter() {
@@ -269,13 +300,13 @@ fn render_menu_system(
 
     // Show loading state
     if menu_state.loading {
-        render_loading_state(&mut commands, &menu_state);
+        render_loading_state(&mut commands, &menu_state, &windows);
         return;
     }
 
     // Show error state
     if let Some(error) = &menu_state.error {
-        render_error_state(&mut commands, &menu_state, error);
+        render_error_state(&mut commands, &menu_state, error, &windows);
         return;
     }
 
@@ -287,7 +318,45 @@ fn render_menu_system(
     // Calculate menu dimensions
     let menu_width = 400.0;
     let item_height = 50.0;
-    let menu_height = (menu_state.current_items.len() as f32 * item_height).min(500.0);
+    let header_height = 50.0;
+    let footer_height = 30.0;
+    let menu_content_height = (menu_state.current_items.len() as f32 * item_height).min(500.0);
+    let total_menu_height = menu_content_height + header_height + footer_height;
+
+    // Get window dimensions
+    let (window_width, window_height) = if let Ok(window) = windows.get_single() {
+        (window.width(), window.height())
+    } else {
+        (1920.0, 1080.0) // Default fallback
+    };
+
+    // Calculate position (from dock item or default center)
+    let (mut menu_x, mut menu_y) = if let Some(pos) = menu_state.position {
+        // Position menu above the dock item
+        // The dock is at the bottom, so we position the menu growing upward
+        use crate::ui::status_bar::{STATUS_BAR_HEIGHT, DOCK_HEIGHT};
+        let _dock_bottom = STATUS_BAR_HEIGHT;
+        let dock_top = STATUS_BAR_HEIGHT + DOCK_HEIGHT;
+
+        // Position menu right above the dock
+        let menu_bottom = dock_top;
+        let menu_top = menu_bottom + total_menu_height;
+
+        // X position centered on dock item, but ensure it stays in viewport
+        let menu_left = pos.x - (menu_width / 2.0);
+
+        (menu_left, window_height - menu_top)
+    } else {
+        // Default center position
+        (
+            (window_width - menu_width) / 2.0,
+            (window_height - total_menu_height) / 2.0,
+        )
+    };
+
+    // Ensure menu stays within viewport bounds
+    menu_x = menu_x.max(10.0).min(window_width - menu_width - 10.0);
+    menu_y = menu_y.max(10.0).min(window_height - total_menu_height - 10.0);
 
     // Create menu container
     commands
@@ -295,10 +364,10 @@ fn render_menu_system(
             MenuUI,
             Node {
                 width: Val::Px(menu_width),
-                height: Val::Px(menu_height + 60.0), // Extra space for header
+                height: Val::Px(total_menu_height),
                 position_type: PositionType::Absolute,
-                left: Val::Px(300.0),
-                top: Val::Px(150.0),
+                left: Val::Px(menu_x),
+                top: Val::Px(menu_y),
                 flex_direction: FlexDirection::Column,
                 padding: UiRect::all(Val::Px(0.0)),
                 ..default()
@@ -341,7 +410,7 @@ fn render_menu_system(
             parent
                 .spawn((Node {
                     width: Val::Percent(100.0),
-                    height: Val::Px(menu_height),
+                    height: Val::Px(menu_content_height),
                     flex_direction: FlexDirection::Column,
                     overflow: Overflow::clip_y(),
                     ..default()
@@ -359,6 +428,12 @@ fn render_menu_system(
                         items_container
                             .spawn((
                                 MenuItemComponent { index },
+                                MenuItemBounds {
+                                    x: 0.0,
+                                    y: 0.0,
+                                    width: 0.0,
+                                    height: 0.0,
+                                },
                                 Node {
                                     width: Val::Percent(100.0),
                                     height: Val::Px(item_height),
@@ -471,9 +546,19 @@ fn render_menu_system(
 }
 
 /// Render loading state while waiting for menu from daemon
-fn render_loading_state(commands: &mut Commands, menu_state: &MenuState) {
+fn render_loading_state(commands: &mut Commands, menu_state: &MenuState, windows: &Query<&Window>) {
     let menu_width = 400.0;
     let menu_height = 150.0;
+
+    // Get window dimensions for centering
+    let (window_width, window_height) = if let Ok(window) = windows.get_single() {
+        (window.width(), window.height())
+    } else {
+        (1920.0, 1080.0)
+    };
+
+    let menu_x = (window_width - menu_width) / 2.0;
+    let menu_y = (window_height - menu_height) / 2.0;
 
     commands
         .spawn((
@@ -482,8 +567,8 @@ fn render_loading_state(commands: &mut Commands, menu_state: &MenuState) {
                 width: Val::Px(menu_width),
                 height: Val::Px(menu_height),
                 position_type: PositionType::Absolute,
-                left: Val::Px(300.0),
-                top: Val::Px(150.0),
+                left: Val::Px(menu_x),
+                top: Val::Px(menu_y),
                 flex_direction: FlexDirection::Column,
                 align_items: AlignItems::Center,
                 justify_content: JustifyContent::Center,
@@ -515,9 +600,19 @@ fn render_loading_state(commands: &mut Commands, menu_state: &MenuState) {
 }
 
 /// Render error state when menu loading fails
-fn render_error_state(commands: &mut Commands, menu_state: &MenuState, error: &str) {
+fn render_error_state(commands: &mut Commands, menu_state: &MenuState, error: &str, windows: &Query<&Window>) {
     let menu_width = 400.0;
     let menu_height = 200.0;
+
+    // Get window dimensions for centering
+    let (window_width, window_height) = if let Ok(window) = windows.get_single() {
+        (window.width(), window.height())
+    } else {
+        (1920.0, 1080.0)
+    };
+
+    let menu_x = (window_width - menu_width) / 2.0;
+    let menu_y = (window_height - menu_height) / 2.0;
 
     commands
         .spawn((
@@ -526,8 +621,8 @@ fn render_error_state(commands: &mut Commands, menu_state: &MenuState, error: &s
                 width: Val::Px(menu_width),
                 height: Val::Px(menu_height),
                 position_type: PositionType::Absolute,
-                left: Val::Px(300.0),
-                top: Val::Px(150.0),
+                left: Val::Px(menu_x),
+                top: Val::Px(menu_y),
                 flex_direction: FlexDirection::Column,
                 align_items: AlignItems::Center,
                 justify_content: JustifyContent::Center,
@@ -566,6 +661,101 @@ fn render_error_state(commands: &mut Commands, menu_state: &MenuState, error: &s
                 TextColor(Color::srgba(0.6, 0.6, 0.7, 1.0)),
             ));
         });
+}
+
+/// System to compute and cache menu item bounds after layout
+fn compute_menu_item_bounds(
+    mut query: Query<(&mut MenuItemBounds, &GlobalTransform), With<MenuItemComponent>>,
+    windows: Query<&Window>,
+) {
+    if let Ok(window) = windows.get_single() {
+        let window_height = window.height();
+        let window_width = window.width();
+
+        for (mut bounds, transform) in query.iter_mut() {
+            let translation = transform.translation();
+
+            // Estimate size from transform (rough approximation)
+            let estimated_width = 400.0; // Menu width
+            let estimated_height = 50.0; // Menu item height
+
+            // Convert from Bevy's centered coordinate system to window coordinates
+            // Bevy uses center as origin, we need top-left as (0,0)
+            bounds.x = translation.x + (window_width / 2.0);
+            bounds.y = (window_height / 2.0) - translation.y;
+            bounds.width = estimated_width;
+            bounds.height = estimated_height;
+        }
+    }
+}
+
+/// System to send menu item layout to nav plugin
+fn send_menu_layout_to_nav(
+    query: Query<(&MenuItemComponent, &MenuItemBounds)>,
+    menu_state: Res<MenuState>,
+    mut nav_connection: ResMut<NavConnection>,
+) {
+    // Only send if menu is active
+    if !menu_state.active || menu_state.loading || menu_state.error.is_some() {
+        return;
+    }
+
+    if query.is_empty() {
+        return;
+    }
+
+    let elements: Vec<InteractiveElement> = query
+        .iter()
+        .filter_map(|(item, bounds)| {
+            // Get the menu item label from menu_state
+            menu_state.current_items.get(item.index).map(|menu_item| {
+                InteractiveElement {
+                    id: format!("menu-item-{}", item.index),
+                    x: bounds.x as u32,
+                    y: bounds.y as u32,
+                    width: bounds.width as u32,
+                    height: bounds.height as u32,
+                    r#type: ElementType::ListItem as i32,
+                    description: menu_item.label.clone(),
+                    key_hint: String::new(),
+                }
+            })
+        })
+        .collect();
+
+    if !elements.is_empty() {
+        let layout = UpdateLayout {
+            window_id: "plugin-menu".to_string(),
+            elements,
+        };
+
+        nav_connection.send_layout(layout);
+        debug!(
+            "Sent menu layout to nav plugin with {} items",
+            query.iter().count()
+        );
+    }
+}
+
+/// System to unregister menu elements from nav when menu closes
+fn unregister_menu_on_close(
+    menu_state: Res<MenuState>,
+    mut nav_connection: ResMut<NavConnection>,
+    mut last_active: Local<bool>,
+) {
+    // Detect menu close transition
+    if *last_active && !menu_state.active {
+        // Send empty layout to unregister all menu items
+        let layout = UpdateLayout {
+            window_id: "plugin-menu".to_string(),
+            elements: vec![],
+        };
+
+        nav_connection.send_layout(layout);
+        debug!("Unregistered menu items from nav plugin");
+    }
+
+    *last_active = menu_state.active;
 }
 
 /// Execute menu actions
