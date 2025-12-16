@@ -7154,7 +7154,7 @@ version = "0.3.0"
 dependencies = [
  "anyhow",
  "async-trait",
- "base64 0.21.7",
+ "base64 0.22.1",
  "clap",
  "crossbeam",
  "env_logger",

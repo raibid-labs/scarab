@@ -275,6 +275,13 @@ mod tests {
     fn create_test_grid() -> Vec<Cell> {
         let mut grid = vec![Cell::default(); 80 * 24];
 
+        // Set all cells to default white-on-black colors for HTML export test
+        // (the export function considers fg=0xFFFFFFFF, bg=0xFF000000 as "default")
+        for cell in grid.iter_mut() {
+            cell.fg = 0xFFFFFFFF; // White foreground (ARGB)
+            cell.bg = 0xFF000000; // Black background (ARGB)
+        }
+
         // Add some test content
         let test_text = b"Hello, World!";
         for (i, &byte) in test_text.iter().enumerate() {
