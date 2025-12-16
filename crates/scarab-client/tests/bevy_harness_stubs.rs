@@ -13,7 +13,7 @@
 //! ## Expected API (subject to change)
 //!
 //! ```rust,ignore
-//! use ratatui_testlib::BevyTuiTestHarness;
+//! use terminal_testlib::BevyTuiTestHarness;
 //!
 //! let mut harness = BevyTuiTestHarness::new()
 //!     .with_daemon_pty()      // Optional: spawn daemon in PTY
@@ -522,5 +522,5 @@ fn test_navigation_mode_lifecycle() {
 // ## References
 //
 // - Audit 007: `docs/audits/codex-2025-12-02-docs-testlib-007/summary.md`
-// - Existing smoke tests: `ratatui_testlib_smoke.rs`
-// - Gap documentation: Comments in `ratatui_testlib_smoke.rs` (lines 390-511)
+// - Existing smoke tests: `terminal_testlib_smoke.rs`
+// - Gap documentation: Comments in `terminal_testlib_smoke.rs` (lines 390-511)

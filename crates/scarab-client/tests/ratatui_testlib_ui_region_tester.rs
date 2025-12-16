@@ -39,7 +39,7 @@
 //! ## Expected ratatui-testlib v0.5.0 APIs
 //!
 //! ```rust,ignore
-//! use ratatui_testlib::UiRegionTester;
+//! use terminal_testlib::UiRegionTester;
 //!
 //! pub struct UiRegionTester {
 //!     regions: HashMap<String, Rect>,
@@ -102,7 +102,7 @@ use anyhow::Result;
 ///
 /// Expected implementation:
 /// ```rust,ignore
-/// use ratatui_testlib::{TuiTestHarness, UiRegionTester, Rect};
+/// use terminal_testlib::{TuiTestHarness, UiRegionTester, Rect};
 ///
 /// let mut harness = TuiTestHarness::new()?;
 /// harness.spawn_daemon("scarab-daemon")?;

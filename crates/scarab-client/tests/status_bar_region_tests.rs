@@ -1,7 +1,7 @@
 //! Real, working tests for status bar and tab bar regions (Issue #171)
 //!
 //! These tests use Scarab's actual Bevy UI components to test status bar and tab bar
-//! functionality. Unlike the ratatui_testlib_ui_region_tester.rs file (which waits for
+//! functionality. Unlike the terminal_testlib_ui_region_tester.rs file (which waits for
 //! ratatui-testlib v0.5.0), these tests work RIGHT NOW with the current codebase.
 //!
 //! ## Test Strategy
@@ -31,8 +31,8 @@
 //!
 //! ## Relationship to Issue #171
 //!
-//! This file complements the ratatui_testlib_ui_region_tester.rs file:
-//! - ratatui_testlib_ui_region_tester.rs: Waits for ratatui-testlib v0.5.0 (future)
+//! This file complements the terminal_testlib_ui_region_tester.rs file:
+//! - terminal_testlib_ui_region_tester.rs: Waits for ratatui-testlib v0.5.0 (future)
 //! - status_bar_region_tests.rs: Works NOW with current Bevy infrastructure (present)
 //!
 //! Both files address Issue #171's goal of testing status bar and tab bar regions.

@@ -23,7 +23,7 @@
 //! 6. Integration with Scarab's navigation system
 
 use anyhow::Result;
-use ratatui_testlib::zones::{Osc133Parser, ZoneType};
+use terminal_testlib::zones::{Osc133Parser, ZoneType};
 
 // =============================================================================
 // HELPER FUNCTIONS

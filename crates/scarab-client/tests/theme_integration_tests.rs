@@ -52,7 +52,7 @@
 use anyhow::Result;
 
 // Expected API imports when ratatui-testlib v0.5.0 is released:
-// use ratatui_testlib::{CellAttributes, Color, TuiTestHarness};
+// use terminal_testlib::{CellAttributes, Color, TuiTestHarness};
 
 // =============================================================================
 // SLIME THEME COLOR PALETTE

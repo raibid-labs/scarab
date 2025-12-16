@@ -16,7 +16,7 @@
 //! ## Expected ratatui-testlib v0.5.0 APIs
 //!
 //! ```rust,ignore
-//! use ratatui_testlib::TestAuditor;
+//! use terminal_testlib::TestAuditor;
 //!
 //! pub struct TestAuditor {
 //!     placeholder_tests: Vec<PlaceholderTest>,
@@ -78,7 +78,7 @@ use anyhow::Result;
 ///
 /// Expected implementation:
 /// ```rust,ignore
-/// use ratatui_testlib::TestAuditor;
+/// use terminal_testlib::TestAuditor;
 ///
 /// let mut auditor = TestAuditor::new();
 ///

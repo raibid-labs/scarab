@@ -42,7 +42,7 @@ fusabi-stdlib-ext = "0.1.1"
 fusabi-tui-core = "0.1"
 fusabi-tui-widgets = "0.1"
 fusabi-tui-render = "0.1"
-ratatui-testlib = { git = "https://github.com/raibid-labs/ratatui-testlib.git", branch = "main" }
+terminal-testlib = { git = "https://github.com/raibid-labs/ratatui-testlib.git", branch = "main" }
 
 # Base Bevy configuration
 bevy = { version = "0.15", default-features = false, features = [
