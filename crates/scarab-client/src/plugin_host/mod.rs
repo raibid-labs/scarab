@@ -76,6 +76,7 @@ impl Plugin for ScarabPluginHostPlugin {
                 process_plugin_actions,
                 cleanup_expired_notifications,
                 cleanup_removed_overlays,
+                render_plugin_status_items,
             ),
         );
 
@@ -240,6 +241,7 @@ fn process_plugin_actions(
                     item_id,
                     side: *side,
                     priority: *priority,
+                    content: content.clone(),
                 });
 
                 // Track in registry
@@ -545,6 +547,61 @@ fn cleanup_removed_overlays(
             );
             commands.entity(entity).despawn();
         }
+    }
+}
+
+/// Render plugin status items to the status bar
+///
+/// Queries for PluginStatusItem entities and updates the StatusBarState
+/// resource with their content, sorted by priority.
+fn render_plugin_status_items(
+    status_items: Query<&PluginStatusItem>,
+    mut status_bar: ResMut<crate::ui::status_bar::StatusBarState>,
+) {
+    use crate::events::StatusSide;
+    use scarab_plugin_api::status_bar::RenderItem;
+
+    // Collect items by side
+    let mut left_items: Vec<_> = status_items
+        .iter()
+        .filter(|item| item.side == StatusSide::Left)
+        .collect();
+    let mut right_items: Vec<_> = status_items
+        .iter()
+        .filter(|item| item.side == StatusSide::Right)
+        .collect();
+
+    // Sort by priority (higher first)
+    left_items.sort_by(|a, b| b.priority.cmp(&a.priority));
+    right_items.sort_by(|a, b| b.priority.cmp(&a.priority));
+
+    // Convert to RenderItems
+    let left_render: Vec<RenderItem> = left_items
+        .iter()
+        .flat_map(|item| {
+            vec![
+                RenderItem::Text(item.content.clone()),
+                RenderItem::Padding(1),
+            ]
+        })
+        .collect();
+
+    let right_render: Vec<RenderItem> = right_items
+        .iter()
+        .flat_map(|item| {
+            vec![
+                RenderItem::Text(item.content.clone()),
+                RenderItem::Padding(1),
+            ]
+        })
+        .collect();
+
+    // Update status bar if we have items
+    if !left_render.is_empty() {
+        status_bar.set_left(left_render);
+    }
+    if !right_render.is_empty() {
+        status_bar.set_right(right_render);
     }
 }
 

@@ -133,9 +133,13 @@ impl Default for TabState {
     }
 }
 
-/// Marker component for the left section of the status bar
+/// Marker component for the left section of the status bar (plugin items)
 #[derive(Component)]
 pub struct StatusBarLeft;
+
+/// Marker component for plugin status items text
+#[derive(Component)]
+pub struct PluginStatusText;
 
 /// Marker component for the right section of the status bar
 #[derive(Component)]
@@ -182,50 +186,72 @@ fn setup_status_bar(mut commands: Commands, tab_state: Res<TabState>) {
             StatusBarContainer,
         ))
         .with_children(|parent| {
-            // Left section - tab container (only if tabs exist)
+            // Left section - container for plugin status + tabs
             parent
                 .spawn((
                     Node {
                         display: Display::Flex,
                         flex_direction: FlexDirection::Row,
-                        column_gap: Val::Px(4.0),
+                        column_gap: Val::Px(8.0),
                         align_items: AlignItems::Center,
                         ..default()
                     },
-                    TabContainer,
+                    StatusBarLeft,
                 ))
-                .with_children(|tabs_parent| {
-                    // Only spawn tab labels if there are tabs
-                    if tab_state.tabs.is_empty() {
-                        // Show nothing on the left if no tabs
-                        return;
-                    }
+                .with_children(|left_parent| {
+                    // Plugin status items (rendered dynamically)
+                    left_parent.spawn((
+                        Text::new(""),
+                        TextFont::from_font_size(14.0),
+                        TextColor(text_color),
+                        PluginStatusText,
+                    ));
 
-                    let active_bg = Color::srgb(0.66, 0.87, 0.35); // #a8df5a - slime green
-                    let active_fg = Color::srgb(0.12, 0.14, 0.14); // dark text on active tab
-                    let inactive_fg = Color::srgb(0.66, 0.87, 0.35).with_alpha(0.6); // muted slime green
+                    // Tab container
+                    left_parent
+                        .spawn((
+                            Node {
+                                display: Display::Flex,
+                                flex_direction: FlexDirection::Row,
+                                column_gap: Val::Px(4.0),
+                                align_items: AlignItems::Center,
+                                ..default()
+                            },
+                            TabContainer,
+                        ))
+                        .with_children(|tabs_parent| {
+                            // Only spawn tab labels if there are tabs
+                            if tab_state.tabs.is_empty() {
+                                // Show nothing on the left if no tabs
+                                return;
+                            }
 
-                    for (index, tab_name) in tab_state.tabs.iter().enumerate() {
-                        let is_active = index == tab_state.active_index;
+                            let active_bg = Color::srgb(0.66, 0.87, 0.35); // #a8df5a - slime green
+                            let active_fg = Color::srgb(0.12, 0.14, 0.14); // dark text on active tab
+                            let inactive_fg = Color::srgb(0.66, 0.87, 0.35).with_alpha(0.6); // muted slime green
 
-                        tabs_parent
-                            .spawn((
-                                Node {
-                                    padding: UiRect::axes(Val::Px(8.0), Val::Px(4.0)),
-                                    margin: UiRect::right(Val::Px(2.0)),
-                                    ..default()
-                                },
-                                BackgroundColor(if is_active { active_bg } else { Color::NONE }),
-                                TabLabel { index },
-                            ))
-                            .with_children(|label_parent| {
-                                label_parent.spawn((
-                                    Text::new(tab_name),
-                                    TextFont::from_font_size(14.0),
-                                    TextColor(if is_active { active_fg } else { inactive_fg }),
-                                ));
-                            });
-                    }
+                            for (index, tab_name) in tab_state.tabs.iter().enumerate() {
+                                let is_active = index == tab_state.active_index;
+
+                                tabs_parent
+                                    .spawn((
+                                        Node {
+                                            padding: UiRect::axes(Val::Px(8.0), Val::Px(4.0)),
+                                            margin: UiRect::right(Val::Px(2.0)),
+                                            ..default()
+                                        },
+                                        BackgroundColor(if is_active { active_bg } else { Color::NONE }),
+                                        TabLabel { index },
+                                    ))
+                                    .with_children(|label_parent| {
+                                        label_parent.spawn((
+                                            Text::new(tab_name),
+                                            TextFont::from_font_size(14.0),
+                                            TextColor(if is_active { active_fg } else { inactive_fg }),
+                                        ));
+                                    });
+                            }
+                        });
                 });
 
             // Right section - show mode indicator
@@ -243,10 +269,18 @@ fn setup_status_bar(mut commands: Commands, tab_state: Res<TabState>) {
 /// Converts RenderItem sequences to Bevy Text with appropriate styling.
 fn update_status_bar_system(
     mut status: ResMut<StatusBarState>,
+    mut left_query: Query<&mut Text, (With<PluginStatusText>, Without<StatusBarRight>)>,
     mut right_query: Query<&mut Text, With<StatusBarRight>>,
 ) {
-    // Note: Left side is now handled by tabs, not by left_items
+    // Update left side (plugin status items)
+    if status.left_dirty {
+        if let Ok(mut text) = left_query.get_single_mut() {
+            let content = render_items_to_text(&status.left_items);
+            **text = content;
+        }
+    }
 
+    // Update right side
     if status.right_dirty {
         if let Ok(mut text) = right_query.get_single_mut() {
             **text = render_items_to_text(&status.right_items);

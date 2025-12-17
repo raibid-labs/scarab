@@ -76,7 +76,15 @@ fn create_script_manager(
     mut commands: Commands,
     channel: Res<FusabiActionChannel>,
     config: Res<scarab_config::ScarabConfig>,
+    mut registry: ResMut<crate::plugin_host::PluginRegistry>,
 ) {
+    // Register "script" as a plugin so status bar actions work
+    registry.register(
+        "script".to_string(),
+        "Fusabi Scripts".to_string(),
+        env!("CARGO_PKG_VERSION").to_string(),
+    );
+
     let scripts_dir = get_scripts_directory(&config);
     let manager = ScriptManager::new_with_channel(scripts_dir, std::sync::Arc::new(channel.clone()));
     commands.insert_resource(manager);
