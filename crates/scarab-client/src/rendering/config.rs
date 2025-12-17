@@ -134,21 +134,44 @@ impl Default for TextAttributes {
 
 /// Color helper functions for converting between formats
 pub mod color {
+    use bevy::color::Srgba;
     use bevy::prelude::{Color, ColorToComponents};
 
-    /// Convert u32 ARGB to Bevy Color
+    /// Convert u32 ARGB to Bevy Color in LINEAR space
     ///
     /// The daemon uses ARGB format (0xAARRGGBB):
     /// - High byte (bits 24-31): Alpha
     /// - Next byte (bits 16-23): Red
     /// - Next byte (bits 8-15): Green
     /// - Low byte (bits 0-7): Blue
+    ///
+    /// IMPORTANT: Returns color in LINEAR space for use as vertex colors.
+    /// Bevy's 2D mesh shader expects vertex colors in linear space.
+    /// The input values are interpreted as sRGB and converted to linear.
     pub fn from_rgba(argb: u32) -> Color {
         let a = ((argb >> 24) & 0xFF) as f32 / 255.0;
         let r = ((argb >> 16) & 0xFF) as f32 / 255.0;
         let g = ((argb >> 8) & 0xFF) as f32 / 255.0;
         let b = (argb & 0xFF) as f32 / 255.0;
-        Color::srgba(r, g, b, a)
+        // Create sRGB color and convert to linear for vertex colors
+        let srgb = Srgba::new(r, g, b, a);
+        Color::linear_rgba(
+            srgb_to_linear(srgb.red),
+            srgb_to_linear(srgb.green),
+            srgb_to_linear(srgb.blue),
+            a, // Alpha doesn't need conversion
+        )
+    }
+
+    /// Convert sRGB component to linear
+    /// Uses the standard sRGB to linear conversion formula
+    #[inline]
+    fn srgb_to_linear(c: f32) -> f32 {
+        if c <= 0.04045 {
+            c / 12.92
+        } else {
+            ((c + 0.055) / 1.055).powf(2.4)
+        }
     }
 
     /// Convert Bevy Color to u32 ARGB

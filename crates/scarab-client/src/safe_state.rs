@@ -2,11 +2,23 @@
 //!
 //! This module provides safe wrappers around raw SharedState pointers,
 //! eliminating unsafe dereferences and adding validation.
+//!
+//! ## Consistency Guarantees
+//!
+//! The daemon writes cells to shared memory and increments a sequence number.
+//! This module provides methods to detect if the sequence changed during a read:
+//!
+//! - `try_read()` - Single attempt, returns None if sequence changed during read
+//! - `read_consistent()` - Retries until a consistent read succeeds
+//!
+//! For most rendering use cases, the existing `TerminalStateReader` trait methods
+//! are sufficient since individual Cell writes are atomic.
 
 use scarab_protocol::{
     terminal_state::TerminalStateReader, Cell, SharedState, GRID_HEIGHT, GRID_WIDTH,
 };
 use std::marker::PhantomData;
+use std::sync::atomic::Ordering;
 
 /// Safe wrapper for SharedState with lifetime tracking
 ///
@@ -85,6 +97,112 @@ impl<'a> SafeSharedState<'a> {
     /// - Sequence number is reasonable (non-zero usually)
     fn is_memory_valid(&self) -> bool {
         self.cursor_in_bounds()
+    }
+
+    /// Read the sequence number using volatile/atomic semantics
+    #[inline]
+    fn read_sequence_atomic(&self) -> u64 {
+        let state = self.state_ref();
+        // Use volatile read to prevent compiler reordering
+        unsafe { std::ptr::read_volatile(&state.sequence_number) }
+    }
+
+    /// Read cells with consistency guarantee
+    ///
+    /// This method reads cells and verifies the sequence number didn't change
+    /// during the read, retrying if necessary.
+    ///
+    /// Returns a consistent snapshot of the cell data along with the sequence number.
+    ///
+    /// # Arguments
+    /// * `max_retries` - Maximum retry attempts before giving up (0 = unlimited)
+    ///
+    /// # Returns
+    /// * `Some((sequence, cells))` - Consistent read succeeded
+    /// * `None` - Failed after max_retries (only if max_retries > 0)
+    pub fn read_consistent(&self, max_retries: u32) -> Option<(u64, Vec<Cell>)> {
+        let mut attempts = 0u32;
+
+        loop {
+            // Step 1: Read sequence before
+            let seq_before = self.read_sequence_atomic();
+
+            // Step 2: Memory barrier to ensure we see current data
+            std::sync::atomic::fence(Ordering::Acquire);
+
+            // Step 3: Read data
+            let state = self.state_ref();
+            let cells = state.cells.to_vec();
+
+            // Step 4: Memory barrier before re-reading sequence
+            std::sync::atomic::fence(Ordering::Acquire);
+
+            // Step 5: Verify sequence unchanged
+            let seq_after = self.read_sequence_atomic();
+            if seq_before == seq_after {
+                // Success - consistent read!
+                return Some((seq_before, cells));
+            }
+
+            // Sequence changed during read - retry
+            std::hint::spin_loop();
+            attempts += 1;
+            if max_retries > 0 && attempts >= max_retries {
+                return None;
+            }
+        }
+    }
+
+    /// Read cursor position with consistency guarantee
+    ///
+    /// Lighter weight than `read_consistent` since cursor is only 4 bytes.
+    pub fn read_cursor_consistent(&self, max_retries: u32) -> Option<(u64, u16, u16)> {
+        let mut attempts = 0u32;
+
+        loop {
+            let seq_before = self.read_sequence_atomic();
+
+            std::sync::atomic::fence(Ordering::Acquire);
+
+            let state = self.state_ref();
+            let cursor_x = state.cursor_x;
+            let cursor_y = state.cursor_y;
+
+            std::sync::atomic::fence(Ordering::Acquire);
+
+            let seq_after = self.read_sequence_atomic();
+            if seq_before == seq_after {
+                return Some((seq_before, cursor_x, cursor_y));
+            }
+
+            std::hint::spin_loop();
+            attempts += 1;
+            if max_retries > 0 && attempts >= max_retries {
+                return None;
+            }
+        }
+    }
+
+    /// Try to read cells without blocking, returning None if sequence changed during read
+    ///
+    /// This is useful for render loops where you'd rather skip a frame than block.
+    /// Unlike `read_consistent`, this does NOT retry - it returns immediately.
+    pub fn try_read(&self) -> Option<(u64, &[Cell])> {
+        let seq_before = self.read_sequence_atomic();
+
+        std::sync::atomic::fence(Ordering::Acquire);
+
+        let state = self.state_ref();
+        let cells = &state.cells[..];
+
+        std::sync::atomic::fence(Ordering::Acquire);
+
+        let seq_after = self.read_sequence_atomic();
+        if seq_before == seq_after {
+            Some((seq_before, cells))
+        } else {
+            None // Sequence changed during read
+        }
     }
 }
 

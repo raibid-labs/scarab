@@ -367,33 +367,49 @@ fn render_terminal(
 }
 ```
 
-### No Explicit Retry Loop (Yet)
+### Consistency Helper Methods
 
-**Current Implementation**: Scarab's client does **not** implement the full SeqLock retry loop with sequence validation. Instead:
+**Location**: `crates/scarab-client/src/safe_state.rs`
 
-1. Client reads `sequence_number` once per frame
-2. If sequence changed → re-render
-3. **No verification** that cells read are consistent with sequence
+The client provides optional methods for detecting if data changed during a read:
 
-**Why This Works**:
-- Terminal writes are **atomic** at the `Cell` level (16 bytes, cache-aligned)
-- Modern CPUs guarantee aligned reads/writes are atomic
-- **Worst case**: Client sees "tearing" (partial frame), corrected next frame (16ms)
-
-**Future Enhancement**: Implement full SeqLock validation:
 ```rust
-fn read_cells_safe(&self) -> Vec<Cell> {
-    loop {
-        let seq_before = self.sequence();
-        if seq_before % 2 != 0 { continue; } // Skip odd
-        let cells = self.cells().to_vec();
-        if seq_before == self.sequence() {
-            return cells; // Consistent read
-        }
-        // Retry on mismatch
+// Full consistency with automatic retry (blocking)
+pub fn read_consistent(&self, max_retries: u32) -> Option<(u64, Vec<Cell>)>
+
+// Lightweight cursor read with consistency
+pub fn read_cursor_consistent(&self, max_retries: u32) -> Option<(u64, u16, u16)>
+
+// Non-blocking single attempt (for render loops)
+pub fn try_read(&self) -> Option<(u64, &[Cell])>
+```
+
+**For most use cases**, the standard `TerminalStateReader` trait methods are sufficient:
+
+```rust
+fn render_terminal(state: &SafeSharedState, mut last_seq: u64) -> u64 {
+    let current_seq = state.sequence();
+    if current_seq != last_seq {
+        // Render using state.cells() or state.cell(row, col)
+        render_cells(state.cells());
+        last_seq = current_seq;
     }
+    last_seq
 }
 ```
+
+**For operations requiring guaranteed consistency**, use `read_consistent()`:
+
+```rust
+// Will retry until a consistent read succeeds (max 1000 attempts)
+if let Some((seq, cells)) = state.read_consistent(1000) {
+    process_cells(&cells);
+}
+```
+
+Note: Individual `Cell` writes (16 bytes) are atomic on modern CPUs, so torn reads
+of individual cells are extremely rare. The consistency helpers are mainly useful
+when reading large regions where you need to ensure all cells are from the same frame.
 
 ---
 
@@ -569,6 +585,30 @@ fn validate_shared_state(state: &SharedState) -> bool {
 | **RwLock** | Medium (writer starvation) | Medium | Low |
 | **SeqLock** | Low (lock-free) | **High** | **Medium** |
 | **Double-buffer** | Low | High | High (2× memory) |
+
+### Alternative: mmap-sync (Cloudflare)
+
+If implementing SeqLock manually becomes burdensome, consider switching to
+[**mmap-sync**](https://github.com/cloudflare/mmap-sync) - a production-ready
+crate from Cloudflare that provides:
+
+- Single-writer, multiple-reader wait-free synchronization
+- Memory-mapped file backend (persistence optional)
+- Correct SeqLock implementation out of the box
+- Zero-copy deserialization via `rkyv`
+
+```toml
+# Cargo.toml
+mmap-sync = "1"
+```
+
+This would replace both `shared_memory` and our manual sequence number logic.
+The tradeoff is adding a dependency vs. maintaining our own implementation.
+
+**When to consider switching:**
+- If SeqLock bugs continue to cause issues
+- If we need persistence across daemon restarts
+- If we want to support multiple simultaneous daemons
 
 ### Memory Overhead
 

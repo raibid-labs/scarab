@@ -27,7 +27,7 @@ mod tests {
 
     /// Helper to blit terminal to shared state and get cell content at position
     fn blit_and_get_cell(
-        terminal: &TerminalState,
+        terminal: &mut TerminalState,
         state: &mut SharedState,
         seq: &Arc<AtomicU64>,
         x: usize,
@@ -191,6 +191,27 @@ mod tests {
         assert_eq!(cell.char_codepoint, 'C' as u32);
         // Color should be non-default
         assert_ne!(cell.fg, 0xFFCCCCCC);
+    }
+
+    #[test]
+    fn test_true_color() {
+        let (_state, mut terminal, _seq) = create_test_terminal();
+
+        // 24-bit true color foreground: RGB(255, 128, 64) = orange
+        terminal.process_output(b"\x1b[38;2;255;128;64mTrueColor\x1b[0m");
+
+        let cell = get_grid_cell(&terminal, 0, 0).unwrap();
+        assert_eq!(cell.char_codepoint, 'T' as u32);
+        // 0xFF000000 | (255 << 16) | (128 << 8) | 64 = 0xFFFF8040
+        assert_eq!(cell.fg, 0xFFFF8040);
+
+        // Reset and test background true color
+        terminal.process_output(b"\x1b[2J\x1b[H"); // Clear screen, home cursor
+        terminal.process_output(b"\x1b[48;2;0;100;200mBlueBG\x1b[0m");
+
+        let cell = get_grid_cell(&terminal, 0, 0).unwrap();
+        // 0xFF000000 | (0 << 16) | (100 << 8) | 200 = 0xFF0064C8
+        assert_eq!(cell.bg, 0xFF0064C8);
     }
 
     #[test]

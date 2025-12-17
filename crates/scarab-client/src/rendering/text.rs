@@ -179,6 +179,9 @@ impl Default for TerminalMesh {
 /// Now accepts any type implementing TerminalStateReader for safe access.
 /// Note: Uses separate attribute arrays instead of a vertex struct
 /// for better compatibility with Bevy's mesh API
+///
+/// IMPORTANT: Backgrounds are rendered FIRST, then glyphs, to ensure correct
+/// layering when alpha blending is enabled (which disables depth testing).
 pub fn generate_terminal_mesh(
     state: &impl TerminalStateReader,
     renderer: &mut TextRenderer,
@@ -195,30 +198,27 @@ pub fn generate_terminal_mesh(
     // Get UVs for white pixel (for solid backgrounds)
     let white_uv_rect = renderer.atlas.get_white_pixel_uv();
 
-    let mut glyph_attempts = 0;
-    let mut glyph_success = 0;
-
     let (width, _height) = state.dimensions();
+    let cells = state.cells();
 
-    // Iterate through all cells
     // Note: We always regenerate the full mesh because partial updates would require
     // incremental mesh modification which is complex. The dirty_region parameter is
     // kept for future optimization but currently ignored.
     let _ = dirty_region; // Silence unused warning
-    for (idx, cell) in state.cells().iter().enumerate() {
+
+    // PASS 1: Render ALL backgrounds first
+    // This ensures backgrounds are drawn before any glyphs, preventing
+    // backgrounds from covering glyphs when depth testing is disabled.
+    for (idx, cell) in cells.iter().enumerate() {
         let row = idx / width;
         let col = idx % width;
 
-        // Position cells relative to origin (0,0) at top-left
-        // Camera2d: Y points UP. Row 0 at top means highest Y value.
-        // So Y decreases as row increases: y = -row * cell_height
         let x = col as f32 * renderer.cell_width;
         let y = -(row as f32 * renderer.cell_height);
 
         // Background quad - only render when cell bg differs from theme default
         // The TerminalBackgroundEntity sprite provides the uniform theme background,
         // so we only need to render background quads for cells with custom colors.
-        // This significantly reduces vertex count and improves performance.
         // Theme default: 0xFF0D1208 (Slime dark #0d1208)
         // Also treat 0 and 0xFF000000 as theme default to avoid rendering unnecessary quads
         let needs_custom_bg = cell.bg != 0 && cell.bg != 0xFF000000 && cell.bg != 0xFF0D1208;
@@ -237,6 +237,18 @@ pub fn generate_terminal_mesh(
                 white_uv_rect,
             );
         }
+    }
+
+    // PASS 2: Render ALL glyphs after backgrounds
+    let mut glyph_attempts = 0;
+    let mut glyph_success = 0;
+
+    for (idx, cell) in cells.iter().enumerate() {
+        let row = idx / width;
+        let col = idx % width;
+
+        let x = col as f32 * renderer.cell_width;
+        let y = -(row as f32 * renderer.cell_height);
 
         // Foreground glyph
         if cell.char_codepoint != 0 && cell.char_codepoint != 32 {
@@ -299,7 +311,8 @@ fn add_background_quad(
     uv_rect: [f32; 4],
 ) {
     let bg = color::from_rgba(bg_color);
-    let color_array = bg.to_srgba().to_f32_array();
+    // Use linear color directly - from_rgba returns linear for vertex colors
+    let color_array = bg.to_linear().to_f32_array();
 
     // Add four vertices (quad)
     // Camera2d: Y points UP, so for a downward-extending quad from top edge y:
@@ -427,10 +440,11 @@ fn render_glyph(
     let uv_rect = atlas_rect.uv_rect();
 
     // Get foreground color (with dim attribute)
+    // from_rgba returns linear color for vertex colors
     let mut fg = color::from_rgba(cell.fg);
     if attrs.dim {
-        let [r, g, b, a] = fg.to_srgba().to_f32_array();
-        fg = Color::srgba(r * 0.5, g * 0.5, b * 0.5, a);
+        let [r, g, b, a] = fg.to_linear().to_f32_array();
+        fg = Color::linear_rgba(r * 0.5, g * 0.5, b * 0.5, a);
     }
 
     // Handle reverse video
@@ -438,7 +452,8 @@ fn render_glyph(
         fg = color::from_rgba(cell.bg);
     }
 
-    let fg_array = fg.to_srgba().to_f32_array();
+    // Use linear color directly for vertex colors
+    let fg_array = fg.to_linear().to_f32_array();
 
     // Use the ACTUAL glyph dimensions from the atlas to preserve aspect ratio
     // This prevents stretching/distortion of characters
@@ -550,7 +565,8 @@ fn add_underline_quad(
     uv_rect: [f32; 4],
 ) {
     let color = color::from_rgba(color_u32);
-    let color_array = color.to_srgba().to_f32_array();
+    // Use linear color directly for vertex colors
+    let color_array = color.to_linear().to_f32_array();
 
     positions.extend_from_slice(&[
         [x, y, LAYER_TEXT_DECORATIONS], // Above glyph
