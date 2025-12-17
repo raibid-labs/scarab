@@ -869,6 +869,6 @@ mod basic_tests {
     }
 }
 
-// Comprehensive navigation tests module
+// Comprehensive navigation tests module (organized in tests/ subdirectory)
 #[cfg(test)]
 mod tests;
