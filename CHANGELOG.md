@@ -5,6 +5,23 @@ All notable changes to the Scarab terminal emulator will be documented in this f
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.2] - 2025-12-16
+
+### Fixed
+
+- **Color Accuracy**: Fixed washed-out terminal colors by converting sRGB to linear
+  color space for Bevy's 2D mesh vertex colors
+- **True Color Support**: Added 24-bit RGB color support (SGR 38;2;r;g;b and 48;2;r;g;b)
+- **CSI Parameter Parsing**: Fixed parsing of colon-separated subparameters for modern
+  terminal color sequences (e.g., `\e[38:2:r:g:b`)
+
+### Changed
+
+- **Reactive Rendering**: Daemon now only blits to shared memory when content changes,
+  reducing CPU usage when terminal is idle (was 60fps polling, now on-demand)
+- **IPC Documentation**: Added mmap-sync as alternative synchronization approach,
+  documented SeqLock consistency guarantees
+
 ## [0.3.1] - 2025-12-16
 
 ### Fixed
