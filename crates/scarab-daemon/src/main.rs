@@ -437,25 +437,23 @@ async fn main() -> Result<()> {
                 if let Some(session) = session_manager.get_default_session() {
                     if let Some(active_pane) = session.get_active_pane() {
                         let terminal_state_arc = active_pane.terminal_state();
-                        let terminal_state = terminal_state_arc.read();
+                        let mut terminal_state = terminal_state_arc.write();
 
-                        // Always blit to shared memory
-                        // The sequence check was broken: it compared the sequence counter
-                        // to itself, since the counter is only incremented in blit_to_shm().
-                        // The orchestrator updates terminal_state but doesn't signal this.
-                        // Blitting every frame is cheap (memcpy) and ensures the client
-                        // always sees the latest content.
+                        // Only blit to shared memory if content has changed
+                        // This makes rendering reactive - sequence only increments on actual changes
                         // SAFETY: shared_ptr points to valid SharedState in shared memory
-                        unsafe { terminal_state.blit_to_shm(shared_ptr, &sequence_counter) };
+                        let did_blit = unsafe { terminal_state.blit_to_shm(shared_ptr, &sequence_counter) };
 
-                        // Blit images to SharedImageBuffer
-                        blit_images_to_shm(&terminal_state, image_ptr);
+                        if did_blit {
+                            // Blit images to SharedImageBuffer
+                            blit_images_to_shm(&terminal_state, image_ptr);
 
-                        let new_seq = sequence_counter.load(Ordering::SeqCst);
-                        if telemetry.log_sequence_changes && new_seq != last_sequence {
-                            log::debug!("Sequence: {} -> {}", last_sequence, new_seq);
+                            let new_seq = sequence_counter.load(Ordering::SeqCst);
+                            if telemetry.log_sequence_changes && new_seq != last_sequence {
+                                log::debug!("Sequence: {} -> {}", last_sequence, new_seq);
+                            }
+                            last_sequence = new_seq;
                         }
-                        last_sequence = new_seq;
                     }
                 }
             }
@@ -471,9 +469,9 @@ async fn main() -> Result<()> {
                             eprintln!("Failed to resize pane: {}", e);
                         }
 
-                        // Force blit after resize
+                        // Force blit after resize (resize marks content as changed)
                         let terminal_state_arc = active_pane.terminal_state();
-                        let terminal_state = terminal_state_arc.read();
+                        let mut terminal_state = terminal_state_arc.write();
                         // SAFETY: shared_ptr points to valid SharedState in shared memory
                         unsafe { terminal_state.blit_to_shm(shared_ptr, &sequence_counter) };
 

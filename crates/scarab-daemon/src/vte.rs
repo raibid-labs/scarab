@@ -220,6 +220,8 @@ pub struct TerminalState {
     pub pending_responses: Vec<Vec<u8>>,
     /// Semantic zone tracker for deep shell integration
     pub zone_tracker: ZoneTracker,
+    /// Content changed since last blit - enables reactive updates
+    content_changed: bool,
 }
 
 impl TerminalState {
@@ -247,7 +249,20 @@ impl TerminalState {
             in_dcs: false,
             pending_responses: Vec::new(),
             zone_tracker: ZoneTracker::new(500), // Keep last 500 command blocks
+            content_changed: true, // Start dirty to ensure initial render
         }
+    }
+
+    /// Check if content has changed since last blit
+    #[inline]
+    pub fn has_changes(&self) -> bool {
+        self.content_changed
+    }
+
+    /// Mark content as changed (called by VTE processor)
+    #[inline]
+    pub fn mark_changed(&mut self) {
+        self.content_changed = true;
     }
 
     /// Create with legacy SharedState pointer (for backwards compatibility during migration)
@@ -260,7 +275,7 @@ impl TerminalState {
         shared_ptr: *mut SharedState,
         sequence_counter: Arc<AtomicU64>,
     ) -> Self {
-        let state = Self::new(GRID_WIDTH as u16, GRID_HEIGHT as u16);
+        let mut state = Self::new(GRID_WIDTH as u16, GRID_HEIGHT as u16);
         // Initialize by blitting to shared memory immediately
         state.blit_to_shm(shared_ptr, &sequence_counter);
         state
@@ -273,18 +288,33 @@ impl TerminalState {
         self.cursor_x = self.cursor_x.min(self.cols.saturating_sub(1));
         self.cursor_y = self.cursor_y.min(self.rows.saturating_sub(1));
         self.grid.resize(self.cols, self.rows);
+        // Mark content as changed since dimensions changed
+        self.content_changed = true;
     }
 
-    /// Blit (copy) the local grid to shared memory
+    /// Blit (copy) the local grid to shared memory if content has changed
     ///
     /// This is called when this pane is active to update the client's view.
-    /// The sequence counter is incremented to signal to the client that
-    /// new data is available.
+    /// The sequence counter is incremented after writing to signal new data.
+    ///
+    /// Returns `true` if content was blitted, `false` if skipped (no changes).
+    ///
+    /// # Synchronization
+    /// Uses a simplified approach where sequence increments once per write.
+    /// Clients detect changes by comparing to their last seen sequence.
+    /// Torn reads are theoretically possible but rare at 60fps with atomic Cell writes.
+    ///
+    /// For stricter consistency guarantees, clients can use `SafeSharedState::try_read()`
+    /// which implements full SeqLock validation.
     ///
     /// # Safety
     /// The caller must ensure that `shm` is a valid, properly aligned pointer to a
     /// `SharedState` instance and that no other thread is concurrently writing to it.
-    pub unsafe fn blit_to_shm(&self, shm: *mut SharedState, sequence_counter: &Arc<AtomicU64>) {
+    pub unsafe fn blit_to_shm(&mut self, shm: *mut SharedState, sequence_counter: &Arc<AtomicU64>) -> bool {
+        // Skip blit if no changes since last time
+        if !self.content_changed {
+            return false;
+        }
         let state = &mut *shm;
 
         // Fill the ENTIRE shared memory grid with theme background color
@@ -319,10 +349,14 @@ impl TerminalState {
         state.cursor_x = self.cursor_x;
         state.cursor_y = self.cursor_y;
 
-        // Mark dirty and increment sequence number
+        // Mark dirty and increment sequence number (signals new data available)
         state.dirty_flag = 1;
         let new_seq = sequence_counter.fetch_add(1, Ordering::SeqCst) + 1;
         state.sequence_number = new_seq;
+
+        // Clear the changed flag now that we've blitted
+        self.content_changed = false;
+        true
     }
 
     /// Get dimensions
@@ -428,6 +462,10 @@ impl TerminalState {
     /// Updates the local grid - call blit_to_shm() after processing
     /// to copy the grid to shared memory for the client.
     pub fn process_output(&mut self, data: &[u8]) {
+        if data.is_empty() {
+            return;
+        }
+
         // Take ownership of the parser temporarily to satisfy borrow checker
         let mut parser = std::mem::replace(&mut self.parser, vte::Parser::new());
 
@@ -437,6 +475,9 @@ impl TerminalState {
 
         // Restore the parser
         self.parser = parser;
+
+        // Mark content as changed since we processed some output
+        self.content_changed = true;
     }
 
     /// Write a character at the current cursor position
@@ -590,16 +631,39 @@ impl TerminalState {
                 40..=47 => self.attrs.bg = ansi_color_to_rgba(params[i] as u8 - 40),
                 100..=107 => self.attrs.bg = ansi_bright_color_to_rgba(params[i] as u8 - 100),
 
-                // 256-color mode (38;5;n for fg, 48;5;n for bg)
+                // Extended color modes (38;5;n for 256-color, 38;2;r;g;b for true color)
                 38 | 48 => {
-                    if i + 2 < params.len() && params[i + 1] == 5 {
-                        let color = color_256_to_rgba(params[i + 2] as u8);
-                        if params[i] == 38 {
-                            self.attrs.fg = color;
-                        } else {
-                            self.attrs.bg = color;
+                    if i + 1 < params.len() {
+                        match params[i + 1] {
+                            // 256-color mode: 38;5;n or 48;5;n
+                            5 => {
+                                if i + 2 < params.len() {
+                                    let color = color_256_to_rgba(params[i + 2] as u8);
+                                    if params[i] == 38 {
+                                        self.attrs.fg = color;
+                                    } else {
+                                        self.attrs.bg = color;
+                                    }
+                                    i += 2;
+                                }
+                            }
+                            // 24-bit true color mode: 38;2;r;g;b or 48;2;r;g;b
+                            2 => {
+                                if i + 4 < params.len() {
+                                    let r = (params[i + 2] as u8) as u32;
+                                    let g = (params[i + 3] as u8) as u32;
+                                    let b = (params[i + 4] as u8) as u32;
+                                    let color = 0xFF000000 | (r << 16) | (g << 8) | b;
+                                    if params[i] == 38 {
+                                        self.attrs.fg = color;
+                                    } else {
+                                        self.attrs.bg = color;
+                                    }
+                                    i += 4;
+                                }
+                            }
+                            _ => {}
                         }
-                        i += 2;
                     }
                 }
 
@@ -853,7 +917,12 @@ impl Perform for TerminalState {
         _ignore: bool,
         action: char,
     ) {
-        let params: Vec<i64> = params.iter().map(|p| p[0] as i64).collect();
+        // Flatten all params including colon-separated subparameters
+        // This handles both semicolon format (\e[38;2;r;g;b) and colon format (\e[38:2:r:g:b)
+        let params: Vec<i64> = params
+            .iter()
+            .flat_map(|p| p.iter().map(|&v| v as i64))
+            .collect();
 
         match action {
             'A' => {
