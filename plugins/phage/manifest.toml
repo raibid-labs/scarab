@@ -1,12 +1,24 @@
 # Phage Plugin Manifest
 # This file tells Scarab how to load the Phage plugin
+#
+# Install with: fpm add phage
+# Or copy to: ~/.config/scarab/plugins/phage/
 
 [plugin]
 name = "phage"
 version = "0.1.0"
-description = "Phage AI context management integration"
+description = "Phage AI context injection and status bar plugin"
 author = "Raibid Labs"
-icon = "🦠"
+icon = ""
+homepage = "https://github.com/raibid-labs/scarab"
+repository = "https://github.com/raibid-labs/scarab"
+license = "MIT"
+
+# Minimum Scarab version required
+min_scarab_version = "0.3.0"
+
+# Plugin API version
+api_version = "0.1.0"
 
 [source]
 # Path to the Fusabi script (relative to manifest)
@@ -25,3 +37,20 @@ dock_priority = 50
 filesystem = true
 # Allow network access for Phage daemon communication
 network = true
+# Allow status bar rendering
+status_bar = true
+# Allow scarab-nav integration
+navigation = true
+
+[status_bar]
+# Status bar configuration
+enabled = true
+side = "right"
+priority = 100
+
+[registry]
+# Fusabi community registry metadata
+category = "ai-integration"
+tags = ["ai", "context", "status-bar", "mcp", "phage"]
+compatible_runtimes = ["scarab", "fusabi-plugin-runtime"]
+requires_capabilities = ["network", "filesystem", "status_bar"]

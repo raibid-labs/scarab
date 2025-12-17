@@ -1,0 +1,37 @@
+# Fusabi Package Manifest for Phage Plugin
+# Install with: fpm add phage
+
+[package]
+name = "phage"
+version = "0.1.0"
+authors = ["Raibid Labs <team@raibid-labs.com>"]
+description = "Phage AI context injection and status bar plugin for Scarab"
+license = "MIT"
+repository = "https://github.com/raibid-labs/scarab"
+
+[dependencies]
+# No external Fusabi package dependencies yet
+# Future: json = "0.1.0"
+
+[scarab]
+# Scarab-specific plugin configuration
+entry = "phage.fsx"
+type = "script"
+
+# Required capabilities
+[scarab.capabilities]
+filesystem = true      # For workspace initialization
+network = true         # For Phage daemon communication
+status_bar = true      # For status bar rendering
+navigation = true      # For scarab-nav integration
+
+# Menu/dock configuration
+[scarab.menu]
+dock = true
+dock_priority = 50
+icon = "🦠"
+
+# Status bar configuration
+[scarab.status_bar]
+side = "right"
+priority = 100

@@ -1,23 +1,169 @@
 // Phage Plugin for Scarab Terminal
-// Provides Phage context management capabilities via the Dock & Menu system
+// Status bar + AI context management via the Dock & Menu system
+//
+// Install: fpm add phage
+// Repository: https://github.com/raibid-labs/scarab
 
-// Plugin metadata
-let name = "phage"
-let version = "0.1.0"
-let description = "Phage AI context management integration"
-let icon = "🦠"
+module Phage
 
-// Phage daemon configuration
+open Scarab.Host
+open Scarab.StatusBar
+open Scarab.Nav
+
+// ============================================================================
+// Plugin Metadata
+// ============================================================================
+
+let metadata = {
+    Name = "phage"
+    Version = "0.1.0"
+    Description = "Phage AI context injection and status bar plugin"
+    Author = "Raibid Labs"
+    ApiVersion = "0.1.0"
+    MinScarabVersion = "0.3.0"
+}
+
+// ============================================================================
+// Configuration
+// ============================================================================
+
 let daemon_url = "http://localhost:15702"
+let poll_interval_ms = 5000
 
-// Menu items for the dock
-let menu = [
-    { label = "Init Workspace"; action = "init_cmd"; icon = "🌱"; shortcut = "Ctrl+Alt+I" };
-    { label = "Chat"; action = "chat_open"; icon = "💬"; shortcut = "Ctrl+Alt+C" };
-    { label = "Explain Selection"; action = "explain_sel"; icon = "🧐"; shortcut = "" };
-    { label = "Fix Last Command"; action = "fix_cmd"; icon = "🔧"; shortcut = "" };
-    { label = "Context Info"; action = "show_context"; icon = "📋"; shortcut = "" }
-]
+// ============================================================================
+// State
+// ============================================================================
+
+// Mutable state for tracking connection and context
+let mutable connection_state = "unknown"  // unknown, connected, disconnected, connecting
+let mutable rules_count = 0
+let mutable mcp_servers_count = 0
+let mutable active_layer = ""
+let mutable last_error = ""
+let mutable status_item_id = 0
+
+// ============================================================================
+// Status Bar Rendering
+// ============================================================================
+
+// Build status bar items based on current state
+let build_status_items () =
+    let items = []
+
+    // Separator
+    let items = items @ [Separator " | "]
+
+    // Phage icon (DNA helix)
+    let icon_color =
+        match connection_state with
+        | "connected" -> "#00FF00"  // Matrix green
+        | "disconnected" -> "#FF5555"  // Red
+        | "connecting" -> "#F1FA8C"  // Yellow
+        | _ -> "#6272A4"  // Gray
+
+    let items = items @ [
+        Foreground (Hex icon_color)
+        Text ""  // DNA icon
+        ResetForeground
+        Padding 1
+    ]
+
+    // Connection indicator
+    let conn_icon =
+        match connection_state with
+        | "connected" -> ""
+        | "disconnected" -> ""
+        | "connecting" -> ""
+        | _ -> "?"
+
+    let items = items @ [
+        Foreground (Hex icon_color)
+        Text conn_icon
+        ResetForeground
+        Padding 1
+    ]
+
+    // Status details based on connection
+    let items =
+        match connection_state with
+        | "connected" ->
+            items @ [
+                ForegroundAnsi BrightCyan
+                Text ("R:" + string rules_count)
+                ResetForeground
+                Padding 1
+                ForegroundAnsi BrightMagenta
+                Text ("M:" + string mcp_servers_count)
+                ResetForeground
+            ] @ (
+                if active_layer <> "" then
+                    [Padding 1; ForegroundAnsi BrightBlack; Text ("[" + active_layer + "]"); ResetForeground]
+                else []
+            )
+        | "disconnected" ->
+            items @ [ForegroundAnsi BrightBlack; Italic; Text "offline"; ResetAttributes]
+        | "connecting" ->
+            items @ [ForegroundAnsi Yellow; Text "..."; ResetForeground]
+        | _ ->
+            items @ [ForegroundAnsi BrightBlack; Text "?"; ResetForeground]
+
+    items
+
+// Update the status bar display
+let update_status_bar ctx =
+    let items = build_status_items ()
+
+    // Remove old status item if exists
+    if status_item_id > 0 then
+        Host.removeStatusItem ctx status_item_id
+
+    // Add new status item
+    let item = {
+        Side = Right
+        Priority = 100
+        Items = items
+    }
+    status_item_id <- Host.addStatusItem ctx item
+
+// ============================================================================
+// Daemon Communication
+// ============================================================================
+
+// Poll the Phage daemon for context
+let poll_daemon ctx =
+    connection_state <- "connecting"
+    update_status_bar ctx
+
+    let url = daemon_url + "/context/get"
+
+    match http_get url 500 with
+    | Ok response ->
+        connection_state <- "connected"
+        last_error <- ""
+
+        // Parse JSON response
+        match json_parse response with
+        | Ok json ->
+            // Extract context info
+            rules_count <- json |> json_get_path "context.rules" |> json_array_length |> Option.defaultValue 0
+            mcp_servers_count <- json |> json_get_path "context.mcp_configs" |> json_array_length |> Option.defaultValue 0
+            active_layer <- json |> json_get_path "context.layer" |> json_as_string |> Option.defaultValue ""
+
+            log_debug ("Phage: " + string rules_count + " rules, " + string mcp_servers_count + " MCP servers")
+        | Error e ->
+            log_warn ("Phage: Failed to parse response: " + e)
+
+        update_status_bar ctx
+
+    | Error e ->
+        connection_state <- "disconnected"
+        last_error <- e
+        log_warn ("Phage: " + e)
+        update_status_bar ctx
+
+// ============================================================================
+// Workspace Initialization
+// ============================================================================
 
 // Initialize Phage workspace in current directory
 let init_workspace cwd =
@@ -25,7 +171,7 @@ let init_workspace cwd =
 
     // Check if already initialized
     if file_exists phage_dir then
-        log_warn "Phage workspace already initialized at " + phage_dir
+        log_warn ("Phage workspace already initialized at " + phage_dir)
         false
     else
         // Create directory structure
@@ -34,52 +180,123 @@ let init_workspace cwd =
         create_dir (phage_dir + "/layers/session")
 
         // Create base config
-        let base_config = "{
-    name = \"base-default\"
-    rules = []
-}"
+        let base_config = """
+[layer]
+name = "base-default"
+type = "base"
+
+[rules]
+# Add organization-wide rules here
+"""
         write_file (phage_dir + "/layers/base/config.toml") base_config
 
         // Create project config
-        let project_config = "{
-    name = \"project-default\"
-    extends = \"base-default\"
-    rules = []
-}"
+        let project_config = """
+[layer]
+name = "project-default"
+type = "project"
+extends = "base-default"
+
+[rules]
+# Add project-specific rules here
+"""
         write_file (phage_dir + "/layers/project/config.toml") project_config
 
-        // Create session config
-        let session_config = "{
-    name = \"session\"
-    extends = \"project-default\"
-    volatile = true
-}"
+        // Create session config (volatile)
+        let session_config = """
+[layer]
+name = "session"
+type = "session"
+extends = "project-default"
+volatile = true
+
+[rules]
+# Runtime session overrides
+"""
         write_file (phage_dir + "/layers/session/config.toml") session_config
 
         // Create workspace metadata
-        let metadata = "{
-    version = \"1.0\"
-    created = \"" + timestamp_now () + "\"
-}"
+        let metadata = """
+[workspace]
+version = "1.0"
+created = """ + "\"" + timestamp_now () + "\""
         write_file (phage_dir + "/workspace.toml") metadata
 
         // Create .gitignore
         write_file (phage_dir + "/.gitignore") "session/\n*.log\n"
 
-        log_info "Phage workspace initialized at " + phage_dir
+        log_info ("Phage workspace initialized at " + phage_dir)
         true
 
-// Plugin lifecycle hooks
+// ============================================================================
+// Scarab-Nav Integration
+// ============================================================================
+
+// Register Phage-aware focusables for navigation
+let register_nav_focusables ctx =
+    // Register menu button as focusable
+    Host.registerFocusable ctx {
+        X = 0us
+        Y = 0us
+        Width = 3us
+        Height = 1us
+        Label = "Phage Menu"
+        Action = Custom "phage_menu"
+    }
+
+// Handle navigation actions from scarab-nav
+let on_nav_action ctx action =
+    match action with
+    | "phage_menu" ->
+        // Open Phage dock menu
+        Host.openDockMenu ctx "phage"
+    | _ ->
+        log_debug ("Phage: Unknown nav action: " + action)
+
+// ============================================================================
+// Menu Items
+// ============================================================================
+
+let menu = [
+    { Label = "Init Workspace"; Action = "init_cmd"; Icon = ""; Shortcut = "Ctrl+Alt+I" }
+    { Label = "Chat"; Action = "chat_open"; Icon = ""; Shortcut = "Ctrl+Alt+C" }
+    { Label = "Explain Selection"; Action = "explain_sel"; Icon = ""; Shortcut = "" }
+    { Label = "Fix Last Command"; Action = "fix_cmd"; Icon = ""; Shortcut = "" }
+    { Label = "Context Info"; Action = "show_context"; Icon = ""; Shortcut = "" }
+    { Label = "Refresh Status"; Action = "refresh"; Icon = ""; Shortcut = "" }
+]
+
+// ============================================================================
+// Plugin Lifecycle
+// ============================================================================
+
 let on_load ctx =
-    log_info "🦠 Phage plugin loaded"
-    log_info "   Daemon URL: " + daemon_url
+    log_info "Phage plugin loaded"
+    log_info ("  Daemon URL: " + daemon_url)
+
+    // Initial daemon poll
+    poll_daemon ctx
+
+    // Register nav focusables
+    register_nav_focusables ctx
+
+    // Start polling timer
+    Host.setInterval ctx poll_interval_ms (fun () -> poll_daemon ctx)
+
     ()
 
-let on_unload () =
-    log_info "🦠 Phage plugin unloaded"
+let on_unload ctx =
+    // Remove status bar item
+    if status_item_id > 0 then
+        Host.removeStatusItem ctx status_item_id
+
+    log_info "Phage plugin unloaded"
     ()
 
-// Handle menu action commands
+// ============================================================================
+// Command Handlers
+// ============================================================================
+
 let on_remote_command id ctx =
     match id with
     | "init_cmd" ->
@@ -89,30 +306,57 @@ let on_remote_command id ctx =
         else
             notify_warn ctx "Already Initialized" "Phage workspace already exists"
         ()
+
     | "chat_open" ->
-        log_info "🦠 Opening Phage chat interface..."
-        notify_info ctx "Chat" "Chat interface not yet implemented"
+        log_info "Opening Phage chat interface..."
+        // TODO: Open chat overlay or dock panel
+        notify_info ctx "Chat" "Chat interface coming soon"
         ()
+
     | "explain_sel" ->
         let selection = get_selection ctx
         if selection = "" then
             notify_warn ctx "No Selection" "Please select text to explain"
         else
-            log_info "🦠 Explaining selection: " + selection
-            notify_info ctx "Explain" "Selection explanation not yet implemented"
+            log_info ("Explaining selection: " + selection)
+            // TODO: Send to Phage AI for explanation
+            notify_info ctx "Explain" "AI explanation coming soon"
         ()
+
     | "fix_cmd" ->
         let last_cmd = get_last_failed_command ctx
         if last_cmd = "" then
             notify_info ctx "No Failed Command" "No failed command in history"
         else
-            log_info "🦠 Fixing command: " + last_cmd
-            notify_info ctx "Fix Command" "Command fix not yet implemented"
+            log_info ("Fixing command: " + last_cmd)
+            // TODO: Send to Phage AI for fix suggestion
+            notify_info ctx "Fix Command" "AI fix coming soon"
         ()
+
     | "show_context" ->
-        log_info "🦠 Showing context info..."
-        notify_info ctx "Context" "Context info not yet implemented"
+        let info = sprintf "Connection: %s\nRules: %d\nMCP Servers: %d\nLayer: %s"
+                          connection_state rules_count mcp_servers_count active_layer
+        notify_info ctx "Phage Context" info
         ()
+
+    | "refresh" ->
+        poll_daemon ctx
+        notify_info ctx "Refreshed" "Status updated"
+        ()
+
     | _ ->
-        log_warn "Unknown command: " + id
+        log_warn ("Unknown command: " + id)
         ()
+
+// ============================================================================
+// Plugin Registration
+// ============================================================================
+
+Plugin.Register {
+    Metadata = metadata
+    Menu = menu
+    OnLoad = Some on_load
+    OnUnload = Some on_unload
+    OnRemoteCommand = Some on_remote_command
+    OnNavAction = Some on_nav_action
+}
