@@ -119,7 +119,7 @@ let update_status_bar ctx =
 
     // Add new status item
     let item = {
-        Side = Right
+        Side = Left
         Priority = 100
         Items = items
     }
