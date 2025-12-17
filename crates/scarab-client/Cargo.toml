@@ -24,6 +24,8 @@ scarab-mouse = { path = "../scarab-mouse" }
 scarab-telemetry-hud = { path = "../scarab-telemetry-hud" }
 scarab-nav-protocol = { version = "0.2.0", path = "/home/beengud/raibid-labs/scarab-nav/crates/scarab-nav-protocol" }
 fusabi-frontend = { workspace = true }
+fusabi-host = { workspace = true }
+fusabi-vm = { workspace = true }
 fusabi-tui-core = { workspace = true }
 fusabi-tui-widgets = { workspace = true }
 fusabi-tui-render = { workspace = true }

@@ -1,12 +1,21 @@
 // Phage Plugin for Scarab Terminal
-// Status overlay showing Phage daemon connection status
+// Status bar + AI context management
 //
 // Install: fpm add phage
 // Repository: https://github.com/raibid-labs/scarab
 
-// Set window title to indicate Phage is active
-Scarab.setWindowTitle "Scarab [Phage]"
+// Log that Phage plugin is loading
+Scarab.log "info" "Phage plugin loading..."
 
-// Add Phage status overlay in bottom-left corner
-// Uses overlay API since status bar API requires full Fusabi runtime
-Scarab.addOverlay "phage-status" BottomLeft (Text " Phage" 12.0 "#50fa7b")
+// Add Phage status indicator to left side of status bar
+// Priority 100 means it appears early in the bar
+Scarab.status_add "left" " Phage" 100
+
+// Show a welcome notification
+Scarab.notify "Phage Active" "AI context injection ready" "success"
+
+// Log completion
+Scarab.log "info" "Phage plugin loaded successfully"
+
+// Return success
+true

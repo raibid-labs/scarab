@@ -1,188 +1,111 @@
-//! Script runtime - executes Fusabi scripts using fusabi-frontend
+//! Script runtime - executes Fusabi scripts using fusabi-host Engine
 //!
-//! This is a simplified runtime that wraps fusabi-frontend for .fsx script execution.
-//! In a full implementation, this would integrate deeply with the fusabi-frontend parser
-//! and evaluator. For now, we provide a scaffold that demonstrates the integration pattern.
+//! This module provides a full Fusabi runtime integration using fusabi-host,
+//! enabling scripts to use the complete F# syntax and call Scarab APIs.
 
-use super::api::{OverlayContent, OverlayPosition, ScriptApi, ScriptContext, ScriptEvent};
-use super::error::{ScriptError, ScriptResult};
-use bevy::prelude::*;
 use std::path::Path;
+use std::sync::Arc;
+
+use bevy::prelude::*;
+use fusabi_host::{Capabilities, Engine, EngineConfig, HostRegistry, Limits};
+
+use super::api::{ScriptContext, ScriptEvent};
+use super::error::{ScriptError, ScriptResult};
+use super::ecs_bridge::FusabiActionChannel;
+use super::host_functions::register_scarab_functions;
 
 /// Runtime for executing Fusabi scripts
 pub struct ScriptRuntime {
-    api: ScriptApi,
+    engine: Engine,
+    event_sender: crossbeam::channel::Sender<ScriptEvent>,
     event_receiver: crossbeam::channel::Receiver<ScriptEvent>,
 }
 
 impl ScriptRuntime {
-    /// Create a new script runtime
-    pub fn new() -> Self {
+    /// Create a new script runtime with the given action channel
+    pub fn new_with_channel(channel: Arc<FusabiActionChannel>) -> ScriptResult<Self> {
         let (tx, rx) = crossbeam::channel::unbounded();
 
-        Self {
-            api: ScriptApi::new(tx),
+        // Configure the engine with appropriate limits and capabilities
+        let config = EngineConfig::default()
+            .with_limits(Limits::default())
+            .with_capabilities(Capabilities::safe_defaults())
+            .with_debug(cfg!(debug_assertions));
+
+        let mut engine = Engine::new(config).map_err(|e| ScriptError::RuntimeError {
+            script: "init".to_string(),
+            message: format!("Failed to create Fusabi engine: {}", e),
+        })?;
+
+        // Register all Scarab host functions
+        register_scarab_functions(engine.registry_mut(), channel);
+
+        Ok(Self {
+            engine,
+            event_sender: tx,
             event_receiver: rx,
-        }
+        })
+    }
+
+    /// Create a new script runtime with default channel (for backwards compatibility)
+    pub fn new() -> Self {
+        let channel = Arc::new(FusabiActionChannel::new());
+        Self::new_with_channel(channel).expect("Failed to create script runtime")
     }
 
     /// Execute a script file
-    pub fn execute_file(&self, path: &Path, context: &ScriptContext) -> ScriptResult<()> {
+    pub fn execute_file(&mut self, path: &Path, _context: &ScriptContext) -> ScriptResult<()> {
         let source = std::fs::read_to_string(path).map_err(|e| ScriptError::LoadError {
             path: path.display().to_string(),
             reason: e.to_string(),
         })?;
 
-        self.execute_source(&source, path.display().to_string().as_str(), context)
+        self.execute_source(&source, path.display().to_string().as_str(), _context)
     }
 
     /// Execute script source code
     pub fn execute_source(
-        &self,
-        source: &str,
-        script_name: &str,
-        context: &ScriptContext,
-    ) -> ScriptResult<()> {
-        // Parse the script using fusabi-frontend
-        // Note: This is a simplified implementation. A full implementation would:
-        // 1. Use fusabi_frontend::parse() to parse the .fsx source
-        // 2. Build an AST
-        // 3. Execute the AST with the provided context
-        // 4. Handle all F# language features
-
-        // For now, we'll interpret common patterns manually as a demonstration
-        self.interpret_simple_script(source, script_name, context)
-    }
-
-    /// Simplified script interpreter (demonstration only)
-    /// A real implementation would use fusabi-frontend's full parser and evaluator
-    fn interpret_simple_script(
-        &self,
+        &mut self,
         source: &str,
         script_name: &str,
         _context: &ScriptContext,
     ) -> ScriptResult<()> {
-        // This is a simplified interpreter for demonstration purposes
-        // In production, you would use fusabi-frontend's parser and evaluator
-
-        for (line_num, line) in source.lines().enumerate() {
-            let line = line.trim();
-
-            // Skip comments and empty lines
-            if line.is_empty() || line.starts_with("//") {
-                continue;
+        // Execute the script using the Fusabi engine
+        match self.engine.execute(source) {
+            Ok(result) => {
+                debug!("Script '{}' executed successfully: {}", script_name, result);
+                Ok(())
             }
-
-            // Parse simple API calls
-            if let Err(e) = self.parse_and_execute_line(line, script_name) {
-                return Err(ScriptError::ParseError {
-                    script: script_name.to_string(),
-                    line: line_num + 1,
-                    column: 0,
+            Err(e) => {
+                // Send error event
+                let _ = self.event_sender.send(ScriptEvent::Error {
+                    script_name: script_name.to_string(),
                     message: e.to_string(),
                 });
+
+                Err(ScriptError::RuntimeError {
+                    script: script_name.to_string(),
+                    message: e.to_string(),
+                })
             }
         }
-
-        Ok(())
     }
 
-    /// Parse and execute a single line (simplified)
-    fn parse_and_execute_line(&self, line: &str, _script_name: &str) -> ScriptResult<()> {
-        // Example: Scarab.setColor "foreground" "#f8f8f2"
-        if line.starts_with("Scarab.setColor") {
-            if let Some(args) = line.strip_prefix("Scarab.setColor") {
-                let parts: Vec<&str> = args.split('"').filter(|s| !s.trim().is_empty()).collect();
-                if parts.len() >= 2 {
-                    let name = parts[0].trim();
-                    let color_hex = parts[1].trim();
-                    let color = ScriptApi::parse_color(color_hex)?;
-                    self.api.set_color(name, color)?;
-                }
+    /// Execute bytecode directly (for pre-compiled scripts)
+    pub fn execute_bytecode(&mut self, bytecode: &[u8], script_name: &str) -> ScriptResult<()> {
+        match self.engine.execute_bytecode(bytecode) {
+            Ok(result) => {
+                debug!(
+                    "Bytecode '{}' executed successfully: {}",
+                    script_name, result
+                );
+                Ok(())
             }
+            Err(e) => Err(ScriptError::RuntimeError {
+                script: script_name.to_string(),
+                message: e.to_string(),
+            }),
         }
-        // Example: Scarab.setFont "JetBrains Mono" 16.0
-        else if line.starts_with("Scarab.setFont") {
-            if let Some(args) = line.strip_prefix("Scarab.setFont") {
-                let parts: Vec<&str> = args.split('"').collect();
-                if parts.len() >= 2 {
-                    let family = parts[1];
-                    // Extract size from remaining text
-                    if let Some(size_str) = parts.get(2) {
-                        let size: f32 = size_str.trim().parse().unwrap_or(14.0);
-                        self.api.set_font(family, size)?;
-                    }
-                }
-            }
-        }
-        // Example: Scarab.setWindowTitle "My Terminal"
-        else if line.starts_with("Scarab.setWindowTitle") {
-            if let Some(args) = line.strip_prefix("Scarab.setWindowTitle") {
-                let title = args.split('"').nth(1).unwrap_or("Scarab Terminal");
-                self.api.set_window_title(title)?;
-            }
-        }
-        // Example: Scarab.addOverlay "status" TopRight (Text "Hello" 12.0 "#ffffff")
-        else if line.starts_with("Scarab.addOverlay") {
-            if let Some(args) = line.strip_prefix("Scarab.addOverlay") {
-                let args = args.trim();
-
-                // Extract overlay name (first quoted string)
-                let name = args.split('"').nth(1).unwrap_or("overlay");
-
-                // Parse position keyword
-                let position = if args.contains("BottomLeft") {
-                    OverlayPosition::BottomLeft
-                } else if args.contains("BottomCenter") {
-                    OverlayPosition::BottomCenter
-                } else if args.contains("BottomRight") {
-                    OverlayPosition::BottomRight
-                } else if args.contains("TopLeft") {
-                    OverlayPosition::TopLeft
-                } else if args.contains("TopCenter") {
-                    OverlayPosition::TopCenter
-                } else if args.contains("CenterLeft") {
-                    OverlayPosition::CenterLeft
-                } else if args.contains("CenterRight") {
-                    OverlayPosition::CenterRight
-                } else if args.contains("Center") {
-                    OverlayPosition::Center
-                } else {
-                    OverlayPosition::TopRight
-                };
-
-                // Parse Text content: (Text "text" size "#color")
-                let content = if args.contains("(Text") {
-                    // Extract text content - find quoted strings after (Text
-                    let text_part = args.split("(Text").nth(1).unwrap_or("");
-                    let quotes: Vec<&str> = text_part.split('"').collect();
-                    let text = quotes.get(1).unwrap_or(&"").to_string();
-
-                    // Extract size and color from after the text
-                    let after_text = quotes.get(2).unwrap_or(&"");
-                    let tokens: Vec<&str> = after_text.split_whitespace().collect();
-                    let size: f32 = tokens.first()
-                        .and_then(|s| s.parse().ok())
-                        .unwrap_or(12.0);
-
-                    // Color is the next quoted string
-                    let color_hex = quotes.get(3).unwrap_or(&"#ffffff");
-                    let color = ScriptApi::parse_color(color_hex).unwrap_or(Color::WHITE);
-
-                    OverlayContent::Text { text, size, color }
-                } else {
-                    OverlayContent::Text {
-                        text: "Overlay".to_string(),
-                        size: 12.0,
-                        color: Color::WHITE,
-                    }
-                };
-
-                self.api.add_overlay(name, position, content)?;
-            }
-        }
-
-        Ok(())
     }
 
     /// Collect pending events from the runtime
@@ -192,6 +115,11 @@ impl ScriptRuntime {
             events.push(event);
         }
         events
+    }
+
+    /// Get a reference to the engine's host registry for additional function registration
+    pub fn registry_mut(&mut self) -> &mut HostRegistry {
+        self.engine.registry_mut()
     }
 }
 
@@ -255,20 +183,21 @@ impl LoadedScript {
 }
 
 #[cfg(test)]
-#[cfg(test)]
 mod tests {
     use super::*;
 
     #[test]
     fn test_runtime_creation() {
-        let runtime = ScriptRuntime::new();
-        let events = runtime.collect_events();
-        assert_eq!(events.len(), 0);
+        let channel = Arc::new(FusabiActionChannel::new());
+        let runtime = ScriptRuntime::new_with_channel(channel);
+        assert!(runtime.is_ok());
     }
 
     #[test]
-    fn test_simple_script_execution() {
-        let runtime = ScriptRuntime::new();
+    fn test_simple_expression() {
+        let channel = Arc::new(FusabiActionChannel::new());
+        let mut runtime = ScriptRuntime::new_with_channel(channel).unwrap();
+
         let context = ScriptContext {
             colors: super::super::api::ColorContext {
                 foreground: Color::WHITE,
@@ -296,16 +225,8 @@ mod tests {
             },
         };
 
-        let source = r##"
-            // Simple test script
-            Scarab.setColor "foreground" "#ffffff"
-            Scarab.setWindowTitle "Test Window"
-        "##;
-
-        let result = runtime.execute_source(source, "test.fsx", &context);
+        // Test simple expression execution
+        let result = runtime.execute_source("42", "test.fsx", &context);
         assert!(result.is_ok());
-
-        let events = runtime.collect_events();
-        assert!(events.len() >= 2);
     }
 }

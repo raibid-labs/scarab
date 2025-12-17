@@ -36,6 +36,7 @@ rust-version = "1.75"
 # - fusabi-host: Host profile for plugin runtime
 fusabi-vm = { version = "0.17.0", features = ["serde"] }
 fusabi-frontend = "0.17.0"
+fusabi-host = { version = "0.1.0", features = ["serde-support"] }
 bevy-fusabi = "0.1.4"
 fusabi-plugin-runtime = "0.1.1"
 fusabi-stdlib-ext = "0.1.1"
