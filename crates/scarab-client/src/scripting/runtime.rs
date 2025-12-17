@@ -124,15 +124,62 @@ impl ScriptRuntime {
         }
         // Example: Scarab.addOverlay "status" TopRight (Text "Hello" 12.0 "#ffffff")
         else if line.starts_with("Scarab.addOverlay") {
-            // Simplified overlay parsing
-            let name = "status";
-            let position = OverlayPosition::TopRight;
-            let content = OverlayContent::Text {
-                text: "Custom Overlay".to_string(),
-                size: 12.0,
-                color: Color::WHITE,
-            };
-            self.api.add_overlay(name, position, content)?;
+            if let Some(args) = line.strip_prefix("Scarab.addOverlay") {
+                let args = args.trim();
+
+                // Extract overlay name (first quoted string)
+                let name = args.split('"').nth(1).unwrap_or("overlay");
+
+                // Parse position keyword
+                let position = if args.contains("BottomLeft") {
+                    OverlayPosition::BottomLeft
+                } else if args.contains("BottomCenter") {
+                    OverlayPosition::BottomCenter
+                } else if args.contains("BottomRight") {
+                    OverlayPosition::BottomRight
+                } else if args.contains("TopLeft") {
+                    OverlayPosition::TopLeft
+                } else if args.contains("TopCenter") {
+                    OverlayPosition::TopCenter
+                } else if args.contains("CenterLeft") {
+                    OverlayPosition::CenterLeft
+                } else if args.contains("CenterRight") {
+                    OverlayPosition::CenterRight
+                } else if args.contains("Center") {
+                    OverlayPosition::Center
+                } else {
+                    OverlayPosition::TopRight
+                };
+
+                // Parse Text content: (Text "text" size "#color")
+                let content = if args.contains("(Text") {
+                    // Extract text content - find quoted strings after (Text
+                    let text_part = args.split("(Text").nth(1).unwrap_or("");
+                    let quotes: Vec<&str> = text_part.split('"').collect();
+                    let text = quotes.get(1).unwrap_or(&"").to_string();
+
+                    // Extract size and color from after the text
+                    let after_text = quotes.get(2).unwrap_or(&"");
+                    let tokens: Vec<&str> = after_text.split_whitespace().collect();
+                    let size: f32 = tokens.first()
+                        .and_then(|s| s.parse().ok())
+                        .unwrap_or(12.0);
+
+                    // Color is the next quoted string
+                    let color_hex = quotes.get(3).unwrap_or(&"#ffffff");
+                    let color = ScriptApi::parse_color(color_hex).unwrap_or(Color::WHITE);
+
+                    OverlayContent::Text { text, size, color }
+                } else {
+                    OverlayContent::Text {
+                        text: "Overlay".to_string(),
+                        size: 12.0,
+                        color: Color::WHITE,
+                    }
+                };
+
+                self.api.add_overlay(name, position, content)?;
+            }
         }
 
         Ok(())
