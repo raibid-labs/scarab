@@ -258,6 +258,8 @@ let on_nav_action ctx action =
 // ============================================================================
 
 let menu = [
+    { Label = "Start Daemon"; Action = "start_daemon"; Icon = ""; Shortcut = "Ctrl+Alt+D" }
+    { Label = "Stop Daemon"; Action = "stop_daemon"; Icon = ""; Shortcut = "" }
     { Label = "Init Workspace"; Action = "init_cmd"; Icon = ""; Shortcut = "Ctrl+Alt+I" }
     { Label = "Chat"; Action = "chat_open"; Icon = ""; Shortcut = "Ctrl+Alt+C" }
     { Label = "Explain Selection"; Action = "explain_sel"; Icon = ""; Shortcut = "" }
@@ -276,6 +278,11 @@ let on_load ctx =
 
     // Initial daemon poll
     poll_daemon ctx
+
+    // Auto-start daemon if not running
+    if connection_state = "disconnected" then
+        log_info "Phage daemon not running, attempting to start..."
+        start_daemon ctx |> ignore
 
     // Register nav focusables
     register_nav_focusables ctx
@@ -297,8 +304,65 @@ let on_unload ctx =
 // Command Handlers
 // ============================================================================
 
+// Check if daemon is running
+let is_daemon_running () =
+    match http_get (daemon_url + "/health") 500 with
+    | Ok _ -> true
+    | Error _ -> false
+
+// Start the Phage daemon
+let start_daemon ctx =
+    if is_daemon_running () then
+        notify_info ctx "Daemon Running" "Phage daemon is already running"
+        false
+    else
+        log_info "Starting Phage daemon..."
+        // Run phage daemon start in background
+        match shell_exec_background "phage daemon start" with
+        | Ok _ ->
+            // Wait a moment for daemon to start
+            sleep_ms 1000
+            // Poll to verify it started
+            poll_daemon ctx
+            if connection_state = "connected" then
+                notify_success ctx "Daemon Started" "Phage daemon is now running"
+                true
+            else
+                notify_warn ctx "Daemon Starting" "Daemon is starting up, please wait..."
+                true
+        | Error e ->
+            log_error ("Failed to start daemon: " + e)
+            notify_error ctx "Start Failed" ("Could not start daemon: " + e)
+            false
+
+// Stop the Phage daemon
+let stop_daemon ctx =
+    if not (is_daemon_running ()) then
+        notify_info ctx "Daemon Not Running" "Phage daemon is not running"
+        false
+    else
+        log_info "Stopping Phage daemon..."
+        match shell_exec "phage daemon stop" with
+        | Ok _ ->
+            connection_state <- "disconnected"
+            update_status_bar ctx
+            notify_success ctx "Daemon Stopped" "Phage daemon has been stopped"
+            true
+        | Error e ->
+            log_error ("Failed to stop daemon: " + e)
+            notify_error ctx "Stop Failed" ("Could not stop daemon: " + e)
+            false
+
 let on_remote_command id ctx =
     match id with
+    | "start_daemon" ->
+        start_daemon ctx |> ignore
+        ()
+
+    | "stop_daemon" ->
+        stop_daemon ctx |> ignore
+        ()
+
     | "init_cmd" ->
         let cwd = get_cwd ctx
         if init_workspace cwd then
