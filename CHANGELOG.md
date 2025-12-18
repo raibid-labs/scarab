@@ -5,6 +5,31 @@ All notable changes to the Scarab terminal emulator will be documented in this f
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.3] - 2025-12-18
+
+### Added
+
+- **Status Bar Plugin Hints**: Nav hints (Esc+Esc) now show hint labels on status bar
+  plugin items, enabling keyboard-driven plugin activation
+- **Auto-Hinting Plugin Menus**: When a plugin is activated via nav hints, the command
+  menu automatically shows hint keys on each menu item without requiring another Esc+Esc
+- **Fusabi Host Runtime**: Full F# scripting support via fusabi-host integration with
+  ECS bridge for plugin development
+
+### Fixed
+
+- **Status Bar Hint Z-Order**: Status bar hints now render as UI elements with proper
+  z-index to appear above the status bar (was rendering behind)
+- **Hint Position Accuracy**: Fixed status bar hint Y positioning to properly overlay
+  the status bar content
+
+### Changed
+
+- **Plugin Menu Hint Keys**: Menu items use home-row keys (a, s, d, f, g, h, j, k, l)
+  for faster single-hand selection
+- **Scripting Runtime Consolidation**: Merged host_functions into runtime module,
+  simplified ECS bridge architecture
+
 ## [0.3.2] - 2025-12-16
 
 ### Fixed

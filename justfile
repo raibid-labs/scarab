@@ -854,3 +854,105 @@ plugin-clean:
     find examples/fusabi-config -name "*.fzb" -type f -delete 2>/dev/null || true
     find plugins -name "*.fzb" -type f -delete 2>/dev/null || true
     echo "Done"
+
+# ============================================
+# Fusabi Script Development
+# ============================================
+
+# Install a Fusabi script to the scripts directory
+script-install script_name:
+    #!/usr/bin/env bash
+    SCRIPTS_DIR="$HOME/.config/scarab/scripts"
+    mkdir -p "$SCRIPTS_DIR"
+
+    if [ -f "plugins/{{script_name}}/{{script_name}}.fsx" ]; then
+        cp "plugins/{{script_name}}/{{script_name}}.fsx" "$SCRIPTS_DIR/"
+        echo "✅ Installed {{script_name}}.fsx to $SCRIPTS_DIR/"
+    else
+        echo "❌ Script not found: plugins/{{script_name}}/{{script_name}}.fsx"
+        exit 1
+    fi
+
+# Build and run with scripts (dev workflow for Fusabi scripts)
+dev-scripts: build
+    #!/usr/bin/env bash
+    set -e
+
+    SCRIPTS_DIR="$HOME/.config/scarab/scripts"
+    mkdir -p "$SCRIPTS_DIR"
+
+    # Install all scripts from plugins/
+    echo "📦 Installing scripts..."
+    for script in plugins/*/; do
+        name=$(basename "$script")
+        if [ -f "$script/$name.fsx" ]; then
+            cp "$script/$name.fsx" "$SCRIPTS_DIR/"
+            echo "  ✓ $name.fsx"
+        fi
+    done
+
+    # Clean up old processes
+    pkill -f scarab-daemon 2>/dev/null || true
+    pkill -f scarab-client 2>/dev/null || true
+    rm -f /dev/shm/scarab_shm_v1 /dev/shm/scarab_img_shm_v1 2>/dev/null || true
+
+    # Start daemon
+    echo "🚀 Starting daemon..."
+    cargo run -p scarab-daemon > /tmp/scarab-daemon.log 2>&1 &
+    DAEMON_PID=$!
+    sleep 2
+
+    # Start client with RUST_LOG for script debugging
+    echo "🖥️  Starting client with script debugging..."
+    RUST_LOG=scarab_client::scripting=debug cargo run -p scarab-client
+
+    # Cleanup
+    kill $DAEMON_PID 2>/dev/null || true
+
+# Watch and reinstall scripts on change, then reload
+script-watch:
+    #!/usr/bin/env bash
+    SCRIPTS_DIR="$HOME/.config/scarab/scripts"
+    mkdir -p "$SCRIPTS_DIR"
+
+    echo "👀 Watching plugins/*/*.fsx for changes..."
+    echo "   Scripts will be copied to $SCRIPTS_DIR"
+    echo "   Press Ctrl+C to stop"
+
+    # Initial install
+    for script in plugins/*/; do
+        name=$(basename "$script")
+        if [ -f "$script/$name.fsx" ]; then
+            cp "$script/$name.fsx" "$SCRIPTS_DIR/"
+            echo "  ✓ Installed $name.fsx"
+        fi
+    done
+
+    # Watch for changes (requires inotifywait from inotify-tools)
+    if command -v inotifywait &> /dev/null; then
+        while inotifywait -e modify plugins/*/*.fsx 2>/dev/null; do
+            echo "🔄 Change detected, reinstalling scripts..."
+            for script in plugins/*/; do
+                name=$(basename "$script")
+                if [ -f "$script/$name.fsx" ]; then
+                    cp "$script/$name.fsx" "$SCRIPTS_DIR/"
+                    echo "  ✓ $name.fsx"
+                fi
+            done
+        done
+    else
+        echo "⚠️  inotifywait not found. Install inotify-tools for watch support."
+        echo "   On Ubuntu/Debian: sudo apt install inotify-tools"
+        echo "   For now, run 'just script-install NAME' manually after changes."
+    fi
+
+# Show loaded scripts
+script-list:
+    #!/usr/bin/env bash
+    SCRIPTS_DIR="$HOME/.config/scarab/scripts"
+    echo "📜 Installed scripts in $SCRIPTS_DIR:"
+    if [ -d "$SCRIPTS_DIR" ]; then
+        ls -la "$SCRIPTS_DIR"/*.fsx 2>/dev/null || echo "  (none)"
+    else
+        echo "  (directory doesn't exist)"
+    fi

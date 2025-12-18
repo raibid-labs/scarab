@@ -31,7 +31,7 @@ We've implemented a **two-track testing strategy** for Issue #171:
 5. Status bar state initialization
 
 #### Unit Tests - TabState Logic (2 tests)
-1. `test_tab_state_default` - Verify default tab configuration (meta, phage, tolaria)
+1. `test_tab_state_default` - Verify default empty tab configuration (tabs populated by session manager)
 2. `test_tab_state_active_tab` - Verify active tab tracking
 
 #### Unit Tests - Render Item Conversion (10 tests)
@@ -72,7 +72,7 @@ We've implemented a **two-track testing strategy** for Issue #171:
 **Key Findings**:
 - Status bar height: 24px
 - Status bar positioning: Bottom (Val::Px(0.0))
-- Default tabs: "meta", "phage", "tolaria"
+- TabState starts empty - tabs populated dynamically by session manager
 - Active tab highlighting using slime theme colors
 - Dirty flag optimization for re-rendering
 

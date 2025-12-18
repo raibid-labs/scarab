@@ -615,6 +615,7 @@ fn handle_plugin_menu_response(
                     plugin_name: plugin_name.clone(),
                     items,
                     position,
+                    auto_hint: false, // Not from nav hint system
                 });
             } else {
                 warn!(

@@ -1455,7 +1455,7 @@ dependencies = [
  "bitflags 2.10.0",
  "cexpr",
  "clang-sys",
- "itertools 0.10.5",
+ "itertools 0.13.0",
  "log",
  "prettyplease",
  "proc-macro2",
@@ -2004,7 +2004,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "117725a109d387c937a1533ce01b450cbde6b88abceea8473c4d7a85853cda3c"
 dependencies = [
  "lazy_static",
- "windows-sys 0.48.0",
+ "windows-sys 0.59.0",
 ]
 
 [[package]]
@@ -6820,7 +6820,7 @@ dependencies = [
 
 [[package]]
 name = "scarab-client"
-version = "0.3.2"
+version = "0.3.3"
 dependencies = [
  "anyhow",
  "arboard",
@@ -6834,9 +6834,11 @@ dependencies = [
  "crossbeam",
  "crossterm",
  "fusabi-frontend",
+ "fusabi-host",
  "fusabi-tui-core",
  "fusabi-tui-render",
  "fusabi-tui-widgets",
+ "fusabi-vm",
  "fuzzy-matcher",
  "image",
  "insta",
@@ -6864,7 +6866,7 @@ dependencies = [
 
 [[package]]
 name = "scarab-clipboard"
-version = "0.3.2"
+version = "0.3.3"
 dependencies = [
  "arboard",
  "async-trait",
@@ -6877,7 +6879,7 @@ dependencies = [
 
 [[package]]
 name = "scarab-config"
-version = "0.3.2"
+version = "0.3.3"
 dependencies = [
  "anyhow",
  "base64 0.22.1",
@@ -6902,7 +6904,7 @@ dependencies = [
 
 [[package]]
 name = "scarab-daemon"
-version = "0.3.2"
+version = "0.3.3"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -6944,7 +6946,7 @@ dependencies = [
 
 [[package]]
 name = "scarab-mouse"
-version = "0.3.2"
+version = "0.3.3"
 dependencies = [
  "async-trait",
  "bevy",
@@ -6969,7 +6971,7 @@ dependencies = [
 
 [[package]]
 name = "scarab-palette"
-version = "0.3.2"
+version = "0.3.3"
 dependencies = [
  "async-trait",
  "log",
@@ -6979,7 +6981,7 @@ dependencies = [
 
 [[package]]
 name = "scarab-panes"
-version = "0.3.2"
+version = "0.3.3"
 dependencies = [
  "async-trait",
  "log",
@@ -6995,7 +6997,7 @@ dependencies = [
 
 [[package]]
 name = "scarab-platform"
-version = "0.3.2"
+version = "0.3.3"
 dependencies = [
  "anyhow",
  "cocoa",
@@ -7012,7 +7014,7 @@ dependencies = [
 
 [[package]]
 name = "scarab-plugin-api"
-version = "0.3.2"
+version = "0.3.3"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -7034,7 +7036,7 @@ dependencies = [
 
 [[package]]
 name = "scarab-plugin-compiler"
-version = "0.3.2"
+version = "0.3.3"
 dependencies = [
  "anyhow",
  "bincode",
@@ -7047,7 +7049,7 @@ dependencies = [
 
 [[package]]
 name = "scarab-protocol"
-version = "0.3.2"
+version = "0.3.3"
 dependencies = [
  "bevy_ecs",
  "bytemuck",
@@ -7057,7 +7059,7 @@ dependencies = [
 
 [[package]]
 name = "scarab-session"
-version = "0.3.2"
+version = "0.3.3"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -7074,7 +7076,7 @@ dependencies = [
 
 [[package]]
 name = "scarab-tabs"
-version = "0.3.2"
+version = "0.3.3"
 dependencies = [
  "async-trait",
  "log",
@@ -7086,7 +7088,7 @@ dependencies = [
 
 [[package]]
 name = "scarab-telemetry-hud"
-version = "0.3.2"
+version = "0.3.3"
 dependencies = [
  "bevy",
  "log",
@@ -7095,7 +7097,7 @@ dependencies = [
 
 [[package]]
 name = "scarab-themes"
-version = "0.3.2"
+version = "0.3.3"
 dependencies = [
  "async-trait",
  "log",
@@ -8446,7 +8448,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "69fff37da548239c3bf9e64a12193d261e8b22b660991c6fd2df057c168f435f"
 dependencies = [
  "cc",
- "windows-targets 0.48.5",
+ "windows-targets 0.52.6",
 ]
 
 [[package]]
@@ -9156,7 +9158,7 @@ version = "0.1.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c2a7b1c03c876122aa43f3020e6c3c3ee5c05081c9a00739faf7503aeba10d22"
 dependencies = [
- "windows-sys 0.48.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]

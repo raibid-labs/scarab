@@ -36,12 +36,15 @@ pub struct ScriptingPlugin;
 
 impl Plugin for ScriptingPlugin {
     fn build(&self, app: &mut App) {
-        app.add_plugins((ScriptingSystemPlugin, FusabiEcsBridgePlugin))
+        // Add plugin host first to ensure PluginRegistry is available
+        app.add_plugins(crate::plugin_host::ScarabPluginHostPlugin)
+            .add_plugins((ScriptingSystemPlugin, FusabiEcsBridgePlugin))
             .add_event::<ScriptEvent>()
             .add_systems(
                 Startup,
                 (
                     context::initialize_context,
+                    create_script_manager,
                     initialize_scripting,
                     execute_startup_scripts,
                 )
@@ -64,9 +67,28 @@ struct ScriptingSystemPlugin;
 
 impl Plugin for ScriptingSystemPlugin {
     fn build(&self, app: &mut App) {
-        app.init_resource::<ScriptManager>()
-            .init_resource::<ScriptErrorDisplay>();
+        // ScriptManager will be initialized with the channel in the startup system
+        app.init_resource::<ScriptErrorDisplay>();
     }
+}
+
+/// Create the ScriptManager with the ECS action channel
+fn create_script_manager(
+    mut commands: Commands,
+    channel: Res<FusabiActionChannel>,
+    config: Res<scarab_config::ScarabConfig>,
+    mut registry: ResMut<crate::plugin_host::PluginRegistry>,
+) {
+    // Register "script" as a plugin so status bar actions work
+    registry.register(
+        "script".to_string(),
+        "Fusabi Scripts".to_string(),
+        env!("CARGO_PKG_VERSION").to_string(),
+    );
+
+    let scripts_dir = get_scripts_directory(&config);
+    let manager = ScriptManager::new_with_channel(scripts_dir, std::sync::Arc::new(channel.clone()));
+    commands.insert_resource(manager);
 }
 
 /// Initialize the scripting system on startup
@@ -87,7 +109,7 @@ fn initialize_scripting(
 }
 
 /// Execute scripts on startup (after initialization)
-fn execute_startup_scripts(manager: Res<ScriptManager>, context: Res<RuntimeContext>) {
+fn execute_startup_scripts(mut manager: ResMut<ScriptManager>, context: Res<RuntimeContext>) {
     manager.execute_on_startup(&context);
 }
 
@@ -100,7 +122,7 @@ fn check_script_reloads(mut manager: ResMut<ScriptManager>) {
 
 /// Execute scripts when window resize events occur
 fn execute_scripts_on_window_resize(
-    manager: Res<ScriptManager>,
+    mut manager: ResMut<ScriptManager>,
     context: Res<RuntimeContext>,
     mut resize_events: EventReader<bevy::window::WindowResized>,
 ) {

@@ -315,6 +315,8 @@ pub struct PluginStatusItem {
     pub side: StatusSide,
     /// Sort priority within the side (higher = more prominent)
     pub priority: i32,
+    /// Text content to display
+    pub content: String,
 }
 
 #[cfg(test)]

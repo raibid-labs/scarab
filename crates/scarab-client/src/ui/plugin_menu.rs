@@ -6,7 +6,7 @@
 use crate::ipc::{IpcChannel, RemoteMessageEvent};
 use crate::ui::command_palette::CommandExecutedEvent;
 use crate::ui::dock::NavConnection;
-// use crate::ui::dock::RequestPluginMenuEvent;
+use crate::ui::link_hints::PluginMenuRequestEvent;
 use bevy::input::keyboard::KeyCode;
 use bevy::prelude::*;
 use scarab_nav_protocol::{ElementType, InteractiveElement, UpdateLayout};
@@ -24,7 +24,7 @@ impl Plugin for PluginMenuPlugin {
             .add_systems(
                 Update,
                 (
-                    // handle_request_plugin_menu,
+                    bridge_plugin_menu_request,
                     handle_show_menu_event,
                     handle_daemon_menu_response,
                     handle_menu_input_system,
@@ -39,16 +39,44 @@ impl Plugin for PluginMenuPlugin {
     }
 }
 
-// /// Handle dock requests to open plugin menus
-// fn handle_request_plugin_menu(
-//     mut events: EventReader<RequestPluginMenuEvent>,
-//     mut menu_state: ResMut<MenuState>,
-// ) {
-//     for event in events.read() {
-//         info!("Starting menu load for plugin: {}", event.plugin_name);
-//         menu_state.start_loading(event.plugin_name.clone());
-//     }
-// }
+/// Bridge system that converts PluginMenuRequestEvent (from link hints) to ShowPluginMenuEvent
+/// This allows status bar plugins to be opened via the nav hint system
+fn bridge_plugin_menu_request(
+    mut request_events: EventReader<PluginMenuRequestEvent>,
+    mut show_events: EventWriter<ShowPluginMenuEvent>,
+) {
+    for event in request_events.read() {
+        info!(
+            "Bridge: Opening menu for plugin '{}' at position ({}, {})",
+            event.plugin_id, event.position.x, event.position.y
+        );
+
+        // Get commands for this plugin (placeholder for now, will come from plugin interface)
+        let items = get_plugin_commands(&event.plugin_id);
+
+        show_events.send(ShowPluginMenuEvent {
+            plugin_name: event.plugin_id.clone(),
+            items,
+            position: Some(MenuPosition {
+                x: event.position.x,
+                y: event.position.y,
+            }),
+            auto_hint: true, // Auto-show hints when opened from nav hint system
+        });
+    }
+}
+
+/// Get commands for a plugin (placeholder implementation)
+/// In the future, this will query the plugin's scarab-nav compliant interface
+fn get_plugin_commands(plugin_id: &str) -> Vec<MenuItem> {
+    // Default commands for any plugin
+    // Plugins can register custom menus via the scarab-nav protocol
+    let _ = plugin_id; // Suppress unused warning - will be used when custom menus are implemented
+    vec![
+        MenuItem::new("Info".to_string(), MenuAction::Remote("info".to_string())),
+        MenuItem::new("Configure".to_string(), MenuAction::Remote("configure".to_string())),
+    ]
+}
 
 /// Event to show a plugin menu
 #[derive(Event)]
@@ -57,6 +85,8 @@ pub struct ShowPluginMenuEvent {
     pub items: Vec<MenuItem>,
     /// Optional position to show the menu at (defaults to center if None)
     pub position: Option<MenuPosition>,
+    /// Whether to automatically show hint keys on menu items (for nav hint flow)
+    pub auto_hint: bool,
 }
 
 /// Position for the menu
@@ -91,6 +121,10 @@ pub struct MenuState {
     pub error: Option<String>,
     /// Position to display the menu (None = center)
     pub position: Option<MenuPosition>,
+    /// Whether hint mode is active (show hint keys on menu items)
+    pub hint_mode: bool,
+    /// Current hint input being typed
+    pub hint_input: String,
 }
 
 impl MenuState {
@@ -107,11 +141,16 @@ impl MenuState {
 
     /// Open a new menu
     pub fn open(&mut self, plugin_name: String, items: Vec<MenuItem>) {
-        self.open_with_position(plugin_name, items, None);
+        self.open_with_options(plugin_name, items, None, false);
     }
 
     /// Open a new menu with a specific position
     pub fn open_with_position(&mut self, plugin_name: String, items: Vec<MenuItem>, position: Option<MenuPosition>) {
+        self.open_with_options(plugin_name, items, position, false);
+    }
+
+    /// Open a new menu with all options
+    pub fn open_with_options(&mut self, plugin_name: String, items: Vec<MenuItem>, position: Option<MenuPosition>, auto_hint: bool) {
         self.active = true;
         self.plugin_name = plugin_name;
         self.current_items = items;
@@ -120,6 +159,8 @@ impl MenuState {
         self.loading = false;
         self.error = None;
         self.position = position;
+        self.hint_mode = auto_hint;
+        self.hint_input.clear();
     }
 
     /// Set error state
@@ -156,6 +197,8 @@ impl MenuState {
         self.plugin_name.clear();
         self.loading = false;
         self.error = None;
+        self.hint_mode = false;
+        self.hint_input.clear();
     }
 
     /// Get the currently selected item
@@ -183,13 +226,18 @@ struct MenuItemBounds {
     pub height: f32,
 }
 
-/// Handle show menu events (legacy direct menu passing)
+/// Handle show menu events
 fn handle_show_menu_event(
     mut events: EventReader<ShowPluginMenuEvent>,
     mut menu_state: ResMut<MenuState>,
 ) {
     for event in events.read() {
-        menu_state.open_with_position(event.plugin_name.clone(), event.items.clone(), event.position);
+        menu_state.open_with_options(
+            event.plugin_name.clone(),
+            event.items.clone(),
+            event.position,
+            event.auto_hint,
+        );
     }
 }
 
@@ -232,6 +280,41 @@ fn handle_daemon_menu_response(
     }
 }
 
+/// Generate hint keys for menu items (a, b, c, ... z, aa, ab, ...)
+fn generate_menu_hint_keys(count: usize) -> Vec<String> {
+    let chars: Vec<char> = "asdfghjkl".chars().collect(); // Home row keys for easy typing
+    let mut keys = Vec::with_capacity(count);
+
+    for i in 0..count {
+        if i < chars.len() {
+            keys.push(chars[i].to_string());
+        } else {
+            // For more items, use two-character hints
+            let first = chars[(i / chars.len()) % chars.len()];
+            let second = chars[i % chars.len()];
+            keys.push(format!("{}{}", first, second));
+        }
+    }
+
+    keys
+}
+
+/// Convert KeyCode to lowercase char if it's a letter key
+fn keycode_to_char(key: KeyCode) -> Option<char> {
+    match key {
+        KeyCode::KeyA => Some('a'),
+        KeyCode::KeyS => Some('s'),
+        KeyCode::KeyD => Some('d'),
+        KeyCode::KeyF => Some('f'),
+        KeyCode::KeyG => Some('g'),
+        KeyCode::KeyH => Some('h'),
+        KeyCode::KeyJ => Some('j'),
+        KeyCode::KeyK => Some('k'),
+        KeyCode::KeyL => Some('l'),
+        _ => None,
+    }
+}
+
 /// Handle keyboard input for menu navigation
 fn handle_menu_input_system(
     keyboard: Res<ButtonInput<KeyCode>>,
@@ -251,15 +334,64 @@ fn handle_menu_input_system(
         return;
     }
 
-    // Navigate with arrow keys
+    // Handle hint mode input
+    if menu_state.hint_mode {
+        // Check for letter key presses (hint keys)
+        for key in [
+            KeyCode::KeyA, KeyCode::KeyS, KeyCode::KeyD, KeyCode::KeyF,
+            KeyCode::KeyG, KeyCode::KeyH, KeyCode::KeyJ, KeyCode::KeyK, KeyCode::KeyL,
+        ] {
+            if keyboard.just_pressed(key) {
+                if let Some(c) = keycode_to_char(key) {
+                    menu_state.hint_input.push(c);
+
+                    // Generate hint keys and check for match
+                    let hint_keys = generate_menu_hint_keys(menu_state.current_items.len());
+
+                    // Check for exact match
+                    if let Some(index) = hint_keys.iter().position(|k| k == &menu_state.hint_input) {
+                        // Found exact match - select this item
+                        if let Some(item) = menu_state.current_items.get(index) {
+                            let action = item.action.clone();
+
+                            match &action {
+                                MenuAction::SubMenu(items) => {
+                                    menu_state.enter_submenu(items.clone());
+                                    menu_state.hint_input.clear();
+                                    // Keep hint_mode active for submenu
+                                }
+                                _ => {
+                                    action_events.send(MenuActionEvent { action });
+                                    menu_state.close();
+                                }
+                            }
+                        }
+                        return;
+                    }
+
+                    // Check if input is a prefix of any hint key
+                    let has_prefix_match = hint_keys.iter().any(|k| k.starts_with(&menu_state.hint_input));
+                    if !has_prefix_match {
+                        // No match possible, reset input
+                        menu_state.hint_input.clear();
+                    }
+                }
+                return;
+            }
+        }
+    }
+
+    // Navigate with arrow keys (also works in hint mode)
     if keyboard.just_pressed(KeyCode::ArrowDown) {
         if menu_state.selected_index < menu_state.current_items.len().saturating_sub(1) {
             menu_state.selected_index += 1;
         }
+        menu_state.hint_input.clear(); // Reset hint input on arrow navigation
     }
 
     if keyboard.just_pressed(KeyCode::ArrowUp) {
         menu_state.selected_index = menu_state.selected_index.saturating_sub(1);
+        menu_state.hint_input.clear();
     }
 
     // Select item with Enter or Space
@@ -406,6 +538,13 @@ fn render_menu_system(
                     ));
                 });
 
+            // Generate hint keys for menu items if hint mode is active
+            let hint_keys = if menu_state.hint_mode {
+                generate_menu_hint_keys(menu_state.current_items.len())
+            } else {
+                vec![]
+            };
+
             // Scrollable menu items container
             parent
                 .spawn((Node {
@@ -424,6 +563,14 @@ fn render_menu_system(
                         } else {
                             Color::srgba(0.12, 0.12, 0.15, 0.6)
                         };
+
+                        // Get hint key for this item (if in hint mode)
+                        let hint_key = hint_keys.get(index).cloned();
+
+                        // Check if this hint key matches current input
+                        let hint_matches = hint_key.as_ref().map_or(false, |k| {
+                            !menu_state.hint_input.is_empty() && k.starts_with(&menu_state.hint_input)
+                        });
 
                         items_container
                             .spawn((
@@ -446,7 +593,7 @@ fn render_menu_system(
                                 BackgroundColor(bg_color),
                             ))
                             .with_children(|item_row| {
-                                // Left side: icon + label
+                                // Left side: hint key + icon + label
                                 item_row
                                     .spawn(Node {
                                         flex_direction: FlexDirection::Row,
@@ -455,6 +602,33 @@ fn render_menu_system(
                                         ..default()
                                     })
                                     .with_children(|left| {
+                                        // Hint key badge (if in hint mode)
+                                        if let Some(key) = &hint_key {
+                                            let (hint_bg, hint_text) = if hint_matches {
+                                                (Color::srgb(0.0, 0.8, 0.0), Color::WHITE) // Green when matching
+                                            } else {
+                                                (Color::srgb(1.0, 0.9, 0.0), Color::BLACK) // Yellow default
+                                            };
+
+                                            left.spawn((
+                                                Node {
+                                                    padding: UiRect::axes(Val::Px(6.0), Val::Px(2.0)),
+                                                    ..default()
+                                                },
+                                                BackgroundColor(hint_bg),
+                                            ))
+                                            .with_children(|badge| {
+                                                badge.spawn((
+                                                    Text::new(key),
+                                                    TextFont {
+                                                        font_size: 12.0,
+                                                        ..default()
+                                                    },
+                                                    TextColor(hint_text),
+                                                ));
+                                            });
+                                        }
+
                                         // Icon
                                         if let Some(icon) = &item.icon {
                                             left.spawn((

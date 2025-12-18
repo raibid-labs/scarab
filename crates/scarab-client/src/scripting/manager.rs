@@ -2,15 +2,19 @@
 //!
 //! This is the central coordinator for the scripting system
 
+use std::collections::HashMap;
+use std::path::Path;
+use std::sync::Arc;
+
+use bevy::prelude::*;
+
 use super::api::ScriptEvent;
 use super::context::RuntimeContext;
+use super::ecs_bridge::FusabiActionChannel;
 use super::error::{ScriptError, ScriptResult};
 use super::loader::ScriptLoader;
 use super::runtime::{LoadedScript, ScriptRuntime};
 use super::watcher::ScriptWatcher;
-use bevy::prelude::*;
-use std::collections::HashMap;
-use std::path::Path;
 
 /// Manages all scripts and their lifecycle
 #[derive(Resource)]
@@ -23,15 +27,27 @@ pub struct ScriptManager {
 }
 
 impl ScriptManager {
-    /// Create a new script manager
-    pub fn new(scripts_directory: std::path::PathBuf) -> Self {
+    /// Create a new script manager with the given action channel
+    pub fn new_with_channel(
+        scripts_directory: std::path::PathBuf,
+        channel: Arc<FusabiActionChannel>,
+    ) -> Self {
+        let runtime = ScriptRuntime::new_with_channel(channel)
+            .expect("Failed to create script runtime");
+
         Self {
             loader: ScriptLoader::new(scripts_directory),
-            runtime: ScriptRuntime::new(),
+            runtime,
             watcher: ScriptWatcher::new(),
             scripts: HashMap::new(),
             initialized: false,
         }
+    }
+
+    /// Create a new script manager (for backwards compatibility)
+    pub fn new(scripts_directory: std::path::PathBuf) -> Self {
+        let channel = Arc::new(FusabiActionChannel::new());
+        Self::new_with_channel(scripts_directory, channel)
     }
 
     /// Initialize the script manager - load all scripts
@@ -92,14 +108,16 @@ impl ScriptManager {
     }
 
     /// Execute all loaded scripts
-    pub fn execute_all(&self, context: &RuntimeContext) -> Vec<ScriptResult<()>> {
+    pub fn execute_all(&mut self, context: &RuntimeContext) -> Vec<ScriptResult<()>> {
         let mut results = Vec::new();
 
-        for (name, script) in &self.scripts {
-            debug!("Executing script: {}", name); // Changed from info! to debug!
-            let result = self
-                .runtime
-                .execute_source(&script.source, name, context.context());
+        let script_data: Vec<_> = self.scripts.iter()
+            .map(|(name, script)| (name.clone(), script.source.clone()))
+            .collect();
+
+        for (name, source) in script_data {
+            debug!("Executing script: {}", name);
+            let result = self.runtime.execute_source(&source, &name, context.context());
             results.push(result);
         }
 
@@ -107,63 +125,70 @@ impl ScriptManager {
     }
 
     /// Execute a specific script by name
-    pub fn execute_script(&self, name: &str, context: &RuntimeContext) -> ScriptResult<()> {
-        let script = self
+    pub fn execute_script(&mut self, name: &str, context: &RuntimeContext) -> ScriptResult<()> {
+        let source = self
             .scripts
             .get(name)
             .ok_or_else(|| ScriptError::ResourceNotFound {
                 resource_type: "script".to_string(),
                 name: name.to_string(),
-            })?;
+            })?
+            .source
+            .clone();
 
-        self.runtime
-            .execute_source(&script.source, name, context.context())
+        self.runtime.execute_source(&source, name, context.context())
     }
 
     /// Execute scripts on window resize events
-    pub fn execute_on_resize(&self, context: &RuntimeContext, width: f32, height: f32) {
+    pub fn execute_on_resize(&mut self, context: &RuntimeContext, width: f32, height: f32) {
         debug!("Executing scripts on window resize: {}x{}", width, height);
-        for (name, script) in &self.scripts {
-            if script.source.contains("on_resize") || script.source.contains("window_resize") {
-                debug!("Script '{}' has resize handler", name);
-                if let Err(e) = self
-                    .runtime
-                    .execute_source(&script.source, name, context.context())
-                {
-                    error!("Failed to execute script '{}' on resize: {}", name, e);
-                }
+
+        let script_data: Vec<_> = self.scripts.iter()
+            .filter(|(_, script)| script.source.contains("on_resize") || script.source.contains("window_resize"))
+            .map(|(name, script)| (name.clone(), script.source.clone()))
+            .collect();
+
+        for (name, source) in script_data {
+            debug!("Script '{}' has resize handler", name);
+            if let Err(e) = self.runtime.execute_source(&source, &name, context.context()) {
+                error!("Failed to execute script '{}' on resize: {}", name, e);
             }
         }
     }
 
     /// Execute scripts on input events
-    pub fn execute_on_input(&self, context: &RuntimeContext) {
+    pub fn execute_on_input(&mut self, context: &RuntimeContext) {
         debug!("Executing scripts on input event");
-        for (name, script) in &self.scripts {
-            if script.source.contains("on_input") || script.source.contains("keyboard_input") {
-                debug!("Script '{}' has input handler", name);
-                if let Err(e) = self
-                    .runtime
-                    .execute_source(&script.source, name, context.context())
-                {
-                    error!("Failed to execute script '{}' on input: {}", name, e);
-                }
+
+        let script_data: Vec<_> = self.scripts.iter()
+            .filter(|(_, script)| script.source.contains("on_input") || script.source.contains("keyboard_input"))
+            .map(|(name, script)| (name.clone(), script.source.clone()))
+            .collect();
+
+        for (name, source) in script_data {
+            debug!("Script '{}' has input handler", name);
+            if let Err(e) = self.runtime.execute_source(&source, &name, context.context()) {
+                error!("Failed to execute script '{}' on input: {}", name, e);
             }
         }
     }
 
     /// Execute scripts on startup (called once after initialization)
-    pub fn execute_on_startup(&self, context: &RuntimeContext) {
-        info!("Executing scripts on startup");
-        for (name, script) in &self.scripts {
-            if script.source.contains("on_startup") || script.source.contains("init") {
-                info!("Script '{}' has startup handler", name);
-                if let Err(e) = self
-                    .runtime
-                    .execute_source(&script.source, name, context.context())
-                {
-                    error!("Failed to execute script '{}' on startup: {}", name, e);
-                }
+    ///
+    /// All scripts are executed on startup. Scripts can check runtime context
+    /// or use guards if they only want to run under certain conditions.
+    pub fn execute_on_startup(&mut self, context: &RuntimeContext) {
+        info!("Executing {} scripts on startup", self.scripts.len());
+
+        let script_data: Vec<_> = self.scripts.iter()
+            .map(|(name, script)| (name.clone(), script.source.clone()))
+            .collect();
+
+        for (name, source) in script_data {
+            info!("Executing script '{}' on startup", name);
+            match self.runtime.execute_source(&source, &name, context.context()) {
+                Ok(_) => info!("Script '{}' executed successfully", name),
+                Err(e) => error!("Failed to execute script '{}' on startup: {}", name, e),
             }
         }
     }

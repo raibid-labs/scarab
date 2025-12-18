@@ -61,10 +61,24 @@ pub enum PluginAction {
         end_row: u16,
     },
 
-    /// Update theme colors
+    /// Update a single theme color
     UpdateTheme {
         plugin_id: String,
-        theme_json: String,
+        color_name: String,
+        color_value: String,
+    },
+
+    /// Set window title
+    SetWindowTitle {
+        plugin_id: String,
+        title: String,
+    },
+
+    /// Set font family and size
+    SetFont {
+        plugin_id: String,
+        family: String,
+        size: f32,
     },
 
     /// Show a modal dialog
