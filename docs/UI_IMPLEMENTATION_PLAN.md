@@ -353,16 +353,21 @@ A breadcrumb bar at the top showing current directory path, where each segment i
 │                     Terminal Content                         │
 ```
 
-### Research Summary: File Browser Options
+### Implementation Approach: Native Fusabi
 
-Based on research, the recommended approach is **ratatui-explorer** as an embeddable library:
+Build the file browser natively using **Fusabi** and **fusabi-tui-runtime** for perfect integration with scarab's architecture:
 
-| Option | Pros | Cons | Recommendation |
-|--------|------|------|----------------|
-| **ratatui-explorer** | Embeddable, lightweight, MIT | Need rendering bridge | **RECOMMENDED** |
-| **broot subprocess** | Full-featured | Subprocess overhead | Use for "launch external" |
-| **yazi subprocess** | Modern, async | Not embeddable, Lua plugins | Use for "launch external" |
-| **Custom in Fusabi** | Perfect integration | Significant work | Future enhancement |
+| Approach | Decision |
+|----------|----------|
+| **Fusabi + fusabi-tui-runtime** | Native implementation with perfect scarab integration |
+| **broot/yazi subprocess** | Available as fallback for "launch external tool" |
+
+**Why Fusabi:**
+- Perfect integration with scarab's plugin system
+- Uses fusabi-tui-runtime widgets (already a dependency)
+- Consistent with scarab's scripting philosophy
+- No external dependencies or rendering bridges needed
+- Hot-reloadable via .fsx scripts
 
 ### Architecture
 
@@ -449,21 +454,23 @@ fn track_cwd(
 
 **Phase 1: Basic Breadcrumb Display (1 day)**
 - Parse current path into segments
-- Render as hintable text
+- Render as hintable text via Bevy UI
 - Track PWD via OSC 7
 
-**Phase 2: Directory Picker (1 day)**
-- Show directory contents on segment select
+**Phase 2: Directory Picker in Fusabi (1.5 days)**
+- Create `scarab-file-browser.fsx` plugin
+- Use fusabi-tui-runtime widgets for list rendering
 - Hint keys for entries
 - Navigate with keyboard
 
 **Phase 3: Actions (0.5 days)**
-- `cd` for directories
-- `$EDITOR` for files
+- `cd` for directories (send to PTY)
+- `$EDITOR` for files (spawn command)
 
-**Phase 4: ratatui-explorer Integration (1.5 days)**
-- Create rendering bridge
-- Advanced file browser mode (`Ctrl+O`)
+**Phase 4: Advanced File Browser Mode (1 day)**
+- Full-screen file browser (`Ctrl+O`)
+- Tree view with fusabi-tui-widgets
+- File preview pane (text files)
 
 ---
 
@@ -707,12 +714,12 @@ let ease_in_out = EasingCurve::new(0.0, 1.0, EaseFunction::CubicInOut);
 ```toml
 # Cargo.toml additions
 ignore = "0.4"           # .gitignore-aware file walking
-skim = "0.10"            # Fuzzy matching (already have via fuzzy-matcher)
-ratatui-explorer = "0.2" # File browser widget (for advanced mode)
 walkdir = "2.5"          # Directory traversal
 notify = "6.1"           # File system watching
-egui_plot = "0.29"       # Charting (via bevy_egui if needed)
+petgraph = "0.6"         # Graph data structures (for DAG visualization)
 ```
+
+**Note:** File browser uses Fusabi + fusabi-tui-runtime (already dependencies) - no additional crates needed.
 
 ---
 
