@@ -856,7 +856,7 @@ plugin-clean:
     echo "Done"
 
 # ============================================
-# Fusabi Script Development (phage, etc.)
+# Fusabi Script Development
 # ============================================
 
 # Install a Fusabi script to the scripts directory
@@ -873,7 +873,7 @@ script-install script_name:
         exit 1
     fi
 
-# Build and run with scripts (dev workflow for phage etc.)
+# Build and run with scripts (dev workflow for Fusabi scripts)
 dev-scripts: build
     #!/usr/bin/env bash
     set -e

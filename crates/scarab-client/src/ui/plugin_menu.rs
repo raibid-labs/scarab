@@ -69,22 +69,13 @@ fn bridge_plugin_menu_request(
 /// Get commands for a plugin (placeholder implementation)
 /// In the future, this will query the plugin's scarab-nav compliant interface
 fn get_plugin_commands(plugin_id: &str) -> Vec<MenuItem> {
-    match plugin_id {
-        "phage" => vec![
-            MenuItem::new("🧬 Scan Context".to_string(), MenuAction::Remote("scan_context".to_string()))
-                .with_shortcut("s"),
-            MenuItem::new("📋 Copy AI Context".to_string(), MenuAction::Remote("copy_context".to_string()))
-                .with_shortcut("c"),
-            MenuItem::new("🔄 Refresh Analysis".to_string(), MenuAction::Remote("refresh".to_string()))
-                .with_shortcut("r"),
-            MenuItem::new("⚙️ Configure".to_string(), MenuAction::Remote("configure".to_string()))
-                .with_shortcut("g"),
-        ],
-        _ => vec![
-            MenuItem::new("Info".to_string(), MenuAction::Remote("info".to_string())),
-            MenuItem::new("Configure".to_string(), MenuAction::Remote("configure".to_string())),
-        ],
-    }
+    // Default commands for any plugin
+    // Plugins can register custom menus via the scarab-nav protocol
+    let _ = plugin_id; // Suppress unused warning - will be used when custom menus are implemented
+    vec![
+        MenuItem::new("Info".to_string(), MenuAction::Remote("info".to_string())),
+        MenuItem::new("Configure".to_string(), MenuAction::Remote("configure".to_string())),
+    ]
 }
 
 /// Event to show a plugin menu

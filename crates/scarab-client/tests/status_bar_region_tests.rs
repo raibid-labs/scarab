@@ -136,26 +136,25 @@ fn test_status_bar_state_clear_dirty() {
 fn test_tab_state_default() {
     let state = TabState::default();
 
-    // Default tabs from status_bar.rs
-    assert_eq!(state.tabs.len(), 3);
-    assert_eq!(state.tabs[0], "meta");
-    assert_eq!(state.tabs[1], "phage");
-    assert_eq!(state.tabs[2], "tolaria");
+    // TabState starts empty - tabs are populated dynamically by session manager
+    assert_eq!(state.tabs.len(), 0);
     assert_eq!(state.active_index, 0);
 }
 
 #[test]
 fn test_tab_state_active_tab() {
     let mut state = TabState::default();
+    // Populate tabs like session manager would
+    state.tabs = vec!["shell".to_string(), "nvim".to_string(), "logs".to_string()];
 
     assert_eq!(state.active_index, 0);
-    assert_eq!(state.tabs[state.active_index], "meta");
+    assert_eq!(state.tabs[state.active_index], "shell");
 
     state.active_index = 1;
-    assert_eq!(state.tabs[state.active_index], "phage");
+    assert_eq!(state.tabs[state.active_index], "nvim");
 
     state.active_index = 2;
-    assert_eq!(state.tabs[state.active_index], "tolaria");
+    assert_eq!(state.tabs[state.active_index], "logs");
 }
 
 // =============================================================================

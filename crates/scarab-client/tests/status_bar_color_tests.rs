@@ -148,9 +148,10 @@ mod slime_colors {
 const STATUS_BAR_ROW: u16 = 0; // Bottom row in Bevy coordinates
 
 /// Tab positions (approximate, depends on terminal width)
-const TAB_META_COL: u16 = 2;
-const TAB_PHAGE_COL: u16 = 10;
-const TAB_TOLARIA_COL: u16 = 20;
+/// Note: Actual tab labels are populated dynamically by the session manager
+const TAB_0_COL: u16 = 2;
+const TAB_1_COL: u16 = 10;
+const TAB_2_COL: u16 = 20;
 
 // =============================================================================
 // TEST 1: ACTIVE TAB COLORS
