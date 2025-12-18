@@ -1,4 +1,6 @@
 use crate::rendering::text::TextRenderer;
+use crate::ui::link_hints::LinkHintsState;
+use crate::ui::plugin_menu::MenuState;
 use crate::ui::BOTTOM_UI_HEIGHT;
 use crate::InputSystemSet;
 use anyhow::{Context, Result};
@@ -250,7 +252,20 @@ fn handle_startup_command(
 }
 
 /// Bevy system to handle keyboard input
-pub fn handle_keyboard_input(keys: Res<ButtonInput<KeyCode>>, ipc: Res<IpcChannel>) {
+pub fn handle_keyboard_input(
+    keys: Res<ButtonInput<KeyCode>>,
+    ipc: Res<IpcChannel>,
+    link_hints_state: Option<Res<LinkHintsState>>,
+    menu_state: Option<Res<MenuState>>,
+) {
+    // Don't send input to terminal when hint mode is active
+    let hints_active = link_hints_state.map_or(false, |s| s.active);
+    let menu_hint_active = menu_state.map_or(false, |s| s.active && s.hint_mode);
+
+    if hints_active || menu_hint_active {
+        return;
+    }
+
     for key in keys.get_just_pressed() {
         let bytes = key_to_bytes(*key);
         if let Some(bytes) = bytes {
@@ -299,7 +314,19 @@ fn key_to_bytes(key: KeyCode) -> Option<Vec<u8>> {
 pub fn handle_character_input(
     mut char_events: EventReader<bevy::input::keyboard::KeyboardInput>,
     ipc: Res<IpcChannel>,
+    link_hints_state: Option<Res<LinkHintsState>>,
+    menu_state: Option<Res<MenuState>>,
 ) {
+    // Don't send input to terminal when hint mode is active
+    let hints_active = link_hints_state.map_or(false, |s| s.active);
+    let menu_hint_active = menu_state.map_or(false, |s| s.active && s.hint_mode);
+
+    if hints_active || menu_hint_active {
+        // Consume all events but don't send them
+        for _ in char_events.read() {}
+        return;
+    }
+
     for event in char_events.read() {
         // Only handle key presses (not releases)
         if !event.state.is_pressed() {
