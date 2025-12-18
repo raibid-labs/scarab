@@ -37,7 +37,9 @@ pub struct ScriptingPlugin;
 
 impl Plugin for ScriptingPlugin {
     fn build(&self, app: &mut App) {
-        app.add_plugins((ScriptingSystemPlugin, FusabiEcsBridgePlugin))
+        // Add plugin host first to ensure PluginRegistry is available
+        app.add_plugins(crate::plugin_host::ScarabPluginHostPlugin)
+            .add_plugins((ScriptingSystemPlugin, FusabiEcsBridgePlugin))
             .add_event::<ScriptEvent>()
             .add_systems(
                 Startup,
