@@ -1,7 +1,7 @@
 use crate::ipc::RemoteMessageEvent;
 use crate::rendering::layers::LAYER_MODALS;
 use bevy::prelude::*;
-use scarab_protocol::{DaemonMessage, LogLevel, NotifyLevel};
+use scarab_protocol::{DaemonMessage, LogLevel, ModalItem, NotifyLevel};
 
 /// Component to tag entities as remote overlays
 #[derive(Component)]
@@ -27,25 +27,35 @@ struct PluginLogDisplay;
 #[derive(Event)]
 pub struct HideModalEvent;
 
+/// Event to show a remote modal from daemon
+#[derive(Event)]
+pub struct ShowRemoteModalEvent {
+    pub title: String,
+    pub items: Vec<ModalItem>,
+}
+
 pub struct RemoteUiPlugin;
 
 impl Plugin for RemoteUiPlugin {
     fn build(&self, app: &mut App) {
-        app.add_event::<HideModalEvent>().add_systems(
-            Update,
-            (
-                handle_remote_messages,
-                update_notifications,
-                handle_hide_modal,
-            ),
-        );
+        app.add_event::<HideModalEvent>()
+            .add_event::<ShowRemoteModalEvent>()
+            .add_systems(
+                Update,
+                (
+                    handle_remote_messages,
+                    update_notifications,
+                    handle_hide_modal,
+                    handle_show_modal,
+                ),
+            );
     }
 }
 
 fn handle_remote_messages(
     mut commands: Commands,
     mut events: EventReader<RemoteMessageEvent>,
-    mut show_modal_events: EventWriter<crate::ui::command_palette::ShowRemoteModalEvent>,
+    mut show_modal_events: EventWriter<ShowRemoteModalEvent>,
     mut hide_modal_events: EventWriter<HideModalEvent>,
     overlay_query: Query<(Entity, &RemoteOverlay)>,
     time: Res<Time>,
@@ -100,7 +110,7 @@ fn handle_remote_messages(
                 }
             }
             DaemonMessage::ShowModal { title, items } => {
-                show_modal_events.send(crate::ui::command_palette::ShowRemoteModalEvent {
+                show_modal_events.send(ShowRemoteModalEvent {
                     title: title.clone(),
                     items: items.clone(),
                 });
@@ -254,5 +264,17 @@ fn handle_hide_modal(
 ) {
     for _event in events.read() {
         omnibar_state.active = false;
+    }
+}
+
+/// Handle show modal events - for now just log, could be routed to omnibar in the future
+fn handle_show_modal(mut events: EventReader<ShowRemoteModalEvent>) {
+    for event in events.read() {
+        // TODO: Route to omnibar or create a dedicated modal UI
+        info!(
+            "Remote modal requested: '{}' with {} items",
+            event.title,
+            event.items.len()
+        );
     }
 }
