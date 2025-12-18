@@ -174,18 +174,21 @@ impl ScriptManager {
     }
 
     /// Execute scripts on startup (called once after initialization)
+    ///
+    /// All scripts are executed on startup. Scripts can check runtime context
+    /// or use guards if they only want to run under certain conditions.
     pub fn execute_on_startup(&mut self, context: &RuntimeContext) {
-        info!("Executing scripts on startup");
+        info!("Executing {} scripts on startup", self.scripts.len());
 
         let script_data: Vec<_> = self.scripts.iter()
-            .filter(|(_, script)| script.source.contains("on_startup") || script.source.contains("init"))
             .map(|(name, script)| (name.clone(), script.source.clone()))
             .collect();
 
         for (name, source) in script_data {
-            info!("Script '{}' has startup handler", name);
-            if let Err(e) = self.runtime.execute_source(&source, &name, context.context()) {
-                error!("Failed to execute script '{}' on startup: {}", name, e);
+            info!("Executing script '{}' on startup", name);
+            match self.runtime.execute_source(&source, &name, context.context()) {
+                Ok(_) => info!("Script '{}' executed successfully", name),
+                Err(e) => error!("Failed to execute script '{}' on startup: {}", name, e),
             }
         }
     }

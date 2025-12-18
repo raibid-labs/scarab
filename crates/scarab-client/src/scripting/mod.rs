@@ -15,7 +15,6 @@ pub mod api;
 pub mod context;
 pub mod ecs_bridge;
 pub mod error;
-pub mod host_functions;
 pub mod loader;
 pub mod manager;
 pub mod runtime;

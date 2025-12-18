@@ -329,14 +329,45 @@ fn process_plugin_actions(
 
             PluginAction::UpdateTheme {
                 plugin_id,
-                theme_json: _,
+                color_name,
+                color_value,
             } => {
                 debug!(
                     plugin_id = %plugin_id,
-                    "Plugin updating theme"
+                    color = %color_name,
+                    value = %color_value,
+                    "Plugin updating theme color"
                 );
 
-                // TODO: Parse theme JSON and apply to renderer
+                // TODO: Apply color to the theme system
+            }
+
+            PluginAction::SetWindowTitle {
+                plugin_id,
+                title,
+            } => {
+                debug!(
+                    plugin_id = %plugin_id,
+                    title = %title,
+                    "Plugin setting window title"
+                );
+
+                // TODO: Update window title via Bevy
+            }
+
+            PluginAction::SetFont {
+                plugin_id,
+                family,
+                size,
+            } => {
+                debug!(
+                    plugin_id = %plugin_id,
+                    family = %family,
+                    size = size,
+                    "Plugin setting font"
+                );
+
+                // TODO: Update font via theme system
             }
 
             PluginAction::ShowModal {

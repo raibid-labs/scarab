@@ -220,7 +220,8 @@ impl KeyBindingConfig {
         // Command palette
         self.bind(KeyBinding::new(KeyCode::KeyP).with_ctrl(), "palette.open");
 
-        // Link hints
+        // Link hints - NOTE: Primary trigger is Esc+Esc (double-tap Escape)
+        // Ctrl+K kept as alternative for users who prefer single keypress
         self.bind(
             KeyBinding::new(KeyCode::KeyK).with_ctrl(),
             "links.show_hints",

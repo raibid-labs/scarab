@@ -293,17 +293,47 @@ impl FusabiNatives {
         }
     }
 
-    /// Native: update_theme(theme_json)
+    /// Native: set_color(color_name, color_value)
     ///
-    /// Updates the terminal theme with JSON-formatted theme data.
-    pub fn update_theme(&self, theme_json: String) {
+    /// Sets a single theme color by name.
+    pub fn set_color(&self, color_name: String, color_value: String) {
         if let Ok(mut actions) = self.channel.lock() {
             actions.push(PluginAction::UpdateTheme {
                 plugin_id: self.plugin_id.clone(),
-                theme_json,
+                color_name,
+                color_value,
             });
         } else {
-            error!("Failed to lock channel in update_theme");
+            error!("Failed to lock channel in set_color");
+        }
+    }
+
+    /// Native: set_window_title(title)
+    ///
+    /// Sets the window title.
+    pub fn set_window_title(&self, title: String) {
+        if let Ok(mut actions) = self.channel.lock() {
+            actions.push(PluginAction::SetWindowTitle {
+                plugin_id: self.plugin_id.clone(),
+                title,
+            });
+        } else {
+            error!("Failed to lock channel in set_window_title");
+        }
+    }
+
+    /// Native: set_font(family, size)
+    ///
+    /// Sets the terminal font.
+    pub fn set_font(&self, family: String, size: f32) {
+        if let Ok(mut actions) = self.channel.lock() {
+            actions.push(PluginAction::SetFont {
+                plugin_id: self.plugin_id.clone(),
+                family,
+                size,
+            });
+        } else {
+            error!("Failed to lock channel in set_font");
         }
     }
 

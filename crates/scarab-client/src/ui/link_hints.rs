@@ -1,12 +1,20 @@
-// Vimium-style link hints for clickable URLs and file paths
+// Vimium-style link hints for clickable URLs, file paths, and status bar plugins
 // Detects links in terminal output and provides keyboard shortcuts
+// Also provides hints for status bar plugin items
 
+use crate::events::StatusSide;
 use crate::integration::SharedMemoryReader;
+use crate::plugin_host::PluginStatusItem;
 use crate::rendering::text::TextRenderer;
-use crate::ui::grid_utils::grid_to_pixel;
+use crate::ui::status_bar::{StatusBarContainer, STATUS_BAR_HEIGHT};
 use bevy::input::keyboard::KeyCode;
 use bevy::prelude::*;
+use bevy::window::PrimaryWindow;
 use regex::Regex;
+use std::time::{Duration, Instant};
+
+/// Double-tap detection window for Esc+Esc
+const DOUBLE_TAP_WINDOW: Duration = Duration::from_millis(300);
 
 /// Plugin for link hint functionality
 pub struct LinkHintsPlugin;
@@ -15,7 +23,9 @@ impl Plugin for LinkHintsPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<LinkDetector>()
             .init_resource::<LinkHintsState>()
+            .init_resource::<EscapeDoubleTap>()
             .add_event::<LinkActivatedEvent>()
+            .add_event::<PluginMenuRequestEvent>()
             .add_systems(
                 Update,
                 (
@@ -26,6 +36,18 @@ impl Plugin for LinkHintsPlugin {
                 )
                     .chain(),
             );
+    }
+}
+
+/// Tracks Escape key double-tap state
+#[derive(Resource)]
+struct EscapeDoubleTap {
+    last_escape: Option<Instant>,
+}
+
+impl Default for EscapeDoubleTap {
+    fn default() -> Self {
+        Self { last_escape: None }
     }
 }
 
@@ -40,12 +62,14 @@ pub struct LinkHint {
     pub link_type: LinkType,
 }
 
-/// Type of detected link
+/// Type of detected link or hintable element
 #[derive(Clone, Debug, PartialEq)]
 pub enum LinkType {
     Url,
     FilePath,
     Email,
+    /// Status bar plugin item (plugin_id stored in url field)
+    StatusBarPlugin,
 }
 
 /// Link detector with regex patterns
@@ -139,12 +163,24 @@ pub struct LinkHintsState {
     pub active: bool,
     pub hints: Vec<LinkHint>,
     pub current_input: String,
+    /// Set true on the frame hints are activated, prevents immediate cancel
+    pub just_activated: bool,
 }
 
 /// Event fired when a link is activated
 #[derive(Event)]
 pub struct LinkActivatedEvent {
     pub link: LinkHint,
+}
+
+/// Event fired when a status bar plugin is selected via hints
+/// This should trigger showing the plugin's command menu
+#[derive(Event, Debug, Clone)]
+pub struct PluginMenuRequestEvent {
+    /// Plugin ID that was selected
+    pub plugin_id: String,
+    /// Position where the menu should appear (above the status bar item)
+    pub position: Vec2,
 }
 
 /// Component for hint label display
@@ -162,49 +198,137 @@ fn extract_terminal_text(state_reader: &SharedMemoryReader) -> String {
     crate::integration::extract_grid_text(&safe_state)
 }
 
-/// Detect links in terminal grid with accurate pixel positioning
+/// Detect links in terminal grid and status bar plugins with accurate pixel positioning
 fn detect_links_system(
     detector: Res<LinkDetector>,
     mut state: ResMut<LinkHintsState>,
     keyboard: Res<ButtonInput<KeyCode>>,
     state_reader: Res<SharedMemoryReader>,
     renderer: Res<TextRenderer>,
+    mut escape_state: ResMut<EscapeDoubleTap>,
+    window_query: Query<&Window, With<PrimaryWindow>>,
+    // Status bar queries
+    status_items: Query<&PluginStatusItem>,
+    _status_bar_query: Query<&GlobalTransform, With<StatusBarContainer>>,
 ) {
-    // Toggle link hints with Ctrl+K
-    if keyboard.just_pressed(KeyCode::ControlLeft) && keyboard.pressed(KeyCode::KeyK) {
+    // Toggle link hints with Esc+Esc (double-tap Escape)
+    let mut should_toggle = false;
+
+    if keyboard.just_pressed(KeyCode::Escape) {
+        let now = Instant::now();
+
+        if let Some(last) = escape_state.last_escape {
+            if now.duration_since(last) <= DOUBLE_TAP_WINDOW {
+                // Double-tap detected!
+                should_toggle = true;
+                escape_state.last_escape = None; // Reset
+            } else {
+                // Too slow, start fresh
+                escape_state.last_escape = Some(now);
+            }
+        } else {
+            // First tap
+            escape_state.last_escape = Some(now);
+        }
+    }
+
+    if should_toggle {
         state.active = !state.active;
+        state.just_activated = state.active; // Mark as just activated if turning on
 
         if state.active {
+            // Get window size for coordinate calculation
+            let Ok(window) = window_query.get_single() else {
+                warn!("No primary window found for link hints");
+                state.active = false;
+                return;
+            };
+
+            let mut all_hints = Vec::new();
+
+            // === DETECT STATUS BAR PLUGINS FIRST ===
+            // Status bar plugins get hints a, b, c, d...
+            // Collect left-side status items sorted by priority
+            let mut left_items: Vec<_> = status_items
+                .iter()
+                .filter(|item| item.side == StatusSide::Left)
+                .collect();
+            left_items.sort_by(|a, b| b.priority.cmp(&a.priority));
+
+            // Position hints at status bar level in world coordinates
+            // Bottom of window is at y = -window.height/2, status bar is 24px tall
+            // Account for: TopLeft anchor (hint extends downward 18px) and -2.0 offset in show_hints_system
+            // This centers the 18px hint on the 24px status bar
+            let status_bar_y = -window.height() * 0.5 + STATUS_BAR_HEIGHT - 1.0;
+            let status_bar_x_start = -window.width() * 0.5 + 16.0; // 8px padding + 8px offset
+
+            // Calculate approximate character width for positioning
+            let approx_char_width = 8.0;
+            let mut current_x = status_bar_x_start;
+
+            for item in &left_items {
+                // Create hint for this plugin at this position
+                all_hints.push((
+                    item.plugin_id.clone(),
+                    LinkType::StatusBarPlugin,
+                    current_x,
+                    status_bar_y,
+                    item.content.clone(),
+                ));
+
+                // Move x position for next item (approximate based on content length)
+                current_x += (item.content.len() as f32 * approx_char_width) + 16.0; // + padding
+            }
+
+            // === DETECT TERMINAL CONTENT LINKS ===
             // Get actual terminal text from SharedState
             let terminal_text = extract_terminal_text(&state_reader);
 
             // Detect links with their grid positions
             let detected_links = detector.detect_with_positions(&terminal_text);
-            let hint_keys = LinkDetector::generate_hint_keys(detected_links.len());
 
             // Get cell dimensions from renderer for accurate positioning
             let cell_width = renderer.cell_width;
             let cell_height = renderer.cell_height;
 
-            state.hints = detected_links
+            // Terminal grid is positioned at top-left of window
+            // Grid origin is at (-window.width/2, +window.height/2) in world coordinates
+            let grid_origin_x = -window.width() * 0.5;
+            let grid_origin_y = window.height() * 0.5;
+
+            for (url, link_type, col, row) in detected_links {
+                // Calculate position relative to grid origin
+                // Grid cells go right (+x) and down (-y) from origin
+                let x = grid_origin_x + (col as f32 * cell_width);
+                let y = grid_origin_y - (row as f32 * cell_height);
+                all_hints.push((url, link_type, x, y, String::new()));
+            }
+
+            // Generate hint keys for all hints
+            let hint_keys = LinkDetector::generate_hint_keys(all_hints.len());
+
+            // Create LinkHint structs
+            state.hints = all_hints
                 .into_iter()
                 .zip(hint_keys)
-                .map(|((url, link_type, col, row), hint_key)| {
-                    // Convert grid coordinates to pixel position using grid_to_pixel
-                    let position = grid_to_pixel(col as u16, row as u16, cell_width, cell_height);
-
+                .map(|((url, link_type, x, y, _content), hint_key)| {
                     LinkHint {
                         url,
-                        position,
-                        grid_col: col as u16,
-                        grid_row: row as u16,
+                        position: Vec2::new(x, y),
+                        grid_col: 0, // Not used for status bar plugins
+                        grid_row: 0,
                         hint_key,
                         link_type,
                     }
                 })
                 .collect();
 
-            info!("Detected {} links in terminal output", state.hints.len());
+            let plugin_count = left_items.len();
+            let link_count = state.hints.len() - plugin_count;
+            info!(
+                "Detected {} status bar plugins and {} terminal links",
+                plugin_count, link_count
+            );
             state.current_input.clear();
         } else {
             state.hints.clear();
@@ -213,14 +337,31 @@ fn detect_links_system(
     }
 }
 
+/// Marker for hint label background sprites (for terminal hints)
+#[derive(Component)]
+struct HintLabelBackground;
+
+/// Marker for UI-based hint labels (for status bar hints)
+#[derive(Component)]
+struct HintLabelUI;
+
 /// Show hint labels on screen
 fn show_hints_system(
     mut commands: Commands,
     state: Res<LinkHintsState>,
     existing_hints: Query<Entity, With<HintLabel>>,
+    existing_backgrounds: Query<Entity, With<HintLabelBackground>>,
+    existing_ui_hints: Query<Entity, With<HintLabelUI>>,
+    window_query: Query<&Window, With<PrimaryWindow>>,
 ) {
-    // Remove existing hint labels
+    // Remove existing hint labels and backgrounds
     for entity in existing_hints.iter() {
+        commands.entity(entity).despawn();
+    }
+    for entity in existing_backgrounds.iter() {
+        commands.entity(entity).despawn();
+    }
+    for entity in existing_ui_hints.iter() {
         commands.entity(entity).despawn();
     }
 
@@ -228,7 +369,10 @@ fn show_hints_system(
         return;
     }
 
-    // Spawn new hint labels
+    // Get window dimensions for coordinate conversion
+    let window = window_query.get_single().ok();
+
+    // Spawn new hint labels with backgrounds
     for hint in &state.hints {
         let mut matched = false;
         let mut partial_match = true;
@@ -246,23 +390,92 @@ fn show_hints_system(
             continue;
         }
 
-        let color = if matched {
-            Color::srgb(0.0, 1.0, 0.0) // Green when matched
+        // Vimium-style colors: yellow background with dark text, green when matched
+        let (bg_color, text_color) = if matched {
+            (
+                Color::srgb(0.0, 0.8, 0.0),      // Green background
+                Color::srgb(1.0, 1.0, 1.0),      // White text
+            )
         } else {
-            Color::srgb(1.0, 1.0, 0.0) // Yellow for hints
+            (
+                Color::srgb(1.0, 0.9, 0.0),      // Yellow background
+                Color::srgb(0.0, 0.0, 0.0),      // Black text
+            )
         };
 
+        // Status bar hints render as UI elements (to appear above the status bar)
+        if hint.link_type == LinkType::StatusBarPlugin {
+            if let Some(win) = window {
+                // Convert world coordinates to screen coordinates
+                // World: origin at center, Y up
+                // Screen: origin at top-left, Y down
+                let screen_x = hint.position.x + (win.width() / 2.0);
+                let screen_y = (win.height() / 2.0) - hint.position.y;
+
+                // Spawn UI hint element
+                commands.spawn((
+                    HintLabelUI,
+                    HintLabel {
+                        hint_key: hint.hint_key.clone(),
+                    },
+                    Node {
+                        position_type: PositionType::Absolute,
+                        left: Val::Px(screen_x),
+                        top: Val::Px(screen_y - 3.0), // Slight upward adjustment
+                        padding: UiRect::axes(Val::Px(4.0), Val::Px(2.0)),
+                        ..default()
+                    },
+                    BackgroundColor(bg_color),
+                    ZIndex(2000), // Above status bar (ZIndex 1000)
+                ))
+                .with_children(|parent| {
+                    parent.spawn((
+                        Text::new(&hint.hint_key),
+                        TextFont {
+                            font_size: 12.0,
+                            ..default()
+                        },
+                        TextColor(text_color),
+                    ));
+                });
+            }
+            continue;
+        }
+
+        // Terminal hints render as sprites (positioned in world space)
+        let char_width = 10.0;
+        let bg_width = (hint.hint_key.len() as f32 * char_width) + 6.0;
+        let bg_height = 18.0;
+
+        // Position hint slightly offset from the link start
+        let hint_x = hint.position.x;
+        let hint_y = hint.position.y - 2.0; // Slight downward offset
+
+        // Spawn background sprite first (lower z)
+        commands.spawn((
+            HintLabelBackground,
+            bevy::sprite::Sprite {
+                color: bg_color,
+                custom_size: Some(Vec2::new(bg_width, bg_height)),
+                anchor: bevy::sprite::Anchor::TopLeft,
+                ..default()
+            },
+            Transform::from_translation(Vec3::new(hint_x, hint_y, 99.0)),
+        ));
+
+        // Spawn text label on top (higher z)
         commands.spawn((
             HintLabel {
                 hint_key: hint.hint_key.clone(),
             },
             Text2d::new(&hint.hint_key),
             TextFont {
-                font_size: 16.0,
+                font_size: 14.0,
                 ..default()
             },
-            TextColor(color),
-            Transform::from_translation(hint.position.extend(100.0)),
+            TextColor(text_color),
+            bevy::sprite::Anchor::TopLeft,
+            Transform::from_translation(Vec3::new(hint_x + 3.0, hint_y - 2.0, 100.0)),
         ));
     }
 }
@@ -275,6 +488,12 @@ fn handle_hint_input_system(
 ) {
     if !state.active {
         return;
+    }
+
+    // Skip escape cancel on the same frame hints were activated (Esc+Esc issue)
+    if state.just_activated {
+        state.just_activated = false;
+        return; // Skip all input processing this frame
     }
 
     // Handle escape to cancel
@@ -306,7 +525,10 @@ fn handle_hint_input_system(
 }
 
 /// Activate selected link
-fn activate_link_system(mut events: EventReader<LinkActivatedEvent>) {
+fn activate_link_system(
+    mut events: EventReader<LinkActivatedEvent>,
+    mut plugin_menu_events: EventWriter<PluginMenuRequestEvent>,
+) {
     for event in events.read() {
         match event.link.link_type {
             LinkType::Url => {
@@ -326,6 +548,14 @@ fn activate_link_system(mut events: EventReader<LinkActivatedEvent>) {
                 if let Err(e) = open_email(&event.link.url) {
                     error!("Failed to open email client: {}", e);
                 }
+            }
+            LinkType::StatusBarPlugin => {
+                // Emit event to open plugin command menu
+                info!("Opening plugin menu for: {}", event.link.url);
+                plugin_menu_events.send(PluginMenuRequestEvent {
+                    plugin_id: event.link.url.clone(),
+                    position: event.link.position,
+                });
             }
         }
     }

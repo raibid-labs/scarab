@@ -8,6 +8,13 @@ use bevy::prelude::*;
 /// Height of the status bar in pixels
 pub const STATUS_BAR_HEIGHT: f32 = 24.0;
 
+/// Resource holding handles to emoji fonts for status bar text
+#[derive(Resource, Default)]
+pub struct StatusBarFonts {
+    /// Primary font with emoji support (loaded from system)
+    pub emoji_font: Option<Handle<Font>>,
+}
+
 /// Height of the dock in pixels (currently disabled)
 pub const DOCK_HEIGHT: f32 = 40.0;
 
@@ -28,9 +35,10 @@ impl Plugin for StatusBarPlugin {
         app.init_resource::<StatusBarState>()
             .init_resource::<StatusUpdateTimer>()
             .init_resource::<TabState>()
+            .init_resource::<StatusBarFonts>()
             .add_event::<StatusUpdateEvent>()
             .add_event::<TabSwitchEvent>()
-            .add_systems(Startup, setup_status_bar)
+            .add_systems(Startup, (load_status_bar_fonts, setup_status_bar).chain())
             .add_systems(
                 Update,
                 (
@@ -42,6 +50,40 @@ impl Plugin for StatusBarPlugin {
                 )
                     .chain(),
             );
+    }
+}
+
+/// Load system fonts into Bevy's cosmic-text font system for fallback
+///
+/// This enables emoji and other Unicode characters to render by loading
+/// system fonts that Bevy doesn't load by default.
+fn load_status_bar_fonts(
+    mut cosmic_fonts: ResMut<bevy::text::CosmicFontSystem>,
+    mut fonts: ResMut<StatusBarFonts>,
+) {
+    // Load system fonts into cosmic-text's fontdb for font fallback
+    // This gives us access to emoji fonts and other system fonts
+    let db = cosmic_fonts.0.db_mut();
+
+    // Load all system fonts - this enables font fallback for emoji
+    db.load_system_fonts();
+
+    let face_count = db.faces().count();
+    info!("Loaded {} system font faces into Bevy's font system", face_count);
+
+    // Check if we have emoji support
+    let has_emoji = db.faces().any(|face| {
+        face.families.iter().any(|(name, _)| {
+            name.to_lowercase().contains("emoji")
+        })
+    });
+
+    if has_emoji {
+        info!("Emoji font support detected");
+        // Mark that we have emoji support (for potential future use)
+        fonts.emoji_font = None; // Not using the handle approach anymore
+    } else {
+        warn!("No emoji font found in system fonts, emoji characters may not render");
     }
 }
 
@@ -163,10 +205,14 @@ pub struct TabLabel {
 ///
 /// Creates a horizontal container with left and right text sections.
 /// The status bar is positioned at the bottom of the window.
-fn setup_status_bar(mut commands: Commands, tab_state: Res<TabState>) {
+fn setup_status_bar(mut commands: Commands, tab_state: Res<TabState>, _fonts: Res<StatusBarFonts>) {
     // Slime theme colors
     let status_bar_bg = Color::srgba(0.15, 0.15, 0.18, 0.95); // Dark gray status bar
     let text_color = Color::srgb(0.66, 0.87, 0.35); // #a8df5a - slime green
+
+    // Use default font - the emoji font is loaded separately and should be
+    // available in the font database for fallback when needed
+    let text_font = TextFont::from_font_size(14.0);
 
     commands
         .spawn((
@@ -200,9 +246,10 @@ fn setup_status_bar(mut commands: Commands, tab_state: Res<TabState>) {
                 ))
                 .with_children(|left_parent| {
                     // Plugin status items (rendered dynamically)
+                    // Uses emoji font for proper emoji rendering
                     left_parent.spawn((
                         Text::new(""),
-                        TextFont::from_font_size(14.0),
+                        text_font.clone(),
                         TextColor(text_color),
                         PluginStatusText,
                     ));
