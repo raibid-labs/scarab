@@ -250,9 +250,9 @@ fn update_notifications(
 /// Handle modal hiding events
 fn handle_hide_modal(
     mut events: EventReader<HideModalEvent>,
-    mut palette_state: ResMut<crate::ui::command_palette::CommandPaletteState>,
+    mut omnibar_state: ResMut<crate::ui::omnibar::OmnibarState>,
 ) {
     for _event in events.read() {
-        palette_state.active = false;
+        omnibar_state.active = false;
     }
 }
