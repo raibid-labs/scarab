@@ -4,7 +4,6 @@
 //! from the dock. Supports nested submenus, icons, and keyboard shortcuts.
 
 use crate::ipc::{IpcChannel, RemoteMessageEvent};
-use crate::ui::command_palette::CommandExecutedEvent;
 use crate::ui::dock::NavConnection;
 use crate::ui::link_hints::PluginMenuRequestEvent;
 use bevy::input::keyboard::KeyCode;
@@ -944,7 +943,6 @@ fn unregister_menu_on_close(
 fn execute_menu_action_system(
     mut events: EventReader<MenuActionEvent>,
     ipc: Res<IpcChannel>,
-    _command_events: EventWriter<CommandExecutedEvent>,
     menu_state: Res<MenuState>,
 ) {
     for event in events.read() {
