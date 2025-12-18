@@ -2,6 +2,7 @@
 // Provides power-user features: link hints, command palette, leader keys, etc.
 
 pub mod animations;
+pub mod breadcrumb;
 pub mod command_palette;
 pub mod dashboard;
 pub mod dock;
@@ -10,6 +11,8 @@ pub mod grid_utils;
 pub mod keybindings;
 pub mod leader_key;
 pub mod link_hints;
+pub mod modes;
+pub mod omnibar;
 pub mod overlays;
 pub mod plugin_menu;
 pub mod scroll_indicator;
@@ -20,6 +23,10 @@ pub mod tab_animations;
 pub mod visual_selection;
 
 pub use animations::{AnimationState, AnimationsPlugin, FadeAnimation};
+pub use breadcrumb::{
+    BreadcrumbContainer, BreadcrumbPlugin, BreadcrumbSegmentSelectedEvent, BreadcrumbState,
+    BreadcrumbText, OpenDirectoryPickerEvent, PathSegment, BREADCRUMB_BAR_HEIGHT,
+};
 pub use command_palette::{Command, CommandPalettePlugin, CommandRegistry};
 pub use dashboard::{
     create_system_monitor_dashboard, DashboardLayout, DashboardPane, DashboardPlugin,
@@ -34,6 +41,11 @@ pub use grid_utils::{
 pub use keybindings::{KeyBinding, KeyBindingConfig, KeybindingsPlugin};
 pub use leader_key::{LeaderKeyPlugin, LeaderKeyState};
 pub use link_hints::{LinkDetector, LinkHint, LinkHintsPlugin};
+pub use modes::{ModeActionEvent, ModeChangeEvent, ModesPlugin, ModeState, ScarabMode};
+pub use omnibar::{
+    OmnibarContext, OmnibarExecuteEvent, OmnibarPlugin, OmnibarProvider, OmnibarResult,
+    OmnibarState, OmnibarUI, ProviderRegistry,
+};
 pub use overlays::RemoteUiPlugin;
 pub use plugin_menu::{MenuPosition, MenuState, PluginMenuPlugin, ShowPluginMenuEvent};
 pub use scroll_indicator::{ScrollIndicatorConfig, ScrollIndicatorPlugin};
@@ -56,25 +68,31 @@ pub struct AdvancedUIPlugin;
 
 impl Plugin for AdvancedUIPlugin {
     fn build(&self, app: &mut App) {
+        // Split into multiple add_plugins calls to avoid tuple limit
         app.add_plugins((
+            BreadcrumbPlugin,
             LinkHintsPlugin,
-            CommandPalettePlugin,
+            OmnibarPlugin,
             LeaderKeyPlugin,
             KeybindingsPlugin,
             AnimationsPlugin,
             TabAnimationsPlugin,
             DashboardPlugin,
+        ));
+
+        app.add_plugins((
+            ModesPlugin,
             VisualSelectionPlugin,
             RemoteUiPlugin,
             PluginMenuPlugin,
             ScrollIndicatorPlugin,
             ScrollbackSelectionPlugin,
             SearchOverlayPlugin,
-            // DockPlugin disabled - was showing all plugins instead of just status items
             StatusBarPlugin,
-        ))
-        .insert_resource(UIConfig::default())
-        .insert_resource(TabAnimationConfig::default());
+        ));
+
+        app.insert_resource(UIConfig::default())
+            .insert_resource(TabAnimationConfig::default());
     }
 }
 
@@ -89,6 +107,7 @@ pub struct UIConfig {
     pub fuzzy_search_threshold: f64,
     pub dock_enabled: bool,
     pub dashboard_enabled: bool,
+    pub breadcrumb_enabled: bool,
 }
 
 impl Default for UIConfig {
@@ -102,6 +121,7 @@ impl Default for UIConfig {
             fuzzy_search_threshold: 0.3,
             dock_enabled: true,
             dashboard_enabled: true,
+            breadcrumb_enabled: true,
         }
     }
 }
