@@ -354,15 +354,21 @@ fn show_hints_system(
     existing_ui_hints: Query<Entity, With<HintLabelUI>>,
     window_query: Query<&Window, With<PrimaryWindow>>,
 ) {
-    // Remove existing hint labels and backgrounds
+    // Remove existing hint labels and backgrounds (use get_entity for safety)
     for entity in existing_hints.iter() {
-        commands.entity(entity).despawn();
+        if let Some(mut entity_commands) = commands.get_entity(entity) {
+            entity_commands.despawn();
+        }
     }
     for entity in existing_backgrounds.iter() {
-        commands.entity(entity).despawn();
+        if let Some(mut entity_commands) = commands.get_entity(entity) {
+            entity_commands.despawn();
+        }
     }
     for entity in existing_ui_hints.iter() {
-        commands.entity(entity).despawn();
+        if let Some(mut entity_commands) = commands.get_entity(entity) {
+            entity_commands.despawn();
+        }
     }
 
     if !state.active {
