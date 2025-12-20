@@ -695,7 +695,7 @@ impl OmnibarProvider for CommandsProvider {
     }
 }
 
-/// Files provider (no prefix)
+/// Files provider (no prefix) - gitignore-aware file search
 struct FilesProvider {
     matcher: SkimMatcherV2,
 }
@@ -708,31 +708,77 @@ impl FilesProvider {
     }
 
     fn scan_files(&self, query: &str, limit: usize) -> Vec<(String, i64)> {
-        // For now, return placeholder results
-        // TODO: Use ignore crate for gitignore-aware search
+        use ignore::WalkBuilder;
+        use std::path::Path;
+
         let mut results = Vec::new();
+        let cwd = std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from("."));
 
-        // Simulate some file results
-        let sample_files = vec![
-            "src/main.rs",
-            "Cargo.toml",
-            "README.md",
-            "src/lib.rs",
-            "src/ui/omnibar.rs",
-        ];
+        // Use ignore crate for gitignore-aware walking
+        let walker = WalkBuilder::new(&cwd)
+            .hidden(false) // Show hidden files
+            .git_ignore(true) // Respect .gitignore
+            .git_global(true) // Respect global gitignore
+            .git_exclude(true) // Respect .git/info/exclude
+            .max_depth(Some(8)) // Limit depth for performance
+            .build();
 
-        for file in sample_files {
+        let mut count = 0;
+        let max_scan = 5000; // Limit total files scanned for performance
+
+        for entry in walker.flatten() {
+            if count >= max_scan {
+                break;
+            }
+
+            let path = entry.path();
+            if !path.is_file() {
+                continue;
+            }
+
+            count += 1;
+
+            // Get relative path for display
+            let rel_path = path
+                .strip_prefix(&cwd)
+                .unwrap_or(path)
+                .to_string_lossy()
+                .to_string();
+
+            // Skip empty paths
+            if rel_path.is_empty() {
+                continue;
+            }
+
             let score = if query.is_empty() {
-                0
+                // For empty query, prioritize recently modified and common files
+                let extension_priority = match Path::new(&rel_path).extension().and_then(|e| e.to_str()) {
+                    Some("rs") | Some("toml") | Some("md") => 10,
+                    Some("ts") | Some("tsx") | Some("js") | Some("jsx") => 8,
+                    Some("py") | Some("go") | Some("rb") => 7,
+                    Some("json") | Some("yaml") | Some("yml") => 5,
+                    _ => 1,
+                };
+                extension_priority
             } else {
-                self.matcher.fuzzy_match(file, query).unwrap_or(0)
+                // Fuzzy match on filename and path
+                let filename = Path::new(&rel_path)
+                    .file_name()
+                    .map(|n| n.to_string_lossy().to_string())
+                    .unwrap_or_default();
+
+                let path_score = self.matcher.fuzzy_match(&rel_path, query).unwrap_or(0);
+                let name_score = self.matcher.fuzzy_match(&filename, query).unwrap_or(0) * 2; // Boost filename matches
+
+                path_score.max(name_score)
             };
 
             if score > 0 || query.is_empty() {
-                results.push((file.to_string(), score));
+                results.push((rel_path, score));
             }
         }
 
+        // Sort by score descending
         results.sort_by(|a, b| b.1.cmp(&a.1));
         results.truncate(limit);
         results
@@ -787,7 +833,7 @@ impl OmnibarProvider for FilesProvider {
     }
 }
 
-/// History provider (prefix: "#")
+/// History provider (prefix: "#") - reads real shell history
 struct HistoryProvider {
     matcher: SkimMatcherV2,
 }
@@ -800,30 +846,86 @@ impl HistoryProvider {
     }
 
     fn read_shell_history(&self, query: &str, limit: usize) -> Vec<(String, i64)> {
-        // For now, return placeholder results
-        // TODO: Read from shell history files (.bash_history, .zsh_history)
-        let mut results = Vec::new();
+        use std::collections::HashSet;
+        use std::fs::File;
+        use std::io::{BufRead, BufReader};
 
-        let sample_history = vec![
-            "cargo build --release",
-            "git status",
-            "ls -la",
-            "cd ~/projects",
-            "vim README.md",
+        let mut results = Vec::new();
+        let mut seen = HashSet::new();
+
+        // Try to find shell history file
+        let home = dirs::home_dir().unwrap_or_else(|| std::path::PathBuf::from("/"));
+
+        // Check for various shell history files in order of preference
+        let history_files = [
+            home.join(".zsh_history"),
+            home.join(".bash_history"),
+            home.join(".local/share/fish/fish_history"),
+            home.join(".history"),
         ];
 
-        for cmd in sample_history {
-            let score = if query.is_empty() {
-                0
-            } else {
-                self.matcher.fuzzy_match(cmd, query).unwrap_or(0)
-            };
+        for history_file in &history_files {
+            if !history_file.exists() {
+                continue;
+            }
 
-            if score > 0 || query.is_empty() {
-                results.push((cmd.to_string(), score));
+            if let Ok(file) = File::open(history_file) {
+                let reader = BufReader::new(file);
+                let lines: Vec<String> = reader
+                    .lines()
+                    .flatten()
+                    .collect();
+
+                // Process in reverse order (most recent first)
+                for line in lines.into_iter().rev() {
+                    // Skip empty lines
+                    let line = line.trim();
+                    if line.is_empty() {
+                        continue;
+                    }
+
+                    // Handle zsh extended history format (: timestamp:0;command)
+                    let cmd = if line.starts_with(':') && line.contains(';') {
+                        line.split(';').skip(1).collect::<Vec<_>>().join(";")
+                    } else if line.starts_with("- cmd:") {
+                        // Fish history format
+                        line.strip_prefix("- cmd:").unwrap_or(line).trim().to_string()
+                    } else {
+                        line.to_string()
+                    };
+
+                    let cmd = cmd.trim().to_string();
+
+                    // Skip duplicates and empty commands
+                    if cmd.is_empty() || seen.contains(&cmd) {
+                        continue;
+                    }
+
+                    seen.insert(cmd.clone());
+
+                    let score = if query.is_empty() {
+                        // For empty query, return most recent
+                        (results.len() as i64 * -1) + 1000
+                    } else {
+                        self.matcher.fuzzy_match(&cmd, query).unwrap_or(0)
+                    };
+
+                    if score > 0 || query.is_empty() {
+                        results.push((cmd, score));
+                    }
+
+                    // Limit scanning for performance
+                    if results.len() >= 500 {
+                        break;
+                    }
+                }
+
+                // Found a history file, stop looking
+                break;
             }
         }
 
+        // Sort by score descending
         results.sort_by(|a, b| b.1.cmp(&a.1));
         results.truncate(limit);
         results
@@ -909,9 +1011,23 @@ mod tests {
     #[test]
     fn test_history_provider() {
         let provider = HistoryProvider::new();
-        let results = provider.query("cargo", 10);
 
-        assert!(!results.is_empty());
-        assert!(results[0].label.contains("cargo"));
+        // Test with empty query - should return recent history (or empty if no history file)
+        let results = provider.query("", 10);
+        // History may be empty if no shell history file exists
+        // Just verify no panic and results are properly formatted
+
+        // If results exist, verify they have valid structure
+        for result in &results {
+            assert!(!result.id.is_empty());
+            assert!(!result.label.is_empty());
+            assert_eq!(result.provider_id, "history");
+        }
+
+        // Test fuzzy search works (may return empty if query not in history)
+        let search_results = provider.query("ls", 10);
+        for result in &search_results {
+            assert_eq!(result.provider_id, "history");
+        }
     }
 }

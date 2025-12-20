@@ -2,8 +2,16 @@
 //!
 //! Displays the current working directory as a breadcrumb path at the top of
 //! the terminal, with each segment hintable for navigation.
+//!
+//! ## Keyboard Navigation
+//!
+//! - `Alt+a` through `Alt+l`: Jump to breadcrumb segment with that hint key
+//! - Opens directory picker at the selected path
 
+use crate::ipc::IpcChannel;
+use bevy::input::keyboard::KeyCode;
 use bevy::prelude::*;
+use scarab_protocol::ControlMessage;
 use std::path::PathBuf;
 
 /// Height of the breadcrumb bar in pixels
@@ -21,6 +29,7 @@ impl Plugin for BreadcrumbPlugin {
             .add_systems(
                 Update,
                 (
+                    handle_breadcrumb_keyboard_input,
                     update_breadcrumb_display,
                     handle_segment_selection,
                     handle_directory_picker_events,
@@ -210,18 +219,70 @@ fn handle_segment_selection(
     }
 }
 
-/// Handle directory picker open events
+/// Handle keyboard input for breadcrumb hint navigation
+fn handle_breadcrumb_keyboard_input(
+    keyboard: Res<ButtonInput<KeyCode>>,
+    state: Res<BreadcrumbState>,
+    mut segment_events: EventWriter<BreadcrumbSegmentSelectedEvent>,
+) {
+    // Only respond to Alt+key combinations for breadcrumb hints
+    let alt = keyboard.pressed(KeyCode::AltLeft) || keyboard.pressed(KeyCode::AltRight);
+    if !alt {
+        return;
+    }
+
+    // Map hint keys to KeyCodes
+    let hint_key_map: &[(KeyCode, &str)] = &[
+        (KeyCode::KeyA, "a"),
+        (KeyCode::KeyS, "s"),
+        (KeyCode::KeyD, "d"),
+        (KeyCode::KeyF, "f"),
+        (KeyCode::KeyG, "g"),
+        (KeyCode::KeyH, "h"),
+        (KeyCode::KeyJ, "j"),
+        (KeyCode::KeyK, "k"),
+        (KeyCode::KeyL, "l"),
+    ];
+
+    for (keycode, hint_key) in hint_key_map {
+        if keyboard.just_pressed(*keycode) {
+            // Find segment with matching hint key
+            if let Some(segment) = state.segments.iter().find(|s| s.hint_key == *hint_key) {
+                info!("Breadcrumb hint '{}' pressed, navigating to {:?}", hint_key, segment.full_path);
+                segment_events.send(BreadcrumbSegmentSelectedEvent {
+                    segment: segment.clone(),
+                });
+                return;
+            }
+        }
+    }
+}
+
+/// Handle directory picker open events - integrates with Fusabi file browser plugin
 fn handle_directory_picker_events(
     mut events: EventReader<OpenDirectoryPickerEvent>,
     mut state: ResMut<BreadcrumbState>,
+    ipc: Option<Res<IpcChannel>>,
 ) {
+    use scarab_protocol::MenuActionType;
+
     for event in events.read() {
         info!("Opening directory picker at: {:?}", event.path);
         state.open_picker(event.path.clone());
 
-        // TODO: Integrate with Fusabi file browser plugin
-        // For now, just log the intent
-        warn!("Directory picker integration with Fusabi plugin not yet implemented");
+        // Send command to Fusabi file browser plugin via IPC
+        if let Some(ref ipc) = ipc {
+            let path_str = event.path.to_string_lossy();
+            // Send plugin command to invoke file browser's picker command
+            let command = format!("picker {}", path_str);
+            ipc.send(ControlMessage::PluginMenuExecute {
+                plugin_name: "scarab-file-browser".to_string(),
+                action: MenuActionType::Command { command },
+            });
+            info!("Sent picker command to file browser plugin: {}", path_str);
+        } else {
+            warn!("IPC channel not available for directory picker");
+        }
     }
 }
 

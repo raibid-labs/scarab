@@ -42,6 +42,8 @@ crossbeam = { workspace = true }
 regex = "1.10"
 fuzzy-matcher = "0.3"
 arboard = "3.3"
+ignore = "0.4"
+dirs = "5.0"
 open = "5.0"
 image = "0.25"
 prost = "0.12"
