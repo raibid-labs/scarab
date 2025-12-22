@@ -351,21 +351,16 @@ fn show_hints_system(
     state: Res<LinkHintsState>,
     existing_hints: Query<Entity, With<HintLabel>>,
     existing_backgrounds: Query<Entity, With<HintLabelBackground>>,
-    existing_ui_hints: Query<Entity, With<HintLabelUI>>,
     window_query: Query<&Window, With<PrimaryWindow>>,
 ) {
-    // Remove existing hint labels and backgrounds (use get_entity for safety)
+    // Remove existing hint labels and backgrounds
+    // Note: HintLabelUI entities also have HintLabel, so querying HintLabel covers all hints
     for entity in existing_hints.iter() {
         if let Some(mut entity_commands) = commands.get_entity(entity) {
             entity_commands.despawn();
         }
     }
     for entity in existing_backgrounds.iter() {
-        if let Some(mut entity_commands) = commands.get_entity(entity) {
-            entity_commands.despawn();
-        }
-    }
-    for entity in existing_ui_hints.iter() {
         if let Some(mut entity_commands) = commands.get_entity(entity) {
             entity_commands.despawn();
         }
