@@ -29,6 +29,7 @@ impl Plugin for BreadcrumbPlugin {
             .add_systems(
                 Update,
                 (
+                    sync_breadcrumb_with_cwd,
                     handle_breadcrumb_keyboard_input,
                     update_breadcrumb_display,
                     handle_segment_selection,
@@ -202,6 +203,16 @@ fn render_breadcrumb_text(segments: &[PathSegment]) -> String {
     }
 
     result
+}
+
+/// Sync breadcrumb with the current working directory
+/// TODO: Replace with OSC 7 tracking from terminal when available
+fn sync_breadcrumb_with_cwd(mut state: ResMut<BreadcrumbState>) {
+    // For now, sync with the client process's current directory
+    // This will be replaced with proper terminal CWD tracking via OSC 7
+    if let Ok(cwd) = std::env::current_dir() {
+        state.set_path(cwd);
+    }
 }
 
 /// Handle breadcrumb segment selection events
