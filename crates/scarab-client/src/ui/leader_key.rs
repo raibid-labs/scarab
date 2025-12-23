@@ -390,7 +390,44 @@ pub fn register_default_menus(menus: &mut LeaderKeyMenus) {
         action: MenuAction::SubMenu("file".to_string()),
     });
 
+    root_menu.items.push(MenuItem {
+        key: 'g',
+        label: "Go".to_string(),
+        description: "Navigate to directory".to_string(),
+        action: MenuAction::SubMenu("go".to_string()),
+    });
+
     menus.register("root", root_menu);
+
+    // Go/Navigate submenu (for breadcrumb navigation)
+    let mut go_menu = Menu {
+        title: "Go to Directory".to_string(),
+        items: Vec::new(),
+    };
+
+    // Breadcrumb segment hints (a-l map to path segments)
+    let hints = [
+        ('a', "1st"),
+        ('s', "2nd"),
+        ('d', "3rd"),
+        ('f', "4th"),
+        ('g', "5th"),
+        ('h', "6th"),
+        ('j', "7th"),
+        ('k', "8th"),
+        ('l', "9th"),
+    ];
+
+    for (key, ordinal) in hints {
+        go_menu.items.push(MenuItem {
+            key,
+            label: format!("{} segment", ordinal),
+            description: format!("Navigate to {} path segment", ordinal),
+            action: MenuAction::Command(format!("breadcrumb.go.{}", key)),
+        });
+    }
+
+    menus.register("go", go_menu);
 
     // Buffer submenu
     let mut buffer_menu = Menu {

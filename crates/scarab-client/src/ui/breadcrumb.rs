@@ -5,11 +5,12 @@
 //!
 //! ## Keyboard Navigation
 //!
-//! - `Alt+a` through `Alt+l`: Jump to breadcrumb segment with that hint key
+//! Use the leader key system:
+//! - `Space g a` through `Space g l`: Jump to breadcrumb segment
 //! - Opens directory picker at the selected path
 
 use crate::ipc::IpcChannel;
-use bevy::input::keyboard::KeyCode;
+use crate::ui::leader_key::LeaderKeyActivatedEvent;
 use bevy::prelude::*;
 use scarab_protocol::ControlMessage;
 use std::path::PathBuf;
@@ -30,7 +31,7 @@ impl Plugin for BreadcrumbPlugin {
                 Update,
                 (
                     sync_breadcrumb_with_cwd,
-                    handle_breadcrumb_keyboard_input,
+                    handle_breadcrumb_leader_key,
                     update_breadcrumb_display,
                     handle_segment_selection,
                     handle_directory_picker_events,
@@ -230,40 +231,27 @@ fn handle_segment_selection(
     }
 }
 
-/// Handle keyboard input for breadcrumb hint navigation
-fn handle_breadcrumb_keyboard_input(
-    keyboard: Res<ButtonInput<KeyCode>>,
+/// Handle leader key events for breadcrumb navigation
+/// Listens for "breadcrumb.go.X" commands from the leader key system
+fn handle_breadcrumb_leader_key(
+    mut leader_events: EventReader<LeaderKeyActivatedEvent>,
     state: Res<BreadcrumbState>,
     mut segment_events: EventWriter<BreadcrumbSegmentSelectedEvent>,
 ) {
-    // Only respond to Alt+key combinations for breadcrumb hints
-    let alt = keyboard.pressed(KeyCode::AltLeft) || keyboard.pressed(KeyCode::AltRight);
-    if !alt {
-        return;
-    }
-
-    // Map hint keys to KeyCodes
-    let hint_key_map: &[(KeyCode, &str)] = &[
-        (KeyCode::KeyA, "a"),
-        (KeyCode::KeyS, "s"),
-        (KeyCode::KeyD, "d"),
-        (KeyCode::KeyF, "f"),
-        (KeyCode::KeyG, "g"),
-        (KeyCode::KeyH, "h"),
-        (KeyCode::KeyJ, "j"),
-        (KeyCode::KeyK, "k"),
-        (KeyCode::KeyL, "l"),
-    ];
-
-    for (keycode, hint_key) in hint_key_map {
-        if keyboard.just_pressed(*keycode) {
+    for event in leader_events.read() {
+        // Check if this is a breadcrumb navigation command
+        if let Some(hint_key) = event.command.strip_prefix("breadcrumb.go.") {
             // Find segment with matching hint key
-            if let Some(segment) = state.segments.iter().find(|s| s.hint_key == *hint_key) {
-                info!("Breadcrumb hint '{}' pressed, navigating to {:?}", hint_key, segment.full_path);
+            if let Some(segment) = state.segments.iter().find(|s| s.hint_key == hint_key) {
+                info!(
+                    "Leader key breadcrumb navigation '{}' -> {:?}",
+                    hint_key, segment.full_path
+                );
                 segment_events.send(BreadcrumbSegmentSelectedEvent {
                     segment: segment.clone(),
                 });
-                return;
+            } else {
+                warn!("No breadcrumb segment for hint key '{}'", hint_key);
             }
         }
     }
